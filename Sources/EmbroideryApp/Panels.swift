@@ -1287,7 +1287,12 @@ struct FooterPanel: View {
             chip(preferences.isPro ? "Ready" : "Ready to save · fits the hoop", symbol: "checkmark.circle.fill", color: Theme.success)
                 .help("Ready to save: the stitches are up to date and fit the hoop")
         } else {
-            ForEach(problems, id: \.self) { problem in chip(problem, symbol: "exclamationmark.circle.fill", color: Color.orange) }
+            // Resting the pointer on a chip shows the whole story: for a stitch error, the full message (which is often
+            // too long for the status line, and ends with how to fix it).
+            ForEach(problems, id: \.self) { problem in
+                chip(problem, symbol: "exclamationmark.circle.fill", color: Color.orange)
+                    .help(problem == "Fix the stitch error first" ? (state.generationError ?? problem) : problem)
+            }
         }
     }
     private var readinessProblems: [String] {
