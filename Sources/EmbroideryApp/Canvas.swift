@@ -17,6 +17,9 @@ final class DesignCanvas: NSView {
     private var screenStart: CGPoint?
     private var panStart = CGPoint.zero
     private var dragSnapshot: Design?
+    /// The design's revision when the mouse went down. If it changes before the mouse is let go (Undo mid-drag), the
+    /// drag began from an older design, so it's dropped rather than saving that older design back over the Undo.
+    private var dragRevision = 0
     private var preview: Design?
     private var draggedNode: NodeLocation?
     private var draggedHandle: (location: NodeLocation, outgoing: Bool)?   // a Bézier handle being dragged
@@ -550,6 +553,7 @@ final class DesignCanvas: NSView {
     }
     override func mouseDown(with event: NSEvent) {
         state.focusCanvas()
+        dragRevision = state.revision
         let location = convert(event.locationInWindow, from: nil)
         if state.tool == .zoomBox { zoomBox = (location, location); return }   // zooming works in older projects too
         if state.tool == .measure { let point = snapped(model(location)); measurement = (point, point); measuring = true; needsDisplay = true; return }
@@ -634,6 +638,7 @@ final class DesignCanvas: NSView {
         state.pointer.position = model(location)
         if let start = screenStart { pan = CGPoint(x: panStart.x + location.x - start.x, y: panStart.y + location.y - start.y); needsDisplay = true; return }
         if let box = zoomBox { zoomBox = (box.start, location); needsDisplay = true; return }
+        if dropDragIfDesignChanged() { return }
         if let drag = stitchDrag {
             let delta = snapped(model(location)) - snapped(drag.start)
             var moved = drag.sections
@@ -699,6 +704,7 @@ final class DesignCanvas: NSView {
     }
     override func mouseUp(with event: NSEvent) {
         if measuring { measuring = false; return }
+        if dropDragIfDesignChanged() { return }
         if stitchDrag != nil {
             if let moved = stitchPreview { state.setStitches(moved, action: "Move Stitches") }
             stitchDrag = nil; stitchPreview = nil; needsDisplay = true; return
@@ -732,6 +738,15 @@ final class DesignCanvas: NSView {
         let action = angleDrag != nil ? "Move Stitch Angle" : artworkDrag.map { $0 < 0 ? "Move Artwork" : "Resize Artwork" } ?? draggedMarker.map { $0.kind == .end ? "Move End Point" : $0.kind == .start ? "Move Start Point" : "Move Radial Center" } ?? (draggedHandle != nil ? "Shape Curve" : draggedNode == nil ? "Move Objects" : "Move Node")
         if let preview { state.document?.replace(preview, action: action) }
         preview = nil; angleDrag = nil; dragStart = nil; dragSnapshot = nil; draggedNode = nil; draggedHandle = nil; drawingHandle = nil; draggedMarker = nil; artworkDrag = nil; screenStart = nil; needsDisplay = true
+    }
+    /// Cancels a drag of objects, nodes, markers, angle lines, artwork or stitches when the design changed since the
+    /// mouse went down (Undo pressed mid-drag). Returns true if it did.
+    private func dropDragIfDesignChanged() -> Bool {
+        guard state.revision != dragRevision, stitchDrag != nil || dragSnapshot != nil else { return false }
+        stitchDrag = nil; stitchPreview = nil; preview = nil; dragSnapshot = nil; dragStart = nil; angleDrag = nil
+        draggedNode = nil; draggedHandle = nil; draggedMarker = nil; artworkDrag = nil; needsDisplay = true
+        state.status = "The design changed during the drag, so the drag was cancelled."
+        return true
     }
     /// Moves one Bézier handle to `target`. Both handles are first fixed at their current positions (smooth nodes
     /// start with automatic ones). Unless `independent` (Option held), the opposite handle swings to stay in a straight
