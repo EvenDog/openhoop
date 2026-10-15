@@ -26,6 +26,28 @@ final class GuideAndGridTests: XCTestCase {
         XCTAssertEqual(custom.alphaComponent, 0.7, accuracy: 0.01)
     }
 
+    /// With Select, the pointer is over a guide (and turns ↔ or ↕) where a drag would grab it: on the line, not over
+    /// an object, and not with other tools.
+    @MainActor func testPointerKnowsWhenItIsOverAGuide() throws {
+        _ = NSApplication.shared
+        let document = DesignDocument(), state = document.state
+        let canvas = DesignCanvas(state: state); canvas.frame = NSRect(x: 0, y: 0, width: 600, height: 600); state.canvas = canvas
+        func move(to p: Point) {
+            canvas.mouseMoved(with: NSEvent.mouseEvent(with: .mouseMoved, location: canvas.screen(p), modifierFlags: [], timestamp: 0, windowNumber: 0,
+                                                       context: nil, eventNumber: 0, clickCount: 0, pressure: 0)!)
+        }
+        var square = RunObject(name: "Square", nodes: [Point(-5, -5), Point(5, -5), Point(5, 5), Point(-5, 5)].map { PathNode($0) })
+        square.closed = true; square.digitizing = DigitizingSettings(kind: .fill)
+        state.edit("Setup") { $0.guides = [Guide(vertical: true, position: 0)]; $0.objects = [square] }
+        state.tool = .select
+        move(to: Point(0, 30)); XCTAssertEqual(canvas.hoveredGuide, 0, "on the guide, away from the square")
+        move(to: Point(0, 0)); XCTAssertNil(canvas.hoveredGuide, "the square is under the pointer: a drag would move it")
+        move(to: Point(8, 30)); XCTAssertNil(canvas.hoveredGuide, "off the line")
+        move(to: Point(0, 30)); XCTAssertEqual(canvas.hoveredGuide, 0)
+        state.tool = .run; canvas.toolDidChange(); move(to: Point(0, 31))
+        XCTAssertNil(canvas.hoveredGuide, "other tools don't grab guides")
+    }
+
     /// A guide dragged down out of the top ruler is added where it's let go (one undo step), moves when dragged with
     /// Select, catches points with Snap on, and goes when dragged back onto its ruler.
     @MainActor func testGuideDraggedOutOfTheRulerAndBack() throws {

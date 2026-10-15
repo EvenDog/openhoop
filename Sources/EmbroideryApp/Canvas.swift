@@ -50,6 +50,8 @@ final class DesignCanvas: NSView {
     /// A guide line being dragged: its place in the design's guides, which way it runs, whether it's being dragged out
     /// of a ruler (not added yet), and where the pointer is (its position reads out beside it).
     private var guideDrag: (index: Int, vertical: Bool, isNew: Bool, pointer: CGPoint)?
+    /// The guide the pointer is over with Select (its place in the design's guides), shown by a ↔ or ↕ pointer.
+    private(set) var hoveredGuide: Int?
     /// The Next Shape bar floating over the canvas (DesignTabs.swift). The pointer keeps its normal arrow over it.
     weak var floatingBar: NSView?
     /// A measurement as the Measure tool shows it: the distance in mm, and the angle from the start, counterclockwise
@@ -262,10 +264,26 @@ final class DesignCanvas: NSView {
     /// Called whenever the tool changes: the Measure tool's line goes, and the pointer takes the new tool's shape.
     func toolDidChange() {
         if state.tool != .measure { measurement = nil; measuring = false }
+        hoveredGuide = nil
         window?.invalidateCursorRects(for: self); needsDisplay = true
     }
+    /// The pointer the current tool uses on the canvas.
+    private var toolCursor: NSCursor {
+        state.tool == .pan || state.tool == .artwork ? .openHand : state.tool.draws || state.tool.dragsShape || state.tool == .entryExit || state.tool == .zoomBox || state.tool == .measure || state.tool == .branch || state.tool == .addAngles || state.tool == .removeAngles || state.tool == .stitchEdit ? .crosshair : .arrow
+    }
+    /// ↔ for an up-and-down guide, ↕ for a side-to-side one.
+    private func guideCursor(vertical: Bool) -> NSCursor { vertical ? .resizeLeftRight : .resizeUpDown }
+    /// With Select, the pointer turns ↔ or ↕ over a guide wherever a drag would grab it (no object under it), and back
+    /// when it moves off. Cursor areas mustn't overlap the canvas's own (resetCursorRects), so the pointer is set
+    /// directly, only when it moves on or off a guide.
+    private func updateGuideCursor(at location: CGPoint) {
+        let over = state.tool == .select && guideDrag == nil ? guide(near: location).flatMap { hit(model(location)) == nil ? $0 : nil } : nil
+        guard over != hoveredGuide else { return }
+        hoveredGuide = over
+        if let over { guideCursor(vertical: state.design.guides![over].vertical).set() } else { toolCursor.set() }
+    }
     override func resetCursorRects() {
-        let cursor: NSCursor = state.tool == .pan || state.tool == .artwork ? .openHand : state.tool.draws || state.tool.dragsShape || state.tool == .entryExit || state.tool == .zoomBox || state.tool == .measure || state.tool == .branch || state.tool == .addAngles || state.tool == .removeAngles || state.tool == .stitchEdit ? .crosshair : .arrow
+        let cursor = toolCursor
         // The tool's pointer goes around the floating Next Shape bar, which keeps the normal arrow. (Cursor areas
         // mustn't overlap, so the canvas is split into the parts around the bar.)
         let bar = floatingBar.map { convert($0.bounds, from: $0) }.map { $0.intersection(bounds) } ?? .null
@@ -639,7 +657,8 @@ final class DesignCanvas: NSView {
         let inTopRuler = overOwnRuler(location, vertical: false), inLeftRuler = overOwnRuler(location, vertical: true)
         if inTopRuler != inLeftRuler {
             guard !state.hasVersionMismatch else { return }
-            guideDrag = ((state.design.guides ?? []).count, inLeftRuler, true, location); dragSnapshot = state.design; return
+            guideDrag = ((state.design.guides ?? []).count, inLeftRuler, true, location); dragSnapshot = state.design
+            guideCursor(vertical: inLeftRuler).set(); return
         }
         if state.tool == .measure { let point = snapped(model(location)); measurement = (point, point); measuring = true; needsDisplay = true; return }
         if state.tool == .branch { state.addBranchPoint(snapped(model(location))); return }
@@ -701,6 +720,7 @@ final class DesignCanvas: NSView {
         // With Select, a guide can be grabbed wherever no object is under the pointer.
         if state.tool == .select, !state.hasVersionMismatch, hit(point) == nil, let index = guide(near: location) {
             guideDrag = (index, state.design.guides![index].vertical, false, location); dragSnapshot = state.design
+            guideCursor(vertical: state.design.guides![index].vertical).set()
             state.status = "Drag the guide · let go over its ruler to remove it"; return
         }
         if let object = hit(point) {
@@ -729,8 +749,8 @@ final class DesignCanvas: NSView {
             }
         }
     }
-    override func mouseMoved(with event:NSEvent){pointer=model(convert(event.locationInWindow,from:nil));state.pointer.position=pointer;if state.angleStart != nil{needsDisplay=true}}
-    override func mouseExited(with event: NSEvent) { state.pointer.position = nil }
+    override func mouseMoved(with event:NSEvent){pointer=model(convert(event.locationInWindow,from:nil));state.pointer.position=pointer;if state.angleStart != nil{needsDisplay=true};updateGuideCursor(at:convert(event.locationInWindow,from:nil))}
+    override func mouseExited(with event: NSEvent) { state.pointer.position = nil; hoveredGuide = nil }
     override func mouseDragged(with event: NSEvent) {
         let location = convert(event.locationInWindow, from: nil)
         state.pointer.position = model(location)
@@ -827,7 +847,9 @@ final class DesignCanvas: NSView {
                 state.status = removing ? "Guide removed." : "Guide at \(drag.vertical ? "X" : "Y") \(next.guides![drag.index].position.formatted()) mm · drag it back onto the ruler to remove it"
                 state.document?.replace(next, action: drag.isNew ? "Add Guide" : removing ? "Remove Guide" : "Move Guide")
             }
-            guideDrag = nil; preview = nil; dragSnapshot = nil; needsDisplay = true; return
+            guideDrag = nil; preview = nil; dragSnapshot = nil; needsDisplay = true
+            // Back to the tool's pointer, or ↔/↕ if the pointer is still over a guide.
+            hoveredGuide = nil; toolCursor.set(); updateGuideCursor(at: convert(event.locationInWindow, from: nil)); return
         }
         if stitchDrag != nil {
             if let moved = stitchPreview { state.setStitches(moved, action: "Move Stitches") }
