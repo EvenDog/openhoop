@@ -24,6 +24,24 @@ final class OverlapCutoutTests: XCTestCase {
         XCTAssertEqual(hole.map(\.x).max()! - hole.map(\.x).min()!, 18, accuracy: 0.05, "The fill tucks 1 mm under each edge")
     }
 
+    /// A shape on top cuts the fill in two. The start and end points each stay on the piece they were put on, so the
+    /// fill starts and ends exactly on them, whichever piece the cut happens to list first.
+    func testStartAndEndPointsStayOnTheirPieces() throws {
+        var top = square("Top", center: Point(0, 0), size: 6); top.nodes = [Point(-3, -8), Point(3, -8), Point(3, 8), Point(-3, 8)].map { PathNode($0) }
+        for (entry, exit) in [(Point(15, 0), Point(-15, 0)), (Point(-15, 0), Point(15, 0)), (Point(15, 2), Point(15, -2)), (Point(30, 0), Point(-30, 0))] {
+            var base = square("Base", center: Point(0, 0), size: 40, cut: true)
+            base.nodes = [Point(-20, -5), Point(20, -5), Point(20, 5), Point(-20, 5)].map { PathNode($0) }
+            base.entry = entry; base.exit = exit
+            let sections = try XCTUnwrap(OverlapCutout.fill(base, under: [top])).sections
+            // Points off the fill land just inside its edge (0.25 mm in).
+            func inside(_ p: Point) -> Point { Point(min(max(p.x, -19.75), 19.75), p.y) }
+            XCTAssertEqual(sections.first!.points.first!.distance(to: inside(entry)), 0, accuracy: 0.01, "starts on the start point: \(entry)")
+            // Both points on the right piece: the right piece sews first, so the end goes to the left piece's nearest edge.
+            let end = entry.x > 0 && exit.x > 0 ? Point(-2.25, exit.y) : inside(exit)
+            XCTAssertEqual(sections.last!.points.last!.distance(to: end), 0, accuracy: 0.01, "ends on the end point: \(exit)")
+        }
+    }
+
     func testStitchesStayOutOfTheCoveredAreaOnlyWhenAsked() throws {
         var design = Design(); design.objects = [square("Base", center: Point(0, 0), size: 40, cut: true), square("Top", center: Point(0, 0), size: 20)]
         let cutPlan = try StitchEngine.compile(design)

@@ -91,7 +91,7 @@ Satins with a chosen (not Auto) underlay can have a **second underlay** (More se
 
 **Finishing:** **Tie in** and **Tie off** add tiny locking stitches, **Trim after** cuts the thread before the next part, and **Stop after** pauses the machine.
 
-**Start & end points (⌥E):** select an object, press **⌥E**, click where it should start; Option-click where it should end. The first stitch goes exactly on the start point and the last exactly on the end point; a point off the shape moves to the nearest place just inside it. Fills run inside the shape from the start point to where they begin, hidden under the stitching, and are sewn toward the end point so the last row finishes right beside it. **Auto for all** starts each object where the previous one ends, to cut down on travel.
+**Start & end points (⌥E):** select an object, press **⌥E**, click where it should start; Option-click where it should end. The first stitch goes exactly on the start point and the last exactly on the end point; a point off the shape moves to the nearest place just inside it. Fills run inside the shape from the start point to where they begin, hidden under the stitching, and are sewn toward the end point so the last row finishes right beside it. Lines and satins sew from whichever end is nearer the start point; with only an end point set, they finish at the end nearer it (closed outlines start and finish beside it). **Auto for all** starts each object where the previous one ends, to cut down on travel.
 
 ## Editing shapes
 

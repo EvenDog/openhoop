@@ -61,7 +61,18 @@ public enum OverlapCutout {
         }
         var settings = object.settings
         if settings.radialCenter == nil { settings.radialCenter = AreaGeometry.centroid(AreaGeometry.ring(object.nodes)) }
-        for (index, piece) in pieces.enumerated() {
+        // The piece holding (or nearest) the start point sews first, and the one nearest the end point sews last, so
+        // each point stays on the piece it was put on. If both are on one piece, that piece goes first and the end
+        // point goes to the nearest of the other pieces.
+        var order = Array(pieces.indices)
+        func moveNearest(to point: Point, among candidates: [Int], toFront: Bool) {
+            guard let nearest = candidates.min(by: { distance(from: point, to: pieces[$0]) < distance(from: point, to: pieces[$1]) }) else { return }
+            order.removeAll { $0 == nearest }
+            if toFront { order.insert(nearest, at: 0) } else { order.append(nearest) }
+        }
+        if let entry = object.entry { moveNearest(to: entry, among: order, toFront: true) }
+        if let exit = object.exit { moveNearest(to: exit, among: object.entry == nil ? order : Array(order.dropFirst()), toFront: false) }
+        for (index, piece) in order.map({ pieces[$0] }).enumerated() {
             var part = object
             part.nodes = piece[0].map { PathNode($0) }; part.holes = piece.count > 1 ? piece.dropFirst().map { $0.map { PathNode($0) } } : nil
             part.digitizing = settings; part.keepAngleLines(for: piece)
@@ -73,5 +84,11 @@ public enum OverlapCutout {
             for warning in stitches.warnings where !result.warnings.contains(warning) { result.warnings.append(warning) }
         }
         return result
+    }
+
+    /// How far `point` is from a piece (an outline and its holes): 0 inside it, otherwise the distance to its nearest edge.
+    static func distance(from point: Point, to piece: [[Point]]) -> Double {
+        if AreaGeometry.contains(point, rings: piece) { return 0 }
+        return piece.flatMap { ring in ring.indices.map { AreaGeometry.projection(point, ring[$0], ring[($0 + 1) % ring.count]).distance(to: point) } }.min() ?? .infinity
     }
 }

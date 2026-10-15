@@ -119,9 +119,12 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
     }
     /// A copy whose nodes are ordered to begin at the chosen start point (running and satin only).
     /// Open running paths and satin columns sew from whichever end is nearer `entry`; closed running
-    /// outlines start at the point on the outline nearest it. Without an entry point the object is returned unchanged.
+    /// outlines start at the point on the outline nearest it. With only an end point, the object is ordered to
+    /// finish there instead: an open one starts at its other end, a closed one starts (and so ends) nearest it.
+    /// Without either point the object is returned unchanged.
     public func sewingOrder() -> RunObject {
-        guard let entry, rawStitches == nil, nodes.count >= 2 else { return self }
+        guard let target = entry ?? exit, rawStitches == nil, nodes.count >= 2 else { return self }
+        let finishAtTarget = entry == nil   // only an end point is set
         var copy = self
         switch kind {
         case .run, .vector:
@@ -133,7 +136,7 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
                 for i in ring.indices {
                     let (a, b, c, d) = RunningEngine.controls(ring, closed: true, segment: i)
                     for step in 0...64 {
-                        let t = Double(step) / 64, distance = RunningEngine.bezierPoint(a, b, c, d, t).distance(to: entry)
+                        let t = Double(step) / 64, distance = RunningEngine.bezierPoint(a, b, c, d, t).distance(to: target)
                         if distance < best.distance { best = (i, t, distance) }
                     }
                 }
@@ -147,7 +150,7 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
                     start = best.segment + 1
                 }
                 copy.nodes = Array(ring[start...] + ring[..<start])
-            } else if nodes.last!.point.distance(to: entry) < nodes.first!.point.distance(to: entry) {
+            } else if (nodes.last!.point.distance(to: target) < nodes.first!.point.distance(to: target)) != finishAtTarget {
                 copy.nodes = nodes.reversed().map(\.reversedDirection)
             }
         case .satin:
@@ -155,12 +158,12 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
             guard nodes.count >= 4 else { return self }
             if closed {
                 // A closed column (such as a border) starts at whichever edge pair is nearest the start marker.
-                let nearest = stride(from: 0, to: nodes.count - 1, by: 2).min { ((nodes[$0].point + nodes[$0 + 1].point) * 0.5).distance(to: entry) < ((nodes[$1].point + nodes[$1 + 1].point) * 0.5).distance(to: entry) }!
+                let nearest = stride(from: 0, to: nodes.count - 1, by: 2).min { ((nodes[$0].point + nodes[$0 + 1].point) * 0.5).distance(to: target) < ((nodes[$1].point + nodes[$1 + 1].point) * 0.5).distance(to: target) }!
                 copy.nodes = Array(nodes[nearest...] + nodes[..<nearest])
                 return copy
             }
             let first = (nodes[0].point + nodes[1].point) * 0.5, last = (nodes[nodes.count - 2].point + nodes[nodes.count - 1].point) * 0.5
-            if last.distance(to: entry) < first.distance(to: entry) {
+            if (last.distance(to: target) < first.distance(to: target)) != finishAtTarget {
                 // Reverse the order of the edge pairs, keeping each pair's left/right order.
                 copy.nodes = stride(from: nodes.count - 2, through: 0, by: -2).flatMap { [nodes[$0].reversedDirection, nodes[$0 + 1].reversedDirection] }
             }

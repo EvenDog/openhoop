@@ -48,6 +48,24 @@ final class EntryExitTests: XCTestCase {
         XCTAssertLessThan(try AreaEngine.satin(satin.sewingOrder()).sections[0].points[0].x, -20)
     }
 
+    /// With only an end point set, lines and satins are sewn so they finish there.
+    func testEndPointAloneDecidesWhereLinesAndSatinsFinish() throws {
+        var object = line(); object.exit = Point(1, 1)
+        let stitches = try RunningEngine.stitches(for: object.sewingOrder())
+        XCTAssertEqual(stitches.first, Point(20, 0)); XCTAssertEqual(stitches.last, Point(0, 0))
+        object.exit = Point(19, 1)
+        XCTAssertEqual(try RunningEngine.stitches(for: object.sewingOrder()).last, Point(20, 0), "Already finishing there: unchanged")
+
+        var square = RunObject(name: "Square", nodes: [Point(0, 0), Point(10, 0), Point(10, 10), Point(0, 10)].map { PathNode($0) })
+        square.closed = true; square.exit = Point(5, -1)
+        XCTAssertEqual(try RunningEngine.stitches(for: square.sewingOrder()).last!.distance(to: Point(5, 0)), 0, accuracy: 0.2, "A closed outline starts and ends nearest the end point")
+
+        var satin = Design.stitchSampler().objects[1]   // the "Satin ribbon", drawn from x = -25 to x = 25
+        satin.exit = Point(-26, 35)
+        let sections = try AreaEngine.satin(satin.sewingOrder()).sections
+        XCTAssertGreaterThan(sections.first!.points.first!.x, 20); XCTAssertLessThan(sections.last!.points.last!.x, -20)
+    }
+
     /// A fill's first stitch is exactly on its start point and its last exactly on its end point. A point outside the
     /// shape (or in a hole) moves to the nearest place just inside its edge. The fill is sewn toward the end point,
     /// so its last row passes right beside it and the final step to it doesn't cross the finished fill.
