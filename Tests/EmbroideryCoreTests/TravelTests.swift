@@ -59,6 +59,19 @@ final class TravelTests: XCTestCase {
         XCTAssertEqual(path.first, Point(5, 15)); XCTAssertEqual(path.last, Point(35, 15))
     }
 
+    /// A router remembers what each route end can see (it's asked about the same section ends many times). Routes it
+    /// has partly worked out before come out exactly as a brand-new router finds them.
+    func testRememberedSightLinesGiveTheSameRoutes() throws {
+        let outline = [Point(0, 0), Point(40, 0), Point(40, 30), Point(0, 30)], hole = [Point(10, 8), Point(30, 8), Point(30, 22), Point(10, 22)]
+        let used = try XCTUnwrap(TravelRouter(edges: [outline, hole], bounds: [outline, hole]))
+        let ends = [Point(5, 15), Point(35, 15), Point(20, 3), Point(20, 27), Point(2, 2)]
+        for a in ends { for b in ends { _ = used.route(from: a, to: b) } }   // every end is now remembered
+        for a in ends { for b in ends {
+            let fresh = try XCTUnwrap(TravelRouter(edges: [outline, hole], bounds: [outline, hole]))
+            XCTAssertEqual(used.route(from: a, to: b), fresh.route(from: a, to: b))
+        } }
+    }
+
     func testVisibleTravelIsLimitedButCoveredTravelMayBeLonger() throws {
         let strip = [Point(0, 0), Point(200, 0), Point(200, 10), Point(0, 10)]
         let router = try XCTUnwrap(TravelRouter(edges: [strip], bounds: [strip]))

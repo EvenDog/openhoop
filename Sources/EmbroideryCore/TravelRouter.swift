@@ -11,6 +11,12 @@ struct TravelRouter {
     let rowAngle: Double?
     private var nodes: [Point] = []
     private var neighbors: [[(node: Int, cost: Double)]] = []
+    /// For each point a route has started or ended at, the edge points it can reach in a straight line (and what that
+    /// costs). Working that out is most of a route's time, and ordering a fill's sections asks about the same section
+    /// ends over and over (a wave fill with 53 sections: about 300 routes), so the answer is remembered.
+    /// A class, so the router can fill it in from `route`, which doesn't change the router itself.
+    private final class SightLines { var known: [Point: [(node: Int, cost: Double)]] = [:] }
+    private let sightLines = SightLines()
     /// Longest route worth sewing once the top layer has started (travel may show); anything longer is trimmed and
     /// jumped instead. Before the top layer, travel is covered by it, so longer routes are fine.
     static let maximumVisibleLength = 40.0
@@ -74,10 +80,7 @@ struct TravelRouter {
         var links = neighbors + [[], []]
         let ends = [a, b]
         for (k, p) in ends.enumerated() {
-            for v in 0..<n where AreaGeometry.segmentInside(p, nodes[v], rings: bounds) {
-                let cost = crossingCost(p, nodes[v])
-                links[n + k].append((v, cost)); links[v].append((n + k, cost))
-            }
+            for (v, cost) in visible(from: p) { links[n + k].append((v, cost)); links[v].append((n + k, cost)) }
         }
         if AreaGeometry.segmentInside(a, b, rings: bounds) { let cost = crossingCost(a, b); links[start].append((goal, cost)); links[goal].append((start, cost)) }
         var best = [Double](repeating: .infinity, count: n + 2), from = [Int](repeating: -1, count: n + 2), settled = [Bool](repeating: false, count: n + 2)
@@ -93,6 +96,15 @@ struct TravelRouter {
         var path: [Point] = [], v = goal
         while v >= 0 { path.append(v == start ? a : v == goal ? b : nodes[v]); v = from[v] }
         return path.reversed()
+    }
+
+    /// The edge points `p` can reach in a straight line inside the shape, in order, each with the cost of that run.
+    /// Worked out once per point and then remembered (see `sightLines`).
+    private func visible(from p: Point) -> [(node: Int, cost: Double)] {
+        if let known = sightLines.known[p] { return known }
+        let found = nodes.indices.filter { AreaGeometry.segmentInside(p, nodes[$0], rings: bounds) }.map { (node: $0, cost: crossingCost(p, nodes[$0])) }
+        sightLines.known[p] = found
+        return found
     }
 
     /// The sections in a cheaper sewing order: after each one, the needle goes to whichever remaining section it can
