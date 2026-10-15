@@ -1,0 +1,16 @@
+Embroidery v0.3 — export milestone, 2026-10-12
+
+Delivered: PES6/1, PEC, DST, EXP, JEF, VP3 and XXX exports; format chooser on Shift-Command-E; PES default on Command-E; direct per-format commands with configurable shortcuts; separate mapped thread-list CSV export. Machine palette RGB is separate from stored RGB. Existing project geometry/schema and stitch engine remain unchanged.
+
+Tests: scripts/test.sh passes 61 test methods (32 core, 6 native document/helper, 23 Python format tests). Python matrix covers all7 formats, exact needle sequence, repeated colors/consecutive stops, travel separation, deliberate output corruption, palette CSV, same-RGB Janome mapping, Unicode names, CSV formula protection, invalid format/control input, XXX21block cap, JEF hoop placement and conservative DST trim-edge rejection. UTType expected filename extensions tested for all7 formats.
+
+Packaged converter: invoked from /private/tmp with PATH=/usr/bin:/bin, produced all7 formats and PES1/6 from the saved sampler: 4422 needles, 60.4 x63.4 mm. Final samples and mapped CSVs in dist/Format-Samples. This is a partial environment-isolation check, not a fresh-Mac installation test.
+
+UI: format chooser selects DST, complete DST save succeeds, mapped CSV save succeeds, custom Control-Shift-D recorded for DST and used to open its save dialog, then removed. VP3 save with no typed extension produces .vp3 automatically. Final v0.3 launched and reopened saved satin/fill sampler. Build signed and verified locally with codesign --verify --deep --strict.
+
+Claude cross-review: reused reviewed export design from IMPLEMENTATION-PLAN.txt. Completed-work review found no blockers. Accepted improvements: show PES6 embedded PEC palette separately, warn on identical requested RGB mapping to multiple Janome colors, reject leading control commands explicitly, test trim-edge bounds, state VP3 opening-move limitation. Rejected PEC same-RGB/different-mapped-colors claim after code and fixture inspection; final palette lookup gives both the same entry. Kept strict hoop limits for actual encoded movement. Follow-up accepted fixes with no regressions. Nonblocking similar-JEF-color shifts are covered by general mapping warning and CSV. UI verification was performed by Codex, not Claude.
+
+Limits: same-library write/read validation is not independent decoder evidence or physical machine verification. VP3 first-needle behavior, controller trim/stop handling, Brother model and sew-out remain unverified. PES remains centered100x100mm; JEF encoded hoop must contain placement; XXX21threadblocks; others255. Bounds can reject near-edge DST trim wiggles. SVG and machine-file import remain future stage3 work.
+
+Review files: /private/tmp/embroidery-v03-q0nni1i_/
+Logs: .build/v03-test.log, .build/v03-package.log, .build/v03-bundled-check.txt

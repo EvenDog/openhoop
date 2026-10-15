@@ -1,0 +1,674 @@
+{
+  "engineVersion" : "digitize-3",
+  "hoop" : {
+    "height" : 100,
+    "oval" : false,
+    "width" : 100
+  },
+  "objects" : [
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "spacing" : 0.4,
+        "underlay" : "edgeAndSparse",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "08F53734-4F71-4C20-9CCB-206201038F0B",
+      "locked" : false,
+      "name" : "Tatami 45°",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -42,
+            "y" : 10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -18,
+            "y" : 10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -18,
+            "y" : 34
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -42,
+            "y" : 34
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "fillStyle" : "contour",
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "spacing" : 0.4,
+        "underlay" : "edgeAndSparse",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "AC5799BC-4ABA-40BD-A0EF-E92D4465D9FB",
+      "locked" : false,
+      "name" : "Contour fill",
+      "nodes" : [
+        {
+          "inHandle" : {
+            "x" : 12,
+            "y" : 15.3725830024
+          },
+          "outHandle" : {
+            "x" : 12,
+            "y" : 28.6274169976
+          },
+          "point" : {
+            "x" : 12,
+            "y" : 22
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : 6.627416997599999,
+            "y" : 34
+          },
+          "outHandle" : {
+            "x" : -6.627416997599999,
+            "y" : 34
+          },
+          "point" : {
+            "x" : 0,
+            "y" : 34
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : -12,
+            "y" : 28.6274169976
+          },
+          "outHandle" : {
+            "x" : -12,
+            "y" : 15.3725830024
+          },
+          "point" : {
+            "x" : -12,
+            "y" : 22
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : -6.627416997599999,
+            "y" : 10
+          },
+          "outHandle" : {
+            "x" : 6.627416997599999,
+            "y" : 10
+          },
+          "point" : {
+            "x" : 0,
+            "y" : 10
+          },
+          "smooth" : true
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 2701122,
+        "name" : "Ink"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "fillStyle" : "radial",
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "spacing" : 0.4,
+        "underlay" : "edgeAndSparse",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "2997D78F-8E96-492E-BAF9-F3268C884B14",
+      "locked" : false,
+      "name" : "Radial fill",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 30,
+            "y" : 34
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 26.291796067500627,
+            "y" : 26.099689437998485
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 18,
+            "y" : 24.832815729997478
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 24,
+            "y" : 18.68328157299975
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 22.58359213500126,
+            "y" : 10.000000000000004
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 29.999999999999996,
+            "y" : 14.099689437998489
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 37.41640786499873,
+            "y" : 10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 36,
+            "y" : 18.683281572999746
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 42,
+            "y" : 24.832815729997474
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 33.70820393249937,
+            "y" : 26.099689437998485
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 13411664,
+        "name" : "Gold"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "fillStyle" : "wave",
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "spacing" : 0.4,
+        "underlay" : "edgeAndSparse",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "BE0212DB-C5C7-4437-A7FF-51B76E27DF92",
+      "locked" : false,
+      "name" : "Wave fill",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -42,
+            "y" : -34
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -18,
+            "y" : -34
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -18,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -42,
+            "y" : -10
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 7509611,
+        "name" : "Fern"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "angleLines" : [
+          [
+            {
+              "x" : -1.0418583209907997,
+              "y" : -33.04128682977576
+            },
+            {
+              "x" : 13.901062150385386,
+              "y" : -31.73395068856089
+            }
+          ],
+          [
+            {
+              "x" : -4.221825406947977,
+              "y" : -26.22182540694798
+            },
+            {
+              "x" : 6.3847763108502384,
+              "y" : -15.615223689149765
+            }
+          ],
+          [
+            {
+              "x" : -11.04128682977576,
+              "y" : -23.041858320990798
+            },
+            {
+              "x" : -9.733950688560888,
+              "y" : -8.098937849614614
+            }
+          ]
+        ],
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "spacing" : 0.4,
+        "underlay" : "edgeAndSparse",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "14484FAE-0448-4F13-92BD-1AB4FD45572A",
+      "locked" : false,
+      "name" : "Turning fill (stitch angles)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 12,
+            "y" : -34
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 11.794676672971448,
+            "y" : -30.867371386718762
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 11.18221983093764,
+            "y" : -27.788342917539502
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 10.17310878027088,
+            "y" : -24.815597623237846
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 8.784609690826528,
+            "y" : -22
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 7.040480166989646,
+            "y" : -19.389725703790702
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 4.970562748477143,
+            "y" : -17.02943725152286
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 2.6102742962092957,
+            "y" : -14.959519833010354
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 3.552713678800501e-15,
+            "y" : -13.215390309173472
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -2.815597623237844,
+            "y" : -11.82689121972912
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -5.788342917539502,
+            "y" : -10.81778016906236
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -8.867371386718759,
+            "y" : -10.205323327028552
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11.999999999999998,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -12,
+            "y" : -21
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -10.303159501139328,
+            "y" : -21.111216802140465
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -8.635352413667231,
+            "y" : -21.442964258242114
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -7.025115379253832,
+            "y" : -21.989566077353274
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -5.499999999999998,
+            "y" : -22.7416697508023
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -4.086101422886632,
+            "y" : -23.68640657621394
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -2.8076118445748808,
+            "y" : -24.807611844574883
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -1.6864065762139422,
+            "y" : -26.08610142288663
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -0.7416697508022967,
+            "y" : -27.5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 0.010433922646727822,
+            "y" : -29.025115379253833
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 0.557035741757888,
+            "y" : -30.63535241366723
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 0.8887831978595351,
+            "y" : -32.303159501139326
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 1,
+            "y" : -34
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 8877235,
+        "name" : "Violet"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "spacing" : 0.4,
+        "underlay" : "edgeAndSparse",
+        "underlaySpacing" : 1.2
+      },
+      "holes" : [
+        [
+          {
+            "inHandle" : {
+              "x" : 35,
+              "y" : -24.761423749
+            },
+            "outHandle" : {
+              "x" : 35,
+              "y" : -19.238576251
+            },
+            "point" : {
+              "x" : 35,
+              "y" : -22
+            },
+            "smooth" : true
+          },
+          {
+            "inHandle" : {
+              "x" : 32.761423749,
+              "y" : -17
+            },
+            "outHandle" : {
+              "x" : 27.238576251,
+              "y" : -17
+            },
+            "point" : {
+              "x" : 30,
+              "y" : -17
+            },
+            "smooth" : true
+          },
+          {
+            "inHandle" : {
+              "x" : 25,
+              "y" : -19.238576251
+            },
+            "outHandle" : {
+              "x" : 25,
+              "y" : -24.761423749
+            },
+            "point" : {
+              "x" : 25,
+              "y" : -22
+            },
+            "smooth" : true
+          },
+          {
+            "inHandle" : {
+              "x" : 27.238576251,
+              "y" : -27
+            },
+            "outHandle" : {
+              "x" : 32.761423749,
+              "y" : -27
+            },
+            "point" : {
+              "x" : 30,
+              "y" : -27
+            },
+            "smooth" : true
+          }
+        ]
+      ],
+      "id" : "5B0C82EF-3576-4340-9A38-C84485EB3D45",
+      "locked" : false,
+      "name" : "Tatami with a hole",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 18,
+            "y" : -34
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 42,
+            "y" : -34
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 42,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 18,
+            "y" : -10
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    }
+  ],
+  "schemaVersion" : 5
+}

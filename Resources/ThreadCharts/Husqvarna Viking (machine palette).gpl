@@ -1,0 +1,33 @@
+GIMP Palette
+Name: Husqvarna Viking (machine palette)
+Columns: 4
+# From pyembroidery 1.5.1 (EmbThreadHus.py), MIT License.
+  0   0   0	Black	026
+  0   0 231	Blue	005
+  0 198   0	Green	002
+255   0   0	Red	014
+132   0 132	Purple	008
+255 255   0	Yellow	020
+132 132 132	Grey	024
+132 132 231	Light Blue	006
+  0 255 132	Light Green	003
+255 123  49	Orange	017
+255 140 165	Pink	011
+132  82   0	Brown	028
+255 255 255	White	022
+  0   0 132	Dark Blue	004
+  0 132   0	Dark Green	001
+123   0   0	Dark Red	013
+255  99 132	Light Red	015
+ 82  41  82	Dark Purple	007
+255   0 255	Light Purple	009
+255 222   0	Dark Yellow	019
+255 255 156	Light Yellow	021
+ 82  82  82	Dark Grey	025
+214 214 214	Light Grey	023
+255  82   8	Dark Orange	016
+255 156  90	Light Orange	018
+255  82 181	Dark Pink	010
+255 198 222	Light Pink	012
+ 82  49   0	Dark Brown	027
+181 165 132	Light Brown	029

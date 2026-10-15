@@ -1,0 +1,16 @@
+Embroidery v0.2 — validation, 2026-10-12
+
+Implemented: manual satin left/right pairs, tatami fill with holes, Clipper2 offsets, satin/fill underlay, compensation, node insert/delete, hole-aware transforms, object dimensions, and registry-based customizable commands. Legacy engine projects open as previews until explicitly regenerated.
+
+Automated: scripts/test.sh passes 44 tests (32 Swift core, 5 native document/helper, 7 Python PES). Tests cover inset containment, holes, concavity, invalid topology, satin limits, cancellation, zigzag collapse and coverage, curved satin, old project previews, draft tool/target persistence and converter validation.
+
+Manual app checks: traced fill and satin, added a fill hole, inserted a satin pair, edited spacing, undid edits, saved and reopened the sampler. Switched curved satin to zigzag underlay and verified generation increased from 4,422 to 4,480 stitches without omission. Restored sampler defaults. Lowering satin maximum stitch to 1 mm produced a visible error and blocked PES export. Restored 10 mm. UI visually inspected.
+
+Bundled converter: both PES 1 and PES 6 preserve the 4,422-needle sampler at 60.4 x 63.4 mm, run from /private/tmp with PATH=/usr/bin:/bin. Read-back verification uses the same codec, not independent software or a machine. No physical sew-out performed. PES travel/trim limitations remain documented in README and UI.
+
+Build: scripts/build.sh produces dist/Embroidery.app, v0.2.0 build 2, with bundled converter/runtime and local ad-hoc signature. No notarization or Intel validation.
+
+Claude review through cross-review skill: prior stage plan review reused; completed code review initially timed out, one narrowed retry completed. Found zigzag underlay being omitted at positive inset. Accepted and fixed by clipping rungs to the actual inset polygon; added containment and collapse tests. Follow-up accepted fix with no blocking regressions. It noted conservative omission at complex insets (retained with warning), missing warning for skipped interior rungs (added), weak coverage assertion (strengthened, curved test added), and a test-count concern (resolved: Python's seven tests are separate from Swift's totals). Final warning/status polish and strengthened tests were not re-reviewed; independently tested. UI, hardware compatibility and physical stitch quality were outside Claude's review coverage.
+
+Review packets, raw reviews and dispositions: /private/tmp/embroidery-stage2-ur19udql/
+Known remaining scope: explicit curve handles, manual entry/exit, groups, SVG, lettering, automatic digitizing, stitch-file import, DST/EXP/JEF/VP3/XXX/PEC exports and physical sew-out tuning.

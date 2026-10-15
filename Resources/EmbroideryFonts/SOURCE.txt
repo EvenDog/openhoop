@@ -1,0 +1,2 @@
+Embroidery fonts from https://github.com/inkstitch/embroidery-fonts at commit c7e3a05c3d6f5c77b881c50f257851af9a8e9cb8, unmodified.
+Each folder holds its font's LICENSE. Fetched by scripts/fetch-embroidery-fonts.sh.

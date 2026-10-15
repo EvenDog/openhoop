@@ -1,0 +1,882 @@
+// The native drawing surface handles millimeter coordinates, tracing, node edits, and selection.
+// During drags it draws a temporary snapshot, committing one document edit on mouse-up.
+import AppKit
+import Combine
+import EmbroideryCore
+
+extension ThreadColor {
+    var nsColor: NSColor { NSColor(srgbRed: Double((hex >> 16) & 255) / 255, green: Double((hex >> 8) & 255) / 255, blue: Double(hex & 255) / 255, alpha: 1) }
+}
+
+final class DesignCanvas: NSView {
+    let state: EditorState
+    var pan = CGPoint.zero
+    private var observation: AnyCancellable?
+    private var preferencesObservation: AnyCancellable?   // redraws when Thread View is switched on or off
+    private var dragStart: Point?
+    private var screenStart: CGPoint?
+    private var panStart = CGPoint.zero
+    private var dragSnapshot: Design?
+    private var preview: Design?
+    private var draggedNode: NodeLocation?
+    private var draggedHandle: (location: NodeLocation, outgoing: Bool)?   // a Bézier handle being dragged
+    private var drawingHandle: Int?   // while tracing: the new draft node whose handles the drag is pulling out
+    private var shapeStart: Point?    // while dragging out a rectangle, ellipse or basic shape: where the drag began
+    /// True while a rectangle, ellipse or basic shape is being dragged out.
+    var isDraggingShape: Bool { shapeStart != nil }
+    /// Escape mid-drag: forgets the shape being dragged, so moving on and letting go add nothing.
+    func cancelShapeDrag() { shapeStart = nil; needsDisplay = true }
+    /// The markers shown on a selected object: where it starts and ends sewing, and a radial fill's center.
+    private enum Marker { case start, end, center }
+    private var draggedMarker: (object: UUID, kind: Marker)?   // a marker being dragged
+    private var artworkDrag: Int?   // adjusting the artwork: -1 moves it, 0…3 resizes from that corner
+    private var zoomBox: (start: CGPoint, end: CGPoint)?   // the box being dragged with the Zoom Box tool, in canvas points
+    var measurement: (start: Point, end: Point)?   // the Measure tool's line, in mm; shown until the tool changes
+    private var measuring = false   // true while that line is being dragged
+    // Edit Stitch: needle points being dragged (where the drag began, and the stitches before it), the stitches
+    // as they'd be (shown while dragging), and a selection box being dragged.
+    private var stitchDrag: (start: Point, sections: [StitchEdits.Section])?
+    private var stitchPreview: [StitchEdits.Section]?
+    private var stitchBox: (start: CGPoint, end: CGPoint)?
+    /// A stitch angle line being dragged: its fill and index, which part (0 or 1: that end; nil: the whole line),
+    /// and where the drag began.
+    private var angleDrag: (object: UUID, index: Int, end: Int?, start: Point)?
+    /// A measurement as the Measure tool shows it: the distance in mm, and the angle from the start, counterclockwise
+    /// from pointing right (the same way Rotate counts), e.g. "12.5 mm · 37°".
+    static func measurementText(from start: Point, to end: Point) -> String {
+        let dx = end.x - start.x, dy = end.y - start.y
+        let degrees = (atan2(dy, dx) * 180 / .pi).rounded()
+        return String(format: "%.1f mm · %.0f°", hypot(dx, dy), degrees == -180 ? 180 : degrees)
+    }
+    /// While a panel's tab is dragged over the canvas: where it would land (a dock edge, or floating at a point).
+    private enum PanelDropHint: Equatable { case dock(DockSide), float(CGPoint) }
+    private var panelDropHint: PanelDropHint?
+    private var pointer=Point(0,0)
+    private var imageData: Data?
+    private var image: NSImage?
+    private var tracking: NSTrackingArea?
+    init(state: EditorState) {
+        self.state = state
+        super.init(frame: .zero)
+        wantsLayer = true
+        state.canvas = self
+        observation = state.objectWillChange.sink { [weak self] _ in DispatchQueue.main.async { self?.needsDisplay = true } }
+        preferencesObservation = Preferences.shared.objectWillChange.sink { [weak self] _ in DispatchQueue.main.async { self?.needsDisplay = true } }
+        registerForDraggedTypes([.string])   // panel tabs dragged onto the canvas (see Docking.swift)
+    }
+
+    // MARK: Dropping panels on the canvas: near the left or right edge docks them there; anywhere else floats them.
+    private func panelHint(_ sender: NSDraggingInfo) -> PanelDropHint? {
+        guard PanelDrag.panel != nil else { return nil }
+        let point = convert(sender.draggingLocation, from: nil)
+        if point.x < 70 { return .dock(.left) }
+        if point.x > bounds.width - 70 { return .dock(.right) }
+        return .float(point)
+    }
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation { panelDropHint = panelHint(sender); needsDisplay = true; return panelDropHint == nil ? [] : .move }
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation { panelDropHint = panelHint(sender); needsDisplay = true; return panelDropHint == nil ? [] : .move }
+    override func draggingExited(_ sender: NSDraggingInfo?) { panelDropHint = nil; needsDisplay = true }
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        defer { panelDropHint = nil; PanelDrag.panel = nil; needsDisplay = true }
+        guard let panel = PanelDrag.panel, let hint = panelHint(sender), let window else { return false }
+        Preferences.shared.updatePanels { layout in
+            switch hint {
+            case .dock(let side): layout.move(panel, to: .newGroup(side, at: layout.groups(side).count))
+            case .float:
+                // A new floating window with its top-left corner near the pointer.
+                // Compact panels get a window that fits them; the others a roomier one.
+                let screen = window.convertPoint(toScreen: sender.draggingLocation), height = (panel.compact ?? 360) + 50
+                layout.move(panel, to: .float(x: screen.x - 40, y: screen.y - height + 20, width: 300, height: height))
+            }
+        }
+        return true
+    }
+    /// The drop preview: a bar along the edge that would dock the panel, or the outline of the floating window.
+    private func drawPanelDropHint() {
+        guard let hint = panelDropHint else { return }
+        Theme.Canvas.handle.withAlphaComponent(0.85).setFill(); Theme.Canvas.handle.setStroke()
+        switch hint {
+        case .dock(let side):
+            NSBezierPath(roundedRect: CGRect(x: side == .left ? 4 : bounds.width - 10, y: 8, width: 6, height: bounds.height - 16), xRadius: 3, yRadius: 3).fill()
+            drawLabel(side == .left ? "Dock on the left" : "Dock on the right", at: CGPoint(x: side == .left ? 16 : bounds.width - 130, y: bounds.midY), size: 12, color: Theme.Canvas.handle)
+        case .float(let point):
+            let height = (PanelDrag.panel?.compact ?? 360) + 50
+            let outline = NSBezierPath(roundedRect: CGRect(x: point.x - 40, y: point.y - height + 20, width: 300, height: height), xRadius: 12, yRadius: 12)
+            outline.lineWidth = 2; outline.setLineDash([6, 4], count: 2, phase: 0); outline.stroke()
+            drawLabel("Float here", at: CGPoint(x: point.x - 28, y: point.y - 22), size: 12, color: Theme.Canvas.handle)
+        }
+    }
+    required init?(coder: NSCoder) { fatalError("Not used") }
+    override var acceptsFirstResponder: Bool { true }
+    var origin: CGPoint { CGPoint(x: bounds.midX + pan.x, y: bounds.midY + pan.y) }
+    func screen(_ p: Point) -> CGPoint { CGPoint(x: origin.x + p.x * state.zoom, y: origin.y + p.y * state.zoom) }
+    func model(_ p: CGPoint) -> Point { Point((p.x - origin.x) / state.zoom, (p.y - origin.y) / state.zoom) }
+    func snapped(_ p: Point) -> Point { state.snap ? Point(p.x.rounded(), p.y.rounded()) : p }
+    /// Thread View: draws each stitch as its own strand of thread `width` points wide (0.45 mm, a 40-weight thread lying
+    /// flat), shaded like real thread: darkest where the thread dives into the cloth at each needle hole
+    /// and brightest half way along, so a satin column looks rounded and a fill shows each stitch. A soft shadow lifts
+    /// the stitches off the cloth, and when zoomed in far enough, faint slanted marks show the thread's twist.
+    /// Stitches are drawn in sewing order in batches of up to 48 in one thread, so later stitches lie over earlier
+    /// ones while each batch costs only a few fills. Travel moves and needle points aren't drawn: the
+    /// machine trims the travel, and the needle holes are hidden under the thread. Stitches off screen are skipped.
+    private func drawThread(_ context: CGContext, _ commands: ArraySlice<StitchCommand>, threads: [ThreadColor], hidden: Set<UUID>, showUnderlay: Bool,
+                            width: Double, visibleArea: CGRect, onScreen: (Point) -> CGPoint) {
+        // The strand is built from stacked layers, each a little shorter, narrower and lighter than the one below,
+        // which together shade it from dark ends to a bright middle. `tone` darkens (below 0) or lightens (above 0)
+        // the thread's color; `breadth` is the layer's width as a fraction of the thread's; `trim` shortens it at each
+        // end, as a fraction of the stitch's length.
+        let layers: [(tone: Double, breadth: Double, trim: Double)] = [(-0.45, 1, 0), (-0.2, 0.95, 0.06), (0, 0.9, 0.14), (0.18, 0.8, 0.24), (0.32, 0.6, 0.34)]
+        func shades(_ color: NSColor) -> [CGColor] {
+            layers.map { ($0.tone < 0 ? color.blended(withFraction: -$0.tone, of: .black) : color.blended(withFraction: $0.tone, of: .white)) ?? color }.map(\.cgColor)
+                + [(color.blended(withFraction: 0.35, of: .black) ?? color).withAlphaComponent(0.22).cgColor]   // last: the twist marks
+        }
+        let threadShades = threads.map { shades($0.nsColor) }, unknownShades = shades(.systemTeal)
+        let shadowColor = NSColor.black.withAlphaComponent(0.18).cgColor
+        let shadowOffset = CGVector(dx: width * 0.25, dy: -width * 0.3)   // down and to the right, away from the top-left light
+        let showTwist = width >= 5   // the marks would only blur into the color when the thread is drawn narrower
+        let reach = visibleArea.insetBy(dx: -width, dy: -width)
+        // Per layer, the batch's bulging middles (filled) and the lines along them (stroked with round caps, for
+        // rounded ends about 70% as wide as the middle, so neighbouring stitches cover the cloth).
+        var shadows = CGMutablePath(), twists = CGMutablePath()
+        var middles = layers.map { _ in CGMutablePath() }, cores = layers.map { _ in CGMutablePath() }
+        var batchThread: Int?, batchShades = unknownShades, batchCount = 0
+        func drawBatch() {
+            guard batchCount > 0 else { return }
+            context.setFillColor(shadowColor); context.addPath(shadows); context.fillPath()
+            for (index, layer) in layers.enumerated() {
+                context.setFillColor(batchShades[index]); context.addPath(middles[index]); context.fillPath()
+                context.setStrokeColor(batchShades[index]); context.setLineWidth(width * layer.breadth * 0.7); context.addPath(cores[index]); context.strokePath()
+            }
+            if showTwist { context.setStrokeColor(batchShades[layers.count]); context.setLineWidth(max(0.6, width * 0.07)); context.addPath(twists); context.strokePath() }
+            shadows = CGMutablePath(); twists = CGMutablePath()
+            middles = layers.map { _ in CGMutablePath() }; cores = layers.map { _ in CGMutablePath() }; batchCount = 0
+        }
+        // Adds a lens from `start` to `end`, `breadth` wide at the middle: two curves bowing out on either side. A
+        // quadratic curve reaches only half way to its control point, so a control point one full breadth out makes
+        // the lens one breadth wide.
+        func addLens(_ path: CGMutablePath, _ start: CGPoint, _ end: CGPoint, breadth: Double, across: CGVector) {
+            let middle = CGPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
+            path.move(to: start)
+            path.addQuadCurve(to: end, control: CGPoint(x: middle.x + across.dx * breadth, y: middle.y + across.dy * breadth))
+            path.addQuadCurve(to: start, control: CGPoint(x: middle.x - across.dx * breadth, y: middle.y - across.dy * breadth))
+        }
+        context.setLineCap(.round)
+        var previous = Point(0, 0)
+        for command in commands {
+            defer { previous = command.point }
+            guard command.op == .stitch, command.objectID.map({ !hidden.contains($0) }) ?? true, showUnderlay || command.underlay != true else { continue }
+            let a = onScreen(previous), b = onScreen(command.point)
+            let box = CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y)).insetBy(dx: -0.5, dy: -0.5)
+            guard box.intersects(reach) else { continue }
+            if batchThread != command.thread || batchCount >= 48 {
+                drawBatch(); batchThread = command.thread
+                batchShades = threadShades.indices.contains(command.thread) ? threadShades[command.thread] : unknownShades
+            }
+            // `along` runs from a to b; `across` is at right angles to it.
+            let along = CGVector(dx: b.x - a.x, dy: b.y - a.y), length = max(hypot(along.dx, along.dy), 0.001)
+            let across = CGVector(dx: -along.dy / length, dy: along.dx / length)
+            addLens(shadows, CGPoint(x: a.x + shadowOffset.dx, y: a.y + shadowOffset.dy), CGPoint(x: b.x + shadowOffset.dx, y: b.y + shadowOffset.dy), breadth: width * 1.1, across: across)
+            for (index, layer) in layers.enumerated() {
+                let start = CGPoint(x: a.x + along.dx * layer.trim, y: a.y + along.dy * layer.trim)
+                let end = CGPoint(x: b.x - along.dx * layer.trim, y: b.y - along.dy * layer.trim)
+                addLens(middles[index], start, end, breadth: width * layer.breadth, across: across)
+                cores[index].move(to: start); cores[index].addLine(to: end)
+            }
+            if showTwist {
+                // Short slanted marks across the strand every 0.55 thread widths, shrinking toward the ends.
+                let unit = CGVector(dx: along.dx / length, dy: along.dy / length), slant = width * 0.35
+                var distance = width * 0.5
+                while distance < length - width * 0.5 {
+                    let half = width * 0.3 * sin(Double.pi * distance / length)
+                    let center = CGPoint(x: a.x + unit.dx * distance, y: a.y + unit.dy * distance)
+                    twists.move(to: CGPoint(x: center.x - across.dx * half - unit.dx * slant, y: center.y - across.dy * half - unit.dy * slant))
+                    twists.addLine(to: CGPoint(x: center.x + across.dx * half + unit.dx * slant, y: center.y + across.dy * half + unit.dy * slant))
+                    distance += width * 0.55
+                }
+            }
+            batchCount += 1
+        }
+        drawBatch()
+    }
+    /// Zooms to `zoom` (kept within 0.5–60) so the spot under `anchor` (a point in the canvas; its middle if nil)
+    /// stays where it is on screen.
+    func setZoom(_ zoom: Double, keeping anchor: CGPoint? = nil) {
+        let anchor = anchor ?? CGPoint(x: bounds.midX, y: bounds.midY), spot = model(anchor), zoom = min(60, max(0.5, zoom))
+        state.zoom = zoom
+        // Solves screen(spot) == anchor for the pan: bounds.mid + pan + spot × zoom = anchor.
+        pan = CGPoint(x: anchor.x - bounds.midX - spot.x * zoom, y: anchor.y - bounds.midY - spot.y * zoom)
+        needsDisplay = true
+    }
+    /// Zooms so a box (mm) fills the canvas, 50 points in from each side, with its middle in the middle.
+    func zoom(to box: (min: Point, max: Point)) {
+        let width = max(box.max.x - box.min.x, 1), height = max(box.max.y - box.min.y, 1)   // a box under 1 mm zooms as if 1 mm
+        let zoom = min(60, max(0.5, min((bounds.width - 100) / width, (bounds.height - 100) / height)))
+        let middle = (box.min + box.max) * 0.5
+        state.zoom = zoom; pan = CGPoint(x: -middle.x * zoom, y: -middle.y * zoom); needsDisplay = true
+    }
+    /// The zoom (screen points per mm) at which the design shows at its real size on the window's display, worked out
+    /// from the physical width the display reports to macOS; nil if it reports none (as some projectors don't).
+    var realSizeZoom: Double? {
+        guard let screen = window?.screen ?? NSScreen.main,
+              let display = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else { return nil }
+        let millimeters = CGDisplayScreenSize(display).width
+        return millimeters > 0 ? screen.frame.width / millimeters : nil
+    }
+    func fit() { state.zoom = min(max(1, fitZoom(bounds.size)), 30); pan = .zero; needsDisplay = true }
+    /// The zoom at which the hoop just fits a canvas of `size`, 50 points in from each side; negative when it's tiny.
+    private func fitZoom(_ size: CGSize) -> Double { min((size.width - 100) / state.design.hoop.width, (size.height - 100) / state.design.hoop.height) }
+    // When the canvas area grows or shrinks (the window is resized, or panels are shown, hidden or resized), the zoom
+    // and pan scale by how much the fitted zoom changed, so the view stays framed the same way: a fitted hoop still
+    // fits, and a zoomed-in corner stays in view, just bigger or smaller.
+    override func setFrameSize(_ newSize: NSSize) {
+        let before = fitZoom(frame.size)
+        super.setFrameSize(newSize)
+        let after = fitZoom(newSize)
+        guard before > 0, after > 0, before != after else { return }   // skips the first layout, when the canvas starts at no size
+        let scale = after / before
+        state.zoom = min(60, max(0.5, state.zoom * scale))
+        pan = CGPoint(x: pan.x * scale, y: pan.y * scale)
+    }
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let tracking { removeTrackingArea(tracking) }
+        tracking = NSTrackingArea(rect: .zero, options: [.activeInKeyWindow, .inVisibleRect, .mouseMoved, .mouseEnteredAndExited], owner: self)
+        addTrackingArea(tracking!)
+    }
+    /// Called whenever the tool changes: the Measure tool's line goes, and the pointer takes the new tool's shape.
+    func toolDidChange() {
+        if state.tool != .measure { measurement = nil; measuring = false }
+        window?.invalidateCursorRects(for: self); needsDisplay = true
+    }
+    override func resetCursorRects() { addCursorRect(bounds, cursor: state.tool == .pan || state.tool == .artwork ? .openHand : state.tool.draws || state.tool.dragsShape || state.tool == .entryExit || state.tool == .zoomBox || state.tool == .measure || state.tool == .branch || state.tool == .addAngles || state.tool == .removeAngles || state.tool == .stitchEdit ? .crosshair : .arrow) }
+
+    /// The reference image's rectangle on screen.
+    func artworkRect(_ artwork: Artwork) -> CGRect {
+        CGRect(x: screen(artwork.center).x - artwork.width * state.zoom / 2, y: screen(artwork.center).y - artwork.height * state.zoom / 2, width: artwork.width * state.zoom, height: artwork.height * state.zoom)
+    }
+
+
+    override func draw(_ dirtyRect: NSRect) {
+        (Preferences.shared.data.pasteboardColor.map(Theme.fixed) ?? Theme.Canvas.pasteboard).setFill(); bounds.fill()
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        let design = preview ?? state.design
+        let hoop = CGRect(x: origin.x - design.hoop.width * state.zoom / 2, y: origin.y - design.hoop.height * state.zoom / 2, width: design.hoop.width * state.zoom, height: design.hoop.height * state.zoom)
+        let hoopPath = design.hoop.oval ? NSBezierPath(ovalIn: hoop) : NSBezierPath(roundedRect: hoop, xRadius: 3, yRadius: 3)
+        // Wooden hoop ring around the cloth, drawn at a fixed on-screen thickness whatever the zoom.
+        let ringRect = hoop.insetBy(dx: -16, dy: -16)
+        let ring = design.hoop.oval ? NSBezierPath(ovalIn: ringRect) : NSBezierPath(roundedRect: ringRect, xRadius: 20, yRadius: 20)
+        NSGraphicsContext.saveGraphicsState()
+        let shadow = NSShadow(); shadow.shadowColor = NSColor.black.withAlphaComponent(0.18); shadow.shadowBlurRadius = 18; shadow.shadowOffset = NSSize(width: 0, height: -4); shadow.set()
+        Theme.Canvas.wood.setStroke(); ring.lineWidth = 12; ring.stroke(); NSGraphicsContext.restoreGraphicsState()
+        // Linen cloth stretched inside the ring; the ring's inner rim and clasp sit on top of it.
+        let clothRect = hoop.insetBy(dx: -10, dy: -10)
+        let cloth = design.hoop.oval ? NSBezierPath(ovalIn: clothRect) : NSBezierPath(roundedRect: clothRect, xRadius: 14, yRadius: 14)
+        // The design's own fabric color if one was chosen, else the default linen.
+        let fabric = design.fabricColor.map(Theme.fixed) ?? Theme.Canvas.fabric
+        fabric.setFill(); cloth.fill()
+        drawWeave(in: cloth, color: design.fabricColor == nil ? Theme.Canvas.weave : weaveColor(for: fabric), context: context)
+        Theme.Canvas.woodEdge.setStroke(); cloth.lineWidth = 2; cloth.stroke()
+        Theme.Canvas.clasp.setFill(); NSBezierPath(roundedRect: CGRect(x: ringRect.midX - 22, y: ringRect.maxY - 2, width: 44, height: 12), xRadius: 4, yRadius: 4).fill()
+        if let artwork = design.artwork, artwork.visible {
+            if imageData != artwork.data { imageData = artwork.data; image = NSImage(data: artwork.data) }
+            let rect = CGRect(x: screen(artwork.center).x - artwork.width * state.zoom / 2, y: screen(artwork.center).y - artwork.height * state.zoom / 2, width: artwork.width * state.zoom, height: artwork.height * state.zoom)
+            image?.draw(in: rect, from: .zero, operation: .sourceOver, fraction: state.artworkOpacityPreview ?? artwork.opacity)   // live while its slider is dragged
+            // While adjusting it, the image gets a frame and corner handles.
+            if state.tool == .artwork {
+                Theme.Canvas.handle.setStroke(); let frame = NSBezierPath(rect: rect); frame.lineWidth = 1.5; frame.stroke()
+                for corner in artwork.corners.map(screen) {
+                    let knob = NSBezierPath(rect: CGRect(x: corner.x - 5, y: corner.y - 5, width: 10, height: 10))
+                    NSColor.white.setFill(); knob.fill(); Theme.Canvas.handle.setStroke(); knob.lineWidth = 1.5; knob.stroke()
+                }
+            }
+        }
+        if state.grid {
+            context.saveGState(); context.addPath(hoopPath.cgPathCopy); context.clip()
+            context.setStrokeColor(Theme.Canvas.grid.cgColor); context.setLineWidth(0.5)
+            let spacing = state.zoom < 3 ? 10.0 : 5.0
+            for x in stride(from: -design.hoop.width / 2, through: design.hoop.width / 2, by: spacing) { context.move(to: screen(Point(x, -design.hoop.height / 2))); context.addLine(to: screen(Point(x, design.hoop.height / 2))) }
+            for y in stride(from: -design.hoop.height / 2, through: design.hoop.height / 2, by: spacing) { context.move(to: screen(Point(-design.hoop.width / 2, y))); context.addLine(to: screen(Point(design.hoop.width / 2, y))) }
+            context.strokePath(); context.restoreGState()
+        }
+        // A dashed "stitched" outline marks the sewing area inside the cloth.
+        Theme.Canvas.sewingArea.setStroke(); hoopPath.lineWidth = 1.2; hoopPath.setLineDash([6, 4], count: 2, phase: 0); hoopPath.stroke()
+        let hidden = Set(design.objects.filter { !state.isShown($0) }.map(\.id))
+        var previous = Point(0, 0)
+        // This loop runs once per stitch (tens of thousands of times), and it runs on every frame of a window resize,
+        // so everything it needs is read once up here: reading the editor state's @Published values or making a new
+        // color inside the loop made each redraw too slow to keep up with the pointer.
+        let plan = state.plan, zoom = state.zoom, center = origin, visibleArea = bounds
+        let showUnderlay = state.showUnderlay, showNeedles = state.needles && zoom >= 3, threadView = Preferences.shared.threadView
+        let showStitches = state.showStitches, showConnectors = state.showsConnectors, thinLines = showStitches && !threadView
+        func onScreen(_ p: Point) -> CGPoint { CGPoint(x: center.x + p.x * zoom, y: center.y + p.y * zoom) }   // same as screen(_:)
+        // Each thread's stitch color, made once: [normal, underlay (fainter)].
+        let threadColors = plan.threads.map { thread in [0.95, 0.40].map { thread.nsColor.withAlphaComponent($0).cgColor } }
+        let unknownThread = [0.95, 0.40].map { NSColor.systemTeal.withAlphaComponent($0).cgColor }
+        let commands = plan.commands.prefix(Int(Double(plan.commands.count) * state.playback))
+        context.setLineWidth(1.1); context.setLineCap(.round)
+        let needles = CGMutablePath()
+        var activeColor: CGColor?
+        if threadView && showStitches { drawThread(context, commands, threads: plan.threads, hidden: hidden, showUnderlay: showUnderlay, width: max(1.2, 0.45 * zoom), visibleArea: visibleArea, onScreen: onScreen) }
+        for command in commands where thinLines || showConnectors {   // the thin-line stitch view, and travel moves dashed
+            let visible = (command.objectID.map { !hidden.contains($0) } ?? true) && (showUnderlay || command.underlay != true)
+            let p = onScreen(command.point)
+            if command.op == .stitch && visible && thinLines {
+                let colors = threadColors.indices.contains(command.thread) ? threadColors[command.thread] : unknownThread
+                let color = colors[command.underlay == true ? 1 : 0]
+                if activeColor !== color {context.strokePath();context.setStrokeColor(color);activeColor=color}   // !== : the very same color object, a cheap check
+                context.move(to: onScreen(previous)); context.addLine(to: p)
+                if showNeedles && visibleArea.contains(p) { needles.addEllipse(in: CGRect(x: p.x - 1.1, y: p.y - 1.1, width: 2.2, height: 2.2)) }
+            } else if command.op == .jump && visible && showConnectors && previous.distance(to: command.point) > 0.1 {
+                context.strokePath();activeColor=nil
+                context.saveGState(); context.setStrokeColor(Theme.Canvas.jump.cgColor); context.setLineDash(phase: 0, lengths: [3, 5]); context.move(to: onScreen(previous)); context.addLine(to: p); context.strokePath(); context.restoreGState()
+            }
+            previous = command.point
+        }
+        context.strokePath()
+        context.setFillColor(Theme.Canvas.needle.cgColor); context.addPath(needles); context.fillPath()
+        for object in design.objects where state.isShown(object) {
+            let selected = state.selection.contains(object.id)
+            if object.kind == .vector || selected || state.showOutlines || state.busy || state.generationError != nil || preview != nil {
+                for points in object.outlinePaths where !points.isEmpty {
+                    let path = NSBezierPath(); path.move(to: screen(points[0])); for point in points.dropFirst() { path.line(to: screen(point)) }
+                    // Selected objects get a thin dotted outline in one neutral color, so it shows on any thread.
+                    (selected ? Theme.Canvas.selection : object.color.nsColor.withAlphaComponent(0.4)).setStroke(); path.lineWidth = 1
+                    if selected { path.setLineDash([2, 2], count: 2, phase: 0) }; path.stroke()
+                }
+            }
+            // Nodes show only with Edit Nodes, the one tool that can move them.
+            if selected && state.tool == .node && !object.locked && object.kind != .raw {
+                for (ring,nodes) in ([object.nodes]+(object.holes ?? [])).enumerated() {
+                    for (index,node) in nodes.enumerated() {
+                        let p=screen(node.point),rect=CGRect(x:p.x-3.5,y:p.y-3.5,width:7,height:7)
+                        let shape=node.smooth ? NSBezierPath(ovalIn:rect):NSBezierPath(rect:rect)
+                        let active=state.selectedNode == NodeLocation(object:object.id,ring:ring-1,index:index)
+                        (active ? NSColor.systemOrange:NSColor.white).setFill();shape.fill();object.color.nsColor.setStroke();shape.lineWidth=1.5;shape.stroke()
+                    }
+                }
+                // The selected smooth node shows its Bézier handles while the Node tool is active.
+                if state.tool == .node, let location=state.selectedNode, location.object==object.id, let handles=effectiveHandles(object,location) {
+                    for handle in [handles.incoming,handles.outgoing].compactMap({$0}) {
+                        let n=screen(nodePoint(object,location)),h=screen(handle)
+                        let arm=NSBezierPath();arm.move(to:n);arm.line(to:h);Theme.Canvas.handle.setStroke();arm.lineWidth=1;arm.stroke()
+                        let knob=NSBezierPath(ovalIn:CGRect(x:h.x-4,y:h.y-4,width:8,height:8));NSColor.white.setFill();knob.fill();Theme.Canvas.handle.setStroke();knob.lineWidth=1.5;knob.stroke()
+                    }
+                }
+            }
+            // Stitch angle lines show while they can be changed: with Edit Nodes and the stitch angle tools.
+            if selected && [.node, .addAngles, .removeAngles].contains(state.tool) {
+                for (index, line) in (object.settings.angleLines ?? []).enumerated() where line.count == 2 {
+                    let chosen = state.selectedAngle.map { $0.object == object.id && $0.index == index } ?? false
+                    drawAngleLine(line[0], line[1], selected: chosen)
+                }
+            }
+            if selected {
+                drawMarker(object.entry, label: "Start", color: Theme.Canvas.entry)
+                drawMarker(object.exit, label: "End", color: Theme.Canvas.exit)
+                drawMarker(radialCenter(object), label: "Center", color: Theme.Canvas.handle)
+            }
+        }
+        if !state.draft.isEmpty {
+            var object=RunObject(name:"Draft",nodes:state.draft,color:state.currentColor)
+            if state.tool == .satin {object.digitizing=DigitizingSettings(kind:.satin)}
+            if state.tool.drawsClosed {object.closed=true}
+            for points in object.outlinePaths where !points.isEmpty {
+                let line=NSBezierPath();line.move(to:screen(points[0]));for p in points.dropFirst(){line.line(to:screen(p))}
+                (state.tool == .knife ? Theme.Canvas.handle : state.currentColor.nsColor).setStroke();line.lineWidth=2;line.stroke()   // a knife line isn't thread
+            }
+            for (index,node) in state.draft.enumerated() where !state.tool.dragsShape {   // a shape being dragged shows just its outline
+                let p=screen(node.point);state.currentColor.nsColor.setFill();NSBezierPath(ovalIn:CGRect(x:p.x-3,y:p.y-3,width:6,height:6)).fill()
+                // Handles pulled out while tracing are shown so the curve's shape is easy to judge.
+                for handle in [node.inHandle,node.outHandle].compactMap({$0}) {
+                    let h=screen(handle),arm=NSBezierPath();arm.move(to:p);arm.line(to:h);Theme.Canvas.handle.setStroke();arm.lineWidth=1;arm.stroke()
+                    let knob=NSBezierPath(ovalIn:CGRect(x:h.x-3.5,y:h.y-3.5,width:7,height:7));NSColor.white.setFill();knob.fill();Theme.Canvas.handle.setStroke();knob.stroke()
+                }
+                if state.tool == .satin {drawLabel("\(index/2+1)\(index%2==0 ? "L":"R")",at:CGPoint(x:p.x+5,y:p.y+5),size:9)}
+            }
+        }
+        drawLabel("\(Int(design.hoop.width)) × \(Int(design.hoop.height)) mm  ·  SEWING AREA", at: CGPoint(x: hoop.minX, y: hoop.minY - 44), size: 10)
+        if state.tool == .measure, let line = measurement { drawMeasurement(line) }
+        if state.tool == .stitchEdit { drawStitchEdit() }
+        if state.tool == .addAngles, let start = state.angleStart { drawAngleLine(start, pointer); drawAngleReading(start, pointer, at: pointer) }   // the line being added follows the pointer
+        // While a stitch angle line is dragged, its angle shows beside the pointer.
+        // The line may be gone if the design changed under the drag (an undo while the mouse is held down).
+        if let drag = angleDrag, let lines = (preview ?? state.design).objects.first(where: { $0.id == drag.object })?.settings.angleLines,
+           lines.indices.contains(drag.index), lines[drag.index].count == 2 {
+            let line = lines[drag.index]
+            drawAngleReading(line[0], line[1], at: drag.end.map { line[$0] } ?? (line[0] + line[1]) * 0.5)
+        }
+        if state.tool == .branch, let start = state.branchPoints.first { drawMarker(start, label: "Branch start", color: Theme.Canvas.entry) }
+        if let box = zoomBox {
+            let rect = NSBezierPath(rect: CGRect(x: min(box.start.x, box.end.x), y: min(box.start.y, box.end.y), width: abs(box.end.x - box.start.x), height: abs(box.end.y - box.start.y)))
+            Theme.Canvas.handle.setStroke(); rect.lineWidth = 1; rect.setLineDash([4, 3], count: 2, phase: 0); rect.stroke()
+        }
+        drawRulers(context)
+        drawPanelDropHint()
+        if design.objects.isEmpty && state.draft.isEmpty && design.artwork == nil {
+            // The hint sits on the fabric, so dark cloth gets light text.
+            let onDark = design.fabricColor.map { hex in Double((hex >> 16) & 255) * 0.299 + Double((hex >> 8) & 255) * 0.587 + Double(hex & 255) * 0.114 < 128 } ?? false
+            let hint = onDark ? NSColor(white: 0.92, alpha: 0.85) : Theme.Canvas.label
+            drawLabel("A new design starts with a line.", at: CGPoint(x: bounds.midX - 124, y: bounds.midY + 15), size: 17, color: hint)
+            drawLabel("Press \(Preferences.shared.key(.runTool)) to digitize  ·  \(Preferences.shared.key(.importImage)) to import artwork", at: CGPoint(x: bounds.midX - 126, y: bounds.midY - 12), size: 12, color: hint)
+        }
+    }
+    /// Edit Stitch: a press on a needle point selects it (Shift or ⌘ adds or removes it) and starts dragging the
+    /// selection; Option-click on a stitch adds a needle point there; a press elsewhere starts a selection box.
+    private func stitchEditDown(_ location: CGPoint, event: NSEvent) {
+        let p = model(location), sections = state.stitchSections, reach = 6 / state.zoom
+        let adding = event.modifierFlags.contains(.shift) || event.modifierFlags.contains(.command)
+        defer { needsDisplay = true }
+        if event.modifierFlags.contains(.option) { state.insertStitch(at: p, reach: reach); return }
+        var best: (ref: StitchRef, distance: Double)?
+        for (s, section) in sections.enumerated() {
+            for (i, q) in section.points.enumerated() { let d = q.distance(to: p); if d <= reach, best == nil || d < best!.distance { best = (StitchRef(section: s, index: i), d) } }
+        }
+        guard let hit = best?.ref else {
+            if !adding { state.selectedStitches = [] }
+            stitchBox = (location, location); return
+        }
+        if adding { if state.selectedStitches.contains(hit) { state.selectedStitches.remove(hit) } else { state.selectedStitches.insert(hit) } }
+        else if !state.selectedStitches.contains(hit) { state.selectedStitches = [hit] }
+        if state.selectedStitches.contains(hit) { stitchDrag = (p, sections) }
+    }
+    /// Edit Stitch's view of its object: the stitches as thin lines and each needle point as a small square (orange
+    /// when selected), plus the selection box while it's dragged.
+    private func drawStitchEdit() {
+        let sections = stitchPreview ?? state.stitchSections
+        let lines = NSBezierPath(); lines.lineWidth = 1
+        for section in sections where !section.points.isEmpty { lines.move(to: screen(section.points[0])); for p in section.points.dropFirst() { lines.line(to: screen(p)) } }
+        Theme.Canvas.handle.withAlphaComponent(0.7).setStroke(); lines.stroke()
+        let plain = NSBezierPath(), chosen = NSBezierPath()
+        for (s, section) in sections.enumerated() {
+            for (i, p) in section.points.enumerated() {
+                let q = screen(p), square = CGRect(x: q.x - 2.5, y: q.y - 2.5, width: 5, height: 5)
+                (state.selectedStitches.contains(StitchRef(section: s, index: i)) ? chosen : plain).appendRect(square)
+            }
+        }
+        NSColor.white.setFill(); plain.fill(); Theme.Canvas.handle.setStroke(); plain.lineWidth = 1; plain.stroke()
+        NSColor.systemOrange.setFill(); chosen.fill(); NSColor.black.setStroke(); chosen.lineWidth = 1; chosen.stroke()
+        if let box = stitchBox {
+            let rect = NSBezierPath(rect: CGRect(x: min(box.start.x, box.end.x), y: min(box.start.y, box.end.y), width: abs(box.end.x - box.start.x), height: abs(box.end.y - box.start.y)))
+            Theme.Canvas.handle.setStroke(); rect.lineWidth = 1; rect.setLineDash([4, 3], count: 2, phase: 0); rect.stroke()
+        }
+    }
+    /// A stitch angle line: a thin line with a small square at each end.
+    /// A selected line is drawn thicker, in orange.
+    private func drawAngleLine(_ a: Point, _ b: Point, selected: Bool = false) {
+        let p = screen(a), q = screen(b), line = NSBezierPath(); line.move(to: p); line.line(to: q)
+        (selected ? NSColor.systemOrange : Theme.Canvas.handle).setStroke(); line.lineWidth = selected ? 2.5 : 1.2; line.stroke()
+        for end in [p, q] {
+            let knob = NSBezierPath(rect: CGRect(x: end.x - 4, y: end.y - 4, width: 8, height: 8))
+            Theme.Canvas.exit.setFill(); knob.fill(); Theme.Canvas.handle.setStroke(); knob.lineWidth = 1; knob.stroke()
+        }
+    }
+    /// A stitch angle line's direction, in degrees from 0 to 179 counted counterclockwise from pointing right (as the
+    /// fill's Angle is), on a light backing next to `point`.
+    private func drawAngleReading(_ a: Point, _ b: Point, at point: Point) {
+        guard a.distance(to: b) > 0.01 else { return }
+        let degrees = Int((atan2(b.y - a.y, b.x - a.x) * 180 / .pi + 360).rounded()) % 180   // a line points both ways, so 180° is 0°
+        let text = "\(degrees)°", p = screen(point)
+        let width = (text as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 11, weight: .medium)]).width
+        Theme.Canvas.ruler.withAlphaComponent(0.92).setFill()
+        NSBezierPath(roundedRect: CGRect(x: p.x + 10, y: p.y + 6, width: width + 12, height: 18), xRadius: 4, yRadius: 4).fill()
+        drawLabel(text, at: CGPoint(x: p.x + 16, y: p.y + 7), size: 11)
+    }
+    /// The Measure tool's line: small cross ticks at each end, and the distance and angle on a light backing.
+    private func drawMeasurement(_ line: (start: Point, end: Point)) {
+        let a = screen(line.start), b = screen(line.end)
+        let path = NSBezierPath(); path.move(to: a); path.line(to: b)
+        for p in [a, b] { path.move(to: CGPoint(x: p.x - 5, y: p.y)); path.line(to: CGPoint(x: p.x + 5, y: p.y)); path.move(to: CGPoint(x: p.x, y: p.y - 5)); path.line(to: CGPoint(x: p.x, y: p.y + 5)) }
+        Theme.Canvas.handle.setStroke(); path.lineWidth = 1.5; path.stroke()
+        let text = Self.measurementText(from: line.start, to: line.end)
+        let width = (text as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 11, weight: .medium)]).width
+        Theme.Canvas.ruler.withAlphaComponent(0.92).setFill()
+        NSBezierPath(roundedRect: CGRect(x: b.x + 10, y: b.y + 6, width: width + 12, height: 18), xRadius: 4, yRadius: 4).fill()
+        drawLabel(text, at: CGPoint(x: b.x + 16, y: b.y + 7), size: 11)
+    }
+    /// Faint crossing threads so the hoop reads as cloth. Spaced in screen points, so the texture stays fine at any zoom.
+    /// Threads of a picked fabric: a little darker than the cloth, or a little lighter on dark cloth.
+    private func weaveColor(for fabric: NSColor) -> NSColor {
+        let c = fabric.usingColorSpace(.sRGB) ?? fabric
+        let light = 0.299 * c.redComponent + 0.587 * c.greenComponent + 0.114 * c.blueComponent > 0.5
+        return c.blended(withFraction: light ? 0.08 : 0.10, of: light ? .black : .white) ?? c
+    }
+    private func drawWeave(in cloth: NSBezierPath, color: NSColor, context: CGContext) {
+        let area = cloth.bounds.intersection(bounds)
+        guard !area.isNull else { return }
+        context.saveGState(); context.addPath(cloth.cgPathCopy); context.clip()
+        context.setStrokeColor(color.cgColor); context.setLineWidth(0.6)
+        for x in stride(from: area.minX, through: area.maxX, by: 3) { context.move(to: CGPoint(x: x, y: area.minY)); context.addLine(to: CGPoint(x: x, y: area.maxY)) }
+        for y in stride(from: area.minY, through: area.maxY, by: 3) { context.move(to: CGPoint(x: area.minX, y: y)); context.addLine(to: CGPoint(x: area.maxX, y: y)) }
+        context.strokePath(); context.restoreGState()
+    }
+    /// A small labeled dot showing where the selected object starts or ends sewing.
+    private func drawMarker(_ point: Point?, label: String, color: NSColor) {
+        guard let point else { return }
+        let p = screen(point), dot = NSBezierPath(ovalIn: CGRect(x: p.x - 6, y: p.y - 6, width: 12, height: 12))
+        color.setFill(); dot.fill(); NSColor.white.setStroke(); dot.lineWidth = 2; dot.stroke()
+        // A light backing keeps the label readable on top of dark stitches.
+        let width = (label as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 10, weight: .medium)]).width
+        Theme.Canvas.ruler.withAlphaComponent(0.9).setFill()
+        NSBezierPath(roundedRect: CGRect(x: p.x + 8, y: p.y - 8, width: width + 8, height: 15), xRadius: 4, yRadius: 4).fill()
+        drawLabel(label, at: CGPoint(x: p.x + 12, y: p.y - 7), size: 10)
+    }
+    /// With the Start & End tool: sets where the single selected object starts (or, with Option, ends) sewing.
+    /// If nothing suitable is selected, the click selects the object under the pointer first.
+    private func setEntryOrExit(at point: Point, exit: Bool) {
+        if state.selection.count == 1, let object = state.selected, object.kind != .raw, object.kind != .vector, !object.locked {
+            state.editSelected(exit ? "Set End Point" : "Set Start Point") { if exit { $0.exit = point } else { $0.entry = point } }
+            state.status = exit ? "End point set. Fills finish at the corner nearest it." : "Start point set. Option-click to set where it ends."
+        } else if let object = hit(point) {
+            state.select(object.id)
+            state.status = object.kind == .raw ? "Imported stitches keep their own sewing order." : "Now click where \(object.name) should start sewing."
+        } else { state.status = "Select one object, then click where it should start sewing." }
+    }
+    // Redraw with the other palette as soon as the Mac switches between light and dark mode.
+    override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
+    private func drawLabel(_ text: String, at point: CGPoint, size: CGFloat, color: NSColor = Theme.Canvas.label) {
+        let rounded = NSFont.systemFont(ofSize: size, weight: .medium).fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: size) }
+        (text as NSString).draw(at: point, withAttributes: [.font: rounded ?? NSFont.systemFont(ofSize: size, weight: .medium), .foregroundColor: color])
+    }
+    private func drawRulers(_ context: CGContext) {
+        Theme.Canvas.ruler.setFill()
+        CGRect(x: 0, y: bounds.height - 23, width: bounds.width, height: 23).fill()
+        CGRect(x: 0, y: 0, width: 27, height: bounds.height).fill()
+        let step = state.zoom < 3 ? 20.0 : 10.0
+        let minimum = floor(model(.zero).x / step) * step, maximum = model(CGPoint(x: bounds.maxX, y: 0)).x
+        // Labels that would land on the other ruler are skipped, so the corner where the rulers meet stays clear.
+        for x in stride(from: minimum, through: maximum, by: step) { let p = screen(Point(x, 0)); if p.x >= 27 { drawLabel(String(Int(x)), at: CGPoint(x: p.x + 3, y: bounds.height - 18), size: 9) } }
+        let minY = floor(model(.zero).y / step) * step, maxY = model(CGPoint(x: 0, y: bounds.maxY)).y
+        for y in stride(from: minY, through: maxY, by: step) { let p = screen(Point(0, y)); if p.y + 14 <= bounds.height - 23 { drawLabel(String(Int(y)), at: CGPoint(x: 3, y: p.y + 2), size: 8) } }
+    }
+    override func mouseDown(with event: NSEvent) {
+        state.focusCanvas()
+        let location = convert(event.locationInWindow, from: nil)
+        if state.tool == .zoomBox { zoomBox = (location, location); return }   // zooming works in older projects too
+        if state.tool == .measure { let point = snapped(model(location)); measurement = (point, point); measuring = true; needsDisplay = true; return }
+        if state.tool == .branch { state.addBranchPoint(snapped(model(location))); return }
+        if state.tool == .stitchEdit { stitchEditDown(location, event: event); return }
+        // Clicking a stitch angle line (with Edit nodes or the angle tools) selects it, so Delete removes it. While a
+        // new line is half drawn, the click finishes it instead.
+        state.selectedAngle = nil
+        if [.node, .addAngles, .removeAngles].contains(state.tool), state.angleStart == nil, !state.hasVersionMismatch,
+           state.tool != .node || (nearestNode(model(location)) == nil && nearestHandle(model(location)) == nil),   // nodes and handles come first
+           let angle = state.angleLine(near: model(location), reach: 6 / state.zoom) {
+            if state.tool == .removeAngles { state.removeAngleLine(angle.object, angle.index); return }
+            state.selectedAngle = angle; state.status = "Stitch angle selected · drag an end to swing it, or the middle to slide it · \(Preferences.shared.key(.delete)) removes it"
+            // Grabbing near an end's square swings that end; anywhere else on the line slides the whole line.
+            let p = model(location), line = state.design.objects.first { $0.id == angle.object }?.settings.angleLines?[angle.index] ?? []
+            let end = line.indices.first { line[$0].distance(to: p) <= 6 / state.zoom }
+            angleDrag = (angle.object, angle.index, end, snapped(p)); dragSnapshot = state.design
+            needsDisplay = true; return
+        }
+        if state.tool == .addAngles || state.tool == .removeAngles { state.clickForAngle(snapped(model(location)), reach: 9 / state.zoom); return }
+        guard !state.hasVersionMismatch else { return }
+        let point = snapped(model(location))
+        if state.tool.draws {
+            if event.clickCount == 2 { state.finishPath(); return }
+            state.draft.append(PathNode(point, smooth: event.modifierFlags.contains(.control)))
+            drawingHandle = state.draft.count - 1; return
+        }
+        if state.tool.dragsShape { shapeStart = point; return }
+        if state.tool == .pan { screenStart = location; panStart = pan; return }
+        if state.tool == .artwork {
+            // A corner handle resizes; anywhere on the image moves it; elsewhere nothing happens.
+            guard let artwork = state.design.artwork, artwork.visible else { return }
+            let corners = artwork.corners.map(screen)
+            if let corner = corners.indices.first(where: { hypot(corners[$0].x - location.x, corners[$0].y - location.y) <= 9 }) { artworkDrag = corner }
+            else if artworkRect(artwork).contains(location) { artworkDrag = -1 } else { return }
+            dragStart = model(location); dragSnapshot = state.design; return
+        }
+        // Markers sit on top of everything, so grabbing one wins over selecting or setting a new point.
+        if state.tool == .select || state.tool == .entryExit, let marker = nearestMarker(point) {
+            draggedMarker = marker; dragStart = point; dragSnapshot = state.design; return
+        }
+        if state.tool == .entryExit { setEntryOrExit(at: point, exit: event.modifierFlags.contains(.option)); return }
+        pointer=point
+        // Handles sit on top of nodes, so they are checked first.
+        if state.tool == .node, let handle=nearestHandle(point) {
+            draggedHandle=handle;dragStart=point;dragSnapshot=state.design;return
+        }
+        if state.tool == .node, let location=nearestNode(point) {
+            state.selection=[location.object];state.selectedNode=location
+            draggedNode=location;dragStart=point;dragSnapshot=state.design;return
+        }
+        if let object = hit(point) {
+            // Double-clicking lettering opens it for editing (after the mouse is released, so the dialog doesn't
+            // start in the middle of a click).
+            if state.tool == .select, event.clickCount == 2, object.monogram != nil {
+                state.select(object.id); DispatchQueue.main.async { AppDelegate.shared.perform(.editMonogram) }; return
+            }
+            if state.tool == .select, event.clickCount == 2, object.lettering != nil {
+                state.select(object.id); DispatchQueue.main.async { AppDelegate.shared.perform(.editLettering) }; return
+            }
+            let single = event.modifierFlags.contains(.option)   // Option-click picks one member of a group
+            if event.modifierFlags.contains(.shift) { state.select(object.id, extend: true, single: single) }
+            else if !state.selection.contains(object.id) || single { state.select(object.id, single: single) }
+            dragStart = point; dragSnapshot = state.design
+        } else { state.selection = [] }
+    }
+    override func rightMouseDown(with event: NSEvent) {
+        state.focusCanvas()
+        let point = snapped(model(convert(event.locationInWindow, from: nil)))
+        if state.tool.draws && !state.hasVersionMismatch { state.draft.append(PathNode(point, smooth: true)) }
+        else if state.tool == .node,let location=nearestNode(point) {
+            state.selection=[location.object];state.selectedNode=location
+            state.editSelected("Change Node Type"){object in
+                if location.ring<0{object.nodes[location.index].toggleSmooth()}else{object.holes?[location.ring][location.index].toggleSmooth()}
+            }
+        }
+    }
+    override func mouseMoved(with event:NSEvent){pointer=model(convert(event.locationInWindow,from:nil));state.pointer.position=pointer;if state.angleStart != nil{needsDisplay=true}}
+    override func mouseExited(with event: NSEvent) { state.pointer.position = nil }
+    override func mouseDragged(with event: NSEvent) {
+        let location = convert(event.locationInWindow, from: nil)
+        state.pointer.position = model(location)
+        if let start = screenStart { pan = CGPoint(x: panStart.x + location.x - start.x, y: panStart.y + location.y - start.y); needsDisplay = true; return }
+        if let box = zoomBox { zoomBox = (box.start, location); needsDisplay = true; return }
+        if let drag = stitchDrag {
+            let delta = snapped(model(location)) - snapped(drag.start)
+            var moved = drag.sections
+            for ref in state.selectedStitches where moved.indices.contains(ref.section) && moved[ref.section].points.indices.contains(ref.index) { moved[ref.section].points[ref.index] = moved[ref.section].points[ref.index] + delta }
+            stitchPreview = moved; needsDisplay = true; return
+        }
+        if let box = stitchBox { stitchBox = (box.start, location); needsDisplay = true; return }
+        if let drag = angleDrag, var next = dragSnapshot, let i = next.objects.firstIndex(where: { $0.id == drag.object }),
+           var line = next.objects[i].digitizing?.angleLines?[drag.index] {
+            let delta = snapped(model(location)) - drag.start
+            if let end = drag.end { line[end] = line[end] + delta } else { line = line.map { $0 + delta } }
+            next.objects[i].digitizing?.angleLines?[drag.index] = line
+            preview = next; needsDisplay = true; return
+        }
+        if measuring, let line = measurement {
+            measurement = (line.start, snapped(model(location)))
+            state.status = "Measured " + Self.measurementText(from: line.start, to: measurement!.end)
+            needsDisplay = true; return
+        }
+        if let start = shapeStart {
+            // ⌘ keeps the shape even (a square, circle or regular shape); ⇧ grows it out
+            // from where the drag began. Ellipses always grow from their center.
+            let shape = state.tool.draggedShape ?? .rectangle
+            let even = event.modifierFlags.contains(.command)
+            let box = ShapeGeometry.box(from: start, to: snapped(model(location)), even: even, fromCenter: shape == .ellipse || event.modifierFlags.contains(.shift))
+            let tooSmall = box.max.x - box.min.x < 1 || box.max.y - box.min.y < 1   // under 1 mm: still just a click
+            state.draft = tooSmall ? [] : ShapeGeometry.nodes(shape, in: box, settings: Preferences.shared.shapes, keepProportions: even)
+            needsDisplay = true; return
+        }
+        if let index = drawingHandle, state.draft.indices.contains(index) {
+            // A tiny wobble is still a click (a corner); past a few screen points the drag pulls out the node's handles.
+            let target = snapped(model(location))
+            if target.distance(to: state.draft[index].point) * state.zoom > 4 { state.draft[index].pullHandles(toward: target) }
+            needsDisplay = true; return
+        }
+        guard let start = dragStart, var next = dragSnapshot else { return }
+        if let corner = artworkDrag, let artwork = next.artwork {
+            next.artwork = artwork.adjusted(corner: corner, from: start, to: snapped(model(location)), free: event.modifierFlags.contains(.shift))
+            preview = next; needsDisplay = true; return
+        }
+        if let marker = draggedMarker, let index = next.objects.firstIndex(where: { $0.id == marker.object }) {
+            let target = snapped(model(location))
+            switch marker.kind {
+            case .start: next.objects[index].entry = target
+            case .end: next.objects[index].exit = target
+            case .center: next.objects[index].digitizing?.radialCenter = target
+            }
+            preview = next; needsDisplay = true; return
+        }
+        if let handle = draggedHandle {
+            dragHandle(handle, to: snapped(model(location)), in: &next, independent: event.modifierFlags.contains(.option))
+            preview = next; needsDisplay = true; return
+        }
+        let delta = snapped(model(location)) - start
+        for index in next.objects.indices where state.selection.contains(next.objects[index].id) && !next.objects[index].locked {
+            if let node=draggedNode,next.objects[index].id==node.object {
+                // transform moves the node's handles too, so the curve keeps its shape around the moved node.
+                if node.ring<0{next.objects[index].nodes[node.index].transform{$0+delta}}
+                else{next.objects[index].holes![node.ring][node.index].transform{$0+delta}}
+            } else if draggedNode == nil {next.objects[index].transform{$0+delta}}
+        }
+        preview = next; needsDisplay = true
+    }
+    override func mouseUp(with event: NSEvent) {
+        if measuring { measuring = false; return }
+        if stitchDrag != nil {
+            if let moved = stitchPreview { state.setStitches(moved, action: "Move Stitches") }
+            stitchDrag = nil; stitchPreview = nil; needsDisplay = true; return
+        }
+        if let box = stitchBox {
+            // Every needle point inside the box joins the selection.
+            let a = model(box.start), b = model(box.end)
+            let (lo, hi) = (Point(min(a.x, b.x), min(a.y, b.y)), Point(max(a.x, b.x), max(a.y, b.y)))
+            for (s, section) in state.stitchSections.enumerated() { for (i, p) in section.points.enumerated() where p.x >= lo.x && p.x <= hi.x && p.y >= lo.y && p.y <= hi.y { state.selectedStitches.insert(StitchRef(section: s, index: i)) } }
+            stitchBox = nil; needsDisplay = true
+            if !state.selectedStitches.isEmpty { state.status = "\(state.selectedStitches.count) needle point\(state.selectedStitches.count == 1 ? "" : "s") selected · Drag to move · \(Preferences.shared.key(.delete)) deletes" }
+            return
+        }
+        if let box = zoomBox {
+            // A click (or a box under 6 points) zooms in 2× around the pointer; a box fills the canvas.
+            zoomBox = nil
+            if abs(box.end.x - box.start.x) < 6 && abs(box.end.y - box.start.y) < 6 { setZoom(state.zoom * 2, keeping: box.start) }
+            else {
+                let a = model(box.start), b = model(box.end)
+                zoom(to: (Point(min(a.x, b.x), min(a.y, b.y)), Point(max(a.x, b.x), max(a.y, b.y))))
+            }
+            state.tool = state.toolBeforeZoom; state.status = "Zoomed. \(Preferences.shared.key(.zoomFit)) fits the hoop again."
+            window?.invalidateCursorRects(for: self); return
+        }
+        if shapeStart != nil {
+            shapeStart = nil
+            if state.draft.isEmpty { state.status = state.tool == .ellipse ? "Drag out the ellipse from its center: hold ⌘ for a circle." : "Drag to draw the shape: hold ⌘ to keep it even, ⇧ to draw it from the center." }
+            else { state.finishShape(state.tool.draggedShape ?? .rectangle) }
+            return
+        }
+        let action = angleDrag != nil ? "Move Stitch Angle" : artworkDrag.map { $0 < 0 ? "Move Artwork" : "Resize Artwork" } ?? draggedMarker.map { $0.kind == .end ? "Move End Point" : $0.kind == .start ? "Move Start Point" : "Move Radial Center" } ?? (draggedHandle != nil ? "Shape Curve" : draggedNode == nil ? "Move Objects" : "Move Node")
+        if let preview { state.document?.replace(preview, action: action) }
+        preview = nil; angleDrag = nil; dragStart = nil; dragSnapshot = nil; draggedNode = nil; draggedHandle = nil; drawingHandle = nil; draggedMarker = nil; artworkDrag = nil; screenStart = nil; needsDisplay = true
+    }
+    /// Moves one Bézier handle to `target`. Both handles are first fixed at their current positions (smooth nodes
+    /// start with automatic ones). Unless `independent` (Option held), the opposite handle swings to stay in a straight
+    /// line through the node, keeping its own length, so the curve passes smoothly through the node.
+    private func dragHandle(_ handle: (location: NodeLocation, outgoing: Bool), to target: Point, in design: inout Design, independent: Bool) {
+        guard let objectIndex = design.objects.firstIndex(where: { $0.id == handle.location.object }),
+              let current = effectiveHandles(design.objects[objectIndex], handle.location) else { return }
+        func update(_ node: inout PathNode) {
+            node.inHandle = current.incoming; node.outHandle = current.outgoing
+            let other = handle.outgoing ? node.inHandle : node.outHandle
+            if handle.outgoing { node.outHandle = target } else { node.inHandle = target }
+            // Corner nodes keep their sharp angle: their handles always move independently.
+            guard !independent, node.smooth, let other else { return }
+            let pulled = target - node.point, length = hypot(pulled.x, pulled.y)
+            guard length > 0.0001 else { return }
+            let keep = other.distance(to: node.point)
+            let mirrored = node.point - pulled * (keep / length)
+            if handle.outgoing { node.inHandle = mirrored } else { node.outHandle = mirrored }
+        }
+        if handle.location.ring < 0 { update(&design.objects[objectIndex].nodes[handle.location.index]) }
+        else { update(&design.objects[objectIndex].holes![handle.location.ring][handle.location.index]) }
+    }
+    /// The node list a node's curve is drawn from (its outline or hole ring, or its satin rail),
+    /// whether that list closes into a loop, and the node's position in it.
+    private func curveContext(_ object: RunObject, _ location: NodeLocation) -> (nodes: [PathNode], closed: Bool, index: Int)? {
+        if location.ring >= 0 {
+            guard let holes = object.holes, holes.indices.contains(location.ring), holes[location.ring].indices.contains(location.index) else { return nil }
+            return (holes[location.ring], true, location.index)
+        }
+        guard object.nodes.indices.contains(location.index) else { return nil }
+        if object.kind == .satin { return (object.nodes.enumerated().filter { $0.offset % 2 == location.index % 2 }.map(\.element), false, location.index / 2) }
+        return (object.nodes, object.kind == .fill || object.closed, location.index)
+    }
+    private func nodePoint(_ object: RunObject, _ location: NodeLocation) -> Point {
+        curveContext(object, location).map { $0.nodes[$0.index].point } ?? Point(0, 0)
+    }
+    /// The handles a node shows. A smooth node shows its own handles, or the automatic ones its curve already uses;
+    /// a corner node (for example from an imported SVG) shows only the handles it actually has.
+    /// A handle is nil where no curve uses it (before the first node or after the last of an open path).
+    private func effectiveHandles(_ object: RunObject, _ location: NodeLocation) -> (incoming: Point?, outgoing: Point?)? {
+        guard object.kind != .raw, let (nodes, closed, index) = curveContext(object, location), nodes.count >= 2 else { return nil }
+        let node = nodes[index]
+        guard node.smooth || node.hasHandles else { return nil }
+        let automatic = node.smooth ? RunningEngine.automaticHandles(nodes, closed: closed, index: index) : (incoming: node.point, outgoing: node.point)
+        let incoming = node.inHandle ?? (node.smooth ? automatic.incoming : nil), outgoing = node.outHandle ?? (node.smooth ? automatic.outgoing : nil)
+        return (closed || index > 0 ? incoming : nil, closed || index < nodes.count - 1 ? outgoing : nil)
+    }
+    /// The Start, End or Center marker of a selected, unlocked object under the pointer, if any.
+    private func nearestMarker(_ p: Point) -> (object: UUID, kind: Marker)? {
+        let reach = 9 / state.zoom
+        for object in state.design.objects.reversed() where state.selection.contains(object.id) && !object.locked && object.visible {
+            if let entry = object.entry, entry.distance(to: p) < reach { return (object.id, .start) }
+            if let exit = object.exit, exit.distance(to: p) < reach { return (object.id, .end) }
+            if let center = radialCenter(object), center.distance(to: p) < reach { return (object.id, .center) }
+        }
+        return nil
+    }
+    /// Where a radial fill's rays fan out from (the middle of the shape unless moved); nil for other objects.
+    private func radialCenter(_ object: RunObject) -> Point? {
+        guard object.kind == .fill, object.settings.fillStyle == .radial, object.nodes.count >= 3 else { return nil }
+        return object.settings.radialCenter ?? AreaGeometry.centroid(AreaGeometry.ring(object.nodes))
+    }
+    private func nearestHandle(_ p: Point) -> (location: NodeLocation, outgoing: Bool)? {
+        guard let location = state.selectedNode, let object = state.design.objects.first(where: { $0.id == location.object }),
+              !object.locked, object.visible, let handles = effectiveHandles(object, location) else { return nil }
+        let reach = 9 / state.zoom
+        if let out = handles.outgoing, out.distance(to: p) < reach { return (location, true) }
+        if let incoming = handles.incoming, incoming.distance(to: p) < reach { return (location, false) }
+        return nil
+    }
+    override func scrollWheel(with event: NSEvent) {
+        if event.modifierFlags.contains(.command) || event.modifierFlags.contains(.option) { state.zoom = min(60, max(0.5, state.zoom * pow(1.02, event.scrollingDeltaY))) }
+        else { pan.x -= event.scrollingDeltaX; pan.y += event.scrollingDeltaY; needsDisplay = true }
+    }
+    override func magnify(with event: NSEvent) { state.zoom = min(60, max(0.5, state.zoom * (1 + event.magnification))) }
+    override func keyDown(with event: NSEvent) { if !AppDelegate.shared.route(event) { super.keyDown(with: event) } }
+    private func nearestNode(_ p:Point)->NodeLocation? {
+        var best:NodeLocation?,distance=9/state.zoom
+        for object in state.design.objects.reversed() where object.visible && !object.locked && object.kind != .raw {
+            for (ring,nodes) in ([object.nodes]+(object.holes ?? [])).enumerated(){for (i,node) in nodes.enumerated(){let d=node.point.distance(to:p);if d<distance{distance=d;best=NodeLocation(object:object.id,ring:ring-1,index:i)}}}
+        }
+        return best
+    }
+    func deleteNode() {
+        guard state.tool == .node,let location=state.selectedNode,let object=state.design.objects.first(where:{$0.id==location.object}),!object.locked else{state.status="Select a node with N first.";return}
+        if object.kind == .satin {
+            guard object.nodes.count>4 else{state.status="Satin requires at least two pairs.";return}
+            let pair=location.index/2*2
+            state.editSelected("Delete Satin Pair"){$0.nodes.removeSubrange(pair...(pair+1))}
+        } else {
+            let nodes=location.ring<0 ? object.nodes:object.holes![location.ring]
+            guard nodes.count>(object.kind == .fill ? 3:2) else{state.status="Keep enough nodes to define this path.";return}
+            state.editSelected("Delete Node"){object in if location.ring<0{object.nodes.remove(at:location.index)}else{object.holes![location.ring].remove(at:location.index)}}
+        }
+        state.selectedNode=nil
+    }
+    func insertNode() {
+        guard state.tool == .node else{state.status="Use \(Preferences.shared.key(.nodeTool)), then point at an edge and press \(Preferences.shared.key(.insertNode)).";return}
+        var candidate:(UUID,Int,Int,Point)?,distance=12/state.zoom
+        for object in state.design.objects where state.selection.contains(object.id) && !object.locked && object.kind != .raw {
+            if object.kind == .satin {
+                for i in stride(from:0,to:object.nodes.count-2,by:2) {
+                    let a=(object.nodes[i].point+object.nodes[i+1].point)*0.5,b=(object.nodes[i+2].point+object.nodes[i+3].point)*0.5
+                    let d=pointer.distance(to:AreaGeometry.projection(pointer,a,b))
+                    if d<distance{distance=d;candidate=(object.id,-1,i,.init(0,0))}
+                }
+            } else {
+                for (ring,nodes) in ([object.nodes]+(object.holes ?? [])).enumerated(){for (i,segment) in RunningEngine.flatten(nodes,closed:object.kind == .fill || object.closed).enumerated(){for (a,b) in zip(segment,segment.dropFirst()){let p=AreaGeometry.projection(pointer,a,b),d=pointer.distance(to:p);if d<distance{distance=d;candidate=(object.id,ring-1,i,p)}}}}
+            }
+        }
+        guard let (id,ring,index,p)=candidate else{state.status="Point close to a selected edge (or a satin centerline) before inserting.";return}
+        state.editSelected("Insert Node"){object in
+            guard object.id==id else{return}
+            if object.kind == .satin {
+                let l=(object.nodes[index].point+object.nodes[index+2].point)*0.5,r=(object.nodes[index+1].point+object.nodes[index+3].point)*0.5
+                object.nodes.insert(contentsOf:[PathNode(l),PathNode(r)],at:index+2)
+            } else {
+                // insertingNode keeps curves exactly as they were; straight edges just get a corner node.
+                let closed=ring>=0 || object.kind == .fill || object.closed
+                if ring<0{object.nodes=RunningEngine.insertingNode(object.nodes,closed:closed,segment:index,near:p).nodes}
+                else{object.holes![ring]=RunningEngine.insertingNode(object.holes![ring],closed:true,segment:index,near:p).nodes}
+            }
+        }
+    }
+    private func hit(_ p: Point) -> RunObject? {
+        state.design.objects.reversed().first { object in
+            guard state.isShown(object) else { return false }   // what can't be seen can't be clicked
+            if (object.kind == .fill || (object.kind == .vector && object.closed)),AreaGeometry.contains(p,rings:([object.nodes]+(object.holes ?? [])).map{AreaGeometry.ring($0)}){return true}
+            return object.outlinePaths.contains{segment in zip(segment,segment.dropFirst()).contains{a,b in p.distance(to:AreaGeometry.projection(p,a,b))<8/state.zoom}}
+        }
+    }
+
+}
+
+private extension NSBezierPath {
+    var cgPathCopy: CGPath {
+        let path = CGMutablePath(); let points = UnsafeMutablePointer<NSPoint>.allocate(capacity: 3)
+        defer { points.deallocate() }
+        for index in 0..<elementCount {
+            switch element(at: index, associatedPoints: points) {
+            case .moveTo: path.move(to: points[0]); case .lineTo: path.addLine(to: points[0])
+            case .curveTo: path.addCurve(to: points[2], control1: points[0], control2: points[1])
+            case .closePath: path.closeSubpath(); default: break
+            }
+        }
+        return path
+    }
+}

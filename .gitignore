@@ -1,0 +1,9 @@
+.build/
+.venv/
+dist/
+__pycache__/
+.DS_Store
+*.spec
+
+# Claude session handoff notes stay on this Mac, out of the repository.
+.claude/handoff/
