@@ -321,22 +321,34 @@ struct ToolStrip: View {
     }
 }
 
-/// The Next Shape choices in a small bar floating at the top of the canvas while a shape tool is on.
+/// A small bar floating at the top of the canvas: the Next Shape choices while a shape tool is on, or, in Edit
+/// Stitches, which mode it is and how to leave it (its needle-point squares otherwise look like a view setting).
 /// Being outside the tool strip, it never pushes the strip into its compact form.
 struct CanvasShapeBar: View {
     @ObservedObject var state: EditorState
     var body: some View {
         if ShapeOptionsBar.shows(state.tool) {
-            HStack(spacing: 10) {
+            chrome {
                 Text("NEXT SHAPE").font(Theme.caption).tracking(0.8).foregroundStyle(Theme.accent).lineLimit(1)
                 ShapeOptionsBar(tool: state.tool)
             }
+        } else if state.tool == .stitchEdit {
+            let key = Preferences.shared.key
+            chrome {
+                Text("EDIT STITCHES").font(Theme.caption).tracking(0.8).foregroundStyle(Theme.accent).lineLimit(1)
+                Text("Drag needle points to move them · ⌥-click a stitch adds one · \(key(.delete)) removes").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).lineLimit(1)
+                Button("Done") { AppDelegate.shared.perform(.done) }.controlSize(.small).help("Leave Edit Stitches (\(key(.done)))")
+            }
+        }
+    }
+    /// The bar's card: rounded, with an accent edge so it's noticed, and a shadow.
+    private func chrome<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        HStack(spacing: 10) { content() }
             .padding(.horizontal, 12).frame(height: 34)
             .background(Theme.card, in: RoundedRectangle(cornerRadius: 9))
             .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Theme.accent, lineWidth: 1.5))   // accent edge, so it's noticed
             .shadow(color: .black.opacity(0.15), radius: 6, y: 2)
             .padding(8)   // room for the shadow
-        }
     }
 }
 

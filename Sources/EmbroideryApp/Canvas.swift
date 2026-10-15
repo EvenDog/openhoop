@@ -391,14 +391,17 @@ final class DesignCanvas: NSView {
         /// Draws `part` of the stitches (thread or thin lines, and travel moves), carrying on from where the last part ended.
         func drawStitches(_ part: ArraySlice<StitchCommand>) {
             if threadView && showStitches { drawThread(context, part, from: previous, threads: plan.threads, hidden: hidden, showUnderlay: showUnderlay, width: max(1.2, 0.45 * zoom), visibleArea: visibleArea, onScreen: onScreen) }
-            for command in part where thinLines || showConnectors {   // the thin-line stitch view, and travel moves dashed
+            // The thin-line stitch view, travel moves dashed, and needle points (in either view).
+            for command in part where thinLines || showConnectors || showNeedles {
                 let visible = (command.objectID.map { !hidden.contains($0) } ?? true) && (showUnderlay || command.underlay != true)
                 let p = onScreen(command.point)
-                if command.op == .stitch && visible && thinLines {
-                    let colors = threadColors.indices.contains(command.thread) ? threadColors[command.thread] : unknownThread
-                    let color = colors[command.underlay == true ? 1 : 0]
-                    if activeColor !== color {context.strokePath();context.setStrokeColor(color);activeColor=color}   // !== : the very same color object, a cheap check
-                    context.move(to: onScreen(previous)); context.addLine(to: p)
+                if command.op == .stitch && visible {
+                    if thinLines {
+                        let colors = threadColors.indices.contains(command.thread) ? threadColors[command.thread] : unknownThread
+                        let color = colors[command.underlay == true ? 1 : 0]
+                        if activeColor !== color {context.strokePath();context.setStrokeColor(color);activeColor=color}   // !== : the very same color object, a cheap check
+                        context.move(to: onScreen(previous)); context.addLine(to: p)
+                    }
                     if showNeedles && visibleArea.contains(p) { needles.addEllipse(in: CGRect(x: p.x - 1.1, y: p.y - 1.1, width: 2.2, height: 2.2)) }
                 } else if command.op == .jump && visible && showConnectors && previous.distance(to: command.point) > 0.1 {
                     context.strokePath();activeColor=nil
@@ -407,7 +410,7 @@ final class DesignCanvas: NSView {
                 previous = command.point
             }
             context.strokePath(); activeColor = nil
-            if !(thinLines || showConnectors), let last = part.last { previous = last.point }   // the loop above didn't run
+            if !(thinLines || showConnectors || showNeedles), let last = part.last { previous = last.point }   // the loop above didn't run
         }
         // The objects under the picture, then the picture, then the rest. Commands come in sewing order, so the
         // first command of an object over the picture splits them.
@@ -416,6 +419,8 @@ final class DesignCanvas: NSView {
         drawStitches(commands[..<split])
         if artworkLayer > 0 { drawArtwork() }
         drawStitches(commands[split...])
+        // On thread, each needle point gets a light ring so it shows on any thread color.
+        if threadView && showStitches { context.setStrokeColor(NSColor.white.withAlphaComponent(0.85).cgColor); context.setLineWidth(0.8); context.addPath(needles); context.strokePath() }
         context.setFillColor(Theme.Canvas.needle.cgColor); context.addPath(needles); context.fillPath()
         for object in design.objects where state.isShown(object) {
             let selected = state.selection.contains(object.id)
