@@ -41,6 +41,32 @@ final class BranchingTests: XCTestCase {
         XCTAssertLessThanOrEqual(zip(stitches, stitches.dropFirst()).map { $0.distance(to: $1) }.max() ?? 0, 3, "no long jump across: it travels back along the trunk")
     }
 
+    /// Stitches edited by hand survive branching: that object keeps its start and end points, and the next object
+    /// starts where the edited stitches finish.
+    func testBranchingKeepsHandEditedStitches() throws {
+        var design = Design()
+        var edited = square("A", at: Point(0, 0), color: ThreadColor.palette[0])
+        let handPlaced = [Point(-4, -4), Point(4, -4), Point(4, 4), Point(3, 2)]
+        edited.stitchEdits = StitchEdits(sections: [.init(points: handPlaced)], signature: edited.stitchSignature)
+        design.objects = [edited, square("B", at: Point(8, 0), color: ThreadColor.palette[1])]
+        _ = try design.branch(Set(design.objects.map(\.id)), entry: Point(-4, -4), exit: nil)
+        XCTAssertTrue(design.objects[0].hasCurrentStitchEdits, "the hand edits still apply")
+        XCTAssertTrue(design.dropStaleStitchEdits().isEmpty)
+        XCTAssertEqual(design.objects[1].entry, Point(3, 2), "the next object starts where the edited stitches finish")
+    }
+
+    /// A line in the middle of a branch has its old end point cleared, so it finishes at the end its start leaves.
+    func testBranchingClearsOldEndPointsOnLinesAndSatins() throws {
+        var design = Design()
+        var trunk = RunObject(name: "Trunk", nodes: [PathNode(Point(0, 0)), PathNode(Point(30, 0))], color: ThreadColor.palette[0])
+        trunk.exit = Point(0, 0)   // left from before: would turn the trunk around, away from the twig
+        let twig = RunObject(name: "Twig", nodes: [PathNode(Point(30, 2)), PathNode(Point(30, 12))], color: ThreadColor.palette[0])
+        design.objects = [trunk, twig]
+        _ = try design.branch(Set(design.objects.map(\.id)), entry: Point(0, 0), exit: nil)
+        XCTAssertNil(design.objects[0].exit)
+        XCTAssertEqual(try RunningEngine.stitches(for: design.objects[0].sewingOrder()).last, Point(30, 0), "the trunk finishes beside the twig")
+    }
+
     func testBranchedShapesFarApartStillTrim() throws {
         var design = Design()
         design.objects = [square("A", at: Point(0, 0), color: ThreadColor.palette[0]), square("Far", at: Point(40, 0), color: ThreadColor.palette[0])]

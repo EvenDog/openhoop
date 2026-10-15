@@ -25,9 +25,13 @@ extension Design {
         let branch = UUID(), color = ordered[0].color
         for i in ordered.indices {
             ordered[i].branchID = branch; ordered[i].groupID = branch; ordered[i].color = color
+            // Stitches edited by hand already decide where the object starts and finishes. Changing its start or end
+            // point would throw the edits away, so it keeps them, and the next object starts where they finish.
+            if ordered[i].hasCurrentStitchEdits { continue }
             if i == 0, let entry { ordered[i].entry = entry }
             if i == ordered.count - 1 { if let exit { ordered[i].exit = exit } }
-            else if ordered[i].kind == .fill { ordered[i].exit = Self.nearestPoint(of: outlines[ordered[i].id]!, to: outlines[ordered[i + 1].id]!) }   // (lines and satins finish at an end)
+            else if ordered[i].kind == .fill { ordered[i].exit = Self.nearestPoint(of: outlines[ordered[i].id]!, to: outlines[ordered[i + 1].id]!) }
+            else { ordered[i].exit = nil }   // lines and satins finish at whichever end their start leaves; an old end point would pull them away
             if i > 0 {
                 // Start where the one before finishes (worked out from its stitches).
                 var before = Design(); before.hoop = hoop; before.objects = [ordered[i - 1]]
