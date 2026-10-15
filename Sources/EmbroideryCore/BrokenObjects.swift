@@ -21,12 +21,27 @@ extension StitchEngine {
     }
 
     /// Why `object`'s shape can't be sewn, or nil if it can. Quick enough to run when a drag ends: satins are worked
-    /// out in full (crossed rungs show up there); fills have their outline and holes checked for crossings.
+    /// out in full (crossed rungs show up there). Working out a whole fill can take seconds, so fills get the quick
+    /// checks the fill engine makes before laying rows: the outline and holes don't cross, stitch angle lines still
+    /// cross the shape, and a contour fill has room for its first ring. (Rarer problems still show up afterwards, as
+    /// a red outline.)
     public static func shapeProblem(_ object: RunObject) -> String? {
         do {
             switch object.kind {
             case .satin: _ = try AreaEngine.satin(object.sewingOrder())
-            case .fill: try AreaGeometry.validate(([object.nodes] + (object.holes ?? [])).map { AreaGeometry.ring($0) })
+            case .fill:
+                let rings = ([object.nodes] + (object.holes ?? [])).map { AreaGeometry.ring($0) }
+                try AreaGeometry.validate(rings)
+                // The region the fill engine lays rows in (AreaEngine.fill): the outline grown by the expansion.
+                let s = object.settings, expanded = try AreaGeometry.offset(rings, by: s.expansion)
+                let style = s.fillStyle ?? .tatami
+                if style == .tatami, let lines = s.angleLines, !lines.isEmpty, TurningFill.chords(in: expanded, angleLines: lines).isEmpty {
+                    throw DesignError.invalid("The stitch angle lines don't cross this fill. Draw them across it, or remove them.")
+                }
+                // A contour fill's first ring is the shape shrunk by half the row spacing; if nothing is left, there are no rings.
+                if style == .contour, try AreaGeometry.offset(expanded, by: -s.spacing / 2).isEmpty {
+                    throw DesignError.invalid("This fill is too small for the selected row spacing.")
+                }
             case .run, .raw, .vector: break
             }
             return nil

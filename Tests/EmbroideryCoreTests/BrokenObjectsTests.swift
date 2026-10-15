@@ -37,4 +37,29 @@ final class BrokenObjectsTests: XCTestCase {
         var bowtie = square("Bowtie", x: 0); bowtie.nodes.swapAt(2, 3)   // its edges cross
         XCTAssertNotNil(StitchEngine.shapeProblem(bowtie))
     }
+
+    /// Dragging a fill's nodes away from its stitch angle lines leaves them crossing nothing: the fill can't be sewn,
+    /// and the quick check says so (found by the random design tests), agreeing with the full engine both ways.
+    func testShapeCheckSpotsAngleLinesThatNoLongerCross() {
+        var fill = square("Turning fill", x: 0)   // 10 × 10 mm, from y = -20 to -10
+        fill.digitizing?.angleLines = [[Point(-3, -18), Point(3, -18)], [Point(-3, -12), Point(3, -11)]]
+        XCTAssertNil(StitchEngine.shapeProblem(fill))
+        XCTAssertNoThrow(try AreaEngine.fill(fill))
+        // The whole shape dragged 30 mm to the right; the lines stay where they were, and their lines don't reach it.
+        var moved = fill; moved.nodes = moved.nodes.map { var n = $0; n.point = n.point + Point(30, 30); return n }
+        XCTAssertEqual(StitchEngine.shapeProblem(moved), "The stitch angle lines don't cross this fill. Draw them across it, or remove them.")
+        XCTAssertThrowsError(try AreaEngine.fill(moved))
+    }
+
+    /// A contour fill narrower than its row spacing has no room for its first ring.
+    func testShapeCheckSpotsAContourFillTooThinForItsSpacing() {
+        var sliver = RunObject(name: "Sliver", nodes: [Point(0, 0), Point(20, 0), Point(20, 0.4), Point(0, 0.4)].map { PathNode($0) })
+        sliver.closed = true; sliver.digitizing = DigitizingSettings(kind: .fill); sliver.digitizing?.fillStyle = .contour
+        sliver.digitizing?.expansion = 0; sliver.digitizing?.spacing = 1.5
+        XCTAssertEqual(StitchEngine.shapeProblem(sliver), "This fill is too small for the selected row spacing.")
+        XCTAssertThrowsError(try AreaEngine.fill(sliver))
+        sliver.digitizing?.spacing = 0.3   // narrow rows fit
+        XCTAssertNil(StitchEngine.shapeProblem(sliver))
+        XCTAssertNoThrow(try AreaEngine.fill(sliver))
+    }
 }

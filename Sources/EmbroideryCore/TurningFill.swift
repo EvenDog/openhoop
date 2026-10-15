@@ -12,16 +12,8 @@ enum TurningFill {
     /// comes closer than half the spacing to the rows sewn just before it, like short stitches on a satin, so the inside
     /// doesn't pile up thread. `start` picks which angle line the rows begin from (the nearest one).
     static func rows(in region: [[Point]], angleLines: [[Point]], spacing: Double, length: Double, start: Point?) throws -> [[Point]] {
-        let points = region.flatMap { $0 }
-        guard let minX = points.map(\.x).min(), let maxX = points.map(\.x).max(), let minY = points.map(\.y).min(), let maxY = points.map(\.y).max() else { return [] }
-        let reach = hypot(maxX - minX, maxY - minY) + 1   // longer than any line across the shape
-        // Each angle line stretched across the shape: the piece of its line, through its middle, inside the shape.
-        var chords: [(a: Point, b: Point)] = angleLines.compactMap { line in
-            guard line.count >= 2, line[0].distance(to: line[1]) > 0.01 else { return nil }
-            let middle = (line[0] + line[1]) * 0.5, u = (line[1] - line[0]) * (1 / line[0].distance(to: line[1]))
-            let pieces = AreaGeometry.clippedSegment(middle - u * reach, middle + u * reach, rings: region)
-            return pieces.min { gap(middle, $0) < gap(middle, $1) }.map { (a: $0.0, b: $0.1) }
-        }
+        let reach = Self.reach(across: region)
+        var chords = Self.chords(in: region, angleLines: angleLines)
         guard !chords.isEmpty else { return [] }
         // One line sets the direction for the whole fill: ordinary rows along it.
         if chords.count == 1 { return try AreaEngine.rows(in: region, angle: direction(chords[0]), spacing: spacing, length: length) }
@@ -188,4 +180,24 @@ enum TurningFill {
     static func mid(_ chord: (a: Point, b: Point)) -> Point { (chord.a + chord.b) * 0.5 }
     /// How far `p` is from a segment.
     static func gap(_ p: Point, _ segment: (Point, Point)) -> Double { p.distance(to: AreaGeometry.projection(p, segment.0, segment.1)) }
+
+    /// A length longer than any line across `region` (its bounding box's diagonal plus 1 mm), or 1 for an empty one.
+    static func reach(across region: [[Point]]) -> Double {
+        let points = region.flatMap { $0 }
+        guard let minX = points.map(\.x).min(), let maxX = points.map(\.x).max(), let minY = points.map(\.y).min(), let maxY = points.map(\.y).max() else { return 1 }
+        return hypot(maxX - minX, maxY - minY) + 1
+    }
+
+    /// Each angle line stretched across the shape: the piece of its line, through its middle, that lies inside
+    /// `region` (the nearest piece, where the line crosses the shape more than once). Lines that miss the shape
+    /// entirely, or are too short to have a direction, are left out, so an empty result means the fill can't use them.
+    static func chords(in region: [[Point]], angleLines: [[Point]]) -> [(a: Point, b: Point)] {
+        let reach = reach(across: region)
+        return angleLines.compactMap { line in
+            guard line.count >= 2, line[0].distance(to: line[1]) > 0.01 else { return nil }
+            let middle = (line[0] + line[1]) * 0.5, u = (line[1] - line[0]) * (1 / line[0].distance(to: line[1]))
+            let pieces = AreaGeometry.clippedSegment(middle - u * reach, middle + u * reach, rings: region)
+            return pieces.min { gap(middle, $0) < gap(middle, $1) }.map { (a: $0.0, b: $0.1) }
+        }
+    }
 }
