@@ -22,6 +22,8 @@ final class DesignCanvas: NSView {
     private var dragRevision = 0
     private var preview: Design?
     private var draggedNode: NodeLocation?
+    /// True while the dragged node was just added by pressing on an edge (it's saved as "Add Node").
+    private var nodeJustAdded = false
     private var draggedHandle: (location: NodeLocation, outgoing: Bool)?   // a Bézier handle being dragged
     private var drawingHandle: Int?   // while tracing: the new draft node whose handles the drag is pulling out
     private var shapeStart: Point?    // while dragging out a rectangle, ellipse or basic shape: where the drag began
@@ -734,6 +736,13 @@ final class DesignCanvas: NSView {
             state.selection=[location.object];state.selectedNode=location
             draggedNode=location;dragStart=point;dragSnapshot=state.design;return
         }
+        // Pressing on a selected object's edge adds a corner node there; keep holding to drag it into place. It's
+        // saved, with the drag, when the mouse is let go. (A satin gets a new rung, saved straight away.)
+        if state.tool == .node, !state.hasVersionMismatch, let edge=edge(near:model(location),reach:6/state.zoom) {
+            let added=addingNode(on:edge,smooth:false,to:state.design)
+            guard let node=added.node else{state.edit("Add Rung"){$0=added.design};return}
+            dragSnapshot=added.design;preview=added.design;draggedNode=node;dragStart=point;nodeJustAdded=true;return
+        }
         // With Select, a guide can be grabbed wherever no object is under the pointer.
         if state.tool == .select, !state.hasVersionMismatch, hit(point) == nil, let index = guide(near: location) {
             guideDrag = (index, state.design.guides![index].vertical, false, location); dragSnapshot = state.design
@@ -764,6 +773,12 @@ final class DesignCanvas: NSView {
             state.editSelected("Change Node Type"){object in
                 if location.ring<0{object.nodes[location.index].toggleSmooth()}else{object.holes?[location.ring][location.index].toggleSmooth()}
             }
+        }
+        // Right-click on a selected object's edge adds a curve node: drag it and the edge bends smoothly through it.
+        else if state.tool == .node,!state.hasVersionMismatch,let edge=edge(near:model(convert(event.locationInWindow,from:nil)),reach:6/state.zoom) {
+            let added=addingNode(on:edge,smooth:true,to:state.design)
+            state.edit(added.node == nil ? "Add Rung":"Add Curve Node"){$0=added.design}
+            if let node=added.node{state.selectedNode=node;state.status="Curve node added · drag it and the edge bends smoothly through it"}
         }
     }
     override func mouseMoved(with event:NSEvent){pointer=model(convert(event.locationInWindow,from:nil));state.pointer.position=pointer;if state.angleStart != nil{needsDisplay=true};updateGuideCursor(at:convert(event.locationInWindow,from:nil))}
@@ -898,10 +913,12 @@ final class DesignCanvas: NSView {
             else { state.finishShape(state.tool.draggedShape ?? .rectangle) }
             return
         }
-        let action = angleDrag != nil ? "Move Stitch Angle" : fillAngleDrag != nil ? "Fill Angle" : artworkDrag.map { $0 < 0 ? "Move Artwork" : "Resize Artwork" } ?? draggedMarker.map { $0.kind == .end ? "Move End Point" : $0.kind == .start ? "Move Start Point" : "Move Radial Center" } ?? (draggedHandle != nil ? "Shape Curve" : draggedNode == nil ? "Move Objects" : "Move Node")
+        let action = angleDrag != nil ? "Move Stitch Angle" : fillAngleDrag != nil ? "Fill Angle" : artworkDrag.map { $0 < 0 ? "Move Artwork" : "Resize Artwork" } ?? draggedMarker.map { $0.kind == .end ? "Move End Point" : $0.kind == .start ? "Move Start Point" : "Move Radial Center" } ?? (draggedHandle != nil ? "Shape Curve" : draggedNode == nil ? "Move Objects" : nodeJustAdded ? "Add Node" : "Move Node")
         // Said before the change is saved, so a message from saving it (such as hand edits being replaced) wins.
         if let drag = fillAngleDrag, let angle = preview?.objects.first(where: { $0.id == drag.object })?.settings.angle { state.status = "Stitch angle \(Int(angle))°" }
         if let preview { state.document?.replace(preview, action: action) }
+        if nodeJustAdded, let node = draggedNode { state.selectedNode = node; state.status = "Node added · drag it to reshape · right-click an edge for a curve node" }
+        nodeJustAdded = false
         preview = nil; angleDrag = nil; fillAngleDrag = nil; dragStart = nil; dragSnapshot = nil; draggedNode = nil; draggedHandle = nil; drawingHandle = nil; draggedMarker = nil; artworkDrag = nil; screenStart = nil; needsDisplay = true
     }
     /// Cancels a drag of objects, nodes, markers, angle lines, artwork or stitches when the design changed since the
@@ -909,7 +926,7 @@ final class DesignCanvas: NSView {
     private func dropDragIfDesignChanged() -> Bool {
         guard state.revision != dragRevision, stitchDrag != nil || dragSnapshot != nil else { return false }
         stitchDrag = nil; stitchPreview = nil; preview = nil; dragSnapshot = nil; dragStart = nil; angleDrag = nil; fillAngleDrag = nil; guideDrag = nil
-        draggedNode = nil; draggedHandle = nil; draggedMarker = nil; artworkDrag = nil; needsDisplay = true
+        draggedNode = nil; draggedHandle = nil; draggedMarker = nil; artworkDrag = nil; nodeJustAdded = false; needsDisplay = true
         state.status = "The design changed during the drag, so the drag was cancelled."
         return true
     }
@@ -1015,33 +1032,49 @@ final class DesignCanvas: NSView {
         }
         state.selectedNode=nil
     }
-    func insertNode() {
-        guard state.tool == .node else{state.status="Use \(Preferences.shared.key(.nodeTool)), then point at an edge and press \(Preferences.shared.key(.insertNode)).";return}
-        var candidate:(UUID,Int,Int,Point)?,distance=12/state.zoom
+    /// The edge of a selected, unlocked object nearest `p`, within `reach` mm: the object, the ring (-1 the outline,
+    /// 0… a hole), the segment and the nearest point on it. For a satin, the centerline between two rungs.
+    private func edge(near p: Point, reach: Double) -> (id: UUID, ring: Int, index: Int, point: Point)? {
+        var candidate: (id: UUID, ring: Int, index: Int, point: Point)?, distance = reach
         for object in state.design.objects where state.selection.contains(object.id) && !object.locked && object.kind != .raw {
             if object.kind == .satin {
                 for i in stride(from:0,to:object.nodes.count-2,by:2) {
                     let a=(object.nodes[i].point+object.nodes[i+1].point)*0.5,b=(object.nodes[i+2].point+object.nodes[i+3].point)*0.5
-                    let d=pointer.distance(to:AreaGeometry.projection(pointer,a,b))
+                    let d=p.distance(to:AreaGeometry.projection(p,a,b))
                     if d<distance{distance=d;candidate=(object.id,-1,i,.init(0,0))}
                 }
             } else {
-                for (ring,nodes) in ([object.nodes]+(object.holes ?? [])).enumerated(){for (i,segment) in RunningEngine.flatten(nodes,closed:object.kind == .fill || object.closed).enumerated(){for (a,b) in zip(segment,segment.dropFirst()){let p=AreaGeometry.projection(pointer,a,b),d=pointer.distance(to:p);if d<distance{distance=d;candidate=(object.id,ring-1,i,p)}}}}
+                for (ring,nodes) in ([object.nodes]+(object.holes ?? [])).enumerated(){for (i,segment) in RunningEngine.flatten(nodes,closed:object.kind == .fill || object.closed).enumerated(){for (a,b) in zip(segment,segment.dropFirst()){let q=AreaGeometry.projection(p,a,b),d=p.distance(to:q);if d<distance{distance=d;candidate=(object.id,ring-1,i,q)}}}}
             }
         }
-        guard let (id,ring,index,p)=candidate else{state.status="Point close to a selected edge (or a satin centerline) before inserting.";return}
-        state.editSelected("Insert Node"){object in
-            guard object.id==id else{return}
-            if object.kind == .satin {
-                let l=(object.nodes[index].point+object.nodes[index+2].point)*0.5,r=(object.nodes[index+1].point+object.nodes[index+3].point)*0.5
-                object.nodes.insert(contentsOf:[PathNode(l),PathNode(r)],at:index+2)
-            } else {
-                // insertingNode keeps curves exactly as they were; straight edges just get a corner node.
-                let closed=ring>=0 || object.kind == .fill || object.closed
-                if ring<0{object.nodes=RunningEngine.insertingNode(object.nodes,closed:closed,segment:index,near:p).nodes}
-                else{object.holes![ring]=RunningEngine.insertingNode(object.holes![ring],closed:true,segment:index,near:p).nodes}
-            }
+        return candidate
+    }
+    /// `design` with a node added on `edge`: a corner (`smooth` false), a curve node (true), or whatever keeps the
+    /// curve exactly (nil). A satin gets a new rung instead. Also returns where the new node is (nil for a satin rung).
+    private func addingNode(on edge: (id: UUID, ring: Int, index: Int, point: Point), smooth: Bool?, to design: Design) -> (design: Design, node: NodeLocation?) {
+        var next = design
+        guard let i = next.objects.firstIndex(where: { $0.id == edge.id }) else { return (design, nil) }
+        let object = next.objects[i], index = edge.index
+        if object.kind == .satin {
+            let l=(object.nodes[index].point+object.nodes[index+2].point)*0.5,r=(object.nodes[index+1].point+object.nodes[index+3].point)*0.5
+            next.objects[i].nodes.insert(contentsOf:[PathNode(l,smooth:smooth == true),PathNode(r,smooth:smooth == true)],at:index+2)
+            return (next, nil)
         }
+        // insertingNode keeps curves exactly as they were; `smooth` then makes the new node a corner or a curve node.
+        let closed=edge.ring>=0 || object.kind == .fill || object.closed
+        if edge.ring<0 {
+            let added=RunningEngine.insertingNode(object.nodes,closed:closed,segment:index,near:edge.point,smooth:smooth)
+            next.objects[i].nodes=added.nodes; return (next, NodeLocation(object:edge.id,ring:-1,index:added.index))
+        }
+        let added=RunningEngine.insertingNode(object.holes![edge.ring],closed:true,segment:index,near:edge.point,smooth:smooth)
+        next.objects[i].holes![edge.ring]=added.nodes; return (next, NodeLocation(object:edge.id,ring:edge.ring,index:added.index))
+    }
+    /// Insert Node (a key): adds a node on the selected edge nearest the pointer, keeping the curve's shape.
+    func insertNode() {
+        guard state.tool == .node else{state.status="Use \(Preferences.shared.key(.nodeTool)), then point at an edge and press \(Preferences.shared.key(.insertNode)).";return}
+        guard let edge=edge(near:pointer,reach:12/state.zoom) else{state.status="Point close to a selected edge (or a satin centerline) before inserting.";return}
+        let added=addingNode(on:edge,smooth:nil,to:state.design)
+        state.edit("Insert Node"){$0=added.design}
     }
     private func hit(_ p: Point) -> RunObject? {
         state.design.objects.reversed().first { object in

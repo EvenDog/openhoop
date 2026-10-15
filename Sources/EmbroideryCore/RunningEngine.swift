@@ -78,6 +78,16 @@ public enum RunningEngine {
         return (result, i + 1)
     }
 
+    /// `insertingNode`, with the new node made a corner (`smooth` false: no handles, so the outline comes to a point
+    /// there) or a curve node (`smooth` true: on a straight edge nothing bends until the node is dragged, then the
+    /// edge curves smoothly through it). Nil keeps what `insertingNode` makes.
+    public static func insertingNode(_ nodes: [PathNode], closed: Bool, segment i: Int, near p: Point, smooth: Bool?) -> (nodes: [PathNode], index: Int) {
+        var (result, index) = insertingNode(nodes, closed: closed, segment: i, near: p)
+        if smooth == true { result[index].smooth = true }
+        if smooth == false { result[index].smooth = false; result[index].inHandle = nil; result[index].outHandle = nil }
+        return (result, index)
+    }
+
     /// The handles a smooth node gets when none are set: parallel to the line joining its two neighbors,
     /// one sixth of that line's length on each side. Dragging a handle in the editor starts from these.
     public static func automaticHandles(_ nodes: [PathNode], closed: Bool, index i: Int) -> (incoming: Point, outgoing: Point) {
