@@ -102,6 +102,8 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     @Published var busy = false
     @Published var exporting = false
     @Published var generationError: String?
+    /// The objects that can't be sewn while there's a stitch error: outlined in red, while the rest show fresh stitches.
+    @Published var brokenObjects: Set<UUID> = []
     @Published var zoom = 5.0
     @Published var playback = 1.0
     @Published var playing = false
@@ -464,7 +466,8 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
 
 @MainActor final class DesignDocument: NSDocument {
     let state = EditorState()
-    private var generation: Task<StitchPlan, Error>?
+    /// The stitches being worked out in the background: the plan, the objects that can't be sewn, and the error if any.
+    private var generation: Task<(plan: StitchPlan, broken: Set<UUID>, error: String?), Error>?
     private var restoring = false
     private struct DraftSnapshot: Codable { var nodes: [PathNode]; var color: ThreadColor;var tool:Tool?;var holeTarget:UUID? }
     func draftDidChange() { if !restoring { updateChangeCount(.changeDone) } }
@@ -521,18 +524,29 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         let snapshot = state.design, revision = state.revision
         let recoveringFromError = state.generationError != nil
         state.busy = true; state.generationError = nil
-        let task = Task.detached(priority: .userInitiated) { try RunningEngine.compile(snapshot) }
+        // If one object can't be sewn, the rest still get fresh stitches to show (BrokenObjects.swift), and the error
+        // stays up so nothing can be exported until it's fixed.
+        let task = Task.detached(priority: .userInitiated) { () throws -> (plan: StitchPlan, broken: Set<UUID>, error: String?) in
+            do { return (try RunningEngine.compile(snapshot), [], nil) }
+            catch is CancellationError { throw CancellationError() }
+            catch {
+                guard let shown = try? StitchEngine.compileSkippingBroken(snapshot), !shown.broken.isEmpty else { throw error }
+                return (shown.plan, Set(shown.broken.keys), error.localizedDescription)
+            }
+        }
         generation = task
         Task { [weak self] in
             do {
-                let plan = try await task.value
+                let result = try await task.value
                 guard let self, self.state.revision == revision, !task.isCancelled else { return }
-                self.state.plan = plan; self.state.compiledRevision = revision; self.state.busy = false
+                self.state.plan = result.plan; self.state.brokenObjects = result.broken; self.state.busy = false
+                if let error = result.error { self.state.generationError = error; return }   // not marked compiled: it's only a preview
+                self.state.compiledRevision = revision
                 if recoveringFromError {self.state.status = "Updated stitches ready."}
             } catch is CancellationError { }
             catch {
                 guard let self, self.state.revision == revision else { return }
-                self.state.generationError = error.localizedDescription; self.state.busy = false
+                self.state.generationError = error.localizedDescription; self.state.brokenObjects = []; self.state.busy = false
             }
         }
     }

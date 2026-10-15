@@ -420,8 +420,10 @@ final class DesignCanvas: NSView {
             if object.kind == .vector || selected || state.showOutlines || state.busy || state.generationError != nil || preview != nil {
                 for points in object.outlinePaths where !points.isEmpty {
                     let path = NSBezierPath(); path.move(to: screen(points[0])); for point in points.dropFirst() { path.line(to: screen(point)) }
-                    // Selected objects get a thin dotted outline in one neutral color, so it shows on any thread.
-                    (selected ? Theme.Canvas.selection : object.color.nsColor.withAlphaComponent(0.4)).setStroke(); path.lineWidth = 1
+                    // Selected objects get a thin dotted outline in one neutral color, so it shows on any thread. One that
+                    // can't be sewn (the stitch error) is outlined in red instead.
+                    let broken = state.brokenObjects.contains(object.id)
+                    (broken ? NSColor.systemRed : selected ? Theme.Canvas.selection : object.color.nsColor.withAlphaComponent(0.4)).setStroke(); path.lineWidth = broken ? 2 : 1
                     if selected { path.setLineDash([2, 2], count: 2, phase: 0) }; path.stroke()
                 }
             }
@@ -914,6 +916,14 @@ final class DesignCanvas: NSView {
             return
         }
         let action = angleDrag != nil ? "Move Stitch Angle" : fillAngleDrag != nil ? "Fill Angle" : artworkDrag.map { $0 < 0 ? "Move Artwork" : "Resize Artwork" } ?? draggedMarker.map { $0.kind == .end ? "Move End Point" : $0.kind == .start ? "Move Start Point" : "Move Radial Center" } ?? (draggedHandle != nil ? "Shape Curve" : draggedNode == nil ? "Move Objects" : nodeJustAdded ? "Add Node" : "Move Node")
+        // A node or handle drag that leaves its object unable to sew (a satin rung crossing a rail, a fill's edge
+        // crossing itself) goes back, unless the object was already broken (then any edit may be the fix).
+        if let next = preview, let id = draggedNode?.object ?? draggedHandle?.location.object,
+           let before = dragSnapshot?.objects.first(where: { $0.id == id }), let after = next.objects.first(where: { $0.id == id }),
+           StitchEngine.shapeProblem(before) == nil, let problem = StitchEngine.shapeProblem(after) {
+            state.status = "That would leave \(after.name) unable to sew, so it went back. \(problem)"
+            preview = nil
+        }
         // Said before the change is saved, so a message from saving it (such as hand edits being replaced) wins.
         if let drag = fillAngleDrag, let angle = preview?.objects.first(where: { $0.id == drag.object })?.settings.angle { state.status = "Stitch angle \(Int(angle))°" }
         if let preview { state.document?.replace(preview, action: action) }
