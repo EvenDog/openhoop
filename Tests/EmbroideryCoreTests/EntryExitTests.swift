@@ -48,16 +48,29 @@ final class EntryExitTests: XCTestCase {
         XCTAssertLessThan(try AreaEngine.satin(satin.sewingOrder()).sections[0].points[0].x, -20)
     }
 
-    func testFillStartsAndEndsAtTheChosenCorners() throws {
-        var fill = RunObject(name: "Block", nodes: [Point(-10, -10), Point(10, -10), Point(10, 10), Point(-10, 10)].map { PathNode($0) })
-        fill.digitizing = DigitizingSettings(kind: .fill); fill.digitizing?.angle = 0; fill.digitizing?.underlay = .none; fill.closed = true
-        let plain = try AreaEngine.fill(fill).sections
-        XCTAssertLessThan(plain[0].points[0].distance(to: Point(-10, -10)), 1.5)
-        fill.entry = Point(10, 10); fill.exit = Point(-10, -10)
-        let sections = try AreaEngine.fill(fill).sections
-        XCTAssertLessThan(sections.first!.points.first!.distance(to: Point(10, 10)), 1.5)
-        XCTAssertLessThan(sections.last!.points.last!.distance(to: Point(-10, -10)), 1.5)
-        XCTAssertEqual(sections.map(\.points.count).reduce(0, +), plain.map(\.points.count).reduce(0, +), "Only the order changes, not the stitches")
+    /// A fill's first stitch is exactly on its start point and its last exactly on its end point. A point outside the
+    /// shape (or in a hole) moves to the nearest place just inside its edge. The fill is sewn toward the end point,
+    /// so its last row passes right beside it and the final step to it doesn't cross the finished fill.
+    func testFillStartsAndEndsExactlyAtItsPoints() throws {
+        for underlay in [UnderlayStyle.none, .edge] {
+            for (entry, exit) in [(Point(0, 0), Point(9, 9)), (Point(-9, 5), Point(9, -5)), (Point(3, -9), Point(-3, 9)), (Point(-5, 0), Point(0, 0)), (Point(30, 0), Point(0, -40))] {
+                var fill = RunObject(name: "Block", nodes: [Point(-10, -10), Point(10, -10), Point(10, 10), Point(-10, 10)].map { PathNode($0) })
+                fill.digitizing = DigitizingSettings(kind: .fill); fill.digitizing?.angle = 0; fill.digitizing?.underlay = underlay; fill.closed = true
+                fill.entry = entry; fill.exit = exit
+                // Points outside the 20 mm square land just inside its edge (0.25 mm in).
+                func inside(_ p: Point) -> Point { Point(min(max(p.x, -9.75), 9.75), min(max(p.y, -9.75), 9.75)) }
+                let sections = try AreaEngine.fill(fill).sections
+                let label = "underlay \(underlay), entry \(entry), exit \(exit)"
+                XCTAssertEqual(sections.first!.points.first!.distance(to: inside(entry)), 0, accuracy: 0.01, "starts on the start point: \(label)")
+                XCTAssertEqual(sections.last!.points.last!.distance(to: inside(exit)), 0, accuracy: 0.01, "ends on the end point: \(label)")
+                // The last step to the end point runs along the last row (rows are level here, at angle 0), within a row
+                // spacing of the end point's height, so it doesn't cross the finished fill.
+                let lastStep = try XCTUnwrap(sections.last)
+                XCTAssertTrue(lastStep.joined, label)
+                XCTAssertLessThanOrEqual(lastStep.points.map { abs($0.y - inside(exit).y) }.max()!, fill.settings.spacing + 0.01, "the last step runs beside the last row: \(label)")
+                XCTAssertGreaterThan(try RunningEngine.compile({ var d = Design(); d.objects = [fill]; return d }()).stitchCount, 0)
+            }
+        }
     }
 
     func testPointsMoveWithTheObjectSaveAsSchemaFiveAndValidate() throws {

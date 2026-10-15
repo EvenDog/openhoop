@@ -525,7 +525,7 @@ final class DesignCanvas: NSView {
     private func setEntryOrExit(at point: Point, exit: Bool) {
         if state.selection.count == 1, let object = state.selected, object.kind != .raw, object.kind != .vector, !object.locked {
             state.editSelected(exit ? "Set End Point" : "Set Start Point") { if exit { $0.exit = point } else { $0.entry = point } }
-            state.status = exit ? "End point set. Fills finish at the corner nearest it." : "Start point set. Option-click to set where it ends."
+            state.status = exit ? "End point set: the stitching finishes there." : "Start point set. Option-click to set where it ends."
         } else if let object = hit(point) {
             state.select(object.id)
             state.status = object.kind == .raw ? "Imported stitches keep their own sewing order." : "Now click where \(object.name) should start sewing."

@@ -20,6 +20,16 @@ public enum AreaEngine {
         let expanded=try AreaGeometry.offset(original,by:s.expansion)
         guard !expanded.isEmpty else{throw DesignError.invalid("Fill compensation collapses this region.")}
         var result=ObjectStitches()
+        // Travel between sections follows rings just inside the shape's edge (the edge itself if that inset collapses).
+        let edges=(try? AreaGeometry.offset(original,by:-0.25)).flatMap{$0.count==original.count ? $0:nil} ?? original
+        /// Where the needle can actually start or end for a start or end point: the point itself when it's inside the
+        /// shape, otherwise (off the shape, or in a hole) the nearest place just inside the edge.
+        func reachable(_ point:Point?)->Point? {
+            guard let point else{return nil}
+            if AreaGeometry.contains(point,rings:edges){return point}
+            return edges.flatMap{ring in ring.indices.map{AreaGeometry.projection(point,ring[$0],ring[($0+1)%ring.count])}}.min{$0.distance(to:point)<$1.distance(to:point)}
+        }
+        let entry=reachable(object.entry),exit=reachable(object.exit)
         if s.underlay != .none {
             // Underlay is inset from the source, never expanded a second time.
             let inset=try AreaGeometry.offset(original,by:-s.inset)
@@ -27,7 +37,7 @@ public enum AreaEngine {
             else {
                 // With a start point, each underlay outline begins at its corner nearest that point.
                 func startNearEntry(_ ring:[Point])->[Point] {
-                    guard let entry=object.entry,let k=ring.indices.min(by:{ring[$0].distance(to:entry)<ring[$1].distance(to:entry)}) else{return ring}
+                    guard let entry,let k=ring.indices.min(by:{ring[$0].distance(to:entry)<ring[$1].distance(to:entry)}) else{return ring}
                     return Array(ring[k...]+ring[..<k])
                 }
                 result.sections += inset.map{startNearEntry($0)}.map{StitchSection(AreaGeometry.sampled($0+Array($0.prefix(1)),length:2.5),underlay:true)}
@@ -37,21 +47,20 @@ public enum AreaEngine {
             }
         }
         let style=s.fillStyle ?? .tatami
-        var top:[[Point]]
+        // The top rows, in parts sewn one after another (tatami and wave fills with an end point come in two).
+        var parts:[[[Point]]]
         // Without a start point, contour and radial fills begin where the underlay finished, so no long travel is needed.
-        let start=object.entry ?? result.sections.last?.points.last
+        let start=entry ?? result.sections.last?.points.last
         switch style {
         case .tatami where !(s.angleLines ?? []).isEmpty:
-            top=try TurningFill.rows(in:expanded,angleLines:s.angleLines!,spacing:s.spacing,length:object.stitchLength,start:start)
-            guard !top.isEmpty else{throw DesignError.invalid("The stitch angle lines don't cross this fill. Draw them across it, or remove them.")}
-        case .tatami,.wave:top=try topRows(in:expanded,object)
-        case .contour:top=try FillStyles.contour(in:expanded,spacing:s.spacing,length:object.stitchLength,start:start)
-        case .radial:top=try FillStyles.radial(in:expanded,center:s.radialCenter ?? AreaGeometry.centroid(original[0]),spacing:s.spacing,length:object.stitchLength,start:start)
+            parts=[try TurningFill.rows(in:expanded,angleLines:s.angleLines!,spacing:s.spacing,length:object.stitchLength,start:start)]
+            guard !parts[0].isEmpty else{throw DesignError.invalid("The stitch angle lines don't cross this fill. Draw them across it, or remove them.")}
+        case .tatami,.wave:parts=try topRows(in:expanded,object,entry:entry,exit:exit)
+        case .contour:parts=[try FillStyles.contour(in:expanded,spacing:s.spacing,length:object.stitchLength,start:start)]
+        case .radial:parts=[try FillStyles.radial(in:expanded,center:s.radialCenter ?? AreaGeometry.centroid(original[0]),spacing:s.spacing,length:object.stitchLength,start:start)]
         }
-        top=top.filter(isLongEnough)
-        guard !top.isEmpty else{throw DesignError.invalid("This fill is too small for the selected row spacing.")}
-        // Travel between sections follows rings just inside the shape's edge (the edge itself if that inset collapses).
-        let edges=(try? AreaGeometry.offset(original,by:-0.25)).flatMap{$0.count==original.count ? $0:nil} ?? original
+        parts=parts.map{$0.filter(isLongEnough)}.filter{!$0.isEmpty}
+        guard !parts.isEmpty else{throw DesignError.invalid("This fill is too small for the selected row spacing.")}
         // A 0.01 mm margin keeps row ends, which lie exactly on the edge, reliably "inside" for routing. Wave row ends
         // can sit a few thousandths of a millimeter further out (the edge is bent back in short pieces), so they get 0.05 mm.
         let bounds=(try? AreaGeometry.offset(expanded,by:style == .wave ? 0.05:0.01)) ?? expanded
@@ -59,12 +68,24 @@ public enum AreaEngine {
         // row angle), and their rows already come in sewing order.
         let rowStyle=(style == .tatami && (s.angleLines ?? []).isEmpty) || style == .wave
         let router=TravelRouter(edges:edges,bounds:bounds,rowAngle:rowStyle ? s.angle:nil)
-        // Sew the top sections in the order (and from the ends) that keep travel shortest. The first section stays
-        // first (it honors the start point); with an end point, the last stays last. Contour and radial sections
-        // already come in sewing order.
-        let topSections=top.map{StitchSection($0)}
-        result.sections += rowStyle ? router?.ordered(topSections,keepingLast:object.exit != nil) ?? topSections : topSections
+        // Sew each part's sections in the order (and from the ends) that keep travel shortest. Its first section stays
+        // first (it honors the start point); with an end point, the last part's last stays last. Contour and radial
+        // sections already come in sewing order.
+        for (index,part) in parts.enumerated() {
+            let sections=part.map{StitchSection($0)}
+            result.sections += rowStyle ? router?.ordered(sections,keepingLast:exit != nil && index==parts.count-1) ?? sections : sections
+        }
         result.sections=router?.join(result.sections) ?? result.sections
+        // The needle goes in exactly at the start point and runs inside the shape to where the stitching begins (under
+        // everything sewn after it), and finishes exactly at the end point, which the last row runs beside.
+        if let router,let entry,let first=result.sections.first?.points.first,first.distance(to:entry)>0.01,let path=router.route(from:entry,to:first) {
+            let travel=router.travelStitches(path)
+            if travel.count>1 {result.sections[0].joined=true;result.sections.insert(StitchSection(travel),at:0)}
+        }
+        if let router,let exit,let last=result.sections.last?.points.last,last.distance(to:exit)>0.01,let path=router.route(from:last,to:exit) {
+            let travel=router.travelStitches(path)
+            if travel.count>1 {result.sections.append(StitchSection(travel,joined:true))}
+        }
         let trims=result.sections.dropFirst().filter{!$0.joined}.count
         if trims>0 {result.warnings.append("Fill needs \(trims) trim\(trims==1 ? "":"s") between sections that no short path inside the shape connects.")}
         return result
@@ -72,23 +93,46 @@ public enum AreaEngine {
     /// False for a scrap of a row (clipped at a sharp corner) too short to make one stitch: it would sew as a single
     /// stitch under 0.3 mm and hold nothing, so it's left out.
     private static func isLongEnough(_ row:[Point])->Bool {AreaGeometry.pathLength(row)>=StitchEngine.smallestStitch}
-    /// The top-layer fill rows in the default order, or, when the object has a start or end point, the one of four
-    /// orders (rows from the bottom or top, first row left-to-right or right-to-left) whose first and last
-    /// stitches land closest to those points.
-    private static func topRows(in region:[[Point]],_ object:RunObject) throws -> [[Point]] {
+    /// The top-layer fill rows, in parts sewn one after another. Without start or end points: one part in the default
+    /// order. With only a start point: the rows begin at the end nearest it. With an end point, the fill is split along
+    /// the line through it that runs the way the rows do, and each side is sewn toward that line, so the last row lies
+    /// right beside the end point and no travel crosses rows already sewn. The side holding the start point goes first.
+    private static func topRows(in region:[[Point]],_ object:RunObject,entry:Point?,exit:Point?) throws -> [[[Point]]] {
         let s=object.settings
         let wave=s.fillStyle == .wave ? (height:s.waveHeight ?? DigitizingSettings.defaultWaveHeight,length:s.waveLength ?? DigitizingSettings.defaultWaveLength) : nil
-        guard object.entry != nil || object.exit != nil else{return try rows(in:region,angle:s.angle,spacing:s.spacing,length:object.stitchLength,wave:wave)}
-        var best:(score:Double,rows:[[Point]])?
-        for fromTop in [false,true] {
-            for startReversed in [false,true] {
-                let candidate=try rows(in:region,angle:s.angle,spacing:s.spacing,length:object.stitchLength,fromTop:fromTop,startReversed:startReversed,wave:wave)
-                guard let first=candidate.first?.first,let last=candidate.last?.last else{continue}
-                let score=(object.entry.map{first.distance(to:$0)} ?? 0)+(object.exit.map{last.distance(to:$0)} ?? 0)
-                if best==nil || score<best!.score {best=(score,candidate)}
+        /// Of the ways to sew `part` (from the sides in `fromTop`, the first row either way), the one with the lowest score.
+        func best(_ part:[[Point]],fromTop:[Bool],_ score:([[Point]])->Double) throws -> [[Point]] {
+            var best:(score:Double,rows:[[Point]])?
+            for top in fromTop {
+                for reversed in [false,true] {
+                    let candidate=try rows(in:part,angle:s.angle,spacing:s.spacing,length:object.stitchLength,fromTop:top,startReversed:reversed,wave:wave)
+                    guard !candidate.isEmpty else{continue}
+                    let value=score(candidate)
+                    if best==nil || value<best!.score {best=(value,candidate)}
+                }
             }
+            return best?.rows ?? []
         }
-        return best?.rows ?? []
+        guard entry != nil || exit != nil else{return [try rows(in:region,angle:s.angle,spacing:s.spacing,length:object.stitchLength,wave:wave)]}
+        guard let exit else{return [try best(region,fromTop:[false,true]){$0[0][0].distance(to:entry!)}]}
+        // The two sides of the line through the end point. Rows sew upward (fromTop false) on the side below it.
+        // `far` is longer than any line across the shape, so each half covers the whole of its side.
+        let points=region.flatMap{$0},far=2*(points.map{$0.distance(to:exit)}.max() ?? 1)+1
+        let a=s.angle * .pi/180,along=Point(cos(a),sin(a)),across=Point(-sin(a),cos(a))
+        func halfPlane(_ side:Double)->[Point] {[exit-along*far,exit+along*far,exit+along*far+across*(side*far),exit-along*far+across*(side*far)]}
+        let below=try AreaGeometry.subtracting([halfPlane(1)],from:region).flatMap{$0}
+        let above=try AreaGeometry.subtracting([halfPlane(-1)],from:region).flatMap{$0}
+        var sides=[(region:below,fromTop:false),(region:above,fromTop:true)].filter{!$0.region.isEmpty}
+        if let entry,sides.count==2,AreaGeometry.cross(along,entry-exit)>0 {sides.reverse()}   // the start point is above the line
+        var parts:[[[Point]]]=[]
+        for (index,side) in sides.enumerated() {
+            let isLast=index==sides.count-1
+            let part=try best(side.region,fromTop:[side.fromTop]){rows in
+                (isLast ? rows.last!.last!.distance(to:exit):0)+(index==0 ? entry.map{rows[0][0].distance(to:$0)} ?? 0:0)
+            }
+            if !part.isEmpty {parts.append(part)}
+        }
+        return parts
     }
     struct Interval {var left:Double;var right:Double;var section:Int}
     /// `fromTop` sews rows from the far side of the fill angle first; `startReversed` flips which way the first row runs.
