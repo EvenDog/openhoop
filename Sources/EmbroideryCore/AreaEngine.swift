@@ -502,7 +502,11 @@ public enum StitchEngine {
             do {
                 // Stitches edited by hand sew instead, while they still match the object.
                 if let edits=object.stitchEdits,object.hasCurrentStitchEdits {generated=edits.stitches}
-                else {generated=try fresh(object,under:Array(design.objects[(objectIndex+1)...]))}
+                else {
+                    // Remembered stitches are reused while the object is unchanged (StitchCache.swift).
+                    let later=Array(design.objects[(objectIndex+1)...])
+                    generated=try StitchCache.shared.stitches(for:object,under:later){try fresh(object,under:later)}
+                }
             } catch is CancellationError {throw CancellationError()}
             catch {throw DesignError.invalid("\(object.name): \(error.localizedDescription)")}
             plan.warnings += generated.warnings.map{"\(object.name): \($0)"}
