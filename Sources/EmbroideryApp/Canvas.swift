@@ -137,7 +137,8 @@ final class DesignCanvas: NSView {
     /// Stitches are drawn in sewing order in batches of up to 48 in one thread, so later stitches lie over earlier
     /// ones while each batch costs only a few fills. Travel moves and needle points aren't drawn: the
     /// machine trims the travel, and the needle holes are hidden under the thread. Stitches off screen are skipped.
-    private func drawThread(_ context: CGContext, _ commands: ArraySlice<StitchCommand>, threads: [ThreadColor], hidden: Set<UUID>, showUnderlay: Bool,
+    /// `start` is where the needle stands before the first command (the end of the stitches drawn before these).
+    private func drawThread(_ context: CGContext, _ commands: ArraySlice<StitchCommand>, from start: Point = Point(0, 0), threads: [ThreadColor], hidden: Set<UUID>, showUnderlay: Bool,
                             width: Double, visibleArea: CGRect, onScreen: (Point) -> CGPoint) {
         // The strand is built from stacked layers, each a little shorter, narrower and lighter than the one below,
         // which together shade it from dark ends to a bright middle. `tone` darkens (below 0) or lightens (above 0)
@@ -179,7 +180,7 @@ final class DesignCanvas: NSView {
             path.addQuadCurve(to: start, control: CGPoint(x: middle.x - across.dx * breadth, y: middle.y - across.dy * breadth))
         }
         context.setLineCap(.round)
-        var previous = Point(0, 0)
+        var previous = start
         for command in commands {
             defer { previous = command.point }
             guard command.op == .stitch, command.objectID.map({ !hidden.contains($0) }) ?? true, showUnderlay || command.underlay != true else { continue }
@@ -338,7 +339,10 @@ final class DesignCanvas: NSView {
         drawWeave(in: cloth, color: design.fabricColor == nil ? Theme.Canvas.weave : weaveColor(for: fabric), context: context)
         Theme.Canvas.woodEdge.setStroke(); cloth.lineWidth = 2; cloth.stroke()
         Theme.Canvas.clasp.setFill(); NSBezierPath(roundedRect: CGRect(x: ringRect.midX - 22, y: ringRect.maxY - 2, width: 44, height: 12), xRadius: 4, yRadius: 4).fill()
-        if let artwork = design.artwork, artwork.visible {
+        // The reference picture, drawn here under everything unless it's been moved down the sewing order; then it's
+        // drawn after the stitches of the objects under it (ArtworkLayer.swift).
+        func drawArtwork() {
+            guard let artwork = design.artwork, artwork.visible else { return }
             if imageData != artwork.data { imageData = artwork.data; image = NSImage(data: artwork.data) }
             let rect = CGRect(x: screen(artwork.center).x - artwork.width * state.zoom / 2, y: screen(artwork.center).y - artwork.height * state.zoom / 2, width: artwork.width * state.zoom, height: artwork.height * state.zoom)
             image?.draw(in: rect, from: .zero, operation: .sourceOver, fraction: state.artworkOpacityPreview ?? artwork.opacity)   // live while its slider is dragged
@@ -351,6 +355,8 @@ final class DesignCanvas: NSView {
                 }
             }
         }
+        let artworkLayer = design.artworkLayer
+        if artworkLayer == 0 { drawArtwork() }
         if state.grid {
             context.saveGState(); context.addPath(hoopPath.cgPathCopy); context.clip()
             let preferences = Preferences.shared.data
@@ -378,23 +384,34 @@ final class DesignCanvas: NSView {
         context.setLineWidth(1.1); context.setLineCap(.round)
         let needles = CGMutablePath()
         var activeColor: CGColor?
-        if threadView && showStitches { drawThread(context, commands, threads: plan.threads, hidden: hidden, showUnderlay: showUnderlay, width: max(1.2, 0.45 * zoom), visibleArea: visibleArea, onScreen: onScreen) }
-        for command in commands where thinLines || showConnectors {   // the thin-line stitch view, and travel moves dashed
-            let visible = (command.objectID.map { !hidden.contains($0) } ?? true) && (showUnderlay || command.underlay != true)
-            let p = onScreen(command.point)
-            if command.op == .stitch && visible && thinLines {
-                let colors = threadColors.indices.contains(command.thread) ? threadColors[command.thread] : unknownThread
-                let color = colors[command.underlay == true ? 1 : 0]
-                if activeColor !== color {context.strokePath();context.setStrokeColor(color);activeColor=color}   // !== : the very same color object, a cheap check
-                context.move(to: onScreen(previous)); context.addLine(to: p)
-                if showNeedles && visibleArea.contains(p) { needles.addEllipse(in: CGRect(x: p.x - 1.1, y: p.y - 1.1, width: 2.2, height: 2.2)) }
-            } else if command.op == .jump && visible && showConnectors && previous.distance(to: command.point) > 0.1 {
-                context.strokePath();activeColor=nil
-                context.saveGState(); context.setStrokeColor(Theme.Canvas.jump.cgColor); context.setLineDash(phase: 0, lengths: [3, 5]); context.move(to: onScreen(previous)); context.addLine(to: p); context.strokePath(); context.restoreGState()
+        /// Draws `part` of the stitches (thread or thin lines, and travel moves), carrying on from where the last part ended.
+        func drawStitches(_ part: ArraySlice<StitchCommand>) {
+            if threadView && showStitches { drawThread(context, part, from: previous, threads: plan.threads, hidden: hidden, showUnderlay: showUnderlay, width: max(1.2, 0.45 * zoom), visibleArea: visibleArea, onScreen: onScreen) }
+            for command in part where thinLines || showConnectors {   // the thin-line stitch view, and travel moves dashed
+                let visible = (command.objectID.map { !hidden.contains($0) } ?? true) && (showUnderlay || command.underlay != true)
+                let p = onScreen(command.point)
+                if command.op == .stitch && visible && thinLines {
+                    let colors = threadColors.indices.contains(command.thread) ? threadColors[command.thread] : unknownThread
+                    let color = colors[command.underlay == true ? 1 : 0]
+                    if activeColor !== color {context.strokePath();context.setStrokeColor(color);activeColor=color}   // !== : the very same color object, a cheap check
+                    context.move(to: onScreen(previous)); context.addLine(to: p)
+                    if showNeedles && visibleArea.contains(p) { needles.addEllipse(in: CGRect(x: p.x - 1.1, y: p.y - 1.1, width: 2.2, height: 2.2)) }
+                } else if command.op == .jump && visible && showConnectors && previous.distance(to: command.point) > 0.1 {
+                    context.strokePath();activeColor=nil
+                    context.saveGState(); context.setStrokeColor(Theme.Canvas.jump.cgColor); context.setLineDash(phase: 0, lengths: [3, 5]); context.move(to: onScreen(previous)); context.addLine(to: p); context.strokePath(); context.restoreGState()
+                }
+                previous = command.point
             }
-            previous = command.point
+            context.strokePath(); activeColor = nil
+            if !(thinLines || showConnectors), let last = part.last { previous = last.point }   // the loop above didn't run
         }
-        context.strokePath()
+        // The objects under the picture, then the picture, then the rest. Commands come in sewing order, so the
+        // first command of an object over the picture splits them.
+        let over = Set(design.objects[artworkLayer...].map(\.id))
+        let split = artworkLayer == 0 ? commands.startIndex : commands.firstIndex { $0.objectID.map(over.contains) ?? false } ?? commands.endIndex
+        drawStitches(commands[..<split])
+        if artworkLayer > 0 { drawArtwork() }
+        drawStitches(commands[split...])
         context.setFillColor(Theme.Canvas.needle.cgColor); context.addPath(needles); context.fillPath()
         for object in design.objects where state.isShown(object) {
             let selected = state.selection.contains(object.id)

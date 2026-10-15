@@ -509,6 +509,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         // Stitches edited by hand last only while their object stays as it was; a new shape or setting means fresh
         // stitches (Undo brings the edits back).
         let lost=updated.dropStaleStitchEdits()
+        updated.keepArtworkPlace(from:state.design)   // the reference picture stays between the same objects
         if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaFive ? 5:4}
         state.design = updated; state.revision += 1
         if !lost.isEmpty { state.status = "\(lost.joined(separator: ", ")): stitches edited by hand were replaced by fresh ones, because the shape or settings changed. Undo (⌘Z) brings them back." }

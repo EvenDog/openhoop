@@ -403,6 +403,36 @@ struct ShapeOptionsBar: View {
     }
 }
 
+/// The reference picture's row in the sewing order. The objects listed above it are drawn under the picture and the
+/// ones below it on top; its arrows move it past one step (or one group). It's only how the canvas draws: it never sews.
+struct PictureRow: View {
+    @ObservedObject var state: EditorState
+    var compact = false   // the Pro table's tighter rows
+    var body: some View {
+        let layer = state.design.artworkLayer, count = state.design.objects.count
+        HStack(spacing: 6) {
+            Image(systemName: "photo").font(.system(size: compact ? 10 : 12)).foregroundStyle(Theme.inkSecondary)
+            Text("Reference image").font(Theme.body(compact ? 11 : 12, weight: .semibold)).lineLimit(1)
+            if state.design.artwork?.visible == false { Image(systemName: "eye.slash").font(.caption2).help("Hidden") }
+            Spacer(minLength: 0)
+            arrow("chevron.up", step: -1, enabled: layer > 0)
+            arrow("chevron.down", step: 1, enabled: layer < count)
+        }
+        .padding(.horizontal, compact ? 4 : 10).padding(.vertical, compact ? 3 : 6)
+        .overlay(RoundedRectangle(cornerRadius: compact ? 4 : 10).strokeBorder(Theme.controlBorder, style: StrokeStyle(lineWidth: 1, dash: [3, 3])))
+        .help("Objects above this row are drawn under the reference image, the ones below it on top. The image is never sewn.")
+    }
+    private func arrow(_ symbol: String, step: Int, enabled: Bool) -> some View {
+        Button {
+            state.edit("Move Reference Image") { $0.moveArtwork(by: step) }
+            let layer = state.design.artworkLayer
+            state.status = layer == 0 ? "The reference image is under everything." : "The reference image is drawn over step\(layer == 1 ? " 1" : "s 1–\(layer)")."
+        } label: { Image(systemName: symbol).font(.system(size: 10, weight: .bold)) }
+        .buttonStyle(.borderless).disabled(!enabled || state.hasVersionMismatch)
+        .help(step < 0 ? "Move up: the step above goes over the image" : "Move down: the step below goes under the image")
+    }
+}
+
 struct ObjectPanel: View {
     @ObservedObject var state: EditorState
     @ObservedObject var preferences = Preferences.shared
@@ -421,9 +451,12 @@ struct ObjectPanel: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     let labels = state.design.groupLabels
+                    let pictureAt = state.design.artwork == nil ? nil : Optional(state.design.artworkLayer)
                     ForEach(Array(state.design.objects.enumerated()), id: \.element.id) { index, object in
+                        if index == pictureAt { PictureRow(state: state).padding(.leading, 36).padding(.bottom, 8) }
                         stepRow(number: index + 1, object: object, isLast: index == state.design.objects.count - 1, groupLabel: object.groupID.flatMap { labels[$0] })
                     }
+                    if pictureAt == state.design.objects.count { PictureRow(state: state).padding(.leading, 36).padding(.top, state.design.objects.isEmpty ? 0 : 8) }
                     if state.design.objects.isEmpty { Text("Your paths will appear here in sewing order.").font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).padding(.vertical, 28) }
                 }
             }

@@ -102,8 +102,10 @@ struct ProSewingOrder: View {
     private enum Line: Identifiable {
         case object(index: Int, RunObject, indented: Bool)
         case group(id: UUID, first: Int, members: [RunObject])
+        case picture   // the reference picture's place (ArtworkLayer.swift)
         var id: String {
             switch self {
+            case .picture: return "picture"
             case .object(_, let object, _): return object.id.uuidString
             case .group(let id, let first, _): return "\(id.uuidString)-\(first)"
             }
@@ -127,6 +129,15 @@ struct ProSewingOrder: View {
             }
             index = end
         }
+        // The picture goes before the first line of the object it sits above (never inside a group: moving it skips
+        // whole groups), or at the end.
+        if state.design.artwork != nil {
+            let layer = state.design.artworkLayer
+            let at = lines.firstIndex { line in
+                switch line { case .object(let index, _, _): return index >= layer; case .group(_, let first, _): return first >= layer; case .picture: return false }
+            } ?? lines.count
+            lines.insert(.picture, at: at)
+        }
         return lines
     }
 
@@ -143,6 +154,7 @@ struct ProSewingOrder: View {
                         switch line {
                         case .object(let index, let object, let indented): objectRow(index, object, indented: indented, count: counts[object.id])
                         case .group(let id, let first, let members): groupRow(id, first: first, members: members, label: labels[id], count: members.compactMap { counts[$0.id] }.reduce(0, +))
+                        case .picture: PictureRow(state: state, compact: true).padding(.vertical, 2)
                         }
                     }
                     if state.design.objects.isEmpty { Text("Objects appear here in sewing order.").font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).padding(.vertical, 20) }

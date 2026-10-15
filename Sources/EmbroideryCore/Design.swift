@@ -330,6 +330,9 @@ public struct Artwork: Codable, Equatable, Sendable {
     public var height: Double
     public var opacity = 0.4
     public var visible = true
+    /// Where the picture sits in the sewing order (ArtworkLayer.swift): how many objects, from the first sewn, are
+    /// drawn under it. Nil (older files) is 0: under everything. It's only how the canvas draws; nothing is sewn.
+    public var layer: Int?
     public init(data: Data, name: String, width: Double, height: Double) {
         self.data = data; self.name = name; self.width = width; self.height = height
     }
