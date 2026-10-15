@@ -44,6 +44,9 @@ final class DesignCanvas: NSView {
     /// A stitch angle line being dragged: its fill and index, which part (0 or 1: that end; nil: the whole line),
     /// and where the drag began.
     private var angleDrag: (object: UUID, index: Int, end: Int?, start: Point)?
+    /// A fill's stitch angle line (StitchAngleLine) being swung by an end with Edit Nodes: the fill, and where the
+    /// pointer is (the angle reads out beside it).
+    private var fillAngleDrag: (object: UUID, pointer: Point)?
     /// A measurement as the Measure tool shows it: the distance in mm, and the angle from the start, counterclockwise
     /// from pointing right (the same way Rotate counts), e.g. "12.5 mm · 37°".
     static func measurementText(from start: Point, to end: Point) -> String {
@@ -366,6 +369,10 @@ final class DesignCanvas: NSView {
                     }
                 }
             }
+            // A fill's stitch angle shows as a line across it with Edit Nodes; dragging an end turns the stitches.
+            if selected && state.tool == .node && !object.locked, let ends = StitchAngleLine.ends(of: object) {
+                drawAngleLine(ends.0, ends.1, selected: fillAngleDrag?.object == object.id)
+            }
             // Stitch angle lines show while they can be changed: with Edit Nodes and the stitch angle tools.
             if selected && [.node, .addAngles, .removeAngles].contains(state.tool) {
                 for (index, line) in (object.settings.angleLines ?? []).enumerated() where line.count == 2 {
@@ -408,6 +415,8 @@ final class DesignCanvas: NSView {
             let line = lines[drag.index]
             drawAngleReading(line[0], line[1], at: drag.end.map { line[$0] } ?? (line[0] + line[1]) * 0.5)
         }
+        if let drag = fillAngleDrag, let object = (preview ?? state.design).objects.first(where: { $0.id == drag.object }),
+           let ends = StitchAngleLine.ends(of: object) { drawAngleReading(ends.0, ends.1, at: drag.pointer) }
         if state.tool == .branch, let start = state.branchPoints.first { drawMarker(start, label: "Branch start", color: Theme.Canvas.entry) }
         if let box = zoomBox {
             let rect = NSBezierPath(rect: CGRect(x: min(box.start.x, box.end.x), y: min(box.start.y, box.end.y), width: abs(box.end.x - box.start.x), height: abs(box.end.y - box.start.y)))
@@ -467,6 +476,8 @@ final class DesignCanvas: NSView {
     /// A selected line is drawn thicker, in orange.
     private func drawAngleLine(_ a: Point, _ b: Point, selected: Bool = false) {
         let p = screen(a), q = screen(b), line = NSBezierPath(); line.move(to: p); line.line(to: q)
+        // A white edge under the line keeps it visible on dark thread.
+        NSColor.white.withAlphaComponent(0.85).setStroke(); line.lineWidth = selected ? 4.5 : 3.2; line.stroke()
         (selected ? NSColor.systemOrange : Theme.Canvas.handle).setStroke(); line.lineWidth = selected ? 2.5 : 1.2; line.stroke()
         for end in [p, q] {
             let knob = NSBezierPath(rect: CGRect(x: end.x - 4, y: end.y - 4, width: 8, height: 8))
@@ -574,6 +585,14 @@ final class DesignCanvas: NSView {
             needsDisplay = true; return
         }
         if state.tool == .addAngles || state.tool == .removeAngles { state.clickForAngle(snapped(model(location)), reach: 9 / state.zoom); return }
+        // With Edit Nodes, grabbing an end of a selected fill's stitch angle line starts swinging it (nodes and handles
+        // still come first).
+        if state.tool == .node, !state.hasVersionMismatch, nearestNode(model(location)) == nil, nearestHandle(model(location)) == nil,
+           let fill = fillAngleEnd(near: model(location)) {
+            fillAngleDrag = (fill, model(location)); dragSnapshot = state.design
+            state.status = "Drag to turn the stitches · let go to keep the new angle"
+            needsDisplay = true; return
+        }
         guard !state.hasVersionMismatch else { return }
         let point = snapped(model(location))
         if state.tool.draws {
@@ -652,6 +671,11 @@ final class DesignCanvas: NSView {
             if let end = drag.end { line[end] = line[end] + delta } else { line = line.map { $0 + delta } }
             next.objects[i].digitizing?.angleLines?[drag.index] = line
             preview = next; needsDisplay = true; return
+        }
+        if let drag = fillAngleDrag, var next = dragSnapshot, let i = next.objects.firstIndex(where: { $0.id == drag.object }) {
+            let angle = StitchAngleLine.angle(of: next.objects[i], toward: model(location))
+            next.objects[i].digitizing?.angle = angle
+            fillAngleDrag = (drag.object, model(location)); preview = next; needsDisplay = true; return
         }
         if measuring, let line = measurement {
             measurement = (line.start, snapped(model(location)))
@@ -735,15 +759,17 @@ final class DesignCanvas: NSView {
             else { state.finishShape(state.tool.draggedShape ?? .rectangle) }
             return
         }
-        let action = angleDrag != nil ? "Move Stitch Angle" : artworkDrag.map { $0 < 0 ? "Move Artwork" : "Resize Artwork" } ?? draggedMarker.map { $0.kind == .end ? "Move End Point" : $0.kind == .start ? "Move Start Point" : "Move Radial Center" } ?? (draggedHandle != nil ? "Shape Curve" : draggedNode == nil ? "Move Objects" : "Move Node")
+        let action = angleDrag != nil ? "Move Stitch Angle" : fillAngleDrag != nil ? "Fill Angle" : artworkDrag.map { $0 < 0 ? "Move Artwork" : "Resize Artwork" } ?? draggedMarker.map { $0.kind == .end ? "Move End Point" : $0.kind == .start ? "Move Start Point" : "Move Radial Center" } ?? (draggedHandle != nil ? "Shape Curve" : draggedNode == nil ? "Move Objects" : "Move Node")
+        // Said before the change is saved, so a message from saving it (such as hand edits being replaced) wins.
+        if let drag = fillAngleDrag, let angle = preview?.objects.first(where: { $0.id == drag.object })?.settings.angle { state.status = "Stitch angle \(Int(angle))°" }
         if let preview { state.document?.replace(preview, action: action) }
-        preview = nil; angleDrag = nil; dragStart = nil; dragSnapshot = nil; draggedNode = nil; draggedHandle = nil; drawingHandle = nil; draggedMarker = nil; artworkDrag = nil; screenStart = nil; needsDisplay = true
+        preview = nil; angleDrag = nil; fillAngleDrag = nil; dragStart = nil; dragSnapshot = nil; draggedNode = nil; draggedHandle = nil; drawingHandle = nil; draggedMarker = nil; artworkDrag = nil; screenStart = nil; needsDisplay = true
     }
     /// Cancels a drag of objects, nodes, markers, angle lines, artwork or stitches when the design changed since the
     /// mouse went down (Undo pressed mid-drag). Returns true if it did.
     private func dropDragIfDesignChanged() -> Bool {
         guard state.revision != dragRevision, stitchDrag != nil || dragSnapshot != nil else { return false }
-        stitchDrag = nil; stitchPreview = nil; preview = nil; dragSnapshot = nil; dragStart = nil; angleDrag = nil
+        stitchDrag = nil; stitchPreview = nil; preview = nil; dragSnapshot = nil; dragStart = nil; angleDrag = nil; fillAngleDrag = nil
         draggedNode = nil; draggedHandle = nil; draggedMarker = nil; artworkDrag = nil; needsDisplay = true
         state.status = "The design changed during the drag, so the drag was cancelled."
         return true
@@ -823,6 +849,13 @@ final class DesignCanvas: NSView {
     }
     override func magnify(with event: NSEvent) { state.zoom = min(60, max(0.5, state.zoom * (1 + event.magnification))) }
     override func keyDown(with event: NSEvent) { if !AppDelegate.shared.route(event) { super.keyDown(with: event) } }
+    /// The selected, unlocked fill whose stitch angle line has an end within reach of `p` (model mm), if any.
+    private func fillAngleEnd(near p: Point) -> UUID? {
+        state.design.objects.first { object in
+            guard state.selection.contains(object.id), !object.locked, let ends = StitchAngleLine.ends(of: object) else { return false }
+            return min(ends.0.distance(to: p), ends.1.distance(to: p)) <= 6 / state.zoom
+        }?.id
+    }
     private func nearestNode(_ p:Point)->NodeLocation? {
         var best:NodeLocation?,distance=9/state.zoom
         for object in state.design.objects.reversed() where object.visible && !object.locked && object.kind != .raw {
