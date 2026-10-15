@@ -129,6 +129,10 @@ Satins with a chosen (not Auto) underlay can have a **second underlay** (More se
 
 **Measure (M)** (in the Pan slot): drag from one point to another to read the distance in mm and its angle (counted counterclockwise from pointing right, like Rotate). The line stays until you measure again or change tools. Snap to grid applies.
 
+**Guides:** drag down from the top ruler for a side-to-side guide line, or right from the left ruler for an up-and-down one; the position shows beside the pointer while you drag. With Select, drag a guide (where no object is under the pointer) to move it, or back onto its ruler to remove it. **View → Clear Guides** removes them all. With **Snap to grid** on, points and drags close to a guide land on it. Guides are saved with the design but never sewn.
+
+**Grid color:** the grid draws light lines on dark cloth and dark lines on light cloth. To pick your own color and strength, open **Settings → General → Grid lines** and choose **Custom color** (the color picker's opacity slider sets how strong the lines are).
+
 ## Lettering
 
 Press **A** (or **Add → Text**) to add lettering.

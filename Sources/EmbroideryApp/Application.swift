@@ -566,6 +566,10 @@ import EmbroideryCore
             state.canvas?.zoom(to: box)
         case .grid: state.grid.toggle()
         case .snap: state.snap.toggle()
+        case .clearGuides:
+            guard !(state.design.guides ?? []).isEmpty else { state.status = "There are no guides. Drag from a ruler to add one."; return }
+            guard !state.hasVersionMismatch else { state.status = "Regenerate this older project before changing its guides."; return }
+            state.edit("Clear Guides") { $0.guides = nil }; state.status = "Guides cleared. Undo (⌘Z) brings them back."
         case .needles: state.needles.toggle()
         case .showStitches:
             state.showStitches.toggle()
@@ -940,7 +944,7 @@ import EmbroideryCore
             ("File", [.new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportPES, .exportMachine, .exportDST, .exportEXP, .exportJEF, .exportVP3, .exportXXX, .exportPEC, .exportThreadList, .productionWorksheet, .sample, .stitchSampler]),
             ("Edit", [.undo, .redo, .cutObjects, .copyObjects, .pasteObjects, .selectAll, .delete, .duplicate, .group, .ungroup, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .sequenceBySelection, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .closePath, .lockObject, .hideObject, .renameObject, .threadChart, .weldObjects, .smoothShapes]),
             ("Digitize", [.selectTool, .runTool, .satinTool, .fillTool, .holeTool, .openShapeTool, .closedShapeTool, .rectangleTool, .ellipseTool, .basicShapeTool, .knifeTool, .branching, .addStitchAngles, .removeStitchAngles, .editStitches, .removeHoles, .lettering, .editLettering, .addMonogram, .editMonogram, .autoDigitize, .satinBorder, .applique, .laydown, .done, .artworkTool, .nodeTool, .panTool, .entryExitTool, .autoStartPoints, .clearStartEnd, .finishPath, .cancelPath, .removePoint, .insertNode, .deleteNode, .convertFill, .convertRun, .convertSatin, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),
-            ("View", [.proView, .threadView, .zoomIn, .zoomOut, .zoomFit, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .needles, .artwork, .showUnderlay, .play, .rewind]),
+            ("View", [.proView, .threadView, .zoomIn, .zoomOut, .zoomFit, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .clearGuides, .needles, .artwork, .showUnderlay, .play, .rewind]),
             ("Window", [.nextTab, .previousTab] + PanelID.allCases.map(\.command) + [.saveWorkspace, .restoreWorkspace])]
         for (name, commands) in groups {
             let item = NSMenuItem(); item.submenu = NSMenu(title: name); item.title = name; menu.addItem(item)

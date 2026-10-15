@@ -61,6 +61,7 @@ enum Theme {
         static let clasp = nsAdaptive(light: 0x9C7444, dark: 0x5E4329)        // tightening clasp at the top
         static let sewingArea = nsAdaptive(light: 0xB9A384, dark: 0x5A4C40)   // dashed outline of where stitches may go
         static let grid = nsAdaptive(light: 0x9A7B55, dark: 0xF2E9DC, alpha: 0.16)
+        static let guide = nsAdaptive(light: 0x1F8FA8, dark: 0x5FCFE4)                // guide lines dragged from the rulers
         static let ruler = nsAdaptive(light: 0xFFFDF8, dark: 0x2A231E)
         static let label = nsAdaptive(light: 0x6B5A4C, dark: 0xBFAE9A)
         static let jump = nsAdaptive(light: 0x34507A, dark: 0x9DB7DE, alpha: 0.35)  // travel moves between parts

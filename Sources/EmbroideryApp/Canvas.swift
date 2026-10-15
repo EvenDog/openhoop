@@ -47,6 +47,11 @@ final class DesignCanvas: NSView {
     /// A fill's stitch angle line (StitchAngleLine) being swung by an end with Edit Nodes: the fill, and where the
     /// pointer is (the angle reads out beside it).
     private var fillAngleDrag: (object: UUID, pointer: Point)?
+    /// A guide line being dragged: its place in the design's guides, which way it runs, whether it's being dragged out
+    /// of a ruler (not added yet), and where the pointer is (its position reads out beside it).
+    private var guideDrag: (index: Int, vertical: Bool, isNew: Bool, pointer: CGPoint)?
+    /// The Next Shape bar floating over the canvas (DesignTabs.swift). The pointer keeps its normal arrow over it.
+    weak var floatingBar: NSView?
     /// A measurement as the Measure tool shows it: the distance in mm, and the angle from the start, counterclockwise
     /// from pointing right (the same way Rotate counts), e.g. "12.5 mm · 37°".
     static func measurementText(from start: Point, to end: Point) -> String {
@@ -117,7 +122,12 @@ final class DesignCanvas: NSView {
     var origin: CGPoint { CGPoint(x: bounds.midX + pan.x, y: bounds.midY + pan.y) }
     func screen(_ p: Point) -> CGPoint { CGPoint(x: origin.x + p.x * state.zoom, y: origin.y + p.y * state.zoom) }
     func model(_ p: CGPoint) -> Point { Point((p.x - origin.x) / state.zoom, (p.y - origin.y) / state.zoom) }
-    func snapped(_ p: Point) -> Point { state.snap ? Point(p.x.rounded(), p.y.rounded()) : p }
+    /// With Snap on: `p` on a guide within 6 points on screen, otherwise on the nearest whole millimeter.
+    func snapped(_ p: Point) -> Point {
+        guard state.snap else { return p }
+        let onGuide = Guide.snap(p, to: state.design.guides ?? [], reach: 6 / state.zoom)
+        return Point(onGuide.x ?? p.x.rounded(), onGuide.y ?? p.y.rounded())
+    }
     /// Thread View: draws each stitch as its own strand of thread `width` points wide (0.45 mm, a 40-weight thread lying
     /// flat), shaded like real thread: darkest where the thread dives into the cloth at each needle hole
     /// and brightest half way along, so a satin column looks rounded and a fill shows each stitch. A soft shadow lifts
@@ -254,7 +264,34 @@ final class DesignCanvas: NSView {
         if state.tool != .measure { measurement = nil; measuring = false }
         window?.invalidateCursorRects(for: self); needsDisplay = true
     }
-    override func resetCursorRects() { addCursorRect(bounds, cursor: state.tool == .pan || state.tool == .artwork ? .openHand : state.tool.draws || state.tool.dragsShape || state.tool == .entryExit || state.tool == .zoomBox || state.tool == .measure || state.tool == .branch || state.tool == .addAngles || state.tool == .removeAngles || state.tool == .stitchEdit ? .crosshair : .arrow) }
+    override func resetCursorRects() {
+        let cursor: NSCursor = state.tool == .pan || state.tool == .artwork ? .openHand : state.tool.draws || state.tool.dragsShape || state.tool == .entryExit || state.tool == .zoomBox || state.tool == .measure || state.tool == .branch || state.tool == .addAngles || state.tool == .removeAngles || state.tool == .stitchEdit ? .crosshair : .arrow
+        // The tool's pointer goes around the floating Next Shape bar, which keeps the normal arrow. (Cursor areas
+        // mustn't overlap, so the canvas is split into the parts around the bar.)
+        let bar = floatingBar.map { convert($0.bounds, from: $0) }.map { $0.intersection(bounds) } ?? .null
+        for part in Self.rects(bounds, around: bar) { addCursorRect(part, cursor: cursor) }
+        if !bar.isNull && !bar.isEmpty { addCursorRect(bar, cursor: .arrow) }
+    }
+    /// The parts of `area` around `hole` (up to four rectangles: below, above, left and right of it), or all of
+    /// `area` when the hole is empty.
+    static func rects(_ area: CGRect, around hole: CGRect) -> [CGRect] {
+        let hole = hole.intersection(area)
+        guard !hole.isNull, !hole.isEmpty else { return [area] }
+        return [CGRect(x: area.minX, y: area.minY, width: area.width, height: hole.minY - area.minY),
+                CGRect(x: area.minX, y: hole.maxY, width: area.width, height: area.maxY - hole.maxY),
+                CGRect(x: area.minX, y: hole.minY, width: hole.minX - area.minX, height: hole.height),
+                CGRect(x: hole.maxX, y: hole.minY, width: area.maxX - hole.maxX, height: hole.height)]
+            .filter { $0.width > 0 && $0.height > 0 }
+    }
+    /// The grid lines' color: the custom one from Settings, or automatically light lines on dark cloth and dark lines
+    /// on light cloth. The default linen (no fabric color) follows light or dark mode, as it always has.
+    static func gridColor(fabric: Int?, custom: Int?, opacity: Double?) -> NSColor {
+        if let custom { return Theme.fixed(custom).withAlphaComponent(opacity ?? 0.4) }
+        guard let fabric else { return Theme.Canvas.grid }
+        // Perceived brightness (0–255): green looks brightest, blue darkest.
+        let brightness = Double((fabric >> 16) & 255) * 0.299 + Double((fabric >> 8) & 255) * 0.587 + Double(fabric & 255) * 0.114
+        return brightness < 128 ? NSColor.white.withAlphaComponent(0.25) : Theme.fixed(0x9A7B55).withAlphaComponent(0.2)
+    }
 
     /// The reference image's rectangle on screen.
     func artworkRect(_ artwork: Artwork) -> CGRect {
@@ -298,7 +335,8 @@ final class DesignCanvas: NSView {
         }
         if state.grid {
             context.saveGState(); context.addPath(hoopPath.cgPathCopy); context.clip()
-            context.setStrokeColor(Theme.Canvas.grid.cgColor); context.setLineWidth(0.5)
+            let preferences = Preferences.shared.data
+            context.setStrokeColor(Self.gridColor(fabric: design.fabricColor, custom: preferences.gridColor, opacity: preferences.gridOpacity).cgColor); context.setLineWidth(0.5)
             let spacing = state.zoom < 3 ? 10.0 : 5.0
             for x in stride(from: -design.hoop.width / 2, through: design.hoop.width / 2, by: spacing) { context.move(to: screen(Point(x, -design.hoop.height / 2))); context.addLine(to: screen(Point(x, design.hoop.height / 2))) }
             for y in stride(from: -design.hoop.height / 2, through: design.hoop.height / 2, by: spacing) { context.move(to: screen(Point(-design.hoop.width / 2, y))); context.addLine(to: screen(Point(design.hoop.width / 2, y))) }
@@ -422,6 +460,7 @@ final class DesignCanvas: NSView {
             let rect = NSBezierPath(rect: CGRect(x: min(box.start.x, box.end.x), y: min(box.start.y, box.end.y), width: abs(box.end.x - box.start.x), height: abs(box.end.y - box.start.y)))
             Theme.Canvas.handle.setStroke(); rect.lineWidth = 1; rect.setLineDash([4, 3], count: 2, phase: 0); rect.stroke()
         }
+        drawGuides(design.guides ?? [])
         drawRulers(context)
         drawPanelDropHint()
         if design.objects.isEmpty && state.draft.isEmpty && design.artwork == nil {
@@ -470,6 +509,34 @@ final class DesignCanvas: NSView {
         if let box = stitchBox {
             let rect = NSBezierPath(rect: CGRect(x: min(box.start.x, box.end.x), y: min(box.start.y, box.end.y), width: abs(box.end.x - box.start.x), height: abs(box.end.y - box.start.y)))
             Theme.Canvas.handle.setStroke(); rect.lineWidth = 1; rect.setLineDash([4, 3], count: 2, phase: 0); rect.stroke()
+        }
+    }
+    /// Guide lines across the whole canvas. While one is dragged, its position (or "remove" over its ruler) shows
+    /// beside the pointer.
+    private func drawGuides(_ guides: [Guide]) {
+        Theme.Canvas.guide.setStroke()
+        for guide in guides {
+            let line = NSBezierPath(), at = screen(Point(guide.position, guide.position))
+            if guide.vertical { line.move(to: CGPoint(x: at.x, y: bounds.minY)); line.line(to: CGPoint(x: at.x, y: bounds.maxY)) }
+            else { line.move(to: CGPoint(x: bounds.minX, y: at.y)); line.line(to: CGPoint(x: bounds.maxX, y: at.y)) }
+            line.lineWidth = 1; line.stroke()
+        }
+        guard let drag = guideDrag, let guide = (preview?.guides ?? []).indices.contains(drag.index) ? preview?.guides?[drag.index] : nil else { return }
+        let text = overOwnRuler(drag.pointer, vertical: drag.vertical) ? (drag.isNew ? "Let go to cancel" : "Let go to remove")
+            : "\(guide.vertical ? "X" : "Y") \(guide.position.formatted(.number.precision(.fractionLength(0...1)))) mm"
+        let width = (text as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 11, weight: .medium)]).width
+        Theme.Canvas.ruler.withAlphaComponent(0.92).setFill()
+        NSBezierPath(roundedRect: CGRect(x: drag.pointer.x + 10, y: drag.pointer.y + 6, width: width + 12, height: 18), xRadius: 4, yRadius: 4).fill()
+        drawLabel(text, at: CGPoint(x: drag.pointer.x + 16, y: drag.pointer.y + 7), size: 11)
+    }
+    /// True when `location` (on screen) is over the ruler a guide comes from: the left one for a vertical guide, the
+    /// top one for a horizontal guide.
+    private func overOwnRuler(_ location: CGPoint, vertical: Bool) -> Bool { vertical ? location.x <= 27 : location.y >= bounds.height - 23 }
+    /// The guide within 4 points of `location` on screen, as its place in the design's guides.
+    private func guide(near location: CGPoint) -> Int? {
+        (state.design.guides ?? []).indices.first { index in
+            let guide = state.design.guides![index], at = screen(Point(guide.position, guide.position))
+            return abs(guide.vertical ? at.x - location.x : at.y - location.y) <= 4
         }
     }
     /// A stitch angle line: a thin line with a small square at each end.
@@ -567,6 +634,13 @@ final class DesignCanvas: NSView {
         dragRevision = state.revision
         let location = convert(event.locationInWindow, from: nil)
         if state.tool == .zoomBox { zoomBox = (location, location); return }   // zooming works in older projects too
+        // Dragging out of a ruler adds a guide: down from the top ruler a horizontal one, right from the left ruler a
+        // vertical one. (The corner where the rulers meet does nothing.)
+        let inTopRuler = overOwnRuler(location, vertical: false), inLeftRuler = overOwnRuler(location, vertical: true)
+        if inTopRuler != inLeftRuler {
+            guard !state.hasVersionMismatch else { return }
+            guideDrag = ((state.design.guides ?? []).count, inLeftRuler, true, location); dragSnapshot = state.design; return
+        }
         if state.tool == .measure { let point = snapped(model(location)); measurement = (point, point); measuring = true; needsDisplay = true; return }
         if state.tool == .branch { state.addBranchPoint(snapped(model(location))); return }
         if state.tool == .stitchEdit { stitchEditDown(location, event: event); return }
@@ -624,6 +698,11 @@ final class DesignCanvas: NSView {
             state.selection=[location.object];state.selectedNode=location
             draggedNode=location;dragStart=point;dragSnapshot=state.design;return
         }
+        // With Select, a guide can be grabbed wherever no object is under the pointer.
+        if state.tool == .select, !state.hasVersionMismatch, hit(point) == nil, let index = guide(near: location) {
+            guideDrag = (index, state.design.guides![index].vertical, false, location); dragSnapshot = state.design
+            state.status = "Drag the guide · let go over its ruler to remove it"; return
+        }
         if let object = hit(point) {
             // Double-clicking lettering opens it for editing (after the mouse is released, so the dialog doesn't
             // start in the middle of a click).
@@ -658,6 +737,13 @@ final class DesignCanvas: NSView {
         if let start = screenStart { pan = CGPoint(x: panStart.x + location.x - start.x, y: panStart.y + location.y - start.y); needsDisplay = true; return }
         if let box = zoomBox { zoomBox = (box.start, location); needsDisplay = true; return }
         if dropDragIfDesignChanged() { return }
+        if let drag = guideDrag, var next = dragSnapshot {
+            let p = model(location), raw = drag.vertical ? p.x : p.y
+            let position = state.snap ? raw.rounded() : (raw * 10).rounded() / 10   // whole mm with Snap on, else 0.1 mm
+            var guides = next.guides ?? []
+            if drag.isNew { guides.append(Guide(vertical: drag.vertical, position: position)) } else { guides[drag.index].position = position }
+            next.guides = guides; preview = next; guideDrag?.pointer = location; needsDisplay = true; return
+        }
         if let drag = stitchDrag {
             let delta = snapped(model(location)) - snapped(drag.start)
             var moved = drag.sections
@@ -729,6 +815,20 @@ final class DesignCanvas: NSView {
     override func mouseUp(with event: NSEvent) {
         if measuring { measuring = false; return }
         if dropDragIfDesignChanged() { return }
+        if let drag = guideDrag {
+            // Let go over its own ruler, a guide is removed (or, if it was just dragged out, never added).
+            let removing = overOwnRuler(convert(event.locationInWindow, from: nil), vertical: drag.vertical)
+            var next = preview
+            if removing {
+                next = drag.isNew ? nil : dragSnapshot
+                next?.guides?.remove(at: drag.index); if next?.guides?.isEmpty == true { next?.guides = nil }
+            }
+            if let next {
+                state.status = removing ? "Guide removed." : "Guide at \(drag.vertical ? "X" : "Y") \(next.guides![drag.index].position.formatted()) mm · drag it back onto the ruler to remove it"
+                state.document?.replace(next, action: drag.isNew ? "Add Guide" : removing ? "Remove Guide" : "Move Guide")
+            }
+            guideDrag = nil; preview = nil; dragSnapshot = nil; needsDisplay = true; return
+        }
         if stitchDrag != nil {
             if let moved = stitchPreview { state.setStitches(moved, action: "Move Stitches") }
             stitchDrag = nil; stitchPreview = nil; needsDisplay = true; return
@@ -769,7 +869,7 @@ final class DesignCanvas: NSView {
     /// mouse went down (Undo pressed mid-drag). Returns true if it did.
     private func dropDragIfDesignChanged() -> Bool {
         guard state.revision != dragRevision, stitchDrag != nil || dragSnapshot != nil else { return false }
-        stitchDrag = nil; stitchPreview = nil; preview = nil; dragSnapshot = nil; dragStart = nil; angleDrag = nil; fillAngleDrag = nil
+        stitchDrag = nil; stitchPreview = nil; preview = nil; dragSnapshot = nil; dragStart = nil; angleDrag = nil; fillAngleDrag = nil; guideDrag = nil
         draggedNode = nil; draggedHandle = nil; draggedMarker = nil; artworkDrag = nil; needsDisplay = true
         state.status = "The design changed during the drag, so the drag was cancelled."
         return true

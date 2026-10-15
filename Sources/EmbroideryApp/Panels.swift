@@ -1298,6 +1298,28 @@ struct GeneralSettings: View {
             }
             .padding(16).frame(maxWidth: 520, alignment: .leading)
             .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Grid lines").font(Theme.body(14, weight: .bold))
+                Text("The millimeter grid inside the hoop. Automatic draws light lines on dark cloth and dark lines on light cloth.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary)
+                Picker("Grid lines", selection: Binding(get: { preferences.data.gridColor == nil },
+                                                        set: { automatic in preferences.data.gridColor = automatic ? nil : 0xFFFFFF; preferences.data.gridOpacity = automatic ? nil : 0.4; preferences.save() })) {
+                    Text("Automatic").tag(true)
+                    Text("Custom color").tag(false)
+                }
+                .pickerStyle(.radioGroup).labelsHidden().font(Theme.body(13))
+                if let hex = preferences.data.gridColor {
+                    // The picker's opacity slider sets how strong the lines are.
+                    ColorPicker("Color", selection: Binding(get: { Color(nsColor: Theme.fixed(hex).withAlphaComponent(preferences.data.gridOpacity ?? 0.4)) },
+                                                            set: { color in
+                                                                preferences.data.gridColor = Theme.hex(of: color)
+                                                                preferences.data.gridOpacity = Double(NSColor(color).alphaComponent)
+                                                                preferences.save()
+                                                            }), supportsOpacity: true)
+                        .font(Theme.body(13))
+                }
+            }
+            .padding(16).frame(maxWidth: 520, alignment: .leading)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
             Text("Fabric color is chosen per design: click empty canvas so nothing is selected, then look under Fabric in Properties.")
                 .font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).frame(maxWidth: 520, alignment: .leading)
             Spacer(minLength: 0)

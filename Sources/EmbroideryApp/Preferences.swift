@@ -46,6 +46,10 @@ struct PreferenceData: Codable {
     var workspace = Workspace()
     /// The surface around the hoop, as 0xRRGGBB; nil follows the light/dark theme. Optional so older files still load.
     var pasteboardColor: Int?
+    /// The grid lines' color as 0xRRGGBB and how strong they are (0–1); nil means automatic (light lines on dark
+    /// cloth, dark lines on light cloth).
+    var gridColor: Int?
+    var gridOpacity: Double?
     /// The machine speed (stitches per minute) last used for a production worksheet's time estimate; nil until set.
     var machineSpeed: Int?
     /// True when the app shows the Pro view (everything on screen, compact); nil or false is the Guided view.

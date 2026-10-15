@@ -375,6 +375,9 @@ public struct Design: Codable, Equatable, Sendable {
     /// The basting box's margin in mm, or nil when it's off (FabricHolding.swift). It changes the stitches, so a
     /// design using it is saved as schema 5.
     public var basting: Double?
+    /// Guide lines dragged out of the rulers (Guide.swift), or nil for none. Like the fabric color they never change
+    /// the stitches, so older versions can safely ignore them.
+    public var guides: [Guide]?
     public init() {}
     /// The IDs of every object grouped with `id` (just `id` itself when it isn't grouped).
     public func groupMembers(of id: UUID) -> Set<UUID> {
@@ -427,6 +430,7 @@ public struct Design: Codable, Equatable, Sendable {
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }
+        guard (guides ?? []).count <= Guide.limit, (guides ?? []).allSatisfy({ $0.position.isFinite && abs($0.position) <= 10_000 }) else { throw DesignError.invalid("The guide lines are invalid or too many.") }
         guard objects.reduce(0, { $0 + $1.allNodes.count }) <= 100_000 else { throw DesignError.invalid("This design exceeds the 100,000-node limit.") }
         for object in objects {
             if let edits = object.stitchEdits {
