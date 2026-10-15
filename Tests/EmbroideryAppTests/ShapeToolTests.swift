@@ -13,17 +13,19 @@ final class ShapeToolTests: XCTestCase {
         state.tool = .closedShape
         state.draft = [PathNode(Point(0, 0)), PathNode(Point(20, 0)), PathNode(Point(10, 15))]
         state.finishPath()
-        let closed = state.design.objects.last
+        // The saved choice may be a fill, an outline, or both (two grouped objects, all selected).
+        let made = state.design.objects, closed = made.first
+        XCTAssertEqual(made.count, shapes.closedFill != nil && shapes.closedOutline != nil ? 2 : 1)
         XCTAssertEqual(closed?.closed, true)
-        XCTAssertEqual(closed?.kind, shapes.closedStitch == .outline ? .run : .fill)
+        XCTAssertEqual(closed?.kind, shapes.closedFill != nil ? .fill : shapes.closedOutline == .satin ? .satin : .run)
         XCTAssertEqual(closed?.name, "\(closed?.stitchTitle ?? "") 1")
         XCTAssertTrue(state.draft.isEmpty)
-        XCTAssertEqual(state.selection, [closed!.id])
+        XCTAssertEqual(state.selection, Set(made.map(\.id)))
 
         state.tool = .openShape
         state.draft = [PathNode(Point(0, 30)), PathNode(Point(30, 30))]
         state.finishPath()
-        XCTAssertEqual(state.design.objects.count, 2)
+        XCTAssertEqual(state.design.objects.count, made.count + 1)
         XCTAssertEqual(state.design.objects.last?.closed, false)
         XCTAssertEqual(state.design.objects.last?.kind, shapes.openStitch == .satin ? .satin : .run)
     }
@@ -34,7 +36,7 @@ final class ShapeToolTests: XCTestCase {
         state.tool = .ellipse
         state.draft = ShapeGeometry.nodes(.ellipse, in: (Point(-10, -10), Point(10, 10)))
         state.finishShape(.ellipse)
-        let ellipse = try XCTUnwrap(state.design.objects.last)
+        let ellipse = try XCTUnwrap(state.design.objects.first)   // then its outline, if the saved choice has one
         XCTAssertEqual(ellipse.name, "Ellipse 1")
         XCTAssertTrue(ellipse.closed)
         XCTAssertTrue(state.draft.isEmpty)

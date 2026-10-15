@@ -40,7 +40,7 @@ final class StitchQualityTests: XCTestCase {
     /// same hole twice in a row either (before the clean-up, about 2–10% of their stitches were tiny).
     func testSamplesSewNoTinyOrRepeatedStitches() throws {
         // A small circle: satin borders around big shapes are slow to work out in test builds.
-        let circle = ShapeStitching.closedShape(ShapeGeometry.nodes(.ellipse, in: (Point(-6, -6), Point(6, 6))), stitch: .tatami, name: "Circle", color: ink)
+        let circle = try ShapeStitching.closedShape(ShapeGeometry.nodes(.ellipse, in: (Point(-6, -6), Point(6, 6))), fill: .tatami, outline: nil, name: "Circle", color: ink)[0]
         var bordered = Design(); bordered.objects = [circle, try SatinBorder.around(circle, width: 3, color: ink).object]
         var applique = Design(); applique.objects = try Applique.make(from: circle, coverWidth: 3, tackDown: .zigzag, color: ink).objects
         for (name, design) in [("sample", Design.sample()), ("sampler", Design.stitchSampler()), ("border", bordered), ("appliqué", applique)] {
@@ -83,15 +83,15 @@ final class StitchQualityTests: XCTestCase {
         }
         // Every fill style on four shapes at three sizes.
         let sizes: [(String, Double)] = [("8 mm", 8), ("30 mm", 30), ("80 mm", 80)]
-        for stitch in [ClosedShapeStitch.tatami, .contour, .radial, .wave] {
+        for style in FillStyle.allCases {
             for (sizeName, size) in sizes {
                 var design = Design(); design.hoop = Hoop(width: 200, height: 200)
                 for (index, shape) in [BasicShape.ellipse, .rectangle, .star, .heart].enumerated() {
                     let x = (Double(index) - 1.5) * (size + 10)
                     let nodes = ShapeGeometry.nodes(shape, in: (Point(x - size / 2, -size / 2), Point(x + size / 2, size / 2)))
-                    design.objects.append(ShapeStitching.closedShape(nodes, stitch: stitch, name: "\(stitch.title) \(shape.title) \(sizeName)", color: ink))
+                    design.objects += try ShapeStitching.closedShape(nodes, fill: style, outline: nil, name: "\(style.title) fill \(shape.title) \(sizeName)", color: ink)
                 }
-                samples.append(Sample(name: "\(stitch.title), \(sizeName) shapes", design: design))
+                samples.append(Sample(name: "\(style.title) fill, \(sizeName) shapes", design: design))
             }
         }
         // Satin lines of several widths, bean stitch and running stitch along the same S-curve.
@@ -105,7 +105,7 @@ final class StitchQualityTests: XCTestCase {
         lines.objects.append(try ShapeStitching.openShape(curve.map { var n = $0; n.transform { $0 + Point(0, -32) }; return n }, stitch: .running, satinWidth: 0, name: "Running line", color: ink))
         samples.append(Sample(name: "Satin, bean and running lines", design: lines))
         // A satin border and an appliqué around 40 mm circles.
-        let circle = ShapeStitching.closedShape(ShapeGeometry.nodes(.ellipse, in: (Point(-20, -20), Point(20, 20))), stitch: .tatami, name: "Circle fill", color: ink)
+        let circle = try ShapeStitching.closedShape(ShapeGeometry.nodes(.ellipse, in: (Point(-20, -20), Point(20, 20))), fill: .tatami, outline: nil, name: "Circle fill", color: ink)[0]
         var bordered = Design(); bordered.objects = [circle, try SatinBorder.around(circle, width: 3, color: ink).object]
         samples.append(Sample(name: "Fill with satin border", design: bordered))
         var applique = Design(); applique.objects = try Applique.make(from: circle, coverWidth: 3, tackDown: .zigzag, color: ink).objects

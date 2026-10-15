@@ -197,7 +197,7 @@ final class FillStyleTests: XCTestCase {
     /// A round wave fill has small pieces along its edge. Some near the start used to be skipped (a big section
     /// started nearer) and left for last, when the needle was across the shape: a long jump and an extra trim.
     func testWaveFillLeavesNoStrayPieceForLast() throws {
-        var object = ShapeStitching.closedShape(ShapeGeometry.nodes(.ellipse, in: (Point(-15, -15), Point(15, 15))), stitch: .wave, name: "Wave", color: .palette[0])
+        var object = try ShapeStitching.closedShape(ShapeGeometry.nodes(.ellipse, in: (Point(-15, -15), Point(15, 15))), fill: .wave, outline: nil, name: "Wave", color: .palette[0])[0]
         object.digitizing?.underlay = .none; object.digitizing?.waveLength = 6
         let result = try AreaEngine.fill(object)
         XCTAssertFalse(result.warnings.contains { $0.contains("trim") }, "\(result.warnings)")

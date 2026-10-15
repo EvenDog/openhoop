@@ -328,19 +328,20 @@ struct CanvasShapeBar: View {
     var body: some View {
         if ShapeOptionsBar.shows(state.tool) {
             HStack(spacing: 10) {
-                Text("NEXT SHAPE").font(Theme.caption).tracking(0.8).foregroundStyle(Theme.inkSecondary).lineLimit(1)
+                Text("NEXT SHAPE").font(Theme.caption).tracking(0.8).foregroundStyle(Theme.accent).lineLimit(1)
                 ShapeOptionsBar(tool: state.tool)
             }
             .padding(.horizontal, 12).frame(height: 34)
             .background(Theme.card, in: RoundedRectangle(cornerRadius: 9))
-            .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Theme.cardBorder))
+            .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Theme.accent, lineWidth: 1.5))   // accent edge, so it's noticed
             .shadow(color: .black.opacity(0.15), radius: 6, y: 2)
             .padding(8)   // room for the shadow
         }
     }
 }
 
-/// The choices for the next shape (shown in CanvasShapeBar while a shape tool is on): the stitch it gets, plus the rectangle's corners or the basic shape and its sides or points.
+/// The choices for the next shape (shown in CanvasShapeBar while a shape tool is on): the stitch it gets (for closed
+/// shapes, a fill and an outline), the satin width, plus the rectangle's corners or the basic shape and its sides or points.
 /// Changes are saved straight away and shared by every design window.
 struct ShapeOptionsBar: View {
     let tool: Tool
@@ -354,8 +355,23 @@ struct ShapeOptionsBar: View {
                 Picker("Stitch", selection: setting(\.openStitch)) { ForEach(OpenShapeStitch.allCases, id: \.self) { Text($0.title).tag($0) } }.labelsHidden()
                     .help("The stitch the next open shape gets. Change it later in Properties.")
             } else {
-                Picker("Stitch", selection: setting(\.closedStitch)) { ForEach(ClosedShapeStitch.allCases, id: \.self) { Text($0.title).tag($0) } }.labelsHidden()
-                    .help("The stitch the next shape gets: a fill, or just an outline. Change it later in Properties.")
+                // The settings are optional (nil is "None"), so each tag is too: `Optional($0)` wraps a choice to match.
+                // (EmbroideryCore.FillStyle is spelled out because SwiftUI has a FillStyle of its own.)
+                Picker("Fill", selection: setting(\.closedFill)) {
+                    Text("None").tag(nil as EmbroideryCore.FillStyle?)
+                    ForEach(FillStyle.allCases, id: \.self) { Text($0.title).tag(Optional($0)) }
+                }
+                .help("The fill the next shape gets, or None for just an outline. Change it later in Properties.")
+                Picker("Outline", selection: setting(\.closedOutline)) {
+                    Text("None").tag(nil as OpenShapeStitch?)
+                    ForEach(OpenShapeStitch.allCases, id: \.self) { Text($0.title).tag(Optional($0)) }
+                }
+                .help("The stitch sewn along the next shape's edge, after its fill. With a fill, the two are grouped.")
+            }
+            if (tool == .openShape ? shapes.openStitch : shapes.closedOutline) == .satin {
+                let width = preferences.data.satinLineWidth ?? SatinLine.defaultWidth
+                Stepper("Width \(width.formatted()) mm", value: Binding(get: { width }, set: { preferences.data.satinLineWidth = $0; preferences.save() }), in: SatinLine.widths, step: 0.5)
+                    .help("How wide the satin is, centered on the line")
             }
             if tool == .rectangle {
                 Stepper("Corners \(shapes.cornerRadius.formatted()) mm", value: setting(\.cornerRadius), in: ShapeSettings.cornerRadiusRange, step: 0.5)

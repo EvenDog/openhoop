@@ -75,11 +75,13 @@ Pick a stitch first, then draw. The **Shape** group in the tool strip holds them
 
 | Tool | How to draw | Stitch it gets |
 | --- | --- | --- |
-| **Digitize Open Shape (⌥O)** | Click corners, drag or secondary-click for curves, Return to finish | Running, Bean (triple run) or Satin line (as wide as **Satin width** in Properties) |
-| **Digitize Closed Shape (⌥S)** | The same, and the outline closes itself | Tatami, Contour, Radial or Wave fill, or Outline (running) |
+| **Digitize Open Shape (⌥O)** | Click corners, drag or secondary-click for curves, Return to finish | Running, Bean (triple run) or Satin line (as wide as **Width** in the bar) |
+| **Digitize Closed Shape (⌥S)** | The same, and the outline closes itself | A **Fill** (Tatami, Contour, Radial, Wave or None) and an **Outline** (Running, Bean, Satin line or None) |
 | **Rectangle (⌥R)** | Drag corner to corner; set **Corners** for rounded ones | The Closed Shape stitch |
 | **Ellipse (⌥J)** | Drag out from the center | The Closed Shape stitch |
 | **Basic Shapes (⌥B)** | Pick Polygon (3–12 sides), Star (4–12 points, shallow to deep), Heart or Arrow, then drag | The Closed Shape stitch |
+
+With both a fill and an outline, the shape becomes two objects, grouped so they move together: the fill, then the outline sewn on top of its edge (a satin outline is centered on the edge, like a satin border). When you pick a shape tool, the status line says what the next shape will get.
 
 While dragging a shape, hold **⌘** to keep it even (a square, circle or regular star) and **⇧** to draw it out from where you started. A shape is a normal outline: reshape it with **H**, and change its stitch in Properties.
 

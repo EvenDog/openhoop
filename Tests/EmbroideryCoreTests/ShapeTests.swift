@@ -72,21 +72,78 @@ final class ShapeTests: XCTestCase {
             let edges = bounds(outline(nodes))
             XCTAssertGreaterThan(edges.min.x, box.min.x - 0.05, shape.title); XCTAssertLessThan(edges.max.x, box.max.x + 0.05, shape.title)
             XCTAssertGreaterThan(edges.min.y, box.min.y - 0.05, shape.title); XCTAssertLessThan(edges.max.y, box.max.y + 0.05, shape.title)
-            let object = ShapeStitching.closedShape(nodes, stitch: .tatami, name: shape.title, color: .palette[0])
+            let object = try ShapeStitching.closedShape(nodes, fill: .tatami, outline: nil, name: shape.title, color: .palette[0])[0]
             XCTAssertFalse(try AreaEngine.fill(object).sections.isEmpty, shape.title)
         }
     }
 
-    func testClosedShapeGetsThePickedFillOrAnOutline() throws {
+    /// Every fill (or none) with every outline (or none): a fill alone, an outline alone, or the fill then the
+    /// outline on its edge, grouped. Each one sews.
+    func testClosedShapeGetsThePickedFillAndOutline() throws {
         let nodes = ShapeGeometry.nodes(.ellipse, in: box)
-        for stitch in ClosedShapeStitch.allCases {
-            let object = ShapeStitching.closedShape(nodes, stitch: stitch, name: "Shape", color: .palette[0])
-            XCTAssertTrue(object.closed)
-            if stitch == .outline { XCTAssertEqual(object.kind, .run); continue }
-            XCTAssertEqual(object.kind, .fill)
-            XCTAssertEqual(object.settings.fillStyle ?? .tatami, stitch.fillStyle)
-            XCTAssertFalse(try AreaEngine.fill(object).sections.isEmpty, stitch.title)
+        for fill in [nil] + FillStyle.allCases {
+            for outline in [nil] + OpenShapeStitch.allCases where fill != nil || outline != nil {
+                let label = "\(fill?.title ?? "no") fill, \(outline?.title ?? "no") outline"
+                let made = try ShapeStitching.closedShape(nodes, fill: fill, outline: outline, satinWidth: 3, name: "Shape", color: .palette[0])
+                XCTAssertEqual(made.count, fill != nil && outline != nil ? 2 : 1, label)
+                if let fill {
+                    XCTAssertEqual(made[0].kind, .fill, label); XCTAssertTrue(made[0].closed, label)
+                    XCTAssertEqual(made[0].settings.fillStyle ?? .tatami, fill, label)
+                    XCTAssertFalse(try AreaEngine.fill(made[0]).sections.isEmpty, label)
+                }
+                if let outline {
+                    let edge = made.last!
+                    XCTAssertEqual(edge.kind, outline == .satin ? .satin : .run, label)
+                    XCTAssertEqual(edge.settings.runPasses ?? 1, outline == .bean ? 3 : 1, label)
+                    XCTAssertFalse(try StitchEngine.fresh(edge, under: []).sections.isEmpty, label)
+                }
+                if made.count == 2 {
+                    XCTAssertNotNil(made[0].groupID, label); XCTAssertEqual(made[0].groupID, made[1].groupID, label)
+                    XCTAssertNotEqual(made[0].id, made[1].id, label)
+                    XCTAssertEqual(made[1].name, "Shape outline", label)
+                } else { XCTAssertNil(made[0].groupID, label) }
+            }
         }
+    }
+
+    /// A satin outline sits centered on the shape's edge: half the width outside it, half inside.
+    func testSatinOutlineIsCenteredOnTheEdge() throws {
+        let made = try ShapeStitching.closedShape(ShapeGeometry.nodes(.ellipse, in: box), fill: .tatami, outline: .satin, satinWidth: 4, name: "Circle", color: .palette[0])
+        let xs = made[1].nodes.map(\.point.x)
+        XCTAssertEqual(xs.max()! - xs.min()!, (box.max.x - box.min.x) + 4, accuracy: 0.3)
+        // Too small for the satin: says why instead of making a broken column.
+        let tiny = ShapeGeometry.nodes(.ellipse, in: (Point(0, 0), Point(1, 1)))
+        XCTAssertThrowsError(try ShapeStitching.closedShape(tiny, fill: nil, outline: .satin, satinWidth: 8, name: "Dot", color: .palette[0]))
+    }
+
+    /// Turning both the fill and the outline off isn't possible: the other one comes back on.
+    func testFillAndOutlineAreNeverBothOff() {
+        var settings = ShapeSettings()
+        XCTAssertEqual(settings.closedFill, .tatami); XCTAssertNil(settings.closedOutline)
+        XCTAssertEqual(settings.closedSummary, "Tatami fill")
+        settings.closedFill = nil
+        XCTAssertEqual(settings.closedOutline, .running, "no fill and no outline: the outline comes on")
+        XCTAssertEqual(settings.closedSummary, "Running outline")
+        settings.closedOutline = .satin; settings.closedFill = .contour
+        XCTAssertEqual(settings.closedSummary, "Contour fill + satin outline")
+        settings.closedFill = nil; settings.closedOutline = nil
+        XCTAssertEqual(settings.closedFill, .tatami, "no outline and no fill: the fill comes on")
+    }
+
+    /// Choices saved by older versions (one closed-shape stitch) are read as a fill or a running outline, and a
+    /// file saying both are off falls back to a tatami fill.
+    func testOlderClosedShapeChoiceIsReadAsFillAndOutline() throws {
+        func read(_ json: String) throws -> ShapeSettings { try JSONDecoder().decode(ShapeSettings.self, from: Data(json.utf8)) }
+        let outline = try read(#"{"closedStitch": "outline"}"#)
+        XCTAssertNil(outline.closedFill); XCTAssertEqual(outline.closedOutline, .running)
+        let radial = try read(#"{"closedStitch": "radial"}"#)
+        XCTAssertEqual(radial.closedFill, .radial); XCTAssertNil(radial.closedOutline)
+        let onlyOutline = try read(#"{"closedOutline": "bean"}"#)
+        XCTAssertNil(onlyOutline.closedFill, "a newer file without a fill means no fill"); XCTAssertEqual(onlyOutline.closedOutline, .bean)
+        let neither = try read(#"{"closedFill": "laser", "closedOutline": "glitter"}"#)
+        XCTAssertEqual(neither.closedFill, .tatami); XCTAssertNil(neither.closedOutline)
+        var both = ShapeSettings(); both.closedOutline = .satin; both.closedFill = nil
+        XCTAssertEqual(try JSONDecoder().decode(ShapeSettings.self, from: JSONEncoder().encode(both)), both)
     }
 
     func testOpenShapeGetsRunningBeanOrSatin() throws {
@@ -113,7 +170,7 @@ final class ShapeTests: XCTestCase {
     }
 
     func testShapeSettingsSurviveSaving() throws {
-        var settings = ShapeSettings(); settings.closedStitch = .contour; settings.basicShape = .heart; settings.cornerRadius = 2.5
+        var settings = ShapeSettings(); settings.closedFill = .contour; settings.closedOutline = .bean; settings.basicShape = .heart; settings.cornerRadius = 2.5
         XCTAssertEqual(try JSONDecoder().decode(ShapeSettings.self, from: JSONEncoder().encode(settings)), settings)
     }
 
@@ -121,7 +178,7 @@ final class ShapeTests: XCTestCase {
     /// values fall back to defaults or are clamped, and a normal save reads back unchanged.
     func testSavedShapeChoicesAreReadForgivingly() throws {
         func read(_ json: String) throws -> ShapeSettings { try JSONDecoder().decode(ShapeSettings.self, from: Data(json.utf8)) }
-        var chosen = ShapeSettings(); chosen.closedStitch = .wave; chosen.basicShape = .polygon; chosen.polygonSides = 8; chosen.cornerRadius = 2.5
+        var chosen = ShapeSettings(); chosen.closedFill = .wave; chosen.basicShape = .polygon; chosen.polygonSides = 8; chosen.cornerRadius = 2.5
         XCTAssertEqual(try JSONDecoder().decode(ShapeSettings.self, from: JSONEncoder().encode(chosen)), chosen)
         XCTAssertEqual(try read("{}"), ShapeSettings(), "an older file without these keys")
         let odd = try read(#"{"openStitch": "laser", "basicShape": "rectangle", "polygonSides": -1, "starPoints": 99, "starInner": 7, "cornerRadius": -3, "brandNewSetting": true}"#)

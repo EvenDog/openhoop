@@ -136,7 +136,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .focusSpacing: return "Jump to the row spacing setting."
         case .focusAngle: return "Jump to the fill angle setting."
         case .openShapeTool: return "Draw an open line and give it the stitch picked in the Next shape bar: running, bean or satin."
-        case .closedShapeTool: return "Draw a closed shape and give it the stitch picked in the Next shape bar: a fill or an outline."
+        case .closedShapeTool: return "Draw a closed shape and give it the stitches picked in the Next shape bar: a fill, an outline, or both."
         case .rectangleTool: return "Drag out a rectangle, corner to corner. Hold ⌘ for a square."
         case .ellipseTool: return "Drag out an ellipse from its center. Hold ⌘ for a circle."
         case .basicShapeTool: return "Drag out a polygon, star, heart or arrow, picked in the Next shape bar."

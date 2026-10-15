@@ -1,6 +1,6 @@
 // Basic shapes, and the stitches the Open Shape and Closed Shape tools put on what you draw. Pick a stitch
-// first, then draw an outline or drag out a shape, and the new object gets that
-// stitch. Shapes are ordinary outlines made of nodes, so they can be reshaped, resized and restitched afterwards.
+// first (for closed shapes: a fill, an outline, or both), then draw an outline or drag out a shape, and the new
+// object gets that stitch. Shapes are ordinary outlines made of nodes, so they can be reshaped, resized and restitched afterwards.
 import Foundation
 
 /// The shapes the Rectangle, Ellipse and Basic Shapes tools draw.
@@ -19,20 +19,13 @@ public enum OpenShapeStitch: String, Codable, CaseIterable, Sendable {
     }
 }
 
-/// The stitch the Closed Shape tool and the shape tools put on a new shape: one of the fills, or just an outline.
-public enum ClosedShapeStitch: String, Codable, CaseIterable, Sendable {
-    case tatami, contour, radial, wave, outline
-    public var title: String { self == .outline ? "Outline (running)" : "\(fillStyle!.title) fill" }
-    /// The fill style this choice makes; nil for an outline.
-    public var fillStyle: FillStyle? {
-        switch self { case .tatami: return .tatami; case .contour: return .contour; case .radial: return .radial; case .wave: return .wave; case .outline: return nil }
-    }
-}
-
 /// The choices the shape tools remember between uses. The app keeps them in its preferences, not in designs.
 public struct ShapeSettings: Codable, Equatable, Sendable {
     public var openStitch = OpenShapeStitch.running
-    public var closedStitch = ClosedShapeStitch.tatami
+    /// What the Closed Shape and shape tools put on a new shape: a fill (nil for none) and an outline sewn on its
+    /// edge (nil for none). One of them is always on: turning both off turns the other one back on.
+    public var closedFill: FillStyle? = .tatami { didSet { if closedFill == nil && closedOutline == nil { closedOutline = .running } } }
+    public var closedOutline: OpenShapeStitch? = nil { didSet { if closedOutline == nil && closedFill == nil { closedFill = .tatami } } }
     /// The shape the Basic Shapes tool draws (one of `BasicShape.basicChoices`).
     public var basicShape = BasicShape.star
     public var polygonSides = 6
@@ -44,7 +37,18 @@ public struct ShapeSettings: Codable, Equatable, Sendable {
     public init() {}
     public static let polygonSideRange = 3...12, starPointRange = 4...12, starInnerRange = 0.2...0.8, cornerRadiusRange = 0.0...20.0
 
-    private enum CodingKeys: String, CodingKey { case openStitch, closedStitch, basicShape, polygonSides, starPoints, starInner, cornerRadius }
+    /// The next closed shape's stitches in words, such as "Tatami fill + satin outline".
+    public var closedSummary: String {
+        let outline = closedOutline.map { outline -> String in
+            switch outline { case .running: return "running outline"; case .bean: return "bean outline"; case .satin: return "satin outline" }
+        }
+        guard let fill = closedFill else { return outline!.prefix(1).uppercased() + outline!.dropFirst() }   // one of them is always on
+        return outline.map { "\(fill.title) fill + \($0)" } ?? "\(fill.title) fill"
+    }
+
+    private enum CodingKeys: String, CodingKey { case openStitch, closedFill, closedOutline, basicShape, polygonSides, starPoints, starInner, cornerRadius }
+    /// Older versions saved one choice for closed shapes: a fill style, or "outline" for a running outline.
+    private enum OlderKeys: String, CodingKey { case closedStitch }
     /// Reads saved choices forgivingly: these live in the preferences file, and one unreadable value would otherwise
     /// make the whole file unreadable (losing shortcuts and panel layouts on the next save). A value that's missing,
     /// unknown (say, from a newer version) or out of range falls back to its default or is brought into range.
@@ -52,7 +56,16 @@ public struct ShapeSettings: Codable, Equatable, Sendable {
         let saved = try decoder.container(keyedBy: CodingKeys.self)
         // `try?` turns a value that can't be read into nil, and `?? x` then uses x instead.
         openStitch = (try? saved.decode(OpenShapeStitch.self, forKey: .openStitch)) ?? openStitch
-        closedStitch = (try? saved.decode(ClosedShapeStitch.self, forKey: .closedStitch)) ?? closedStitch
+        if saved.contains(.closedFill) || saved.contains(.closedOutline) {
+            // A missing key means that part is off. (Plain assignments in an initializer don't run didSet, so both
+            // being off, or unreadable, is checked by hand below.)
+            closedFill = try? saved.decode(FillStyle.self, forKey: .closedFill)
+            closedOutline = try? saved.decode(OpenShapeStitch.self, forKey: .closedOutline)
+            if closedFill == nil && closedOutline == nil { closedFill = .tatami }
+        } else if let older = try? decoder.container(keyedBy: OlderKeys.self).decode(String.self, forKey: .closedStitch) {
+            if older == "outline" { closedFill = nil; closedOutline = .running }
+            else { closedFill = FillStyle(rawValue: older) ?? .tatami }
+        }
         if let shape = try? saved.decode(BasicShape.self, forKey: .basicShape), BasicShape.basicChoices.contains(shape) { basicShape = shape }
         polygonSides = Self.clamp((try? saved.decode(Int.self, forKey: .polygonSides)) ?? polygonSides, to: Self.polygonSideRange)
         starPoints = Self.clamp((try? saved.decode(Int.self, forKey: .starPoints)) ?? starPoints, to: Self.starPointRange)
@@ -171,12 +184,28 @@ public enum ShapeStitching {
         }
     }
 
-    /// A new closed shape with `stitch` on it: a fill in the chosen style, or a closed running-stitch outline.
-    public static func closedShape(_ nodes: [PathNode], stitch: ClosedShapeStitch, name: String, color: ThreadColor) -> RunObject {
-        var shape = RunObject(name: name, nodes: nodes, color: color); shape.closed = true
-        guard let style = stitch.fillStyle else { return shape }
-        shape.digitizing = DigitizingSettings(kind: .fill); shape.stitchLength = 3
-        if style != .tatami { shape.digitizing?.fillStyle = style }   // nil already means tatami
-        return shape
+    /// A new closed shape with `fill` and `outline` on it (either may be nil, not both): one object, or a fill and
+    /// then an outline sewn on top of its edge, grouped so they move together. A satin outline is `satinWidth` mm
+    /// wide, centered on the edge; throws, with a reason, if the shape can't take a satin that wide.
+    public static func closedShape(_ nodes: [PathNode], fill: FillStyle?, outline: OpenShapeStitch?, satinWidth: Double = SatinLine.defaultWidth,
+                                   name: String, color: ThreadColor) throws -> [RunObject] {
+        var made: [RunObject] = []
+        if let fill {
+            var shape = RunObject(name: name, nodes: nodes, color: color); shape.closed = true
+            shape.digitizing = DigitizingSettings(kind: .fill); shape.stitchLength = 3
+            if fill != .tatami { shape.digitizing?.fillStyle = fill }   // nil already means tatami
+            made.append(shape)
+        }
+        if let outline {
+            var edge = RunObject(name: fill == nil ? name : "\(name) outline", nodes: nodes, color: color); edge.closed = true
+            switch outline {
+            case .running: break
+            case .bean: edge.digitizing = DigitizingSettings(kind: .run); edge.digitizing?.runPasses = 3
+            case .satin: edge = try SatinLine.column(from: edge, width: satinWidth)
+            }
+            made.append(edge)
+        }
+        if made.count > 1 { let group = UUID(); for index in made.indices { made[index].groupID = group } }
+        return made
     }
 }

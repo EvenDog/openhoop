@@ -429,6 +429,8 @@ import EmbroideryCore
             case .rectangle,.basicShape:state.status="Drag to draw the shape · Hold ⌘ to keep it even · Hold ⇧ to draw it from the center"
             default:state.status="Select and drag objects. Shift-click to select more than one."
             }
+            // Closed shapes say what stitches they'll get, so the Next Shape bar isn't missed.
+            if state.tool == .closedShape || state.tool.dragsShape {state.status+=" · Next shape: \(Preferences.shared.shapes.closedSummary) (change it in the bar above)"}
             state.focusCanvas(); state.canvas?.window?.invalidateCursorRects(for: state.canvas!)
         case .finishPath: if state.tool != .zoomBox { state.finishPath() }
         case .done where state.tool == .zoomBox, .cancelPath where state.tool == .zoomBox:

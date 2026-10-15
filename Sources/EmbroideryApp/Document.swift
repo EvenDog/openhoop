@@ -162,15 +162,17 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             draft=[];selection=[id];tool = .select;holeTarget=nil;status="Hole added. Its boundary can be edited with N.";return
         }
         if tool == .openShape || tool == .closedShape {
-            // The stitch picked for Open or Closed Shape goes on the new object; it's named after that stitch.
+            // The stitch picked for Open or Closed Shape goes on the new object (a closed shape can get a fill and an
+            // outline: two objects); it's named after that stitch.
             let shapes=Preferences.shared.shapes,name="Shape \(design.objects.count+1)"
-            var object:RunObject
-            if tool == .openShape {
-                do{object=try ShapeStitching.openShape(draft,stitch:shapes.openStitch,satinWidth:Preferences.shared.data.satinLineWidth ?? SatinLine.defaultWidth,name:name,color:currentColor)}
-                catch{status=error.localizedDescription;return}
-            } else {object=ShapeStitching.closedShape(draft,stitch:shapes.closedStitch,name:name,color:currentColor)}
-            object.name="\(object.stitchTitle) \(design.objects.count+1)"
-            addDrawn(object,action:tool == .openShape ? "Digitize Open Shape" : "Digitize Closed Shape");return
+            var made:[RunObject]
+            do {
+                if tool == .openShape {made=[try ShapeStitching.openShape(draft,stitch:shapes.openStitch,satinWidth:satinLineWidth,name:name,color:currentColor)]}
+                else {made=try ShapeStitching.closedShape(draft,fill:shapes.closedFill,outline:shapes.closedOutline,satinWidth:satinLineWidth,name:name,color:currentColor)}
+            } catch{status=error.localizedDescription;return}
+            let title="\(made[0].stitchTitle) \(design.objects.count+1)"
+            for index in made.indices {made[index].name=index==0 ? title:"\(title) outline"}
+            addDrawn(made,action:tool == .openShape ? "Digitize Open Shape" : "Digitize Closed Shape");return
         }
         let kind:StitchKind=tool == .satin ? .satin : tool == .fill ? .fill:.run
         var object=RunObject(name:"\(kind.title) \(design.objects.count+1)",nodes:draft,color:currentColor)
@@ -315,14 +317,21 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     /// with the Closed Shape stitch on it.
     func finishShape(_ shape:BasicShape) {
         guard !hasVersionMismatch,draft.count>=3 else{draft=[];return}
-        let object=ShapeStitching.closedShape(draft,stitch:Preferences.shared.shapes.closedStitch,name:"\(shape.title) \(design.objects.count+1)",color:currentColor)
-        addDrawn(object,action:"Draw \(shape.title)")
+        let shapes=Preferences.shared.shapes
+        do {
+            let made=try ShapeStitching.closedShape(draft,fill:shapes.closedFill,outline:shapes.closedOutline,satinWidth:satinLineWidth,name:"\(shape.title) \(design.objects.count+1)",color:currentColor)
+            addDrawn(made,action:"Draw \(shape.title)")
+        } catch {draft=[];status=error.localizedDescription}
     }
-    /// Adds a newly drawn object with the design's fabric values, selects it and clears the draft.
-    private func addDrawn(_ object:RunObject,action:String) {
-        let object=design.withFabric(object)
-        edit(action){$0.objects.append(object)}
-        draft=[];selection=[object.id];selectedNode=nil;status="\(object.name) added. Keep drawing, or press \(Preferences.shared.key(.selectTool)) to select."
+    /// The width (mm) of satin lines and satin outlines drawn with the shape tools.
+    private var satinLineWidth:Double {Preferences.shared.data.satinLineWidth ?? SatinLine.defaultWidth}
+    /// Adds newly drawn objects (a shape, or a shape's fill and its outline) with the design's fabric values,
+    /// selects them and clears the draft.
+    private func addDrawn(_ objects:[RunObject],action:String) {
+        let objects=objects.map{design.withFabric($0)}
+        edit(action){$0.objects+=objects}
+        draft=[];selection=Set(objects.map(\.id));selectedNode=nil
+        status="\(objects[0].name)\(objects.count>1 ? " and its outline" : "") added. Keep drawing, or press \(Preferences.shared.key(.selectTool)) to select."
     }
     func resizeSelection(width:Double?=nil,height:Double?=nil) {
         let points=design.objects.filter{selection.contains($0.id) && !$0.locked}.flatMap{$0.outlinePaths.flatMap{$0}}
