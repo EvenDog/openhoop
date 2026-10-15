@@ -121,6 +121,7 @@ Satins with a chosen (not Auto) underlay can have a **second underlay** (More se
 **Zoom** (in the View group's zoom slot, and the View menu):
 - **Zoom box (B):** drag a box around the part to look at and it fills the canvas; a click zooms in 2× around the pointer. Then you're back in the tool you had, even in the middle of drawing a path. Escape cancels.
 - **Real size (1):** shows the design at its actual size on your screen, worked out from the size your display reports to macOS, so hold a ruler up to it to judge small text.
+- **Zoom to design (0):** fills the view with the whole design.
 - **Zoom to selected (⇧0):** frames the selection.
 - **Fit hoop (⌥0), zoom in (Z), zoom out (⇧Z).**
 
@@ -265,6 +266,7 @@ These are the starting keys; every one can be changed. Tools on a function key a
 | Satin border | ⇧⌘O | Production worksheet | ⌘P |
 | Underlay on/off / show | U / ⇧U | Fit hoop / zoom in / zoom out | ⌥0 / Z / ⇧Z |
 | | | Zoom box / real size / to selected | B / 1 / ⇧0 |
+| | | Zoom to design | 0 |
 | | | Show stitches / outlines / connectors / hide unselected | S / L / ⇧C / ⇧S |
 | | | Measure | M |
 | Knife / weld / smooth shapes | ⌥K / ⌥W / ⌥N | | |

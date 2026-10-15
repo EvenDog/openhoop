@@ -16,7 +16,7 @@ final class DefaultKeysTests: XCTestCase {
             (.init("z"), .zoomIn), (.init("z", 2), .zoomOut), (.init("0", 4), .zoomFit), (.init("1", 1), .mirrorH), (.init("1", 4), .mirrorV),
             (.init("u", 1), .ungroup), (.init("y", 1), .redo), (.init("r", 2), .play), (.init("home"), .rewind), (.init("e", 2), .exportMachine),
             (.init("p", 1), .productionWorksheet), (.init("d", 1), .duplicate), (.init("escape"), .done), (.init("delete"), .delete),
-            (.init("t"), .threadView), (.init("b"), .zoomBoxTool), (.init("1"), .zoomActual), (.init("0", 2), .zoomSelected),
+            (.init("t"), .threadView), (.init("b"), .zoomBoxTool), (.init("1"), .zoomActual), (.init("0"), .zoomDesign), (.init("0", 2), .zoomSelected),
             (.init("s"), .showStitches), (.init("l"), .showOutlines), (.init("c", 2), .showConnectors), (.init("s", 2), .hideOthers), (.init("m"), .measureTool),
             (.init("k", 4), .knifeTool), (.init("w", 4), .weldObjects), (.init("n", 4), .smoothShapes), (.init("l", 6), .laydown), (.init("i"), .branching), (.init("i", 6), .insertNode), (.init("h", 8), .addStitchAngles), (.init("h", 10), .removeStitchAngles), (.init("e"), .editStitches), (.init("m", 6), .addMonogram)
         ]
@@ -32,6 +32,17 @@ final class DefaultKeysTests: XCTestCase {
     func testDefaultsAvoidKeysTheMacReserves() {
         let reserved: [KeyBinding] = [.init("h", 1), .init("m", 1), .init("q", 1), .init("space", 1)]
         for command in CommandID.allCases { XCTAssertTrue(Set(command.defaults).isDisjoint(with: reserved), command.title) }
+    }
+    /// Zoom to Design came after people had saved their keys: a saved profile picks up 0 for it, unless they had
+    /// already put something on 0 themselves.
+    func testSavedProfileGetsZeroForZoomToDesign() {
+        var saved = ShortcutProfile(); saved.bindings[CommandID.zoomDesign.rawValue] = nil   // saved before it existed
+        saved.upgrade()
+        XCTAssertEqual(saved.command(for: .init("0"), context: .canvas), .zoomDesign)
+        var theirs = ShortcutProfile(); theirs.bindings[CommandID.zoomDesign.rawValue] = nil; theirs.bindings[CommandID.grid.rawValue] = [.init("0")]
+        theirs.upgrade()
+        XCTAssertEqual(theirs.command(for: .init("0"), context: .canvas), .grid, "their own key stays")
+        XCTAssertEqual(theirs.bindings[CommandID.zoomDesign.rawValue], [])
     }
     func testOldProfileMovesToTheSecondKeySetButKeepsChangedKeys() throws {
         // A profile saved before the change: every command on its old default, except two the person changed.

@@ -561,6 +561,9 @@ import EmbroideryCore
         case .zoomActual:
             guard let canvas = state.canvas, let zoom = canvas.realSizeZoom else { state.status = "This display doesn't report its size, so OpenHoop can't show real size on it."; return }
             canvas.setZoom(zoom); state.status = "Real size: a 10 mm stitch is 10 mm on this screen (as near as the display reports its size)."
+        case .zoomDesign:
+            guard let box = state.design.bounds(of: Set(state.design.objects.map(\.id))) else { state.canvas?.fit(); state.status = "The design is empty, so the hoop is shown."; return }
+            state.canvas?.zoom(to: box)
         case .zoomSelected:
             guard let box = state.design.bounds(of: state.selection) else { state.status = "Select objects first, then zoom to them."; return }
             state.canvas?.zoom(to: box)
@@ -944,7 +947,7 @@ import EmbroideryCore
             ("File", [.new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportPES, .exportMachine, .exportDST, .exportEXP, .exportJEF, .exportVP3, .exportXXX, .exportPEC, .exportThreadList, .productionWorksheet, .sample, .stitchSampler]),
             ("Edit", [.undo, .redo, .cutObjects, .copyObjects, .pasteObjects, .selectAll, .delete, .duplicate, .group, .ungroup, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .sequenceBySelection, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .closePath, .lockObject, .hideObject, .renameObject, .threadChart, .weldObjects, .smoothShapes]),
             ("Digitize", [.selectTool, .runTool, .satinTool, .fillTool, .holeTool, .openShapeTool, .closedShapeTool, .rectangleTool, .ellipseTool, .basicShapeTool, .knifeTool, .branching, .addStitchAngles, .removeStitchAngles, .editStitches, .removeHoles, .lettering, .editLettering, .addMonogram, .editMonogram, .autoDigitize, .satinBorder, .applique, .laydown, .done, .artworkTool, .nodeTool, .panTool, .entryExitTool, .autoStartPoints, .clearStartEnd, .finishPath, .cancelPath, .removePoint, .insertNode, .deleteNode, .convertFill, .convertRun, .convertSatin, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),
-            ("View", [.proView, .threadView, .zoomIn, .zoomOut, .zoomFit, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .clearGuides, .needles, .artwork, .showUnderlay, .play, .rewind]),
+            ("View", [.proView, .threadView, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .clearGuides, .needles, .artwork, .showUnderlay, .play, .rewind]),
             ("Window", [.nextTab, .previousTab] + PanelID.allCases.map(\.command) + [.saveWorkspace, .restoreWorkspace])]
         for (name, commands) in groups {
             let item = NSMenuItem(); item.submenu = NSMenu(title: name); item.title = name; menu.addItem(item)

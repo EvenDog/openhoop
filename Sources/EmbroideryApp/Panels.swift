@@ -32,7 +32,7 @@ struct ToolStrip: View {
         ("Stitch", [[.runTool], [.satinTool], [.fillTool, .holeTool, .addStitchAngles, .removeStitchAngles]]),
         ("Shape", [[.openShapeTool, .closedShapeTool], [.rectangleTool, .ellipseTool, .basicShapeTool]]),
         ("Add", [[.lettering, .addMonogram, .satinBorder, .applique, .autoDigitize, .laydown]]),
-        ("View", [[.panTool, .measureTool], [.grid], [.threadView], [.zoomFit, .zoomBoxTool, .zoomActual, .zoomSelected]])
+        ("View", [[.panTool, .measureTool], [.grid], [.threadView], [.zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected]])
     ]
     /// The Pro view's strip: every tool out (no shared slots), as icons in one compact row; hovering shows the name and key.
     private let proGroups: [[CommandID]] = [
@@ -41,7 +41,7 @@ struct ToolStrip: View {
         [.openShapeTool, .closedShapeTool, .rectangleTool, .ellipseTool, .basicShapeTool],
         [.lettering, .addMonogram, .satinBorder, .applique, .autoDigitize, .laydown],
         [.measureTool, .grid, .snap, .threadView],   // then the Show list (needle points, underlay and the rest)
-        [.zoomFit, .zoomBoxTool, .zoomActual, .zoomSelected]
+        [.zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected]
     ]
     var body: some View {
         if preferences.isPro {
