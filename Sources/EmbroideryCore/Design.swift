@@ -113,6 +113,7 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
         lettering?.transform(body); monogram?.transform(body)
         if let center = digitizing?.radialCenter { digitizing?.radialCenter = body(center) }
         if let lines = digitizing?.angleLines { digitizing?.angleLines = lines.map { $0.map(body) } }
+        if let center = digitizing?.angleLineCenter { digitizing?.angleLineCenter = body(center) }
         // Edited stitches move with the object, and still count as made from it.
         if stitchEdits != nil { for s in stitchEdits!.sections.indices { stitchEdits!.sections[s].points = stitchEdits!.sections[s].points.map(body) } }
         refreshStitchEdits()
@@ -285,6 +286,9 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     /// Tatami fills: stitch angle lines (each two points, in mm) across the shape. Where there are any, the stitches
     /// run along them and turn gradually from one to the next (TurningFill.swift) instead of all at `angle`.
     public var angleLines:[[Point]]?
+    /// Tatami and wave fills: where Edit Nodes draws the line showing `angle` (StitchAngleLine.swift), in mm; nil
+    /// is the middle of the shape. Only where the line is drawn: it never changes the stitches.
+    public var angleLineCenter:Point?
     /// Running stitch only: how many times each stitch is sewn, back and forth (3 or 5 is "bean stitch", a bold
     /// line). nil (the default, and in older files) means once.
     public var runPasses:Int?
@@ -472,6 +476,7 @@ public struct Design: Codable, Equatable, Sendable {
                       s.pullPercent.map({object.kind == .satin && DigitizingSettings.pullPercentRange.contains($0)}) ?? true else {throw DesignError.invalid("Invalid digitizing settings in \(object.name).")}
                 // The fill style's own settings: out-of-range values would make the fill engines overflow or run for ages.
                 guard s.radialCenter.map({ $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 }) ?? true,
+                      s.angleLineCenter.map({ $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 }) ?? true,
                       s.angleLines.map({ lines in lines.count <= 100 && lines.allSatisfy { $0.count == 2 && $0.allSatisfy { $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 } } }) ?? true,
                       s.waveHeight.map(DigitizingSettings.waveHeightRange.contains) ?? true,
                       s.waveLength.map(DigitizingSettings.waveLengthRange.contains) ?? true else {throw DesignError.invalid("Invalid fill style settings in \(object.name).")}

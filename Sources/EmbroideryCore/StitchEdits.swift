@@ -31,6 +31,7 @@ extension RunObject {
         recipe.name = ""; recipe.color = ThreadColor.palette[0]; recipe.visible = true; recipe.locked = false
         recipe.tieIn = true; recipe.tieOut = true; recipe.trimAfter = true; recipe.stopAfter = false
         recipe.groupID = nil; recipe.branchID = nil; recipe.lettering = nil; recipe.monogram = nil; recipe.stitchEdits = nil
+        recipe.digitizing?.angleLineCenter = nil   // where the angle line is drawn doesn't change the stitches
         let encoder = JSONEncoder(); encoder.outputFormatting = .sortedKeys
         var hash: UInt64 = 0xcbf29ce484222325   // FNV-1a, a simple, well-known text hash
         for byte in (try? encoder.encode(recipe)) ?? Data() { hash = (hash ^ UInt64(byte)) &* 0x100000001b3 }

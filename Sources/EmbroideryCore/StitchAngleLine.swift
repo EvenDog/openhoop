@@ -1,5 +1,6 @@
-// A fill's stitch angle drawn as a line across the shape, as Edit Nodes (H) shows it: the line runs through the
-// middle of the shape in the direction the rows run, and dragging an end turns the stitches.
+// A fill's stitch angle drawn as a line across the shape, as Edit Nodes (H) shows it: the line runs across the shape
+// in the direction the rows run, through the middle unless it's been dragged somewhere else. Dragging an end turns
+// the stitches; dragging the line moves it (only where it's drawn).
 import Foundation
 
 public enum StitchAngleLine {
@@ -16,21 +17,25 @@ public enum StitchAngleLine {
         }
     }
 
-    /// The line's two ends: through the middle of the shape (the center of its bounding box) at the fill's angle,
-    /// reaching just past its edges. Nil for objects whose stitches don't follow an angle.
+    /// The line's two ends: through its center (`center(of:)`) at the fill's angle, reaching just past the shape's
+    /// edges on both sides. Nil for objects whose stitches don't follow an angle.
     public static func ends(of object: RunObject) -> (Point, Point)? {
-        guard applies(to: object), let middle = middle(of: object) else { return nil }
+        guard applies(to: object), let middle = center(of: object) else { return nil }
         let radians = object.settings.angle * .pi / 180, along = Point(cos(radians), sin(radians))
-        // Half the line: the farthest any outline point reaches along the angle, measured from the middle.
-        let reach = object.outlinePaths.flatMap { $0 }.map { abs(($0.x - middle.x) * along.x + ($0.y - middle.y) * along.y) }.max() ?? 0
-        let half = along * (reach + overhang)
-        return (middle - half, middle + half)
+        // How far along the angle each outline point lies, measured from the center: the line spans from the lowest
+        // to the highest, so it crosses the whole shape wherever its center is.
+        let distances = object.outlinePaths.flatMap { $0 }.map { ($0.x - middle.x) * along.x + ($0.y - middle.y) * along.y }
+        guard let low = distances.min(), let high = distances.max() else { return nil }
+        return (middle + along * (low - overhang), middle + along * (high + overhang))
     }
 
-    /// The angle, in whole degrees from 0 to 179, of a line from the middle of `object` toward `point` (a line points
+    /// Where the line is centered (and turns around): where it was dragged to, or the middle of the shape.
+    public static func center(of object: RunObject) -> Point? { object.settings.angleLineCenter ?? middle(of: object) }
+
+    /// The angle, in whole degrees from 0 to 179, of a line from the line's center toward `point` (a line points
     /// both ways, so 180° is the same as 0°). Counted counterclockwise from pointing right, as the fill's Angle is.
     public static func angle(of object: RunObject, toward point: Point) -> Double {
-        guard let middle = middle(of: object), middle.distance(to: point) > 0.001 else { return object.settings.angle }
+        guard let middle = center(of: object), middle.distance(to: point) > 0.001 else { return object.settings.angle }
         let degrees = (atan2(point.y - middle.y, point.x - middle.x) * 180 / .pi).rounded()
         // `truncatingRemainder` is % for decimals; adding 180 first turns negative angles into their positive twin.
         return (degrees.truncatingRemainder(dividingBy: 180) + 180).truncatingRemainder(dividingBy: 180)

@@ -33,6 +33,20 @@ final class FillAngleDragTests: XCTestCase {
         document.undoManager?.undo()
         XCTAssertEqual(state.design.objects[0].settings.angle, 45, "one undo puts the angle back")
 
+        // Pressing on the line between its ends picks it up: it moves, the stitches don't change, one undo puts it back.
+        mouse(.leftMouseDown, canvas.screen(Point(3, 3))); mouse(.leftMouseDragged, canvas.screen(Point(5, 1))); mouse(.leftMouseDragged, canvas.screen(Point(6, 0)))
+        document.undoManager?.beginUndoGrouping(); mouse(.leftMouseUp, canvas.screen(Point(6, 0))); document.undoManager?.endUndoGrouping()
+        XCTAssertEqual(state.design.objects[0].settings.angleLineCenter, Point(3, -3))
+        XCTAssertEqual(state.design.objects[0].settings.angle, 45)
+        // An end of the moved line turns it around its new center.
+        let moved = try XCTUnwrap(StitchAngleLine.ends(of: state.design.objects[0]))
+        mouse(.leftMouseDown, canvas.screen(moved.1)); mouse(.leftMouseDragged, canvas.screen(Point(3, 20)))
+        document.undoManager?.beginUndoGrouping(); mouse(.leftMouseUp, canvas.screen(Point(3, 20))); document.undoManager?.endUndoGrouping()
+        XCTAssertEqual(state.design.objects[0].settings.angle, 90)
+        document.undoManager?.undo(); document.undoManager?.undo()
+        XCTAssertNil(state.design.objects[0].settings.angleLineCenter, "undo puts it back in the middle")
+        XCTAssertEqual(state.design.objects[0].settings.angle, 45)
+
         // A press on a node still grabs the node, not the line.
         state.tool = .node
         mouse(.leftMouseDown, canvas.screen(Point(10, 10))); mouse(.leftMouseDragged, canvas.screen(Point(12, 12)))
