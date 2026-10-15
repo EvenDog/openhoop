@@ -60,7 +60,12 @@ enum Theme {
         static let woodEdge = nsAdaptive(light: 0xB88A54, dark: 0x6E5032)     // inner rim of the ring
         static let clasp = nsAdaptive(light: 0x9C7444, dark: 0x5E4329)        // tightening clasp at the top
         static let sewingArea = nsAdaptive(light: 0xB9A384, dark: 0x5A4C40)   // dashed outline of where stitches may go
-        static let grid = nsAdaptive(light: 0x9A7B55, dark: 0xF2E9DC, alpha: 0.16)
+        /// Grid lines on light cloth: a deep brown, strong enough to read on white and pale fabrics.
+        static let gridOnLight = fixed(0x5C4630).withAlphaComponent(0.35)
+        /// Grid lines on the default linen: dark lines in light mode, faint light ones on the dark-mode linen.
+        static let grid = NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? rgb(0xF2E9DC).withAlphaComponent(0.16) : gridOnLight
+        }
         static let guide = nsAdaptive(light: 0x1F8FA8, dark: 0x5FCFE4)                // guide lines dragged from the rulers
         static let ruler = nsAdaptive(light: 0xFFFDF8, dark: 0x2A231E)
         static let label = nsAdaptive(light: 0x6B5A4C, dark: 0xBFAE9A)

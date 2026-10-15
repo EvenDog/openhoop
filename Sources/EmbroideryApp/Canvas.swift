@@ -290,7 +290,7 @@ final class DesignCanvas: NSView {
         guard let fabric else { return Theme.Canvas.grid }
         // Perceived brightness (0–255): green looks brightest, blue darkest.
         let brightness = Double((fabric >> 16) & 255) * 0.299 + Double((fabric >> 8) & 255) * 0.587 + Double(fabric & 255) * 0.114
-        return brightness < 128 ? NSColor.white.withAlphaComponent(0.25) : Theme.fixed(0x9A7B55).withAlphaComponent(0.2)
+        return brightness < 128 ? NSColor.white.withAlphaComponent(0.25) : Theme.Canvas.gridOnLight
     }
 
     /// The reference image's rectangle on screen.
