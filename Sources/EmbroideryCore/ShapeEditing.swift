@@ -106,9 +106,13 @@ extension Design {
     @discardableResult public mutating func smoothShapes(_ ids: Set<UUID>, tolerance: Double = 0.2) -> Int {
         var removed = 0
         for i in objects.indices where ids.contains(objects[i].id) && !objects[i].locked && objects[i].kind != .raw && objects[i].kind != .satin {
-            let closed = objects[i].kind == .fill || objects[i].closed, before = objects[i].allNodes.count
+            let closed = objects[i].kind == .fill || objects[i].closed, before = objects[i].allNodes.count, original = objects[i]
             objects[i].nodes = Self.reduced([objects[i].nodes], closed: closed, tolerance: tolerance)[0]
             if let holes = objects[i].holes { objects[i].holes = holes.map { Self.reduced([$0], closed: true, tolerance: tolerance)[0] } }
+            // The outline and each hole are smoothed on their own, so a hole close to the edge could end up crossing
+            // it. A fill that was sewable and wouldn't be any more is left as it was.
+            if objects[i].kind == .fill, let rings = objects[i].areaRings, let originalRings = original.areaRings,
+               (try? AreaGeometry.validate(rings)) == nil, (try? AreaGeometry.validate(originalRings)) != nil { objects[i] = original }
             removed += before - objects[i].allNodes.count
         }
         for i in objects.indices where ids.contains(objects[i].id) && !objects[i].locked && objects[i].kind == .satin {

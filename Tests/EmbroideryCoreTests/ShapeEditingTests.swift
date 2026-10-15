@@ -174,4 +174,20 @@ final class ShapeEditingTests: XCTestCase {
             XCTAssertLessThanOrEqual(gap, 0.2 + 1e-9)
         }
     }
+
+    /// Smoothing an outline and its holes separately could leave a hole crossing the outline (each moves up to
+    /// 0.2 mm). A fill that would end up broken like that is left as it was.
+    func testSmoothShapesNeverPushesAHoleOverTheEdge() throws {
+        var design = Design()
+        var fill = RunObject(name: "Fill", nodes: [Point(0, 0), Point(10, -0.15), Point(20, 0), Point(20, 20), Point(0, 20)].map { PathNode($0) })
+        fill.closed = true; fill.digitizing = DigitizingSettings(kind: .fill)
+        fill.holes = [[Point(5, 5), Point(15, 5), Point(10, -0.1)].map { PathNode($0) }]   // its point reaches into the dip in the bottom edge
+        XCTAssertNoThrow(try AreaGeometry.validate(([fill.nodes] + fill.holes!).map { AreaGeometry.ring($0) }), "valid to begin with")
+        var square = square("Square", at: Point(40, 0))
+        square.nodes.insert(PathNode(Point(40, -5)), at: 1)
+        design.objects = [fill, square]
+        XCTAssertEqual(design.smoothShapes(Set(design.objects.map(\.id))), 1, "only the square's extra node goes")
+        XCTAssertEqual(design.objects[0], fill, "the fill is left as it was")
+        XCTAssertGreaterThan(try RunningEngine.compile(design).stitchCount, 0, "the design still sews")
+    }
 }
