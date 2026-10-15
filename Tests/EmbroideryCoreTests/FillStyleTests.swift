@@ -203,5 +203,15 @@ final class FillStyleTests: XCTestCase {
         XCTAssertFalse(result.warnings.contains { $0.contains("trim") }, "\(result.warnings)")
         XCTAssertTrue(result.sections.dropFirst().allSatisfy(\.joined), "every section carries on from the one before")
     }
-}
 
+    /// Rings with sharp corners don't spiral: the needle steps across from one ring to the next. That step used to skip
+    /// the next ring's first point, so with long stitches one stitch reached past the machine's 12.1 mm limit (found by
+    /// the random design tests). Every stitch is now at most the stitch length.
+    func testContourStepsBetweenRingsAreNeverLongerThanAStitch() throws {
+        for length in [3.0, 7.0, 10.0] {
+            let sections = try FillStyles.contour(in: [rectangle(40, 30)], spacing: 2, length: length, start: nil)
+            let longest = sections.flatMap { zip($0, $0.dropFirst()).map { $0.distance(to: $1) } }.max() ?? 0
+            XCTAssertLessThanOrEqual(longest, length + 0.0001, "stitch length \(length)")
+        }
+    }
+}

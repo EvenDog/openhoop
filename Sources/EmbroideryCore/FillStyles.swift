@@ -37,7 +37,9 @@ enum FillStyles {
             try Task.checkCancellation()
             // The ring point nearest the needle, among the rings not yet sewn.
             var best = (ring: -1, index: 0, distance: Double.infinity)
-            for r in remaining where !order.isEmpty || r < outermost {
+            // In ring order: a Set's own order changes from run to run, and where two rings are equally near, the
+            // first one checked wins, so the same fill must always check them in the same order.
+            for r in remaining.sorted() where !order.isEmpty || r < outermost {
                 for (i, p) in loops[r].enumerated() { let d = p.distance(to: needle); if d < best.distance { best = (r, i, d) } }
             }
             let ring = loops[best.ring]
@@ -56,7 +58,15 @@ enum FillStyles {
             var stitches: [Point] = []
             if !spirals(k - 1) || !spirals(k) { stitches = order[k].loop }   // a plain ring, all the way round
             if spirals(k) { stitches += spiral(order[k].loop, into: order[k + 1].loop, length: length).dropFirst(stitches.isEmpty ? 0 : 1) }
-            if order[k].joined, var last = sections.popLast() { last += stitches.dropFirst(); sections.append(last) } else { sections.append(stitches) }
+            if order[k].joined, var last = sections.popLast() {
+                // A spiral lap already ends on this ring's first point. After a plain ring the needle is still on that
+                // ring, so it steps across to this one's first point, split into stitches no longer than `length`
+                // (dropping the first point instead made one stitch reach the second point, over the machine's limit).
+                if let end = last.last, let first = stitches.first, end.distance(to: first) > 0.00001 {
+                    last += AreaGeometry.sampled([end, first], length: length).dropFirst()
+                }
+                last += stitches.dropFirst(); sections.append(last)
+            } else { sections.append(stitches) }
         }
         return sections
     }
