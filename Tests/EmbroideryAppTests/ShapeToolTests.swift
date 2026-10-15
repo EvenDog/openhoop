@@ -62,17 +62,19 @@ final class ShapeToolTests: XCTestCase {
         state.finishPath()   // Return mid-drag
         XCTAssertTrue(state.design.objects.isEmpty, "nothing is added until the mouse is let go")
         mouse(.leftMouseUp, 400, 380)
-        XCTAssertEqual(state.design.objects.map(\.name), ["Rectangle 1"])
+        let perShape = state.design.objects.count   // 1, or 2 when the saved Next shape choice adds an outline
+        XCTAssertEqual(state.design.objects.first?.name, "Rectangle 1")
 
         mouse(.leftMouseDown, 100, 100); mouse(.leftMouseDragged, 150, 150)
         canvas.cancelShapeDrag(); state.draft = []   // what Escape does
         mouse(.leftMouseDragged, 200, 200); mouse(.leftMouseUp, 200, 200)
-        XCTAssertEqual(state.design.objects.count, 1, "a cancelled drag adds nothing")
+        XCTAssertEqual(state.design.objects.count, perShape, "a cancelled drag adds nothing")
 
         state.draft = ShapeGeometry.nodes(.rectangle, in: (Point(-5, -5), Point(5, 5)))   // a restored, unfinished shape
         state.finishPath()
-        XCTAssertEqual(state.design.objects.last?.name, "Rectangle 2")
-        XCTAssertEqual(state.design.objects.last?.closed, true, "a closed rectangle, not an open running line")
+        let restored = state.design.objects[perShape]
+        XCTAssertEqual(restored.name, "Rectangle \(perShape + 1)")
+        XCTAssertEqual(restored.closed, true, "a closed rectangle, not an open running line")
     }
 }
 
