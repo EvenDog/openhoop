@@ -22,6 +22,10 @@ final class DesignCanvas: NSView {
     private var dragRevision = 0
     private var preview: Design?
     private var draggedNode: NodeLocation?
+    /// While a node or handle drag would leave its object unable to sew: the object, why, and the status line from
+    /// before the warning (shown again once the shape is sewable). It's outlined in red, since letting go there puts
+    /// the node back.
+    private var dragProblem: (object: UUID, problem: String, earlierStatus: String)?
     /// True while the dragged node was just added by pressing on an edge (it's saved as "Add Node").
     private var nodeJustAdded = false
     private var draggedHandle: (location: NodeLocation, outgoing: Bool)?   // a Bézier handle being dragged
@@ -441,8 +445,8 @@ final class DesignCanvas: NSView {
                 for points in object.outlinePaths where !points.isEmpty {
                     let path = NSBezierPath(); path.move(to: screen(points[0])); for point in points.dropFirst() { path.line(to: screen(point)) }
                     // Selected objects get a thin dotted outline in one neutral color, so it shows on any thread. One that
-                    // can't be sewn (the stitch error) is outlined in red instead.
-                    let broken = state.brokenObjects.contains(object.id)
+                    // can't be sewn (the stitch error), or would be if a node drag let go here, is outlined in red instead.
+                    let broken = state.brokenObjects.contains(object.id) || dragProblem?.object == object.id
                     (broken ? NSColor.systemRed : selected ? Theme.Canvas.selection : object.color.nsColor.withAlphaComponent(0.4)).setStroke(); path.lineWidth = broken ? 2 : 1
                     if selected { path.setLineDash([2, 2], count: 2, phase: 0) }; path.stroke()
                 }
@@ -783,11 +787,12 @@ final class DesignCanvas: NSView {
         }
         if state.tool == .entryExit { setEntryOrExit(at: point, exit: event.modifierFlags.contains(.option)); return }
         pointer=point
-        // Handles sit on top of nodes, so they are checked first.
-        if state.tool == .node, let handle=nearestHandle(point) {
+        // Handles sit on top of nodes, so they are checked first. Both are picked where the pointer really is: the
+        // snapped point can sit nearer a neighbouring node, which would grab the wrong one.
+        if state.tool == .node, let handle=nearestHandle(model(location)) {
             draggedHandle=handle;dragStart=point;dragSnapshot=state.design;return
         }
-        if state.tool == .node, let location=nearestNode(point) {
+        if state.tool == .node, let location=nearestNode(model(location)) {
             state.selection=[location.object];state.selectedNode=location
             draggedNode=location;dragStart=point;dragSnapshot=state.design;return
         }
@@ -923,7 +928,7 @@ final class DesignCanvas: NSView {
         }
         if let handle = draggedHandle {
             dragHandle(handle, to: snapped(model(location)), in: &next, independent: event.modifierFlags.contains(.option))
-            preview = next; needsDisplay = true; return
+            preview = next; checkDragProblem(handle.location.object); needsDisplay = true; return
         }
         let delta = snapped(model(location)) - start
         for index in next.objects.indices where state.selection.contains(next.objects[index].id) && !next.objects[index].locked {
@@ -933,7 +938,23 @@ final class DesignCanvas: NSView {
                 else{next.objects[index].holes![node.ring][node.index].transform{$0+delta}}
             } else if draggedNode == nil {next.objects[index].transform{$0+delta}}
         }
-        preview = next; needsDisplay = true
+        preview = next
+        if let node = draggedNode { checkDragProblem(node.object) }
+        needsDisplay = true
+    }
+    /// Checks, while a node or handle is dragged, whether letting go here would leave `id` unable to sew (the same
+    /// check as on mouse-up, which puts the node back). If so, the object is outlined in red and the status bar says
+    /// why, so the node going back is never a surprise.
+    private func checkDragProblem(_ id: UUID) {
+        let before = dragSnapshot?.objects.first { $0.id == id }, after = preview?.objects.first { $0.id == id }
+        let problem = before.flatMap { StitchEngine.shapeProblem($0) == nil ? after.flatMap(StitchEngine.shapeProblem) : nil }
+        if let problem, let after {
+            let earlierStatus = dragProblem?.earlierStatus ?? state.status
+            if dragProblem?.problem != problem { state.status = "Let go here and the node goes back: \(after.name) couldn't be sewn. \(problem)" }
+            dragProblem = (id, problem, earlierStatus)
+        } else if let earlier = dragProblem {
+            dragProblem = nil; state.status = earlier.earlierStatus
+        }
     }
     override func mouseUp(with event: NSEvent) {
         if measuring { measuring = false; return }
@@ -999,14 +1020,14 @@ final class DesignCanvas: NSView {
         if let preview { state.document?.replace(preview, action: action) }
         if nodeJustAdded, let node = draggedNode { state.selectedNode = node; state.status = "Node added · drag it to reshape · right-click an edge for a curve node" }
         nodeJustAdded = false
-        preview = nil; angleDrag = nil; fillAngleDrag = nil; dragStart = nil; dragSnapshot = nil; draggedNode = nil; draggedHandle = nil; drawingHandle = nil; draggedMarker = nil; artworkDrag = nil; screenStart = nil; needsDisplay = true
+        preview = nil; angleDrag = nil; fillAngleDrag = nil; dragStart = nil; dragSnapshot = nil; draggedNode = nil; draggedHandle = nil; drawingHandle = nil; draggedMarker = nil; artworkDrag = nil; screenStart = nil; dragProblem = nil; needsDisplay = true
     }
     /// Cancels a drag of objects, nodes, markers, angle lines, artwork or stitches when the design changed since the
     /// mouse went down (Undo pressed mid-drag). Returns true if it did.
     private func dropDragIfDesignChanged() -> Bool {
         guard state.revision != dragRevision, stitchDrag != nil || dragSnapshot != nil else { return false }
         stitchDrag = nil; stitchPreview = nil; preview = nil; dragSnapshot = nil; dragStart = nil; angleDrag = nil; fillAngleDrag = nil; guideDrag = nil
-        draggedNode = nil; draggedHandle = nil; draggedMarker = nil; artworkDrag = nil; nodeJustAdded = false; needsDisplay = true
+        draggedNode = nil; draggedHandle = nil; draggedMarker = nil; artworkDrag = nil; nodeJustAdded = false; dragProblem = nil; needsDisplay = true
         state.status = "The design changed during the drag, so the drag was cancelled."
         return true
     }
@@ -1099,12 +1120,17 @@ final class DesignCanvas: NSView {
             return p.distance(to: AreaGeometry.projection(p, ends.0, ends.1)) <= 5 / state.zoom
         }?.id
     }
+    /// The node within reach of `p` (model mm): the selected objects' nodes first, since they're the ones shown, and
+    /// only if none is near, the nearest node of any other visible, unlocked object (clicking it selects that object).
     private func nearestNode(_ p:Point)->NodeLocation? {
-        var best:NodeLocation?,distance=9/state.zoom
-        for object in state.design.objects.reversed() where object.visible && !object.locked && object.kind != .raw {
-            for (ring,nodes) in ([object.nodes]+(object.holes ?? [])).enumerated(){for (i,node) in nodes.enumerated(){let d=node.point.distance(to:p);if d<distance{distance=d;best=NodeLocation(object:object.id,ring:ring-1,index:i)}}}
+        func nearest(selected: Bool) -> NodeLocation? {
+            var best:NodeLocation?,distance=9/state.zoom
+            for object in state.design.objects.reversed() where object.visible && !object.locked && object.kind != .raw && state.selection.contains(object.id) == selected {
+                for (ring,nodes) in ([object.nodes]+(object.holes ?? [])).enumerated(){for (i,node) in nodes.enumerated(){let d=node.point.distance(to:p);if d<distance{distance=d;best=NodeLocation(object:object.id,ring:ring-1,index:i)}}}
+            }
+            return best
         }
-        return best
+        return nearest(selected: true) ?? nearest(selected: false)
     }
     func deleteNode() {
         guard state.tool == .node,let location=state.selectedNode,let object=state.design.objects.first(where:{$0.id==location.object}),!object.locked else{state.status="Select a node with N first.";return}

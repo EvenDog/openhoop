@@ -54,4 +54,27 @@ final class BrokenObjectAppTests: XCTestCase {
         mouse(.leftMouseDown, Point(3, 12)); mouse(.leftMouseDragged, Point(3.5, 12)); mouse(.leftMouseUp, Point(3.5, 12))
         XCTAssertEqual(state.design.objects[0].nodes[4].point, Point(3.5, 12))
     }
+
+    /// The node going back is never a surprise: while the drag would break the satin, the status line says so (and the
+    /// satin is outlined in red); dragged back to a sewable spot, the earlier status line returns and the drag is kept.
+    @MainActor func testDragWarnsWhileItWouldBreakASatin() throws {
+        _ = NSApplication.shared
+        let document = DesignDocument(), state = document.state
+        let canvas = DesignCanvas(state: state); canvas.frame = NSRect(x: 0, y: 0, width: 600, height: 600); state.canvas = canvas
+        func mouse(_ type: NSEvent.EventType, _ p: Point) {
+            let event = NSEvent.mouseEvent(with: type, location: canvas.screen(p), modifierFlags: [], timestamp: 0, windowNumber: 0,
+                                           context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+            switch type { case .leftMouseDown: canvas.mouseDown(with: event); case .leftMouseDragged: canvas.mouseDragged(with: event); default: canvas.mouseUp(with: event) }
+        }
+        let column = satin("Column", x: 0)
+        state.edit("Setup") { $0.objects = [column] }
+        state.selection = [column.id]; state.tool = .node; state.snap = false
+        state.status = "Earlier"
+        mouse(.leftMouseDown, Point(-1.5, 10)); mouse(.leftMouseDragged, Point(3, 12))
+        XCTAssertTrue(state.status.hasPrefix("Let go here and the node goes back"), state.status)
+        mouse(.leftMouseDragged, Point(-2.5, 10))
+        XCTAssertEqual(state.status, "Earlier", "sewable again: the warning goes")
+        mouse(.leftMouseUp, Point(-2.5, 10))
+        XCTAssertEqual(state.design.objects[0].nodes[4].point, Point(-2.5, 10))
+    }
 }
