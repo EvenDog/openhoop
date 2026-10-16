@@ -387,11 +387,37 @@ public enum AreaEngine {
             if layer==1 {for i in sectionsBefore..<result.sections.count {result.sections[i].points.reverse()}}
         }
         result.sections.append(StitchSection(top))
+        // A start point part way along an open column: the needle starts there and runs along the column's middle to
+        // the end it sews from, hidden under the stitches that follow.
+        if !object.closed,let entry=object.entry,let lead=satinLeadIn(from:entry,center:underPairs.map{($0.0+$0.1)*0.5},region:regionRings) {
+            result.sections.insert(StitchSection(lead,underlay:true),at:0)
+        }
         // The top layer starts back at the beginning of the column; travel there inside the column (the satin covers it).
         let edges=(try? AreaGeometry.offset(regionRings,by:-0.25)).flatMap{$0.count==regionRings.count ? $0:nil} ?? regionRings
         let bounds=(try? AreaGeometry.offset(compensated,by:0.01)) ?? compensated
         result.sections=TravelRouter(edges:edges,bounds:bounds)?.join(result.sections) ?? result.sections
         return result
+    }
+}
+
+extension AreaEngine {
+    /// The hidden run from a satin's start point to the start of its column: from `entry` (or, when that's outside
+    /// the column, the nearest point on its middle line) along the middle line `center` back to its first point.
+    /// Returns nil when the start point is within 1 mm of the column's start, measured along the middle line: the
+    /// column then simply starts at its end, as it always did.
+    static func satinLeadIn(from entry:Point,center:[Point],region:[[Point]]) -> [Point]? {
+        guard center.count>=2 else{return nil}
+        // The nearest point on the middle line, and which piece of the line it's on.
+        var nearest=(index:0,point:center[0],distance:Double.infinity)
+        for i in center.indices.dropLast() {
+            let q=AreaGeometry.projection(entry,center[i],center[i+1]),d=q.distance(to:entry)
+            if d<nearest.distance {nearest=(i,q,d)}
+        }
+        let back=[nearest.point]+center[...nearest.index].reversed()
+        guard zip(back,back.dropFirst()).reduce(0,{$0+$1.0.distance(to:$1.1)})>1 else{return nil}
+        // Start right on the point when it's inside the column (and can step straight onto the middle line).
+        let onPoint=AreaGeometry.segmentInside(entry,nearest.point,rings:region)
+        return AreaGeometry.sampled((onPoint ? [entry]:[])+back,length:2.5)
     }
 }
 

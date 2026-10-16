@@ -172,6 +172,14 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
         }
         return copy
     }
+    /// Where an open satin column really finishes sewing: the middle of its last edge pair once its start and end
+    /// points have chosen which way it runs. Its End marker shows here, since the column can only finish at an end.
+    /// Nil for anything but an open satin.
+    public var satinFinish: Point? {
+        guard kind == .satin, !closed, nodes.count >= 4, rawStitches == nil else { return nil }
+        let ordered = sewingOrder().nodes
+        return (ordered[ordered.count - 2].point + ordered[ordered.count - 1].point) * 0.5
+    }
     public func runningOutlines()->[RunObject] {
         guard rawStitches==nil else{return [self]}
         var outer=self
