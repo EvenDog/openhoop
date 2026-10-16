@@ -1,0 +1,308 @@
+@charset "UTF-8";
+/*
+  OpenHoop landing page styles: the "stitched patch" look.
+  Denim-blue background, cream thread, and mustard / tomato / sage accents.
+  Dashed borders stand in for running stitches; thick colored borders stand in for satin edges.
+*/
+
+/* ---------- Font (bundled; license in assets/fonts/OFL.txt) ---------- */
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  src: url('assets/fonts/BricolageGrotesque-latin.woff2') format('woff2');
+  font-weight: 400 800; /* one "variable" file covers every weight in this range */
+  font-display: swap;   /* show text in a fallback font while this loads */
+}
+
+/* ---------- Colors and shared values ---------- */
+:root {
+  --denim: #1b2a44;
+  --denim-light: #24365a;
+  --denim-line: #4e6283;
+  --cream: #f4e6c8;
+  --cream-text: #d9cdb4;   /* softer cream for body text on denim */
+  --muted: #a9b6cc;        /* small print on denim */
+  --gold: #f2b33d;
+  --tomato: #c4412a;       /* deep enough for cream text on top to stay readable */
+  --tomato-bright: #ff8c74;/* tomato for text on denim */
+  --sage: #8fbf8a;
+  --wood: #c9955a;
+  --wood-dark: #8e6232;
+  --ink-on-cream: #1b2a44;
+  --red-on-cream: #b6402a;
+  --font: 'Bricolage Grotesque', 'Avenir Next', 'Helvetica Neue', sans-serif;
+}
+
+/* ---------- Basics ---------- */
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+body {
+  margin: 0;
+  background: var(--denim);
+  color: var(--cream);
+  font-family: var(--font);
+  font-size: 18px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip; /* the slightly rotated patches must never cause sideways scrolling */
+}
+a { color: inherit; }
+button, select { font: inherit; }
+img { display: block; max-width: 100%; height: auto; }
+p, h1, h2, h3 { margin: 0; }
+h1, h2, h3 { font-weight: 800; letter-spacing: -0.03em; text-wrap: balance; } /* balance = even line lengths, no lone last word */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 4px;
+}
+button:disabled { opacity: .5; cursor: wait; }
+.wrap { width: min(1240px, calc(100% - 64px)); margin-inline: auto; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.skip-link { position: absolute; left: 16px; top: -80px; padding: 14px; background: var(--gold); color: var(--denim); z-index: 10; }
+.skip-link:focus { top: 12px; }
+
+/* ---------- Header ---------- */
+.site-header { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; padding-block: 22px; }
+.brand { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 24px; text-decoration: none; }
+.brand img { border-radius: 12px; }
+.site-header nav { display: flex; flex-wrap: wrap; gap: 8px; font-size: 16px; font-weight: 600; }
+.nav-pill { padding: 10px 18px; border: 2px dashed var(--denim-line); border-radius: 999px; text-decoration: none; }
+.nav-pill:hover { border-color: var(--cream); }
+.nav-source { border: 0; background: var(--gold); color: var(--denim); padding: 12px 20px; }
+.nav-source:hover { background: var(--cream); }
+
+/* ---------- Buttons (shared) ---------- */
+.actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.button {
+  display: inline-flex; align-items: center; gap: 10px;
+  min-height: 54px; padding: 0 28px;
+  border: 0; border-radius: 999px;
+  font-size: 18px; font-weight: 800; text-decoration: none;
+  cursor: pointer; transition: transform .18s, background .18s;
+}
+.button:hover { transform: translateY(-2px); }
+.button-gold { background: var(--gold); color: var(--denim); }
+.button-gold:hover { background: var(--cream); }
+.button-denim { background: var(--denim); color: var(--cream); }
+.button-stitched { border: 2px dashed currentColor; font-weight: 600; } /* outline that looks like a running stitch */
+
+/* Small heading above each section title */
+.kicker { font-weight: 600; color: var(--gold); margin-bottom: 12px; }
+h2 { font-size: clamp(40px, 5.6vw, 80px); line-height: .95; letter-spacing: -0.035em; }
+.section-heading > p:not(.kicker) { margin-top: 20px; color: var(--cream-text); max-width: 460px; }
+.section-heading.centered { text-align: center; margin-bottom: 56px; }
+.section-heading.centered h2 { max-width: 820px; margin-inline: auto; }
+.section-heading.centered > p:not(.kicker) { margin-inline: auto; text-wrap: balance; }
+
+/* Full-width colored stripes; the content inside stays in .wrap */
+.band { padding-block: 96px; }
+.band-cream { background: var(--cream); color: var(--ink-on-cream); }
+.band-cream .kicker { color: var(--red-on-cream); }
+.band-cream .section-heading > p:not(.kicker) { color: #4a4436; }
+.band-deep { background: var(--denim-light); }
+
+/* ---------- Hero ---------- */
+.hero { padding-top: 48px; padding-bottom: 96px; }
+.hero-copy { text-align: center; }
+.hero-tag {
+  display: inline-block; margin-bottom: 28px; padding: 8px 20px;
+  background: var(--tomato); color: #fff8ec; font-weight: 600; font-size: 15px;
+  border-radius: 6px; outline: 2px dashed #fff8ec; outline-offset: -7px;
+  transform: rotate(-2deg);
+}
+h1 { max-width: 1100px; margin-inline: auto; font-size: clamp(52px, 8.6vw, 132px); line-height: .92; letter-spacing: -0.04em; }
+h1 em { font-style: normal; color: var(--gold); }
+.hero-intro { max-width: 600px; margin: 32px auto 0; font-size: 21px; color: var(--cream-text); }
+.hero-copy .actions { justify-content: center; margin-top: 36px; }
+.fine-print { margin-top: 20px; font-size: 15px; color: var(--muted); }
+
+/* Guided/Pro and Light/Dark pill toggles */
+.preview-toolbar { display: flex; flex-wrap: wrap; gap: 12px 16px; justify-content: center; align-items: center; margin: 64px 0 40px; }
+.pill-group { display: flex; gap: 4px; padding: 5px; background: var(--denim-light); border-radius: 999px; }
+.pill-button {
+  min-height: 44px; padding: 0 22px; border: 0; border-radius: 999px;
+  background: transparent; color: var(--cream); font-weight: 600; cursor: pointer;
+}
+.pill-button:hover { background: #2f4570; }
+.pill-button.is-active { background: var(--gold); color: var(--denim); font-weight: 800; }
+.inspect-button {
+  min-height: 44px; padding: 0 20px; border: 2px dashed var(--denim-line); border-radius: 999px;
+  background: transparent; color: var(--cream); font-weight: 600; cursor: pointer;
+}
+.inspect-button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+
+/* The wooden embroidery hoop around the screenshot.
+   Stacked inset shadows draw the inner and outer rings without extra elements. */
+.hoop {
+  position: relative; padding: 22px; border-radius: 44px; background: var(--wood);
+  box-shadow: inset 0 0 0 6px #b07e45, inset 0 0 0 14px var(--wood), inset 0 0 0 16px var(--wood-dark), 0 30px 60px #050c1a80;
+}
+.hoop-clamp {
+  position: absolute; top: -18px; left: 50%; transform: translateX(-50%); z-index: 5;
+  padding: 6px 16px; border-radius: 8px; background: var(--wood-dark); color: #fff3df;
+  font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap;
+}
+.preview-surface { position: relative; aspect-ratio: 2048 / 1212; overflow: hidden; border-radius: 24px; touch-action: pan-y; isolation: isolate; background: #e7e3da; }
+.preview-surface > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; user-select: none; pointer-events: none; }
+.preview-surface > img[hidden], .stitch-lens > div[hidden] { display: none; }
+.is-inspecting { cursor: crosshair; }
+.preview-hint { margin-top: 24px; min-height: 16px; text-align: center; font-size: 14px; color: var(--muted); }
+.image-caption { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 24px; margin-top: 6px; font-size: 15px; color: var(--muted); }
+.image-caption a { color: var(--gold); font-weight: 600; }
+
+/* "Inspect stitches" magnifier: a round lens, like looking through a loupe */
+.stitch-lens {
+  position: absolute; width: 190px; height: 190px; z-index: 4; overflow: hidden; pointer-events: none;
+  border: 4px solid var(--cream); border-radius: 50%; background: var(--cream);
+  box-shadow: 0 0 0 2px var(--denim), 0 10px 35px #0006;
+}
+.stitch-lens[hidden] { display: none; }
+.stitch-lens > div { position: absolute; inset: 0; background-repeat: no-repeat; }
+.stitch-lens > span { position: absolute; bottom: 14px; left: 0; right: 0; padding: 4px; text-align: center; font-size: 9px; letter-spacing: .15em; color: #fff; background: #1b2a4499; }
+
+/* ---------- Process: three patches with satin borders and stitched edges ---------- */
+.patches { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 32px; }
+.patch {
+  padding: 32px; border-radius: 32px; border: 8px solid var(--gold);
+  background: var(--denim); color: var(--cream);
+  outline: 2px dashed var(--cream); outline-offset: -20px; /* the running stitch inside the satin edge */
+}
+.patch-gold { transform: rotate(-1.5deg); }
+.patch-tomato { border-color: var(--tomato); transform: rotate(1deg); }
+.patch-sage { border-color: var(--sage); transform: rotate(-.8deg); }
+.patch-number { display: block; font-size: 48px; font-weight: 800; line-height: 1; color: var(--gold); }
+.patch-tomato .patch-number { color: var(--tomato-bright); }
+.patch-sage .patch-number { color: var(--sage); }
+.patch h3 { margin: 16px 0 10px; font-size: 28px; }
+.patch p { color: var(--cream-text); }
+.patch-note { display: block; margin-top: 18px; font-size: 14px; color: var(--muted); }
+
+/* ---------- Workspace ---------- */
+.split { display: flex; flex-wrap: wrap; gap: 48px 64px; align-items: center; }
+.split > .section-heading { flex: 1 1 340px; }
+.workspace-list { flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.workspace-list article { display: flex; gap: 20px; align-items: flex-start; padding: 24px; border: 2px dashed var(--denim-line); border-radius: 24px; }
+.workspace-list h3 { margin-bottom: 4px; font-size: 24px; }
+.workspace-list p { color: var(--cream-text); }
+.dot { flex: 0 0 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 22px; }
+.dot-gold { background: var(--gold); color: var(--denim); }
+.dot-tomato { background: var(--tomato); color: #fff8ec; }
+.dot-sage { background: var(--sage); color: var(--denim); }
+
+/* ---------- Stitch player in an oval hoop ---------- */
+.stitch-section { display: flex; flex-wrap: wrap; gap: 56px 72px; align-items: center; }
+.stitch-player { flex: 999 1 520px; min-width: 0; max-width: 640px; }
+.stitch-copy { flex: 1 1 340px; }
+.stitch-copy p.stitch-note { font-size: 15px; color: var(--muted); }
+.stitch-hoop {
+  padding: 18px; border-radius: 50%; background: var(--wood);
+  box-shadow: inset 0 0 0 4px var(--wood-dark), 0 24px 60px #050c1a80;
+}
+/* Cream fabric with a faint woven texture; the canvas sits on top */
+.stitch-fabric {
+  position: relative; border-radius: 50%; overflow: hidden;
+  padding: 7% 9% 9%; /* keeps the patch clear of the curved edge */
+  background-color: #efe2c4;
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 2px, #7d6c4c0c 2px 3px),
+    repeating-linear-gradient(90deg, transparent 0 2px, #ffffff36 2px 3px),
+    radial-gradient(ellipse at 45% 35%, #fff8, transparent 75%);
+}
+.stitch-fabric canvas { display: block; width: 100%; height: auto; aspect-ratio: 5 / 4; }
+.fabric-label { position: absolute; bottom: 6%; left: 0; right: 0; text-align: center; font-size: 10px; font-weight: 600; letter-spacing: .15em; color: #7a6a4d; pointer-events: none; }
+.player-controls { margin-top: 32px; }
+.player-top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.restart-button {
+  width: 54px; height: 54px; border: 2px dashed var(--cream); border-radius: 50%;
+  background: transparent; color: var(--cream); font-size: 22px; cursor: pointer;
+}
+.speed-label { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 15px; color: var(--muted); }
+.speed-label select { min-height: 44px; padding: 0 12px; border: 2px solid var(--denim-line); border-radius: 999px; background: var(--denim); color: var(--cream); }
+.player-controls > input { width: 100%; margin: 20px 0 8px; accent-color: var(--gold); cursor: ew-resize; min-height: 24px; }
+.player-status { display: flex; justify-content: space-between; gap: 12px; min-height: 18px; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.thread-key { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 28px; }
+.thread-key > span { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--cream-text); }
+.thread-key i { display: block; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 0 2px var(--cream); }
+
+/* ---------- Toolbox: round merit badges ---------- */
+.badges { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 40px 32px; text-align: center; }
+.badges h3 { margin-bottom: 8px; font-size: 22px; }
+.badges p { font-size: 16px; color: var(--cream-text); }
+.badge {
+  width: 132px; height: 132px; margin: 0 auto 20px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  outline: 3px dashed var(--denim); outline-offset: -14px;
+  font-size: 40px; font-weight: 800; color: var(--denim);
+}
+.badge-gold { background: var(--gold); }
+.badge-tomato { background: var(--tomato); outline-color: #fff8ec; }
+.badge-sage { background: var(--sage) repeating-linear-gradient(45deg, transparent 0 8px, #1b2a442e 8px 10px); }
+.badge-cream { background: var(--cream); }
+.badge-square { width: 48px; height: 48px; border: 8px solid #fff8ec; border-radius: 12px; }
+.badge-ring { width: 56px; height: 56px; border: 8px solid var(--wood); border-radius: 50%; }
+
+/* ---------- Export formats: woven labels ---------- */
+.formats { padding-block: 72px; text-align: center; }
+.formats h2 { font-size: clamp(32px, 4vw, 52px); }
+.formats p { margin: 14px 0 36px; color: #4a4436; }
+.labels { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; margin: 0; padding: 0; list-style: none; font-size: 22px; font-weight: 800; letter-spacing: .04em; }
+.labels li {
+  padding: 14px 26px; border-radius: 6px; background: var(--denim); color: var(--cream);
+  outline: 2px dashed var(--gold); outline-offset: -7px;
+}
+.labels li:nth-child(odd) { transform: rotate(-1.5deg); }
+.labels li:nth-child(even) { transform: rotate(1.5deg); }
+.labels .label-tomato { background: var(--tomato); color: #fff8ec; outline-color: #fff8ec; }
+.labels .label-gold { background: var(--gold); color: var(--denim); outline-color: var(--denim); }
+.labels .label-sage { background: var(--sage); color: var(--denim); outline-color: var(--denim); }
+
+/* ---------- Get started ---------- */
+.get-started { display: flex; flex-wrap: wrap; gap: 40px; align-items: center; }
+.start-main {
+  flex: 999 1 560px; min-width: 0; padding: 56px 48px; border-radius: 40px;
+  background: var(--tomato); color: #fff8ec;
+  outline: 3px dashed #fff8ec; outline-offset: -18px;
+}
+.start-main .kicker { color: #fff8ec; }
+.start-main h2 { font-size: clamp(40px, 5.6vw, 84px); line-height: .93; letter-spacing: -0.04em; }
+.start-main > p:not(.kicker) { max-width: 520px; margin-top: 24px; }
+.start-main .actions { margin-top: 32px; }
+.development-note {
+  flex: 1 1 300px; padding: 32px; border-radius: 8px;
+  background: var(--cream); color: var(--ink-on-cream);
+  transform: rotate(2deg); box-shadow: 0 18px 40px #050c1a66;
+}
+.development-note .kicker { color: var(--red-on-cream); font-weight: 800; margin-bottom: 8px; }
+.development-note h3 { margin-bottom: 12px; font-size: 26px; }
+.development-note > p:not(.kicker) { font-size: 16px; }
+.development-note > p + p { margin-top: 12px; font-size: 14px; color: #4a4436; }
+.development-note a { display: inline-block; white-space: nowrap; margin-top: 16px; padding-block: 10px; font-weight: 800; }
+
+/* ---------- Footer ---------- */
+.site-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 32px; padding-block: 28px; border-top: 2px dashed var(--denim-line); font-size: 15px; color: var(--muted); }
+.site-footer .brand { font-size: 20px; color: var(--cream); }
+.site-footer > div { display: flex; gap: 20px; }
+
+/* ---------- Smaller screens ---------- */
+@media (max-width: 700px) {
+  .wrap { width: calc(100% - 32px); }
+  .band { padding-block: 64px; }
+  .hero { padding-top: 24px; padding-bottom: 64px; }
+  .site-header nav .nav-pill:not(.nav-source) { display: none; } /* keep only GitHub on phones */
+  .hero-intro { font-size: 18px; }
+  .preview-toolbar { margin: 40px 0 32px; }
+  .hoop { padding: 12px; border-radius: 24px; box-shadow: inset 0 0 0 4px #b07e45, inset 0 0 0 8px var(--wood), inset 0 0 0 9px var(--wood-dark), 0 20px 40px #050c1a80; }
+  .preview-surface { border-radius: 14px; }
+  .stitch-lens { width: 150px; height: 150px; }
+  .section-heading.centered { margin-bottom: 40px; }
+  .patch { padding: 28px; }
+  .stitch-hoop { padding: 12px; }
+  .fabric-label { display: none; } /* too wide for the narrow bottom of a small oval */
+  .speed-label { margin-left: 0; }
+  .start-main { padding: 40px 28px; border-radius: 28px; }
+  .development-note { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition: none !important; }
+}
