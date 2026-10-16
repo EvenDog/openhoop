@@ -394,7 +394,7 @@ import EmbroideryCore
             if state.tool != .zoomBox { state.toolBeforeZoom = state.tool }
             state.tool = .zoomBox; state.status = "Drag a box around the part to zoom into · Click to zoom in 2× · Esc cancels"
             state.focusCanvas(); state.canvas?.window?.invalidateCursorRects(for: state.canvas!)
-        case .selectTool, .runTool, .satinTool, .fillTool, .holeTool, .nodeTool, .panTool, .entryExitTool, .artworkTool, .openShapeTool, .closedShapeTool, .rectangleTool, .ellipseTool, .basicShapeTool, .measureTool, .knifeTool, .addStitchAngles, .removeStitchAngles:
+        case .selectTool, .runTool, .satinTool, .fillTool, .holeTool, .nodeTool, .panTool, .entryExitTool, .artworkTool, .openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool, .measureTool, .knifeTool, .addStitchAngles, .removeStitchAngles:
             if !state.draft.isEmpty { state.status = "Finish the current path with Enter, or cancel with Escape, before changing tools."; return }
             if command == .artworkTool {
                 guard let artwork = state.design.artwork else { state.status = "Import a reference image first (⌘I), then move and size it."; return }
@@ -425,12 +425,14 @@ import EmbroideryCore
             case .removeAngles:state.status="Remove Stitch Angles · Click a line to remove it · Esc when done"
             case .measure:state.status="Drag from one point to another to measure the distance and angle · Esc when done"
             case .closedShape:state.status="Closed shape · Click corners · Drag or secondary-click for curves · Enter to finish"
+            case .freehandOpen:state.status="Freehand open shape · Press and drag; the line follows the pointer · Let go to finish · Esc cancels"
+            case .freehandClosed:state.status="Freehand closed shape · Press and drag; the outline follows the pointer · Let go to finish, it closes itself · Esc cancels"
             case .ellipse:state.status="Drag out from the center · Hold ⌘ for a circle"
             case .rectangle,.basicShape:state.status="Drag to draw the shape · Hold ⌘ to keep it even · Hold ⇧ to draw it from the center"
             default:state.status="Select and drag objects. Shift-click to select more than one."
             }
             // Closed shapes say what stitches they'll get, so the Next Shape bar isn't missed.
-            if state.tool == .closedShape || state.tool.dragsShape {state.status+=" · Next shape: \(Preferences.shared.shapes.closedSummary) (change it in the bar above)"}
+            if state.tool == .closedShape || state.tool == .freehandClosed || state.tool.dragsShape {state.status+=" · Next shape: \(Preferences.shared.shapes.closedSummary) (change it in the bar above)"}
             state.focusCanvas(); state.canvas?.window?.invalidateCursorRects(for: state.canvas!)
         case .finishPath: if state.tool != .zoomBox { state.finishPath() }
         case .done where state.tool == .zoomBox, .cancelPath where state.tool == .zoomBox:
@@ -946,7 +948,7 @@ import EmbroideryCore
         let groups: [(String, [CommandID])] = [
             ("File", [.new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportPES, .exportMachine, .exportDST, .exportEXP, .exportJEF, .exportVP3, .exportXXX, .exportPEC, .exportThreadList, .productionWorksheet, .sample, .stitchSampler]),
             ("Edit", [.undo, .redo, .cutObjects, .copyObjects, .pasteObjects, .selectAll, .delete, .duplicate, .group, .ungroup, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .sequenceBySelection, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .closePath, .lockObject, .hideObject, .renameObject, .threadChart, .weldObjects, .smoothShapes]),
-            ("Digitize", [.selectTool, .runTool, .satinTool, .fillTool, .holeTool, .openShapeTool, .closedShapeTool, .rectangleTool, .ellipseTool, .basicShapeTool, .knifeTool, .branching, .addStitchAngles, .removeStitchAngles, .editStitches, .removeHoles, .lettering, .editLettering, .addMonogram, .editMonogram, .autoDigitize, .satinBorder, .applique, .laydown, .done, .artworkTool, .nodeTool, .panTool, .entryExitTool, .autoStartPoints, .clearStartEnd, .finishPath, .cancelPath, .removePoint, .insertNode, .deleteNode, .convertFill, .convertRun, .convertSatin, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),
+            ("Digitize", [.selectTool, .runTool, .satinTool, .fillTool, .holeTool, .openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool, .knifeTool, .branching, .addStitchAngles, .removeStitchAngles, .editStitches, .removeHoles, .lettering, .editLettering, .addMonogram, .editMonogram, .autoDigitize, .satinBorder, .applique, .laydown, .done, .artworkTool, .nodeTool, .panTool, .entryExitTool, .autoStartPoints, .clearStartEnd, .finishPath, .cancelPath, .removePoint, .insertNode, .deleteNode, .convertFill, .convertRun, .convertSatin, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),
             ("View", [.proView, .threadView, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .clearGuides, .needles, .artwork, .showUnderlay, .play, .rewind]),
             ("Window", [.nextTab, .previousTab] + PanelID.allCases.map(\.command) + [.saveWorkspace, .restoreWorkspace])]
         for (name, commands) in groups {

@@ -1,4 +1,4 @@
-// Basic shapes, and the stitches the Open Shape and Closed Shape tools put on what you draw. Pick a stitch
+// Basic shapes, freehand strokes, and the stitches the Open Shape and Closed Shape tools put on what you draw. Pick a stitch
 // first (for closed shapes: a fill, an outline, or both), then draw an outline or drag out a shape, and the new
 // object gets that stitch. Shapes are ordinary outlines made of nodes, so they can be reshaped, resized and restitched afterwards.
 import Foundation
@@ -207,5 +207,24 @@ public enum ShapeStitching {
         }
         if made.count > 1 { let group = UUID(); for index in made.indices { made[index].groupID = group } }
         return made
+    }
+}
+
+/// The Freehand Open Shape and Freehand Closed Shape tools: a stroke that followed the pointer, turned into a few
+/// smooth nodes so it can be reshaped like any other outline.
+public enum FreehandStroke {
+    /// How far (mm) the smoothed line may stray from the stroke. Larger means fewer nodes and a softer line.
+    public static let tolerance = 0.3
+    /// The stroke's points (mm, in the order drawn) as smooth nodes, with every node dropped whose loss keeps the
+    /// curve within `tolerance` mm of the stroke. A closed stroke that came back near its start loses that tail,
+    /// since a closed shape joins its last node to its first by itself. Too short a stroke gives back what it has.
+    public static func nodes(_ points: [Point], closed: Bool, tolerance: Double = tolerance) -> [PathNode] {
+        // Thin the stroke first: the pointer reports points a fraction of a millimeter apart, and the node reducer
+        // compares every candidate against the curve, so it's much quicker on a line already down to its bends.
+        var thinned: [Point] = []
+        for p in points where thinned.last.map({ $0.distance(to: p) > 0.05 }) ?? true { thinned.append(p) }
+        if closed { while thinned.count > 3, let last = thinned.last, last.distance(to: thinned[0]) <= tolerance * 3 { thinned.removeLast() } }
+        let line = SatinLine.simplified(thinned, tolerance: tolerance / 3)
+        return Design.reduced([line.map { PathNode($0, smooth: true) }], closed: closed, tolerance: tolerance)[0]
     }
 }

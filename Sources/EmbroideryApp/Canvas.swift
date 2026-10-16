@@ -27,10 +27,11 @@ final class DesignCanvas: NSView {
     private var draggedHandle: (location: NodeLocation, outgoing: Bool)?   // a Bézier handle being dragged
     private var drawingHandle: Int?   // while tracing: the new draft node whose handles the drag is pulling out
     private var shapeStart: Point?    // while dragging out a rectangle, ellipse or basic shape: where the drag began
+    private var freehandStroke: [Point]?   // while drawing with a Freehand tool: the points the pointer has passed through, in mm
     /// True while a rectangle, ellipse or basic shape is being dragged out.
     var isDraggingShape: Bool { shapeStart != nil }
-    /// Escape mid-drag: forgets the shape being dragged, so moving on and letting go add nothing.
-    func cancelShapeDrag() { shapeStart = nil; needsDisplay = true }
+    /// Escape mid-drag: forgets the shape being dragged (or the freehand stroke), so moving on and letting go add nothing.
+    func cancelShapeDrag() { shapeStart = nil; freehandStroke = nil; needsDisplay = true }
     /// The markers shown on a selected object: where it starts and ends sewing, and a radial fill's center.
     private enum Marker { case start, end, center }
     private var draggedMarker: (object: UUID, kind: Marker)?   // a marker being dragged
@@ -274,7 +275,7 @@ final class DesignCanvas: NSView {
     }
     /// The pointer the current tool uses on the canvas.
     private var toolCursor: NSCursor {
-        state.tool == .pan || state.tool == .artwork ? .openHand : state.tool.draws || state.tool.dragsShape || state.tool == .entryExit || state.tool == .zoomBox || state.tool == .measure || state.tool == .branch || state.tool == .addAngles || state.tool == .removeAngles || state.tool == .stitchEdit ? .crosshair : .arrow
+        state.tool == .pan || state.tool == .artwork ? .openHand : state.tool.draws || state.tool.dragsShape || state.tool.freehand || state.tool == .entryExit || state.tool == .zoomBox || state.tool == .measure || state.tool == .branch || state.tool == .addAngles || state.tool == .removeAngles || state.tool == .stitchEdit ? .crosshair : .arrow
     }
     /// ↔ for an up-and-down guide, ↕ for a side-to-side one.
     private func guideCursor(vertical: Bool) -> NSCursor { vertical ? .resizeLeftRight : .resizeUpDown }
@@ -478,7 +479,7 @@ final class DesignCanvas: NSView {
                 let line=NSBezierPath();line.move(to:screen(points[0]));for p in points.dropFirst(){line.line(to:screen(p))}
                 (state.tool == .knife ? Theme.Canvas.handle : state.currentColor.nsColor).setStroke();line.lineWidth=2;line.stroke()   // a knife line isn't thread
             }
-            for (index,node) in state.draft.enumerated() where !state.tool.dragsShape {   // a shape being dragged shows just its outline
+            for (index,node) in state.draft.enumerated() where !state.tool.dragsShape && !state.tool.freehand {   // a shape or stroke being dragged shows just its outline
                 let p=screen(node.point);state.currentColor.nsColor.setFill();NSBezierPath(ovalIn:CGRect(x:p.x-3,y:p.y-3,width:6,height:6)).fill()
                 // Handles pulled out while tracing are shown so the curve's shape is easy to judge.
                 for handle in [node.inHandle,node.outHandle].compactMap({$0}) {
@@ -722,6 +723,8 @@ final class DesignCanvas: NSView {
             drawingHandle = state.draft.count - 1; return
         }
         if state.tool.dragsShape { shapeStart = point; return }
+        // Freehand ignores Snap: a stroke pulled onto grid points would be jagged.
+        if state.tool.freehand { freehandStroke = [model(location)]; state.draft = [PathNode(model(location))]; return }
         if state.tool == .pan { screenStart = location; panStart = pan; return }
         if state.tool == .artwork {
             // A corner handle resizes; anywhere on the image moves it; elsewhere nothing happens.
@@ -839,6 +842,12 @@ final class DesignCanvas: NSView {
             state.status = "Measured " + Self.measurementText(from: line.start, to: measurement!.end)
             needsDisplay = true; return
         }
+        if freehandStroke != nil {
+            // The stroke follows the pointer; points closer than 0.1 mm are skipped (finishing smooths it anyway).
+            let p = model(location)
+            if freehandStroke!.last.map({ $0.distance(to: p) >= 0.1 }) ?? true { freehandStroke!.append(p); state.draft.append(PathNode(p)) }
+            needsDisplay = true; return
+        }
         if let start = shapeStart {
             // ⌘ keeps the shape even (a square, circle or regular shape); ⇧ grows it out
             // from where the drag began. Ellipses always grow from their center.
@@ -926,6 +935,7 @@ final class DesignCanvas: NSView {
             state.tool = state.toolBeforeZoom; state.status = "Zoomed. \(Preferences.shared.key(.zoomFit)) fits the hoop again."
             window?.invalidateCursorRects(for: self); return
         }
+        if let stroke = freehandStroke { freehandStroke = nil; state.finishFreehand(stroke); return }
         if shapeStart != nil {
             shapeStart = nil
             if state.draft.isEmpty { state.status = state.tool == .ellipse ? "Drag out the ellipse from its center: hold ⌘ for a circle." : "Drag to draw the shape: hold ⌘ to keep it even, ⇧ to draw it from the center." }
