@@ -94,6 +94,8 @@ button:disabled { opacity: .5; cursor: wait; }
 .button-gold:hover { background: var(--cream); }
 .button-denim { background: var(--denim); color: var(--cream); }
 .button-stitched { border: 2px dashed currentColor; font-weight: 600; } /* outline that looks like a running stitch */
+.source-link { margin-top: 16px; font-size: 15px; } /* quiet link for developers, under the Download buttons */
+.source-link a { color: inherit; }
 
 /* Small heading above each section title */
 .kicker { font-weight: 600; color: var(--gold); margin-bottom: 12px; }
@@ -276,8 +278,6 @@ h1 em { font-style: normal; color: var(--gold); }
 .start-main h2 { font-size: clamp(40px, 5.6vw, 84px); line-height: .93; letter-spacing: -0.04em; }
 .start-main > p:not(.kicker) { max-width: 520px; margin-top: 24px; }
 .start-main .actions { margin-top: 32px; }
-.start-main .source-link { margin-top: 16px; font-size: 15px; } /* quiet link for developers */
-.start-main .source-link a { color: inherit; }
 .development-note {
   flex: 1 1 300px; padding: 32px; border-radius: 8px;
   background: var(--cream); color: var(--ink-on-cream);
