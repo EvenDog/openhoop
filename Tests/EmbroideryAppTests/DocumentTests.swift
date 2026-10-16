@@ -21,6 +21,31 @@ final class DocumentTests: XCTestCase {
         XCTAssertFalse(loaded.isDocumentEdited)
     }
 
+    /// Saving puts a picture of the design at QuickLook/Thumbnail.png, which Finder shows as the project's icon.
+    /// The fabric stays cream even when the app is in Dark Mode.
+    @MainActor func testSavedProjectCarriesACreamThumbnailForFinder() throws {
+        let app = NSApplication.shared
+        let previousAppearance = app.appearance
+        app.appearance = NSAppearance(named: .darkAqua)
+        defer { app.appearance = previousAppearance }
+        let document = DesignDocument()
+        document.state.design = Design.sample()
+        let wrapper = try document.fileWrapper(ofType: "Embroidery Project")
+        let png = try XCTUnwrap(wrapper.fileWrappers?["QuickLook"]?.fileWrappers?["Thumbnail.png"]?.regularFileContents)
+        let picture = try XCTUnwrap(NSBitmapImageRep(data: png))
+        XCTAssertEqual(picture.pixelsWide, 512)
+        XCTAssertEqual(picture.pixelsHigh, 512)
+        // A spot in the left margin, away from the rounded corners, shows bare fabric: cream F4EDE1. The allowance covers
+        // color-space rounding; Dark Mode's brown (1F1A16) would miss by far more.
+        let fabric = try XCTUnwrap(picture.colorAt(x: 16, y: 256)?.usingColorSpace(.sRGB))
+        XCTAssertEqual(fabric.redComponent, 0xF4 / 255, accuracy: 0.04)
+        XCTAssertEqual(fabric.greenComponent, 0xED / 255, accuracy: 0.04)
+        XCTAssertEqual(fabric.blueComponent, 0xE1 / 255, accuracy: 0.04)
+        let loaded = DesignDocument()
+        try loaded.read(from: wrapper, ofType: "Embroidery Project")   // the extra folder doesn't trouble opening
+        XCTAssertEqual(loaded.state.design.objects, document.state.design.objects)
+    }
+
     /// Dragging the artwork opacity slider shows each value live, and letting go saves the last one as one undo step.
     @MainActor func testArtworkOpacitySliderSavesOnceWhenLetGo() {
         _ = NSApplication.shared
