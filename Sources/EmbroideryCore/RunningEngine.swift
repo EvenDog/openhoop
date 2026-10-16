@@ -143,6 +143,19 @@ public enum RunningEngine {
         return back
     }
 
+    /// The run that takes a line's sewing on from its last stitch to an end point part way along it, back through the
+    /// line's own needle holes (`stitches`, as sewn; a closed outline's end where they began). A closed outline goes
+    /// whichever way round is shorter. Nil when the end point is more than 1 mm off the line, or within 1 mm of where
+    /// the line finishes anyway.
+    public static func tail(along stitches: [Point], to exit: Point, closed: Bool) -> [Point]? {
+        guard closed, stitches.count >= 3 else { return leadIn(along: stitches.reversed(), from: exit).map { Array($0.reversed().dropFirst()) } }
+        // Round a closed outline: forwards from its start (where it just finished), or backwards. Either way being
+        // under 1 mm means the end point is at the start, where the outline already finishes.
+        guard let forwards = leadIn(along: stitches, from: exit), let backwards = leadIn(along: stitches.reversed(), from: exit) else { return nil }
+        func length(_ path: [Point]) -> Double { zip(path, path.dropFirst()).reduce(0) { $0 + $1.0.distance(to: $1.1) } }
+        return Array((length(backwards) < length(forwards) ? backwards : forwards).reversed().dropFirst())
+    }
+
     /// Sample each source segment at equal distances so no long stitch spans a corner.
     public static func stitches(for object: RunObject) throws -> [Point] {
         // Reject excessive work before allocating flattened geometry or needle arrays.
