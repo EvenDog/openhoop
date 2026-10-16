@@ -99,4 +99,26 @@ final class TravelTests: XCTestCase {
             XCTAssertEqual(try ops(letter).filter { $0 == .trim }.count, 1, letter.name)
         }
     }
+
+    func testQuickInsideTestAgreesWithTheFullOne() throws {
+        // Routing asks "is this inside?" through InsideTest, which only looks at edges near the question. It must
+        // answer exactly as AreaGeometry does, including for points on or a hair off the edge and lines along it.
+        let comb = [Point(0, 0), Point(40, 0), Point(40, 30), Point(30, 30), Point(30, 10), Point(25, 10), Point(25, 30),
+                    Point(15, 30), Point(15, 10), Point(10, 10), Point(10, 30), Point(0, 30)]
+        let hole = [Point(3, 3), Point(37, 3), Point(37, 6), Point(3, 6)]
+        let shapes = [[comb, hole], try AreaGeometry.offset([comb, hole], by: 0.01), [comb, [Point(1, 1), Point(2, 2)]]]
+        for rings in shapes {
+            let quick = InsideTest(rings)
+            var points = rings.flatMap { $0 }
+            for ring in rings { for i in ring.indices {
+                let a = ring[i], b = ring[(i + 1) % ring.count], middle = (a + b) * 0.5
+                points += [middle, middle + Point(0.000004, 0.000004), middle + Point(0.00002, -0.00002), a + Point(0, 0.0005)]
+            } }
+            for x in stride(from: -2.0, through: 42, by: 2.75) { for y in stride(from: -2.0, through: 32, by: 2.5) { points.append(Point(x, y)) } }
+            for p in points { XCTAssertEqual(quick.contains(p), AreaGeometry.contains(p, rings: rings), "\(p)") }
+            for (i, a) in points.enumerated() where i % 3 == 0 { for (j, b) in points.enumerated() where j % 7 == 1 {
+                XCTAssertEqual(quick.segmentInside(a, b), AreaGeometry.segmentInside(a, b, rings: rings), "\(a) -> \(b)")
+            } }
+        }
+    }
 }

@@ -5,11 +5,14 @@
 import Foundation
 
 struct TravelRouter {
-    /// The area travel stitches must stay inside: the same region the stitches themselves fill.
-    let bounds: [[Point]]
+    /// The area travel stitches must stay inside (the same region the stitches themselves fill), set up for answering
+    /// "is this inside?" quickly: routing asks that hundreds of thousands of times.
+    private let inside: InsideTest
     /// Direction of the fill rows in degrees, or nil for satin.
     let rowAngle: Double?
     private var nodes: [Point] = []
+    /// Whether each edge point is inside the area, worked out once (every straight line to or from it needs it).
+    private var nodeInside: [Bool] = []
     private var neighbors: [[(node: Int, cost: Double)]] = []
     /// For each point a route has started or ended at, the edge points it can reach in a straight line (and what that
     /// costs). Working that out is most of a route's time, and ordering a fill's sections asks about the same section
@@ -29,18 +32,20 @@ struct TravelRouter {
     /// `edges` are the rings travel should follow (the shape's outline and holes, just inside its edge); `bounds`
     /// is the region every travel stitch must stay inside. Returns nil when the shape is too complex to route quickly.
     init?(edges: [[Point]], bounds: [[Point]], rowAngle: Double? = nil) {
-        self.bounds = bounds; self.rowAngle = rowAngle
+        self.rowAngle = rowAngle
         let total = edges.reduce(0) { $0 + $1.count }
         guard total >= 3, total <= 1200, !bounds.isEmpty else { return nil }
+        inside = InsideTest(bounds)
         var firstIndex: [Int] = []
         for ring in edges { firstIndex.append(nodes.count); nodes += ring }
+        nodeInside = nodes.map { inside.contains($0) }
         neighbors = Array(repeating: [], count: nodes.count)
         func link(_ a: Int, _ b: Int, _ cost: Double) { neighbors[a].append((b, cost)); neighbors[b].append((a, cost)) }
         // Walking along each ring.
         for (r, ring) in edges.enumerated() {
             for i in ring.indices {
                 let a = firstIndex[r] + i, b = firstIndex[r] + (i + 1) % ring.count
-                if AreaGeometry.segmentInside(nodes[a], nodes[b], rings: bounds) { link(a, b, nodes[a].distance(to: nodes[b])) }
+                if segmentInside(a, b) { link(a, b, nodes[a].distance(to: nodes[b])) }
             }
         }
         // Short crossings between different rings (such as a hole and the outline), so every ring can be reached:
@@ -52,12 +57,17 @@ struct TravelRouter {
                 let nearest = edges[s].indices.map { firstIndex[s] + $0 }.sorted { nodes[a].distance(to: nodes[$0]) < nodes[a].distance(to: nodes[$1]) }
                 var found = 0
                 for b in nearest.prefix(Self.crossingCandidates) where found < Self.crossingsPerPoint {
-                    guard AreaGeometry.segmentInside(nodes[a], nodes[b], rings: bounds) else { continue }
+                    guard segmentInside(a, b) else { continue }
                     found += 1
                     if linked.insert([min(a, b), max(a, b)]).inserted { link(a, b, crossingCost(nodes[a], nodes[b])) }
                 }
             }
         } }
+    }
+
+    /// Whether the straight line between edge points `a` and `b` (their indexes) stays inside the shape.
+    private func segmentInside(_ a: Int, _ b: Int) -> Bool {
+        inside.segmentInside(nodes[a], nodes[b], aInside: nodeInside[a], bInside: nodeInside[b])
     }
 
     /// What a straight run across the inside of the shape costs, compared with following its edge (cost = length).
@@ -82,7 +92,7 @@ struct TravelRouter {
         for (k, p) in ends.enumerated() {
             for (v, cost) in visible(from: p) { links[n + k].append((v, cost)); links[v].append((n + k, cost)) }
         }
-        if AreaGeometry.segmentInside(a, b, rings: bounds) { let cost = crossingCost(a, b); links[start].append((goal, cost)); links[goal].append((start, cost)) }
+        if inside.segmentInside(a, b) { let cost = crossingCost(a, b); links[start].append((goal, cost)); links[goal].append((start, cost)) }
         var best = [Double](repeating: .infinity, count: n + 2), from = [Int](repeating: -1, count: n + 2), settled = [Bool](repeating: false, count: n + 2)
         best[start] = 0
         while true {
@@ -102,7 +112,9 @@ struct TravelRouter {
     /// Worked out once per point and then remembered (see `sightLines`).
     private func visible(from p: Point) -> [(node: Int, cost: Double)] {
         if let known = sightLines.known[p] { return known }
-        let found = nodes.indices.filter { AreaGeometry.segmentInside(p, nodes[$0], rings: bounds) }.map { (node: $0, cost: crossingCost(p, nodes[$0])) }
+        // Whether `p` itself is inside is the same for every line from it, so it's asked once (outside: none are).
+        let pInside = inside.contains(p)
+        let found = !pInside ? [] : nodes.indices.filter { inside.segmentInside(p, nodes[$0], aInside: true, bInside: nodeInside[$0]) }.map { (node: $0, cost: crossingCost(p, nodes[$0])) }
         sightLines.known[p] = found
         return found
     }
@@ -219,7 +231,7 @@ struct TravelRouter {
         var corners = [first]
         for (i, p) in path.enumerated().dropFirst() {
             let isLast = i == path.count - 1
-            if !isLast && p.distance(to: corners.last!) < 0.3 && AreaGeometry.segmentInside(corners.last!, path[i + 1], rings: bounds) { continue }
+            if !isLast && p.distance(to: corners.last!) < 0.3 && inside.segmentInside(corners.last!, path[i + 1]) { continue }
             if p.distance(to: corners.last!) > 1e-9 { corners.append(p) }
         }
         return AreaGeometry.sampled(corners, length: Self.stitchLength)
