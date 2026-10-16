@@ -17,6 +17,9 @@ struct SectionLabel: View {
 /// shows the one picked last, or the active tool if it's one of them.
 struct ToolStrip: View {
     @ObservedObject var state: EditorState
+    /// True for the Pro view's rail down the left side, which shows only when it's picked in Settings; false for the
+    /// strip across the top.
+    var rail = false
     @ObservedObject var preferences = Preferences.shared
     /// The command each shared slot shows, keyed by the slot's first command; it changes when you pick from its menu.
     @State private var picked: [CommandID: CommandID] = [:]
@@ -30,27 +33,38 @@ struct ToolStrip: View {
     private let groups: [(title: String, slots: [[CommandID]])] = [
         ("Pick & shape", [[.selectTool], [.nodeTool, .editStitches, .smoothShapes], [.knifeTool, .weldObjects, .branching], [.entryExitTool]]),
         ("Stitch", [[.runTool], [.satinTool], [.fillTool, .holeTool, .addStitchAngles, .removeStitchAngles]]),
-        ("Shape", [[.openShapeTool, .closedShapeTool], [.rectangleTool, .ellipseTool, .basicShapeTool]]),
+        ("Shape", [[.openShapeTool, .closedShapeTool], [.freehandOpenTool, .freehandClosedTool], [.rectangleTool, .ellipseTool, .basicShapeTool]]),
         ("Add", [[.lettering, .addMonogram, .satinBorder, .applique, .autoDigitize, .laydown]]),
         ("View", [[.panTool, .measureTool], [.grid], [.threadView], [.zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected]])
     ]
-    /// The Pro view's strip: every tool out (no shared slots), as icons in one compact row; hovering shows the name and key.
-    private let proGroups: [[CommandID]] = [
-        [.selectTool, .nodeTool, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .branching, .entryExitTool, .panTool, .artworkTool],
-        [.runTool, .satinTool, .fillTool, .holeTool, .addStitchAngles, .removeStitchAngles],
-        [.openShapeTool, .closedShapeTool, .rectangleTool, .ellipseTool, .basicShapeTool],
-        [.lettering, .addMonogram, .satinBorder, .applique, .autoDigitize, .laydown],
-        [.measureTool, .grid, .snap, .threadView],   // then the Show list (needle points, underlay and the rest)
-        [.zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected]
+    /// The Pro view's tools: every one out as an icon button (no shared slots or lists to open), in captioned groups.
+    /// Hovering a button shows its name and key.
+    static let proGroups: [(title: String, commands: [CommandID])] = [
+        ("Pick & shape", [.selectTool, .nodeTool, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .branching, .entryExitTool, .panTool, .artworkTool]),
+        ("Stitch", [.runTool, .satinTool, .fillTool, .holeTool, .addStitchAngles, .removeStitchAngles]),
+        ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool]),
+        ("Add", [.lettering, .addMonogram, .satinBorder, .applique, .autoDigitize, .laydown]),
+        ("View", [.measureTool, .grid, .snap, .threadView]),
+        ("Show", [.showStitches, .showOutlines, .showConnectors, .needles, .showUnderlay, .hideOthers]),
+        ("Zoom", [.zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected])
     ]
+    /// The rail's groups: the same tools, with View and Show sharing a group so the rail's rows of three fill evenly.
+    static var railGroups: [[CommandID]] {
+        let groups = proGroups.map(\.commands)
+        return Array(groups[0..<4]) + [groups[4] + groups[5], groups[6]]
+    }
     var body: some View {
-        if preferences.isPro {
+        if rail {
+            if preferences.isPro && preferences.proToolsOnLeft { proRail } else { Color.clear.frame(width: 0) }
+        } else if preferences.isPro {
             VStack(spacing: 0) {
-                proStrip
-                    .padding(.horizontal, 8).frame(height: 38)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Theme.card)
-                Theme.edge.frame(height: 1)
+                if !preferences.proToolsOnLeft {
+                    proStrip
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Theme.toolBand)
+                    Theme.toolBandEdge.frame(height: 1)
+                }
                 PrecisionBar(state: state)   // exact position, size and turn of the selection
                 Theme.edge.frame(height: 1)
             }
@@ -63,27 +77,59 @@ struct ToolStrip: View {
                 .overlay(alignment: .bottom) { Theme.edge.frame(height: 1) }
         }
     }
+    /// The Pro strip across the top: each group under its caption, its buttons two high, filled column by column.
     private var proStrip: some View {
-        HStack(spacing: 2) {
-            ForEach(Array(proGroups.enumerated()), id: \.offset) { index, group in
-                if index > 0 { Theme.controlBorder.frame(width: 1, height: 22).padding(.horizontal, 6) }
-                ForEach(group, id: \.self) { proButton($0) }
-                if group.contains(.threadView) { showButton(compact: true) }
+        HStack(alignment: .center, spacing: 0) {
+            ForEach(Array(Self.proGroups.enumerated()), id: \.offset) { index, group in
+                if index > 0 { Theme.toolBandDivider.frame(width: 1, height: 62).padding(.horizontal, 9) }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(group.title.uppercased()).font(.system(size: 9, weight: .bold, design: .rounded)).tracking(0.8)
+                        .foregroundStyle(Theme.toolBandInkSecondary).padding(.leading, 3).lineLimit(1).fixedSize()
+                    HStack(alignment: .top, spacing: 2) {
+                        // stride(from:to:by:) counts 0, 2, 4…: the first button of each two-high column.
+                        ForEach(Array(stride(from: 0, to: group.commands.count, by: 2)), id: \.self) { first in
+                            VStack(spacing: 2) { ForEach(group.commands[first..<min(first + 2, group.commands.count)], id: \.self) { proButton($0) } }
+                        }
+                    }
+                }
+                .fixedSize()
             }
             Spacer(minLength: 12)
             let hint = toolHint
             // Two short lines fit beside the tools where one long one wouldn't. In a narrow window, only the tool's
-            // name shows (the status bar and the hover help still give the whole hint) rather than a cut-off sentence.
+            // name shows, or nothing (the status bar and the hover help still give the whole hint).
             ViewThatFits(in: .horizontal) {
-                VStack(alignment: .trailing, spacing: 0) {
-                    Text(hint.tool).font(Theme.body(10, weight: .bold)).foregroundStyle(Theme.ink)
-                    Text(hint.how).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary)
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text(hint.tool).font(Theme.body(12, weight: .bold)).foregroundStyle(Theme.toolBandInk)
+                    Text(hint.how).font(Theme.body(11)).foregroundStyle(Theme.toolBandInkSecondary)
                 }
-                Text(hint.tool).font(Theme.body(10, weight: .bold)).foregroundStyle(Theme.ink)
+                Text(hint.tool).font(Theme.body(12, weight: .bold)).foregroundStyle(Theme.toolBandInk)
+                Color.clear.frame(width: 0, height: 0)
             }
             .lineLimit(1)
             .help(hint.tool + ": " + hint.how)
         }
+    }
+    /// The Pro rail down the left side (picked in Settings): the same tools, three across, groups split by lines.
+    /// It scrolls if the window is too short to show them all.
+    private var proRail: some View {
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(Self.railGroups.enumerated()), id: \.offset) { index, group in
+                    if index > 0 { Theme.toolBandDivider.frame(height: 1) }
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(Array(stride(from: 0, to: group.count, by: 3)), id: \.self) { first in
+                            HStack(spacing: 2) { ForEach(group[first..<min(first + 3, group.count)], id: \.self) { proButton($0) } }
+                        }
+                    }
+                }
+            }
+            .padding(10)
+        }
+        .scrollIndicators(.never)
+        .frame(width: 112)
+        .background(Theme.toolBand)
+        .overlay(alignment: .trailing) { Theme.toolBandEdge.frame(width: 1) }
     }
     /// What the current tool is and, briefly, how to use it, for the right end of the Pro strip (the status bar
     /// gives the longer version). Keys that can be rebound are read from the current shortcuts.
@@ -104,6 +150,8 @@ struct ToolStrip: View {
         case .artwork: return ("Move artwork", "drag to move · drag a corner to resize")
         case .openShape: return ("Open shape", "click corners, drag for curves" + key(.finishPath, "finishes"))
         case .closedShape: return ("Closed shape", "trace the outline" + key(.finishPath, "finishes"))
+        case .freehandOpen: return ("Freehand open", "press and drag · let go to finish")
+        case .freehandClosed: return ("Freehand closed", "press and drag · let go to finish")
         case .ellipse: return ("Ellipse", "drag out from the center · ⌘ for a circle")
         case .rectangle, .basicShape: return ("Shape", "drag · ⌘ keeps it even · ⇧ from the center")
         case .zoomBox: return ("Zoom box", "drag a box to zoom into · click zooms in 2×")
@@ -122,7 +170,7 @@ struct ToolStrip: View {
             Image(systemName: command.symbol).font(.system(size: 14))
                 .frame(width: 30, height: 30)
                 .background(active ? Theme.accent : Color.clear, in: RoundedRectangle(cornerRadius: 6))
-                .foregroundStyle(active ? Theme.onAccent : Theme.ink)
+                .foregroundStyle(active ? Theme.onAccent : Theme.toolBandInk)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain).disabled(!available).opacity(available ? 1 : 0.4)
@@ -306,6 +354,8 @@ struct ToolStrip: View {
         case .smoothShapes: return "Smooth"
         case .openShapeTool: return "Open"
         case .closedShapeTool: return "Closed"
+        case .freehandOpenTool: return "Freehand"
+        case .freehandClosedTool: return "Freehand closed"
         case .basicShapeTool: return "Shapes"
         case .lettering: return "Text"
         case .satinBorder: return "Border"
@@ -359,11 +409,11 @@ struct ShapeOptionsBar: View {
     let tool: Tool
     @ObservedObject var preferences = Preferences.shared
     /// True for the tools this bar has choices for.
-    static func shows(_ tool: Tool) -> Bool { tool == .openShape || tool == .closedShape || tool.dragsShape }
+    static func shows(_ tool: Tool) -> Bool { tool.isShapeTool || tool.dragsShape }
     var body: some View {
         let shapes = preferences.shapes
         HStack(spacing: 8) {
-            if tool == .openShape {
+            if tool.makesOpenShape {
                 Picker("Stitch", selection: setting(\.openStitch)) { ForEach(OpenShapeStitch.allCases, id: \.self) { Text($0.title).tag($0) } }.labelsHidden()
                     .help("The stitch the next open shape gets. Change it later in Properties.")
             } else {
@@ -380,7 +430,7 @@ struct ShapeOptionsBar: View {
                 }
                 .help("The stitch sewn along the next shape's edge, after its fill. With a fill, the two are grouped.")
             }
-            if (tool == .openShape ? shapes.openStitch : shapes.closedOutline) == .satin {
+            if (tool.makesOpenShape ? shapes.openStitch : shapes.closedOutline) == .satin {
                 let width = preferences.data.satinLineWidth ?? SatinLine.defaultWidth
                 Stepper("Width \(width.formatted()) mm", value: Binding(get: { width }, set: { preferences.data.satinLineWidth = $0; preferences.save() }), in: SatinLine.widths, step: 0.5)
                     .help("How wide the satin is, centered on the line")
@@ -1367,6 +1417,18 @@ struct GeneralSettings: View {
                                                             }), supportsOpacity: true)
                         .font(Theme.body(13))
                 }
+            }
+            .padding(16).frame(maxWidth: 520, alignment: .leading)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Pro view tools").font(Theme.body(14, weight: .bold))
+                Text("Where the Pro view puts its tools. Every tool is one click away either way.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary)
+                Picker("Pro view tools", selection: Binding(get: { preferences.proToolsOnLeft },
+                                                            set: { onLeft in preferences.data.proToolsOnLeft = onLeft ? true : nil; preferences.save() })) {
+                    Text("Across the top, in two rows").tag(false)
+                    Text("Down the left side").tag(true)
+                }
+                .pickerStyle(.radioGroup).labelsHidden().font(Theme.body(13))
             }
             .padding(16).frame(maxWidth: 520, alignment: .leading)
             .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))

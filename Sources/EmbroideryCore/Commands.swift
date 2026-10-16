@@ -17,7 +17,7 @@ public struct KeyBinding: Codable, Hashable, Sendable {
 public enum CommandID: String, Codable, CaseIterable, Sendable {
     case new, open, save, saveAs, close, importImage, importSVG, importMachine, exportPES, exportMachine, exportDST, exportEXP, exportJEF, exportVP3, exportXXX, exportPEC, exportThreadList, productionWorksheet, sample, stitchSampler, settings
     case selectTool, artworkTool, runTool, satinTool, fillTool, holeTool, removeHoles, nodeTool, panTool, entryExitTool, autoStartPoints, clearStartEnd, lettering, editLettering, autoDigitize, satinBorder, applique, done, finishPath, cancelPath, removePoint, insertNode, deleteNode, renameObject, convertFill, convertRun, convertSatin, toggleUnderlay, showUnderlay, focusSpacing, focusAngle
-    case openShapeTool, closedShapeTool, rectangleTool, ellipseTool, basicShapeTool, knifeTool, weldObjects, smoothShapes, laydown, branching, addStitchAngles, removeStitchAngles, editStitches, addMonogram, editMonogram
+    case openShapeTool, closedShapeTool, freehandOpenTool, freehandClosedTool, rectangleTool, ellipseTool, basicShapeTool, knifeTool, weldObjects, smoothShapes, laydown, branching, addStitchAngles, removeStitchAngles, editStitches, addMonogram, editMonogram
     case undo, redo, delete, selectAll, sequenceBySelection, alignLeft, alignCentersVertically, alignRight, alignTop, alignCentersHorizontally, alignBottom, alignCenters, spaceAcross, spaceDown, duplicate, mirrorH, mirrorV, rotateLeft, rotateRight, earlier, later, closePath, lockObject, hideObject, tieIn, tieOut, trimAfter, stopAfter, group, ungroup, threadChart, cutObjects, copyObjects, pasteObjects
     case zoomIn, zoomOut, zoomFit, zoomDesign, zoomBoxTool, zoomActual, zoomSelected, showStitches, showOutlines, showConnectors, hideOthers, measureTool, grid, snap, clearGuides, needles, threadView, artwork, inspector, palette, restoreWorkspace, saveWorkspace, proView
     case panelSewingOrder, panelDesign, panelReference, panelPlayer, nextTab, previousTab
@@ -52,6 +52,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .settings: return "Settings…"; case .selectTool: return "Select"; case .runTool: return "Running Stitch"
         case .nodeTool: return "Edit Nodes"; case .panTool: return "Pan"; case .entryExitTool: return "Start & End Points"; case .autoStartPoints: return "Auto Start Points"; case .clearStartEnd: return "Clear Start & End Points"; case .lettering: return "Add Lettering…"; case .editLettering: return "Edit Lettering…"; case .autoDigitize: return "Auto-Digitize Artwork…"; case .satinBorder: return "Add Satin Border…"; case .applique: return "Make Appliqué…"; case .artworkTool: return "Move & Size Artwork"; case .done: return "Done (Back to Select)"; case .finishPath: return "Finish Path"; case .cancelPath: return "Cancel Path"
         case .openShapeTool: return "Digitize Open Shape"; case .closedShapeTool: return "Digitize Closed Shape"
+        case .freehandOpenTool: return "Freehand Open Shape"; case .freehandClosedTool: return "Freehand Closed Shape"
         case .rectangleTool: return "Rectangle"; case .ellipseTool: return "Ellipse"; case .basicShapeTool: return "Basic Shapes"
         case .knifeTool: return "Knife"; case .weldObjects: return "Weld"; case .smoothShapes: return "Smooth Shapes"; case .laydown: return "Add Laydown…"; case .branching: return "Branching"; case .addStitchAngles: return "Add Stitch Angles"; case .removeStitchAngles: return "Remove Stitch Angles"; case .editStitches: return "Edit Stitches"; case .addMonogram: return "Add Monogram…"; case .editMonogram: return "Edit Monogram…"
         case .removePoint: return "Remove Last Point"; case .undo: return "Undo"; case .redo: return "Redo"; case .delete: return "Delete Selection"
@@ -137,6 +138,8 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .focusAngle: return "Jump to the fill angle setting."
         case .openShapeTool: return "Draw an open line and give it the stitch picked in the Next shape bar: running, bean or satin."
         case .closedShapeTool: return "Draw a closed shape and give it the stitches picked in the Next shape bar: a fill, an outline, or both."
+        case .freehandOpenTool: return "Press and drag to draw an open line that follows the pointer; it gets the Next shape bar's stitch."
+        case .freehandClosedTool: return "Press and drag to draw a closed shape that follows the pointer; it gets the Next shape bar's stitches."
         case .rectangleTool: return "Drag out a rectangle, corner to corner. Hold ⌘ for a square."
         case .ellipseTool: return "Drag out an ellipse from its center. Hold ⌘ for a circle."
         case .basicShapeTool: return "Drag out a polygon, star, heart or arrow, picked in the Next shape bar."
@@ -227,7 +230,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
     public var category: String {
         switch self {
         case .new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportPES, .exportMachine, .exportDST, .exportEXP, .exportJEF, .exportVP3, .exportXXX, .exportPEC, .exportThreadList, .productionWorksheet, .sample, .stitchSampler: return "File"
-        case .selectTool, .runTool, .satinTool, .fillTool, .holeTool, .nodeTool, .panTool, .entryExitTool, .autoStartPoints, .clearStartEnd, .lettering, .editLettering, .autoDigitize, .satinBorder, .applique, .done, .artworkTool, .finishPath, .cancelPath, .removePoint, .openShapeTool, .closedShapeTool, .rectangleTool, .ellipseTool, .basicShapeTool, .knifeTool, .laydown, .branching, .addStitchAngles, .removeStitchAngles, .editStitches, .addMonogram, .editMonogram: return "Digitizing"
+        case .selectTool, .runTool, .satinTool, .fillTool, .holeTool, .nodeTool, .panTool, .entryExitTool, .autoStartPoints, .clearStartEnd, .lettering, .editLettering, .autoDigitize, .satinBorder, .applique, .done, .artworkTool, .finishPath, .cancelPath, .removePoint, .openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool, .knifeTool, .laydown, .branching, .addStitchAngles, .removeStitchAngles, .editStitches, .addMonogram, .editMonogram: return "Digitizing"
         case .settings, .inspector, .palette, .restoreWorkspace, .saveWorkspace, .panelSewingOrder, .panelDesign, .panelReference, .panelPlayer, .nextTab, .previousTab: return "Workspace"
         case .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .clearGuides, .needles, .threadView, .artwork, .play, .rewind, .proView: return "View"
         default: return "Edit"
@@ -273,6 +276,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .entryExitTool: return [.init("e", 4)]; case .editLettering: return [.init("l", 4)]; case .threadChart: return [.init("t", 4)]
         case .insertNode: return [.init("i", 6)]; case .deleteNode: return [.init("delete", 2)]; case .showUnderlay: return [.init("u", 2)]
         case .openShapeTool: return [.init("o", 4)]; case .closedShapeTool: return [.init("s", 4)]
+        case .freehandOpenTool: return [.init("o", 6)]; case .freehandClosedTool: return [.init("s", 6)]   // ⇧ added to the Open and Closed Shape keys
         case .rectangleTool: return [.init("r", 4)]; case .ellipseTool: return [.init("j", 4)]; case .basicShapeTool: return [.init("b", 4)]
         case .knifeTool: return [.init("k", 4)]; case .weldObjects: return [.init("w", 4)]; case .smoothShapes: return [.init("n", 4)]
         case .laydown: return [.init("l", 6)]
@@ -326,7 +330,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .alignCenters: return "plus.square.dashed"; case .spaceAcross: return "distribute.horizontal.center"; case .spaceDown: return "distribute.vertical.center"; case .settings: return "gearshape"; case .undo: return "arrow.uturn.backward"
         case .redo: return "arrow.uturn.forward"; case .grid: return "grid"; case .snap: return "scope"; case .needles: return "circle.dotted"; case .threadView: return "eye"
         case .play: return "play.fill"; case .proView: return "slider.horizontal.3"; case .showUnderlay: return "square.stack"; case .group: return "square.on.square"; case .ungroup: return "square.dashed"; case .threadChart: return "swatchpalette"
-        case .openShapeTool: return "scribble"; case .closedShapeTool: return "lasso"; case .rectangleTool: return "rectangle"; case .ellipseTool: return "oval"; case .basicShapeTool: return "star"
+        case .openShapeTool: return "scribble"; case .closedShapeTool: return "lasso"; case .freehandOpenTool: return "pencil.line"; case .freehandClosedTool: return "pencil.and.scribble"; case .rectangleTool: return "rectangle"; case .ellipseTool: return "oval"; case .basicShapeTool: return "star"
         case .knifeTool: return "square.split.diagonal"; case .weldObjects: return "square.on.circle"; case .smoothShapes: return "point.topleft.down.curvedto.point.bottomright.up"; case .laydown: return "square.grid.3x3"; case .branching: return "arrow.triangle.branch"; case .addStitchAngles: return "angle"; case .removeStitchAngles: return "eraser.line.dashed"; case .editStitches: return "point.3.filled.connected.trianglepath.dotted"; case .addMonogram: return "seal"; case .editMonogram: return "pencil.and.outline"
         default: return "circle"
         }

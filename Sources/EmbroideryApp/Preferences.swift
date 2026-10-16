@@ -54,6 +54,8 @@ struct PreferenceData: Codable {
     var machineSpeed: Int?
     /// True when the app shows the Pro view (everything on screen, compact); nil or false is the Guided view.
     var proView: Bool?
+    /// Pro view: true puts the tools in a rail down the left side; nil or false keeps them across the top.
+    var proToolsOnLeft: Bool?
     /// Guided view: true if "More settings" in Properties was left open.
     var guidedMoreOpen: Bool?
     /// How far the arrow keys move the selection, in mm; nil means 1 mm.
@@ -84,6 +86,8 @@ struct PreferenceData: Codable {
     var recordHandler: ((KeyBinding) -> Void)?
     /// True when the Pro view is on. It's app-wide: every design window shows the same view.
     var isPro: Bool { data.proView ?? false }
+    /// True when the Pro view's tools sit in a rail down the left side rather than in two rows across the top.
+    var proToolsOnLeft: Bool { data.proToolsOnLeft ?? false }
     /// How far the arrow keys move the selection, in mm.
     var nudge: Double { data.nudgeDistance ?? 1 }
     /// The stitch and shape choices for the next shape drawn (shared by every design window).

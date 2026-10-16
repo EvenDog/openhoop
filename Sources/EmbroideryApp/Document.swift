@@ -9,6 +9,7 @@ import EmbroideryCore
 
 enum Tool: String, Codable { case select, run, satin, fill, hole, node, pan, entryExit, artwork,   // artwork: move and size the reference image
     openShape, closedShape, rectangle, ellipse, basicShape,
+    freehandOpen, freehandClosed,   // Freehand shapes: press and drag, the line follows the pointer, letting go finishes
     knife,     // click points across shapes, then Return cuts them along that line
     stitchEdit,   // Edit Stitch: select, move, delete and add one object's needle points
     addAngles, removeAngles,   // add stitch angle lines to a fill (two clicks each), or click one to remove it
@@ -20,7 +21,13 @@ enum Tool: String, Codable { case select, run, satin, fill, hole, node, pan, ent
     /// The tools that drag out a whole shape at once.
     var dragsShape:Bool {[.rectangle,.ellipse,.basicShape].contains(self)}
     /// True when the outline being drawn closes back on itself.
-    var drawsClosed:Bool {[.fill,.hole,.closedShape,.rectangle,.ellipse,.basicShape].contains(self)}
+    var drawsClosed:Bool {[.fill,.hole,.closedShape,.freehandClosed,.rectangle,.ellipse,.basicShape].contains(self)}
+    /// The tools that draw a stroke following the pointer.
+    var freehand:Bool {[.freehandOpen,.freehandClosed].contains(self)}
+    /// The tools whose new object takes the Next shape bar's choices: one stitch for an open shape, a fill and an
+    /// outline for a closed one.
+    var isShapeTool:Bool {[.openShape,.closedShape,.freehandOpen,.freehandClosed].contains(self)}
+    var makesOpenShape:Bool {self == .openShape || self == .freehandOpen}
     /// The shape a drag draws: the Rectangle and Ellipse tools' own, or the one picked for Basic Shapes. nil for
     /// tools that don't drag out shapes.
     @MainActor var draggedShape:BasicShape? {
@@ -28,7 +35,7 @@ enum Tool: String, Codable { case select, run, satin, fill, hole, node, pan, ent
     }
     /// The tool each tool command turns on.
     static let forCommand:[CommandID:Tool]=[.selectTool:.select,.runTool:.run,.satinTool:.satin,.fillTool:.fill,.holeTool:.hole,.nodeTool:.node,.panTool:.pan,
-        .entryExitTool:.entryExit,.artworkTool:.artwork,.openShapeTool:.openShape,.closedShapeTool:.closedShape,.rectangleTool:.rectangle,.ellipseTool:.ellipse,.basicShapeTool:.basicShape,.zoomBoxTool:.zoomBox,.measureTool:.measure,.knifeTool:.knife,.branching:.branch,.addStitchAngles:.addAngles,.removeStitchAngles:.removeAngles,.editStitches:.stitchEdit]
+        .entryExitTool:.entryExit,.artworkTool:.artwork,.openShapeTool:.openShape,.closedShapeTool:.closedShape,.freehandOpenTool:.freehandOpen,.freehandClosedTool:.freehandClosed,.rectangleTool:.rectangle,.ellipseTool:.ellipse,.basicShapeTool:.basicShape,.zoomBoxTool:.zoomBox,.measureTool:.measure,.knifeTool:.knife,.branching:.branch,.addStitchAngles:.addAngles,.removeStitchAngles:.removeAngles,.editStitches:.stitchEdit]
 }
 struct NodeLocation:Equatable {var object:UUID;var ring:Int;var index:Int}
 /// One needle point of an object's stitches, for Edit Stitch: which section (run of stitches) and which point in it.
@@ -153,7 +160,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             return
         }
         if tool == .knife {cutAlongDraft();return}
-        let minimum=tool == .satin ? 4 : [.fill,.hole,.closedShape].contains(tool) ? 3:2
+        let minimum=tool == .satin ? 4 : [.fill,.hole,.closedShape,.freehandClosed].contains(tool) ? 3:2
         guard draft.count>=minimum else{status="Place at least \(minimum) points to finish.";return}
         if tool == .satin && draft.count%2 != 0{status="Complete the right edge of this satin pair before finishing.";return}
         if tool == .hole {
@@ -163,18 +170,18 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             edit("Add Fill Hole"){d in if let i=d.objects.firstIndex(where:{$0.id==id}){d.objects[i]=candidate}}
             draft=[];selection=[id];tool = .select;holeTarget=nil;status="Hole added. Its boundary can be edited with N.";return
         }
-        if tool == .openShape || tool == .closedShape {
+        if tool.isShapeTool {
             // The stitch picked for Open or Closed Shape goes on the new object (a closed shape can get a fill and an
             // outline: two objects); it's named after that stitch.
             let shapes=Preferences.shared.shapes,name="Shape \(design.objects.count+1)"
             var made:[RunObject]
             do {
-                if tool == .openShape {made=[try ShapeStitching.openShape(draft,stitch:shapes.openStitch,satinWidth:satinLineWidth,name:name,color:currentColor)]}
+                if tool.makesOpenShape {made=[try ShapeStitching.openShape(draft,stitch:shapes.openStitch,satinWidth:satinLineWidth,name:name,color:currentColor)]}
                 else {made=try ShapeStitching.closedShape(draft,fill:shapes.closedFill,outline:shapes.closedOutline,satinWidth:satinLineWidth,name:name,color:currentColor)}
             } catch{status=error.localizedDescription;return}
             let title="\(made[0].stitchTitle) \(design.objects.count+1)"
             for index in made.indices {made[index].name=index==0 ? title:"\(title) outline"}
-            addDrawn(made,action:tool == .openShape ? "Digitize Open Shape" : "Digitize Closed Shape");return
+            addDrawn(made,action:(tool.freehand ? "Freehand" : "Digitize")+(tool.makesOpenShape ? " Open Shape" : " Closed Shape"));return
         }
         let kind:StitchKind=tool == .satin ? .satin : tool == .fill ? .fill:.run
         var object=RunObject(name:"\(kind.title) \(design.objects.count+1)",nodes:draft,color:currentColor)
@@ -324,6 +331,13 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             let made=try ShapeStitching.closedShape(draft,fill:shapes.closedFill,outline:shapes.closedOutline,satinWidth:satinLineWidth,name:"\(shape.title) \(design.objects.count+1)",color:currentColor)
             addDrawn(made,action:"Draw \(shape.title)")
         } catch {draft=[];status=error.localizedDescription}
+    }
+    /// A freehand stroke let go: smooths it to a few nodes and adds it like an Open or Closed Shape. Too short a
+    /// stroke (a click, or a wobble) adds nothing.
+    func finishFreehand(_ points:[Point]) {
+        draft=FreehandStroke.nodes(points,closed:tool == .freehandClosed)
+        if draft.count < (tool == .freehandClosed ? 3:2) {draft=[];status="Press and drag to draw freehand: the line follows the pointer until you let go.";return}
+        finishPath()
     }
     /// The width (mm) of satin lines and satin outlines drawn with the shape tools.
     private var satinLineWidth:Double {Preferences.shared.data.satinLineWidth ?? SatinLine.defaultWidth}

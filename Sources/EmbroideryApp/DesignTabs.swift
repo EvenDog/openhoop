@@ -58,10 +58,15 @@ import EmbroideryCore
         let statusBar = NSHostingView(rootView: FooterPanel(state: state))
         // The tool strip is docked directly under the title bar and spans the full width.
         let toolStrip = NSHostingView(rootView: ToolStrip(state: state))
-        for part in [toolStrip, split.view, statusBar] { part.translatesAutoresizingMaskIntoConstraints = false; view.addSubview(part) }
+        // Under it, on the left, the Pro view's tool rail when that's picked in Settings (0 wide otherwise). Its
+        // width comes from SwiftUI; its height is whatever the window gives it, so it never makes the window taller.
+        let toolRail = NSHostingView(rootView: ToolStrip(state: state, rail: true))
+        toolRail.sizingOptions = [.minSize, .maxSize]
+        for part in [toolStrip, toolRail, split.view, statusBar] { part.translatesAutoresizingMaskIntoConstraints = false; view.addSubview(part) }
         NSLayoutConstraint.activate([
             toolStrip.topAnchor.constraint(equalTo: view.topAnchor), toolStrip.leadingAnchor.constraint(equalTo: view.leadingAnchor), toolStrip.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            split.view.topAnchor.constraint(equalTo: toolStrip.bottomAnchor), split.view.leadingAnchor.constraint(equalTo: view.leadingAnchor), split.view.trailingAnchor.constraint(equalTo: view.trailingAnchor), split.view.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
+            toolRail.topAnchor.constraint(equalTo: toolStrip.bottomAnchor), toolRail.leadingAnchor.constraint(equalTo: view.leadingAnchor), toolRail.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
+            split.view.topAnchor.constraint(equalTo: toolStrip.bottomAnchor), split.view.leadingAnchor.constraint(equalTo: toolRail.trailingAnchor), split.view.trailingAnchor.constraint(equalTo: view.trailingAnchor), split.view.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
             statusBar.leadingAnchor.constraint(equalTo: view.leadingAnchor), statusBar.trailingAnchor.constraint(equalTo: view.trailingAnchor), statusBar.bottomAnchor.constraint(equalTo: view.bottomAnchor), statusBar.heightAnchor.constraint(equalToConstant: 29)
         ])
     }

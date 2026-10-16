@@ -1,5 +1,5 @@
-// Checks that the Open Shape, Closed Shape and shape tools add objects with the stitch picked for them, named after
-// that stitch or shape, as one undoable step.
+// Checks that the Open Shape, Closed Shape, Freehand and shape tools add objects with the stitch picked for them, named
+// after that stitch or shape, as one undoable step.
 import XCTest
 import AppKit
 import EmbroideryCore
@@ -76,5 +76,60 @@ final class ShapeToolTests: XCTestCase {
         XCTAssertEqual(restored.name, "Rectangle \(perShape + 1)")
         XCTAssertEqual(restored.closed, true, "a closed rectangle, not an open running line")
     }
-}
 
+    /// Freehand: pressing and dragging draws a stroke that follows the pointer; letting go adds it with the Next shape
+    /// choices, closed for Freehand Closed Shape, open for Freehand Open Shape. Escape mid-stroke adds nothing, and
+    /// so does a click without a drag.
+    @MainActor func testFreehandStrokeIsAddedWhenLetGo() throws {
+        _ = NSApplication.shared
+        let document = DesignDocument(), state = document.state
+        let canvas = DesignCanvas(state: state); canvas.frame = NSRect(x: 0, y: 0, width: 600, height: 600); state.canvas = canvas
+        func mouse(_ type: NSEvent.EventType, _ x: Double, _ y: Double) {
+            let event = NSEvent.mouseEvent(with: type, location: NSPoint(x: x, y: y), modifierFlags: [], timestamp: 0, windowNumber: 0,
+                                           context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+            switch type { case .leftMouseDown: canvas.mouseDown(with: event); case .leftMouseDragged: canvas.mouseDragged(with: event); default: canvas.mouseUp(with: event) }
+        }
+        /// Drags round a circle of `radius` canvas points about (300, 300), from the right, in 60 steps.
+        func circle(_ radius: Double, from start: Double = 0, to end: Double = 2 * .pi) {
+            let steps = 60
+            for i in 0...steps {
+                let a = start + (end - start) * Double(i) / Double(steps), x = 300 + radius * cos(a), y = 300 + radius * sin(a)
+                mouse(i == 0 ? .leftMouseDown : .leftMouseDragged, x, y)
+            }
+        }
+        let shapes = Preferences.shared.shapes   // read only: tests never change the person's saved choices
+        state.tool = .freehandClosed
+        circle(100)
+        XCTAssertFalse(state.draft.isEmpty, "the stroke shows while it's drawn")
+        XCTAssertTrue(state.design.objects.isEmpty, "nothing is added until the pointer is let go")
+        mouse(.leftMouseUp, 400, 300)
+        let made = state.design.objects, closed = try XCTUnwrap(made.first)
+        XCTAssertEqual(made.count, shapes.closedFill != nil && shapes.closedOutline != nil ? 2 : 1)
+        XCTAssertTrue(closed.closed)
+        XCTAssertTrue(closed.nodes.allSatisfy(\.smooth))
+        XCTAssertLessThan(closed.nodes.count, 40, "\(closed.nodes.count) nodes: the stroke was smoothed, not kept point by point")
+        XCTAssertEqual(closed.kind, shapes.closedFill != nil ? .fill : shapes.closedOutline == .satin ? .satin : .run)
+        XCTAssertEqual(closed.name, "\(closed.stitchTitle) 1")
+        XCTAssertTrue(state.draft.isEmpty)
+        XCTAssertEqual(state.selection, Set(made.map(\.id)))
+        document.undoManager?.undo()
+        XCTAssertTrue(state.design.objects.isEmpty, "one undoable step")
+
+        state.tool = .freehandOpen
+        circle(80, from: 0, to: .pi)   // half a circle: an open arc
+        mouse(.leftMouseUp, 220, 300)
+        let arc = try XCTUnwrap(state.design.objects.last)
+        XCTAssertEqual(state.design.objects.count, 1)
+        XCTAssertFalse(arc.closed)
+        XCTAssertEqual(arc.kind, shapes.openStitch == .satin ? .satin : .run)
+
+        circle(50, from: 0, to: .pi / 2)
+        canvas.cancelShapeDrag(); state.draft = []   // what Escape does
+        mouse(.leftMouseDragged, 300, 400); mouse(.leftMouseUp, 300, 400)
+        XCTAssertEqual(state.design.objects.count, 1, "a cancelled stroke adds nothing")
+
+        mouse(.leftMouseDown, 100, 100); mouse(.leftMouseUp, 100, 100)
+        XCTAssertEqual(state.design.objects.count, 1, "a click without a drag adds nothing")
+        XCTAssertTrue(state.draft.isEmpty)
+    }
+}

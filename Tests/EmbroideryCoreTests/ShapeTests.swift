@@ -164,9 +164,28 @@ final class ShapeTests: XCTestCase {
     func testShapeToolKeys() {
         let profile = ShortcutProfile()
         let keys: [(KeyBinding, CommandID)] = [(.init("o", 4), .openShapeTool), (.init("s", 4), .closedShapeTool),
+                                               (.init("o", 6), .freehandOpenTool), (.init("s", 6), .freehandClosedTool),
                                                (.init("r", 4), .rectangleTool), (.init("j", 4), .ellipseTool), (.init("b", 4), .basicShapeTool)]
         for (key, command) in keys { XCTAssertEqual(profile.command(for: key, context: .canvas), command, key.display) }
         XCTAssertNoThrow(try profile.validate())
+    }
+
+    /// A freehand stroke (hundreds of points a fraction of a millimeter apart) becomes a few smooth nodes whose curve
+    /// stays within the tolerance of the stroke. A closed stroke loses the tail that came back to its start, since the
+    /// shape closes itself; a nearly straight stroke is just its two ends; a lone point is handed back as it is.
+    func testFreehandStrokeSmoothsToFewNodes() throws {
+        let circle = (0...400).map { Point(20 * cos(Double($0) / 400 * 2 * .pi), 20 * sin(Double($0) / 400 * 2 * .pi)) }   // ends where it began
+        let nodes = FreehandStroke.nodes(circle, closed: true)
+        XCTAssertGreaterThanOrEqual(nodes.count, 3); XCTAssertLessThan(nodes.count, 40, "\(nodes.count) nodes")
+        XCTAssertTrue(nodes.allSatisfy(\.smooth))
+        XCTAssertGreaterThan(try XCTUnwrap(nodes.last).point.distance(to: nodes[0].point), 1, "the tail back at the start is dropped")
+        let slack = FreehandStroke.tolerance + 0.15   // the reducer's tolerance, plus the straight-line thinning before it
+        for p in RunningEngine.flatten(nodes, closed: true).flatMap({ $0 }) {
+            XCTAssertEqual(p.distance(to: Point(0, 0)), 20, accuracy: slack, "the curve hugs the stroke")
+        }
+        let line = (0...100).map { Point(Double($0) * 0.5, 0.02 * sin(Double($0))) }   // nearly straight, with pointer wobble
+        XCTAssertEqual(FreehandStroke.nodes(line, closed: false).count, 2)
+        XCTAssertEqual(FreehandStroke.nodes([Point(0, 0)], closed: false).count, 1)
     }
 
     func testShapeSettingsSurviveSaving() throws {

@@ -11,6 +11,12 @@ Requires Xcode's Swift toolchain, Python 3, and an Apple Silicon Mac. Dependenci
 ./scripts/test.sh
 ```
 
+To pack the built app into a DMG for downloading, run `./scripts/make-dmg.sh`. It works on a copy, so an open copy of the app is left alone. Set `SIGN_IDENTITY` to a Developer ID Application certificate to sign it with the hardened runtime, and `NOTARY_PROFILE` to credentials saved with `xcrun notarytool store-credentials` to have Apple notarize it and staple the result, so it opens on other Macs without a warning:
+
+```sh
+SIGN_IDENTITY="Developer ID Application: …" NOTARY_PROFILE=openhoop-notary ./scripts/make-dmg.sh
+```
+
 `build.sh` copies the bundled embroidery fonts (`Resources/EmbroideryFonts`, downloaded unmodified by `scripts/fetch-embroidery-fonts.sh` from a pinned commit of the Ink/Stitch font collection) and builds the native app in optimized (release) mode, which generates large fills about 40 times faster than a debug build, packages the converter with PyInstaller, and signs and verifies the app locally. The initial dependency installation requires network access. `test.sh` expects the virtual environment created by the build.
 
 `Sources/EmbroideryCore` contains the millimeter geometry, running, satin and fill generators, project model and shortcut registry. `Sources/EmbroideryApp` contains AppKit document/window management and drawing, SwiftUI panels, and export orchestration. `Sources/GeometryBridge` vendors Clipper2 2.0.1 for polygon offsetting. `Helper` contains the versioned converter protocol and PES tests.

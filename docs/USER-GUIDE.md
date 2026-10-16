@@ -16,7 +16,7 @@ Open `dist/OpenHoop.app` after building it. To look around first, choose **File 
 - **Panels:** Sewing order, Properties, Design (fabric and hoop), Reference image, Threads and Stitch player.
 - **Status bar:** messages, and a **Ready to save** check that turns orange with a short reason when something needs fixing before export.
 
-**Guided and Pro views.** Same features, two layouts; switch with **⌥⌘P** or the **Guided | Pro** toggle in the toolbar.
+**Guided and Pro views.** Same features, two layouts; switch with **⌥⌘P** or the **Guided | Pro** toggle in the toolbar. Pro shows every tool as its own button on a walnut band, two rows across the top; **Settings › General › Pro view tools** moves them to a rail down the left side instead.
 - **Guided** (the default) shows the everyday settings with a plain-English line under each and folds the rest under **More settings**.
 - **Pro** shows everything at once: every tool in one row, a precision bar for exact position, size and rotation, compact Properties, a sewing-order table with stitch counts, and live stats in the status bar. Explanations become tooltips.
 
@@ -79,6 +79,8 @@ Pick a stitch first, then draw. The **Shape** group in the tool strip holds them
 | --- | --- | --- |
 | **Digitize Open Shape (⌥O)** | Click corners, drag or secondary-click for curves, Return to finish | Running, Bean (triple run) or Satin line (as wide as **Width** in the bar) |
 | **Digitize Closed Shape (⌥S)** | The same, and the outline closes itself | A **Fill** (Tatami, Contour, Radial, Wave or None) and an **Outline** (Running, Bean, Satin line or None) |
+| **Freehand Open Shape (⌥⇧O)** | Press and drag; the line follows the pointer and is smoothed when you let go | The Open Shape stitch |
+| **Freehand Closed Shape (⌥⇧S)** | The same, and the outline closes itself when you let go | The Closed Shape stitches |
 | **Rectangle (⌥R)** | Drag corner to corner; set **Corners** for rounded ones | The Closed Shape stitch |
 | **Ellipse (⌥J)** | Drag out from the center | The Closed Shape stitch |
 | **Basic Shapes (⌥B)** | Pick Polygon (3–12 sides), Star (4–12 points, shallow to deep), Heart or Arrow, then drag | The Closed Shape stitch |
@@ -281,7 +283,7 @@ These are the starting keys; every one can be changed. Tools on a function key a
 | Auto-digitize | ⌥M | Play / pause stitches, back to start | Space or ⇧R, Home |
 | Choose thread from chart | ⌥T | Pro view / Settings | ⌥⌘P / ⌘, |
 | Insert / delete node | ⌥⇧I / ⇧⌫ | Finish / cancel path | Return / Esc |
-| Open / closed shape | ⌥O / ⌥S | | |
+| Open / closed shape | ⌥O / ⌥S | Freehand open / closed shape | ⌥⇧O / ⌥⇧S |
 | Rectangle / ellipse / basic shapes | ⌥R / ⌥J / ⌥B | | |
 | | | Next / previous design tab | ⌃⇥ / ⌃⇧⇥ |
 
