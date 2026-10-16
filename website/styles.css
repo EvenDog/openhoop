@@ -276,6 +276,8 @@ h1 em { font-style: normal; color: var(--gold); }
 .start-main h2 { font-size: clamp(40px, 5.6vw, 84px); line-height: .93; letter-spacing: -0.04em; }
 .start-main > p:not(.kicker) { max-width: 520px; margin-top: 24px; }
 .start-main .actions { margin-top: 32px; }
+.start-main .source-link { margin-top: 16px; font-size: 15px; } /* quiet link for developers */
+.start-main .source-link a { color: inherit; }
 .development-note {
   flex: 1 1 300px; padding: 32px; border-radius: 8px;
   background: var(--cream); color: var(--ink-on-cream);
