@@ -403,14 +403,32 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             object.refreshStitchEdits()   // edited stitches were mirrored or turned with it
         }
     }
+    /// The object clicked last: where a Shift-click range in the object lists starts.
+    private var selectionAnchor: UUID?
     /// Selects an object, or its whole group unless `single` (Option-click) asks for just that one.
-    /// `extend` (Shift-click) adds it to, or removes it from, the current selection.
+    /// `extend` (Shift-click on the canvas, ⌘-click in the lists) adds it to, or removes it from, the current selection.
     func select(_ id: UUID, extend: Bool = false, single: Bool = false) {
         selectedNode=nil
         let members = single ? [id] : design.groupMembers(of: id)
         if extend { if selection.contains(id) { selection.subtract(members) } else { selection.formUnion(members) } }
         else { selection = members }
+        selectionAnchor = id
         focusCanvas()
+    }
+    /// Shift-click in the object lists: selects every object in sewing order from the one clicked last through `id`,
+    /// with their whole groups unless `single`. With no earlier click to start from, it selects just `id`.
+    func selectRange(to id: UUID, single: Bool = false) {
+        let ids = design.objects.map(\.id)
+        guard let anchor = selectionAnchor, let from = ids.firstIndex(of: anchor), let to = ids.firstIndex(of: id) else { select(id, single: single); return }
+        selectedNode = nil
+        selection = Set(ids[min(from, to)...max(from, to)].flatMap { single ? [$0] : design.groupMembers(of: $0) })
+        focusCanvas()   // the anchor stays put, so the next Shift-click redraws the range from the same object
+    }
+    /// A click on a row of the object lists, read the Mac way: Shift-click selects a range in sewing order, ⌘-click
+    /// adds or removes one, and Option-click (or `single`, for a row inside an opened group) picks one group member.
+    func listClick(_ id: UUID, single: Bool = false) {
+        let flags = NSEvent.modifierFlags, single = single || flags.contains(.option)
+        if flags.contains(.shift) { selectRange(to: id, single: single) } else { select(id, extend: flags.contains(.command), single: single) }
     }
     /// Auto Start Points: each object starts where the previous one finishes, shortening travel between parts.
     /// Works in the background, then applies the result as one undoable edit and reports the travel saved.

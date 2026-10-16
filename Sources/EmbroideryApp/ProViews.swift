@@ -191,7 +191,7 @@ struct ProSewingOrder: View {
         let flags = [object.trimAfter ? "T" : "", object.stopAfter ? "S" : "", object.locked ? "L" : "", object.visible ? "" : "H"].joined()
         let type = object.kind == .raw ? "Imported stitches" : object.stitchTitle
         let notes = [object.trimAfter ? ", trims after" : "", object.stopAfter ? ", stops after" : "", object.locked ? ", locked" : "", object.visible ? "" : ", hidden (still sews)"].joined()
-        return Button { state.select(object.id, extend: NSEvent.modifierFlags.contains(.shift), single: indented || NSEvent.modifierFlags.contains(.option)) } label: {
+        return Button { state.listClick(object.id, single: indented) } label: {
             row(number: "\(index + 1)", swatch: Color(nsColor: object.color.nsColor), symbol: Self.symbol(object), name: Text(object.name),
                 stitches: count.map { $0.formatted() } ?? "–", flags: flags, indent: indented)
                 .frame(height: 22)
@@ -209,7 +209,7 @@ struct ProSewingOrder: View {
         let lettering = members.first?.lettering
         let title = lettering.map { "“\($0.lines.joined(separator: " / "))”" } ?? "\(members.count) objects"
         let colors = Set(members.map(\.color))
-        return Button { state.select(members[0].id) } label: {
+        return Button { state.listClick(members[0].id) } label: {
             row(number: "\(first + 1)", swatch: colors.count == 1 ? Color(nsColor: members[0].color.nsColor) : nil, symbol: nil,
                 name: groupName(title, label: lettering == nil ? label : nil),
                 stitches: count.formatted(), flags: "")
