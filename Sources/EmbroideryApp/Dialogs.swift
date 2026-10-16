@@ -107,7 +107,7 @@ struct ImportReportView: View {
             if case .machine(let format) = report.kind { fact("Format", format.title) }
             fact(isMachine ? "Stitches" : "Outlines", report.count.formatted())
             if isMachine { fact("Thread blocks", report.blocks.formatted()) }
-            fact("Size", String(format: "%.1f × %.1f mm", report.width, report.height))
+            fact("Size", Preferences.shared.unit.size(report.width, report.height))
             fact("Placement", isMachine ? "Kept from the file" : "Centered at original size")
             GridRow {
                 Text("Hoop").foregroundStyle(Theme.inkSecondary)
@@ -285,7 +285,7 @@ struct ExportCheckView: View {
     var body: some View {
         DialogFrame(eyebrow: check.threadListOnly ? "Thread list ready" : "Export checked",
                     title: "\(check.format.title) checked · \(check.stitchCount.formatted()) stitches",
-                    subtitle: String(format: "Size: %.1f × %.1f mm. Saving as %@.", check.width, check.height, check.fileName),
+                    subtitle: "Size: \(Preferences.shared.unit.size(check.width, check.height)). Saving as \(check.fileName).",
                     primary: check.threadListOnly ? "Save Thread List" : "Save \(check.format.title)", finish: finish) {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -427,20 +427,21 @@ struct LetteringView: View {
         .onChange(of: choices.source) { fitHeightToFont() }
         // Switching family picks that family's bold style when it has one.
         .onChange(of: choices.family) { choices.fontName = Self.preferredStyle(in: styles(of: choices.family)) ?? choices.fontName }
-        // Keep the typed height and the stepper in step with each other. Text that isn't a number becomes 0,
-        // which the preview explains is out of range.
-        .onAppear { heightText = Self.format(choices.height) }
-        .onChange(of: heightText) { choices.height = Double(heightText.replacingOccurrences(of: ",", with: ".")) ?? 0 }
-        .onChange(of: choices.height) { if Double(heightText.replacingOccurrences(of: ",", with: ".")) != choices.height { heightText = Self.format(choices.height) } }
-        .onAppear { radiusText = Self.format(choices.radius) }
+        // Keep the typed height and the stepper in step with each other.
+        // Lengths are typed in the chosen unit (mm or inches); only text that differs from the shown value changes the
+        // length, so the rounding of a shown inch value never moves a stepped one (50 mm shows as 1.97 in, not 50.04 mm).
+        .onAppear { heightText = format(choices.height) }
+        .onChange(of: heightText) { if heightText != format(choices.height) { choices.height = millimeters(heightText) } }
+        .onChange(of: choices.height) { if millimeters(heightText) != choices.height { heightText = format(choices.height) } }
+        .onAppear { radiusText = format(choices.radius) }
         // Start in the text box with its text selected, so typing replaces it. (SwiftUI's text box has no way to
         // select text on macOS 14, so this sends the standard Select All to whatever has the keyboard focus.)
         .onAppear {
             textFocused = true
             DispatchQueue.main.async { NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil) }
         }
-        .onChange(of: radiusText) { choices.radius = Double(radiusText.replacingOccurrences(of: ",", with: ".")) ?? 0 }
-        .onChange(of: choices.radius) { if Double(radiusText.replacingOccurrences(of: ",", with: ".")) != choices.radius { radiusText = Self.format(choices.radius) } }
+        .onChange(of: radiusText) { if radiusText != format(choices.radius) { choices.radius = millimeters(radiusText) } }
+        .onChange(of: choices.radius) { if millimeters(radiusText) != choices.radius { radiusText = format(choices.radius) } }
     }
 
     private var controls: some View {
@@ -471,7 +472,7 @@ struct LetteringView: View {
                     if !EmbroideryFontLibrary.fonts.isEmpty {
                         Section("Embroidery fonts · hand-digitized satin") {
                             ForEach(EmbroideryFontLibrary.fonts, id: \.folder) { font in
-                                Label("\(font.name)   \(Self.range(font))", systemImage: FontKind.embroidery.symbol).tag(FontChoice.embroidery(font.folder.lastPathComponent))
+                                Label("\(font.name)   \(range(font))", systemImage: FontKind.embroidery.symbol).tag(FontChoice.embroidery(font.folder.lastPathComponent))
                             }
                         }
                     }
@@ -487,7 +488,7 @@ struct LetteringView: View {
                     Image(nsImage: image).resizable().scaledToFit().frame(height: 22, alignment: .leading)   // fixed, so a tall dialog can't squeeze it away
                 }
                 heightField(range: font.heights, step: 0.5)
-                Text("Hand-digitized satin lettering, digitized for letters \(Self.range(font)) tall. \(font.license).")
+                Text("Hand-digitized satin lettering, digitized for letters \(range(font)) tall. \(font.license).")
                     .font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
                 Button("Font credits…") { showCredits = true }.buttonStyle(ThemedButtonStyle())
                     .popover(isPresented: $showCredits, arrowEdge: .trailing) { FontCreditsView() }
@@ -500,7 +501,7 @@ struct LetteringView: View {
                     Picker("Stitch", selection: $choices.stitch) { ForEach(LetteringStitch.allCases, id: \.self) { Text($0.title).tag($0) } }.pickerStyle(.segmented).labelsHidden()
                 }
                 Text(choices.stitch == .fill
-                     ? "Solid tatami fill inside each letter. Best for bold letters 10 mm or taller."
+                     ? "Solid tatami fill inside each letter. Best for bold letters \(unit == .inches ? "0.4 in" : "10 mm") or taller."
                      : "A running stitch around each letter's edges, including the inside of letters like O and A.")
                     .font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
             }
@@ -511,7 +512,7 @@ struct LetteringView: View {
                 field("Arc radius") {
                     HStack(spacing: 6) {
                         TextField("Radius", text: $radiusText).textFieldStyle(.roundedBorder).frame(width: 70)
-                        Text("mm").foregroundStyle(Theme.inkSecondary)
+                        Text(unit.symbol).foregroundStyle(Theme.inkSecondary)
                         Stepper("Arc radius", value: $choices.radius, in: Lettering.radii, step: 5).labelsHidden()
                         Spacer()
                     }
@@ -550,7 +551,7 @@ struct LetteringView: View {
         field("Letter height") {
             HStack(spacing: 6) {
                 TextField("Height", text: $heightText).textFieldStyle(.roundedBorder).frame(width: 70)
-                Text("mm").foregroundStyle(Theme.inkSecondary)
+                Text(unit.symbol).foregroundStyle(Theme.inkSecondary)
                 Stepper("Letter height", value: $choices.height, in: range, step: step).labelsHidden()
                 Spacer()
             }
@@ -562,8 +563,8 @@ struct LetteringView: View {
         guard choices.source == .embroidery, let font = embroideryFont, !font.heights.contains(choices.height) else { return }
         choices.height = (min(max(font.size, font.heights.lowerBound), font.heights.upperBound) * 10).rounded() / 10
     }
-    private static func range(_ font: EmbroideryFont) -> String {
-        "\(font.heights.lowerBound.formatted(.number.precision(.fractionLength(0...1))))–\(font.heights.upperBound.formatted(.number.precision(.fractionLength(0...1)))) mm"
+    private func range(_ font: EmbroideryFont) -> String {
+        "\(format(font.heights.lowerBound))–\(format(font.heights.upperBound)) \(unit.symbol)"
     }
 
     /// A small caption above one control.
@@ -574,7 +575,7 @@ struct LetteringView: View {
     private func sizeLine(_ letters: LetteringResult) -> some View {
         let fits = letters.objects.allSatisfy { $0.outlinePaths.allSatisfy { $0.allSatisfy { hoop.contains($0) } } }
         return HStack(spacing: 10) {
-            Text(String(format: "%.1f × %.1f mm", letters.width, letters.height)).fontWeight(.semibold)
+            Text(unit.size(letters.width, letters.height)).fontWeight(.semibold)
             Label(fits ? "Fits the sewing area" : "Larger than the sewing area", systemImage: fits ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
                 .foregroundStyle(fits ? Theme.success : Color.orange)
         }.font(Theme.body(12))
@@ -588,7 +589,12 @@ struct LetteringView: View {
             return (name, title)
         }
     }
-    private static func format(_ height: Double) -> String { height.formatted(.number.precision(.fractionLength(0...1))) }
+    /// The unit lengths are typed in here (set in Settings; it doesn't change while the dialog is open).
+    private var unit: LengthUnit { Preferences.shared.unit }
+    /// A length (mm) as the text box shows it: in mm to 0.1, or in inches to 0.01.
+    private func format(_ length: Double) -> String { unit.shown(length).formatted(.number.precision(.fractionLength(0...(unit == .inches ? 2 : 1)))) }
+    /// Typed text as a length in mm. Text that isn't a number becomes 0, which the preview explains is out of range.
+    private func millimeters(_ text: String) -> Double { Double(text.replacingOccurrences(of: ",", with: ".")).map(unit.millimeters) ?? 0 }
     private static func preferredStyle(in styles: [(name: String, title: String)]) -> String? {
         (styles.first { $0.title == "Bold" } ?? styles.first)?.name
     }

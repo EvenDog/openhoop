@@ -16,10 +16,11 @@ struct PrecisionBar: View {
             Text(title).font(Theme.body(12, weight: .bold)).lineLimit(1).frame(width: 140, alignment: .leading)
             if let box {
                 let center = (box.min + box.max) * 0.5, width = box.max.x - box.min.x, height = box.max.y - box.min.y
-                field("X", center.x, range: -1000...1000, help: "Center of the selection, mm from the hoop's center") { state.moveSelection(centerX: $0) }
-                field("Y", center.y, range: -1000...1000, help: "Center of the selection, mm from the hoop's center (up is positive)") { state.moveSelection(centerY: $0) }
-                if width > 0.001 { field("W", width, range: 0.1...1000, help: "Width of the selection, mm") { resize(width: $0, from: width, height) } }
-                if height > 0.001 { field("H", height, range: 0.1...1000, help: "Height of the selection, mm") { resize(height: $0, from: width, height) } }
+                field("X", center.x, range: -1000...1000, length: true, help: "Center of the selection, from the hoop's center") { state.moveSelection(centerX: $0) }
+                field("Y", center.y, range: -1000...1000, length: true, help: "Center of the selection, from the hoop's center (up is positive)") { state.moveSelection(centerY: $0) }
+                if width > 0.001 { field("W", width, range: 0.1...1000, length: true, help: "Width of the selection") { resize(width: $0, from: width, height) } }
+                if height > 0.001 { field("H", height, range: 0.1...1000, length: true, help: "Height of the selection") { resize(height: $0, from: width, height) } }
+                unitLabel   // one label for X, Y, W and H
                 let keep = preferences.data.keepProportions ?? true
                 Button { preferences.data.keepProportions = !keep; preferences.save() } label: {
                     Image(systemName: keep ? "link" : "link.badge.plus").font(.system(size: 11, weight: .semibold))
@@ -35,9 +36,10 @@ struct PrecisionBar: View {
                 Text("Select objects to place them exactly").font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
             }
             Theme.controlBorder.frame(width: 1, height: 18)
-            field("Nudge", preferences.nudge, range: Preferences.nudgeRange, help: "How far the arrow keys move the selection, mm") { value in
+            field("Nudge", preferences.nudge, range: Preferences.nudgeRange, length: true, help: "How far the arrow keys move the selection") { value in
                 preferences.data.nudgeDistance = value; preferences.save()
             }
+            unitLabel
             Spacer(minLength: 8)
             HStack(spacing: 0) {
                 arrange(.mirrorH, "arrow.left.and.right.righttriangle.left.righttriangle.right")
@@ -65,13 +67,16 @@ struct PrecisionBar: View {
     }
 
     /// A small label and number field. Return (or leaving the field) commits; Escape puts the value back.
-    private func field(_ label: String, _ value: Double, range: ClosedRange<Double>, help: String, commit: @escaping (Double) -> Void) -> some View {
+    /// `length` marks a size or position, shown and typed in the chosen unit (mm or inches).
+    private func field(_ label: String, _ value: Double, range: ClosedRange<Double>, length: Bool = false, help: String, commit: @escaping (Double) -> Void) -> some View {
         HStack(spacing: 4) {
             Text(label).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize()   // labels never get squeezed out
-            NumberField(value: value, range: range, commit: commit, focusCanvas: state.focusCanvas).frame(width: 56, height: 20)
+            NumberField(value: value, range: range, unit: length ? preferences.unit : nil, commit: commit, focusCanvas: state.focusCanvas).frame(width: 56, height: 20)
         }
         .help(help)
     }
+    /// The unit after a run of length fields: "mm" or "in".
+    private var unitLabel: some View { Text(preferences.unit.symbol).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).fixedSize() }
 
     /// Resizes the selection to a typed width or height; with proportions kept, the other side follows.
     private func resize(width: Double? = nil, height: Double? = nil, from oldWidth: Double, _ oldHeight: Double) {
@@ -306,13 +311,14 @@ struct ProThreads: View {
 struct ProStats: View {
     @ObservedObject var state: EditorState
     @ObservedObject var pointer: PointerReadout
+    @ObservedObject var preferences = Preferences.shared   // redraws when mm/inches is switched
     var body: some View {
         let summary = state.summary, speed = Preferences.shared.data.machineSpeed ?? ProductionSummary.defaultSpeed
         HStack(spacing: 12) {
-            if let p = pointer.position { Text(String(format: "x %.2f  y %.2f mm", p.x, p.y)).font(.system(size: 10, design: .monospaced)).frame(width: 150, alignment: .trailing) }
+            if let p = pointer.position { Text("x \(preferences.unit.number(p.x, decimals: 2))  y \(preferences.unit.number(p.y, decimals: 2)) \(preferences.unit.symbol)").font(.system(size: 10, design: .monospaced)).frame(width: 150, alignment: .trailing) }
             Text("\(summary.stitchCount.formatted()) st").font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundStyle(Theme.ink)
             Text([Self.count(summary.steps.count, "step"), Self.count(summary.trims, "trim"), Self.count(summary.stops, "stop")].joined(separator: " · ")).help("Thread steps (a new one at each thread change or stop), trims and stops")
-            Text(String(format: "%.1f × %.1f mm", summary.width, summary.height))
+            Text(preferences.unit.size(summary.width, summary.height))
             Text("est. \(ProductionSummary.duration(summary.sewingMinutes(speed: speed)))")
                 .help("Estimated sewing time at \(speed) stitches per minute (set on the production worksheet), plus time for trims, thread changes and stops")
         }
@@ -385,7 +391,7 @@ extension InspectorPanel {
             Spacer(minLength: 4)
             Button("Edit…") { AppDelegate.shared.perform(.editLettering) }.buttonStyle(ThemedButtonStyle())
         }
-        .help("\(font) · \(lettering.currentHeight.formatted()) mm · \(lettering.shape.title)\(lettering.shape == .straight ? "" : ", \(lettering.radius.formatted()) mm radius")")
+        .help("\(font) · \(preferences.unit.short(lettering.currentHeight)) · \(lettering.shape.title)\(lettering.shape == .straight ? "" : ", \(preferences.unit.short(lettering.radius)) radius")")
     }
 
     private func proFill(_ object: RunObject) -> some View {
@@ -516,9 +522,9 @@ extension InspectorPanel {
         }
     }
 
-    /// Exact start and end points (mm), or "automatic", with buttons to set, clear or auto-place them.
+    /// Exact start and end points (in the chosen unit), or "automatic", with buttons to set, clear or auto-place them.
     private func proStartEnd(_ object: RunObject) -> some View {
-        proSection("Start & end (mm)") {
+        proSection("Start & end") {
             if let entry = object.entry { pointFields("Start", entry, object: object.id) { $0.entry = $1 } } else { automatic("Start") }
             if let exit = object.exit { pointFields("End", exit, object: object.id) { $0.exit = $1 } } else { automatic("End") }
             HStack(spacing: 6) {

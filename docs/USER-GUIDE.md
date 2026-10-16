@@ -133,7 +133,7 @@ Satins with a chosen (not Auto) underlay can have a **second underlay** (More se
 - **Needle points (.)** and **Underlay (⇧U).** Needle points show as small dots once you zoom in (300% or more), in Thread View too.
 - **Hide unselected objects (⇧S):** keeps only the selection in view, to work on one part of a busy design. Clicking empty canvas shows everything again until you select something else.
 
-**Measure (M)** (in the Pan slot): drag from one point to another to read the distance in mm and its angle (counted counterclockwise from pointing right, like Rotate). The line stays until you measure again or change tools. Snap to grid applies.
+**Measure (M)** (in the Pan slot): drag from one point to another to read the distance (in mm or inches) and its angle (counted counterclockwise from pointing right, like Rotate). The line stays until you measure again or change tools. Snap to grid applies.
 
 **Guides:** drag down from the top ruler for a side-to-side guide line, or right from the left ruler for an up-and-down one; the position shows beside the pointer while you drag. With Select, drag a guide (where no object is under the pointer, the pointer turns ↔ or ↕) to move it, or back onto its ruler to remove it. **View → Clear Guides** removes them all. With **Snap to grid** on, points and drags close to a guide land on it. Guides are saved with the design but never sewn.
 
@@ -246,6 +246,8 @@ Print it, or choose **PDF** in the print dialog to save it.
 **Tabs:** designs open as tabs in the window's title bar; **⌘N** or **+** starts a new one. An orange dot marks unsaved changes. **⌘W** or the tab's **×** closes a design (asking to save first); **⌃⇥** and **⌃⇧⇥** (or **⇧⌘]** and **⇧⌘[**) move between tabs. Closing the window closes each design in turn.
 
 **Around the hoop:** **Settings → General** sets the color behind the hoop, or follows light and dark mode.
+
+**Millimeters or inches:** **Settings → General → Units**, or **View → Use Inches**, switches how sizes and positions are shown and typed: object, design and hoop sizes, positions, start and end points, the rulers, guides, Measure, nudge, lettering and monogram height, and the worksheet. In inches the grid draws a line every ½ in (¼ in zoomed in) and Snap rounds to 0.05 in. Stitch settings (stitch length, row spacing, satin and border widths, underlay, compensation) always stay in millimeters, as digitizers usually give them. Designs are saved the same either way, so switching never changes a design.
 
 **Toolbar:** secondary-click it to customize.
 

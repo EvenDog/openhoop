@@ -436,7 +436,7 @@ struct ShapeOptionsBar: View {
                     .help("How wide the satin is, centered on the line")
             }
             if tool == .rectangle {
-                Stepper("Corners \(shapes.cornerRadius.formatted()) mm", value: setting(\.cornerRadius), in: ShapeSettings.cornerRadiusRange, step: 0.5)
+                Stepper("Corners \(preferences.unit.short(shapes.cornerRadius))", value: setting(\.cornerRadius), in: ShapeSettings.cornerRadiusRange, step: 0.5)
                     .help("How round the corners are (0 is square)")
             }
             if tool == .basicShape {
@@ -596,25 +596,32 @@ struct NumberField: NSViewRepresentable {
     var value: Double
     var identifier = ""
     var range: ClosedRange<Double>
+    /// For lengths: the unit the field shows and takes. `value`, `range` and what's committed stay in millimeters.
+    var unit: LengthUnit? = nil
     var commit: (Double) -> Void
     var focusCanvas: () -> Void
+    /// The value as the field shows it, with two decimals (in `unit` for a length).
+    var text: String { String(format: "%.2f", unit?.shown(value) ?? value) }
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> NSTextField {
-        let view = NSTextField(string: String(format: "%.2f", value))
+        let view = NSTextField(string: text)
         view.identifier = NSUserInterfaceItemIdentifier(identifier)
         view.delegate = context.coordinator; view.alignment = .right; view.font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
         return view
     }
     func updateNSView(_ view: NSTextField, context: Context) {
         context.coordinator.parent = self
-        if view.currentEditor() == nil { view.stringValue = String(format: "%.2f", value) }
+        if view.currentEditor() == nil { view.stringValue = text }
     }
     class Coordinator: NSObject, NSTextFieldDelegate {
         var parent: NumberField
         var cancel = false
         init(_ parent: NumberField) { self.parent = parent }
+        /// The typed value (in millimeters for a length), or nil, colored red, if it isn't a number in range.
         func valid(_ field: NSTextField) -> Double? {
-            guard let number = Double(field.stringValue), number.isFinite, parent.range.contains(number) else { field.textColor = .systemRed; return nil }
+            guard let typed = Double(field.stringValue), typed.isFinite else { field.textColor = .systemRed; return nil }
+            let number = parent.unit?.millimeters(typed) ?? typed
+            guard parent.range.contains(number) else { field.textColor = .systemRed; return nil }
             field.textColor = .labelColor; return number
         }
         func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
@@ -626,14 +633,16 @@ struct NumberField: NSViewRepresentable {
                 parent.commit(number); cancel = true; parent.focusCanvas(); return true
             }
             if selector == #selector(NSResponder.cancelOperation(_:)) {
-                cancel = true; field.stringValue = String(format: "%.2f", parent.value); parent.focusCanvas(); return true
+                cancel = true; field.stringValue = parent.text; parent.focusCanvas(); return true
             }
             return false
         }
         func controlTextDidEndEditing(_ notification: Notification) {
             defer { cancel = false }
             guard !cancel, let field = notification.object as? NSTextField, let number = valid(field) else { return }
-            if number != parent.value { parent.commit(number) }
+            // Only a changed number commits. It's compared with what the field showed, so the rounding of a shown
+            // length (100 mm shows as 3.94 in) never changes the design when you just pass through the field.
+            if Double(field.stringValue) != Double(parent.text) { parent.commit(number) }
         }
     }
 }
@@ -700,7 +709,7 @@ struct InspectorPanel: View {
                                                      : NSFont(name: lettering.font, size: 12)?.displayName ?? lettering.font
         return VStack(alignment: .leading, spacing: 6) {
             Label("“\(lettering.lines.joined(separator: " / "))”", systemImage: CommandID.editLettering.symbol).font(Theme.body(13, weight: .semibold)).lineLimit(1)
-            explain("\(font) · \(lettering.currentHeight.formatted()) mm · \(lettering.shape.title)\(lettering.shape == .straight ? "" : ", \(lettering.radius.formatted()) mm radius"). Double-click the letters on the canvas to change the text.")
+            explain("\(font) · \(preferences.unit.short(lettering.currentHeight)) · \(lettering.shape.title)\(lettering.shape == .straight ? "" : ", \(preferences.unit.short(lettering.radius)) radius"). Double-click the letters on the canvas to change the text.")
             Button("Edit lettering…") { AppDelegate.shared.perform(.editLettering) }.buttonStyle(ThemedButtonStyle()).help(preferences.hint(.editLettering))
         }
     }
@@ -708,7 +717,7 @@ struct InspectorPanel: View {
     func monogramSummary(_ monogram: MonogramSpec) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Label("Monogram “\(monogram.initials)”", systemImage: CommandID.addMonogram.symbol).font(Theme.body(13, weight: .semibold)).lineLimit(1)
-            if !pro { explain("\(monogram.layout.title) · \(monogram.height.formatted()) mm · border: \(monogram.border.title.lowercased()). Double-click it on the canvas to change it.") }
+            if !pro { explain("\(monogram.layout.title) · \(preferences.unit.short(monogram.height)) · border: \(monogram.border.title.lowercased()). Double-click it on the canvas to change it.") }
             Button("Edit monogram…") { AppDelegate.shared.perform(.editMonogram) }.buttonStyle(ThemedButtonStyle()).help(preferences.hint(.editMonogram))
         }
     }
@@ -794,18 +803,18 @@ struct InspectorPanel: View {
             Button("Rename…"){AppDelegate.shared.perform(.renameObject)}.buttonStyle(ThemedButtonStyle()).help(preferences.hint(.renameObject))
             if let box = state.design.bounds(of: state.editableSelection) {
                 let width = box.max.x - box.min.x, height = box.max.y - box.min.y
-                if width>0.001{number("Object width",value:width,range:0.1...1000,hover:"How wide the selection is, in mm. Type a new width and press Return to resize it; the height follows."){state.resizeSelection(width:$0)}}
-                if height>0.001{number("Object height",value:height,range:0.1...1000,hover:"How tall the selection is, in mm. Type a new height and press Return to resize it; the width follows."){state.resizeSelection(height:$0)}}
+                if width>0.001{number("Object width",value:width,range:0.1...1000, length: true, hover:"How wide the selection is. Type a new width and press Return to resize it; the height follows."){state.resizeSelection(width:$0)}}
+                if height>0.001{number("Object height",value:height,range:0.1...1000, length: true, hover:"How tall the selection is. Type a new height and press Return to resize it; the width follows."){state.resizeSelection(height:$0)}}
                 // Exact placement, folded with the other extras.
                 if preferences.data.guidedMoreOpen ?? false {
-                    number("Center X", value: (box.min.x + box.max.x) / 2, range: -1000...1000, help: "Where the selection's center sits, in mm from the hoop's center.") { state.moveSelection(centerX: $0) }
-                    number("Center Y", value: (box.min.y + box.max.y) / 2, range: -1000...1000, hover: "Where the selection's center sits, in mm above the hoop's center (below is negative).") { state.moveSelection(centerY: $0) }
+                    number("Center X", value: (box.min.x + box.max.x) / 2, range: -1000...1000, length: true, help: "Where the selection's center sits, from the hoop's center.") { state.moveSelection(centerX: $0) }
+                    number("Center Y", value: (box.min.y + box.max.y) / 2, range: -1000...1000, length: true, hover: "Where the selection's center sits, above the hoop's center (below is negative).") { state.moveSelection(centerY: $0) }
                     number("Rotate by °", value: 0, range: -360...360, help: "Type an angle and press Return to turn the selection by it (positive turns counterclockwise).") { state.rotateSelection(by: $0) }
                     number("Skew by °", value: 0, range: -60...60, help: "Type an angle and press Return to lean the selection sideways by it (positive leans the top to the right, like italics).") { state.skewSelection(by: $0) }
                 }
             }
             if preferences.data.guidedMoreOpen ?? false {
-                number("Nudge distance", value: preferences.nudge, range: Preferences.nudgeRange, help: "How far the arrow keys move the selection, in mm.") { value in preferences.data.nudgeDistance = value; preferences.save() }
+                number("Nudge distance", value: preferences.nudge, range: Preferences.nudgeRange, length: true, help: "How far the arrow keys move the selection.") { value in preferences.data.nudgeDistance = value; preferences.save() }
             }
             explain(object.kind == .raw ? "V moves stitch blocks. Use the thread palette to recolor the selection." : "V moves objects. N edits nodes: drag a node's handles to shape its curve, Option-drag to move one side of a smooth node. Secondary-click switches corner and smooth. \(preferences.label(.insertNode)) inserts near the pointer; Shift-Delete removes a node (a pair for satin).")
         } else {
@@ -892,8 +901,8 @@ struct InspectorPanel: View {
         hoopMenu
         explain("Pick the hoop your machine uses: stitches must stay inside its dashed line. Typing your own width or height makes it a custom size. New designs start with the hoop you picked last.")
         let hoop = state.design.hoop
-        number("Width", value: hoop.width, range: 1...1000, hover: "The sewing area's width, in mm. Typing your own makes it a custom size.") { value in setHoop(Hoop(width: value, height: hoop.height, oval: hoop.oval), "Hoop Width") }
-        number("Height", value: hoop.height, range: 1...1000, hover: "The sewing area's height, in mm. Typing your own makes it a custom size.") { value in setHoop(Hoop(width: hoop.width, height: value, oval: hoop.oval), "Hoop Height") }
+        number("Width", value: hoop.width, range: 1...1000, length: true, hover: "The sewing area's width. Typing your own makes it a custom size.") { value in setHoop(Hoop(width: value, height: hoop.height, oval: hoop.oval), "Hoop Width") }
+        number("Height", value: hoop.height, range: 1...1000, length: true, hover: "The sewing area's height. Typing your own makes it a custom size.") { value in setHoop(Hoop(width: hoop.width, height: value, oval: hoop.oval), "Hoop Height") }
         Button { setHoop(hoop.turned, "Turn Hoop") } label: { Label("Turn sideways", systemImage: "rotate.right") }
             .buttonStyle(ThemedButtonStyle()).disabled(hoop.width == hoop.height)
             .help("Swap width and height, for a hoop mounted with its long side left to right")
@@ -904,7 +913,7 @@ struct InspectorPanel: View {
         toggle("Basting box", value: state.design.basting != nil) { on in state.edit("Basting Box") { $0.basting = on ? 5 : nil } }
             .help("Long running stitches around the design, sewn first, that hold the fabric to the stabilizer. Pull them out after sewing.")
         if let margin = state.design.basting {
-            number("Margin", value: margin, range: Design.bastingMargins, help: "How far outside the design the basting box runs, in mm.") { value in state.edit("Basting Margin") { $0.basting = value } }
+            number("Margin", value: margin, range: Design.bastingMargins, length: true, help: "How far outside the design the basting box runs.") { value in state.edit("Basting Margin") { $0.basting = value } }
         }
         explain("Long running stitches around the design, sewn first in its first thread, that hold the fabric to the stabilizer. Pull them out after sewing.")
         Button { AppDelegate.shared.perform(.laydown) } label: { Label("Add laydown…", systemImage: CommandID.laydown.symbol) }
@@ -941,9 +950,9 @@ struct InspectorPanel: View {
             Button { AppDelegate.shared.perform(.artworkTool) } label: { Label("Move & size on canvas", systemImage: "photo") }
                 .buttonStyle(ThemedButtonStyle(prominent: state.tool == .artwork)).help("Drag the image and its corners on the canvas (\(preferences.label(.artworkTool)))")
             opacitySlider(artwork.opacity)
-            number("Width", value: artwork.width, range: 0.1...1000, hover: "The reference image's width, in mm; its height follows.") { value in state.edit("Scale Artwork") { design in design.artwork?.width = value; design.artwork?.height = artwork.height * value / artwork.width } }
-            number("Center X", value: artwork.center.x, range: -1000...1000, hover: "Where the image's center sits, in mm right of the hoop's center (left is negative).") { value in state.edit("Move Artwork") { $0.artwork?.center.x = value } }
-            number("Center Y", value: artwork.center.y, range: -1000...1000, hover: "Where the image's center sits, in mm above the hoop's center (below is negative).") { value in state.edit("Move Artwork") { $0.artwork?.center.y = value } }
+            number("Width", value: artwork.width, range: 0.1...1000, length: true, hover: "The reference image's width; its height follows.") { value in state.edit("Scale Artwork") { design in design.artwork?.width = value; design.artwork?.height = artwork.height * value / artwork.width } }
+            number("Center X", value: artwork.center.x, range: -1000...1000, length: true, hover: "Where the image's center sits, right of the hoop's center (left is negative).") { value in state.edit("Move Artwork") { $0.artwork?.center.x = value } }
+            number("Center Y", value: artwork.center.y, range: -1000...1000, length: true, hover: "Where the image's center sits, above the hoop's center (below is negative).") { value in state.edit("Move Artwork") { $0.artwork?.center.y = value } }
             toggle("Show reference", value: artwork.visible) { _ in AppDelegate.shared.perform(.artwork) }.help(preferences.hint(.artwork))
             Button { AppDelegate.shared.perform(.autoDigitize) } label: { Label("Auto-digitize…", systemImage: "wand.and.rays") }.buttonStyle(ThemedButtonStyle()).help(preferences.hint(.autoDigitize))
         } else {
@@ -1077,7 +1086,7 @@ struct InspectorPanel: View {
         default: return object.closed ? "\(press) and click where this outline should start; it begins at the nearest point on the line and finishes there." : "\(press) and click near the end this line should start from."
         }
     }
-    /// X and Y fields (mm) for one of an object's points, such as its start point; committing moves just that point.
+    /// X and Y fields (in the chosen unit) for one of an object's points, such as its start point; committing moves just that point.
     func pointFields(_ title: String, _ point: Point, object id: UUID, set: @escaping (inout RunObject, Point) -> Void) -> some View {
         func commit(_ next: Point) {
             state.edit("Move \(title) Point") { design in if let i = design.objects.firstIndex(where: { $0.id == id && !$0.locked }) { set(&design.objects[i], next) } }
@@ -1085,11 +1094,12 @@ struct InspectorPanel: View {
         return HStack(spacing: 6) {
             Text(title).font(Theme.body(pro ? 11 : 12, weight: pro ? .regular : .semibold)); Spacer()
             Text("X").font(Theme.body(10)).foregroundStyle(Theme.inkSecondary)
-            NumberField(value: point.x, range: -1000...1000, commit: { commit(Point($0, point.y)) }, focusCanvas: state.focusCanvas).frame(width: 60, height: pro ? 21 : 24)
+            NumberField(value: point.x, range: -1000...1000, unit: preferences.unit, commit: { commit(Point($0, point.y)) }, focusCanvas: state.focusCanvas).frame(width: 60, height: pro ? 21 : 24)
             Text("Y").font(Theme.body(10)).foregroundStyle(Theme.inkSecondary)
-            NumberField(value: point.y, range: -1000...1000, commit: { commit(Point(point.x, $0)) }, focusCanvas: state.focusCanvas).frame(width: 60, height: pro ? 21 : 24)
+            NumberField(value: point.y, range: -1000...1000, unit: preferences.unit, commit: { commit(Point(point.x, $0)) }, focusCanvas: state.focusCanvas).frame(width: 60, height: pro ? 21 : 24)
+            Text(preferences.unit.symbol).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary)
         }
-        .help("\(title) point, in mm from the hoop's center")
+        .help("\(title) point, from the hoop's center")
     }
     /// One line of plain-English help under a setting. The Pro view leaves these out (the settings show them as tooltips).
     @ViewBuilder private func explain(_ text: String) -> some View {
@@ -1126,10 +1136,12 @@ struct InspectorPanel: View {
     func settings(_ kind:StitchKind,_ title:String,_ body:@escaping(inout DigitizingSettings)->Void){state.editSelected(title){object in guard object.kind==kind else{return};var s=object.settings;body(&s);object.digitizing=s}}
     /// A labeled number field. `help` explains the setting: as a line under it in the Guided view, as a tooltip in Pro.
     /// `hover` is an explanation shown only as a tooltip, for settings whose meaning the panel already makes clear.
-    @ViewBuilder func number(_ title: String, value: Double, id: String = "", range: ClosedRange<Double>, help: String? = nil, hover: String? = nil, commit: @escaping (Double) -> Void) -> some View {
+    /// `length` marks a size or position: it's shown and typed in the chosen unit (mm or inches), with the unit beside it.
+    @ViewBuilder func number(_ title: String, value: Double, id: String = "", range: ClosedRange<Double>, length: Bool = false, help: String? = nil, hover: String? = nil, commit: @escaping (Double) -> Void) -> some View {
         HStack {
             Text(title).font(Theme.body(pro ? 11 : 12, weight: pro ? .regular : .semibold)); Spacer()
-            NumberField(value: value, identifier: id, range: range, commit: commit, focusCanvas: state.focusCanvas).frame(width: pro ? 84 : 74, height: pro ? 21 : 24)
+            NumberField(value: value, identifier: id, range: range, unit: length ? preferences.unit : nil, commit: commit, focusCanvas: state.focusCanvas).frame(width: pro ? 84 : 74, height: pro ? 21 : 24)
+            if length { Text(preferences.unit.symbol).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).frame(width: 16, alignment: .leading) }
         }
         .help(hover ?? help ?? "")
         if let help { explain(help) }
@@ -1382,6 +1394,17 @@ struct GeneralSettings: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("General").font(Theme.heading(28))
             VStack(alignment: .leading, spacing: 10) {
+                Text("Units").font(Theme.body(14, weight: .bold))
+                Text("How sizes and positions are shown and typed: design and hoop sizes, rulers, the grid, Measure and nudge. Stitch settings such as stitch length and row spacing always stay in millimeters. View › Use Inches switches too.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
+                Picker("Units", selection: Binding(get: { preferences.unit }, set: { preferences.setUnit($0) })) {
+                    Text("Millimeters").tag(LengthUnit.millimeters)
+                    Text("Inches").tag(LengthUnit.inches)
+                }
+                .pickerStyle(.radioGroup).labelsHidden().font(Theme.body(13))
+            }
+            .padding(16).frame(maxWidth: 520, alignment: .leading)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
+            VStack(alignment: .leading, spacing: 10) {
                 Text("Around the hoop").font(Theme.body(14, weight: .bold))
                 Text("The work surface behind the hoop on every design's canvas.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary)
                 Picker("Around the hoop", selection: Binding(get: { preferences.data.pasteboardColor == nil },
@@ -1400,7 +1423,7 @@ struct GeneralSettings: View {
             .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
             VStack(alignment: .leading, spacing: 10) {
                 Text("Grid lines").font(Theme.body(14, weight: .bold))
-                Text("The millimeter grid inside the hoop. Automatic draws light lines on dark cloth and dark lines on light cloth.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary)
+                Text("The grid inside the hoop. Automatic draws light lines on dark cloth and dark lines on light cloth.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary)
                 Picker("Grid lines", selection: Binding(get: { preferences.data.gridColor == nil },
                                                         set: { automatic in preferences.data.gridColor = automatic ? nil : 0xFFFFFF; preferences.data.gridOpacity = automatic ? nil : 0.4; preferences.save() })) {
                     Text("Automatic").tag(true)
