@@ -374,11 +374,19 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         guard let x0=points.map(\.x).min(),let x1=points.map(\.x).max(),let y0=points.map(\.y).min(),let y1=points.map(\.y).max() else{return}
         let sx=width.map{$0/max(0.001,x1-x0)} ?? 1,sy=height.map{$0/max(0.001,y1-y0)} ?? 1,center=Point((x0+x1)/2,(y0+y1)/2)
         if design.objects.contains(where:{selection.contains($0.id) && $0.kind == .raw}){status="Resizing imported stitches changes density and stitch lengths; stitches are not regenerated."}
-        editSelected("Resize Objects"){object in
-            object.transform{p in let q=p-center;return center+Point(q.x*sx,q.y*sy)}
-            if object.kind == .fill {let r=object.settings.angle * .pi/180;object.digitizing?.angle=atan2(sin(r)*sy,cos(r)*sx)*180 / .pi}
-            object.refreshStitchEdits()   // edited stitches were resized with it
+        let resized=Self.scaling(design,ids:editableSelection,about:center,sx:sx,sy:sy)
+        edit("Resize Objects"){$0=resized}
+    }
+    /// `design` with the unlocked objects in `ids` scaled by `sx` across and `sy` up, about `anchor` (mm): their
+    /// shapes and points, hand-edited stitches, and a fill's angle, so its rows keep their direction on the cloth.
+    static func scaling(_ design:Design,ids:Set<UUID>,about anchor:Point,sx:Double,sy:Double) -> Design {
+        var result=design
+        for index in result.objects.indices where ids.contains(result.objects[index].id) && !result.objects[index].locked {
+            result.objects[index].transform{p in let q=p-anchor;return anchor+Point(q.x*sx,q.y*sy)}
+            if result.objects[index].kind == .fill {let r=result.objects[index].settings.angle * .pi/180;result.objects[index].digitizing?.angle=atan2(sin(r)*sy,cos(r)*sx)*180 / .pi}
+            result.objects[index].refreshStitchEdits()   // edited stitches were resized with it
         }
+        return result
     }
     /// The selected objects that edits change (locked ones stay put).
     var editableSelection: Set<UUID> { Set(design.objects.filter { selection.contains($0.id) && !$0.locked }.map(\.id)) }

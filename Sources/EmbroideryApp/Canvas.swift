@@ -39,6 +39,9 @@ final class DesignCanvas: NSView {
     /// The markers shown on a selected object: where it starts and ends sewing, and a radial fill's center.
     private enum Marker { case start, end, center }
     private var draggedMarker: (object: UUID, kind: Marker)?   // a marker being dragged
+    /// A resize handle being dragged (Select tool): which sides it moves (-1 left/bottom, 1 right/top, 0 neither), and
+    /// the selection's box (mm) when the drag began.
+    private var resizeDrag: (dx: Int, dy: Int, low: Point, high: Point)?
     private var artworkDrag: Int?   // adjusting the artwork: -1 moves it, 0…3 resizes from that corner
     private var zoomBox: (start: CGPoint, end: CGPoint)?   // the box being dragged with the Zoom Box tool, in canvas points
     var measurement: (start: Point, end: Point)?   // the Measure tool's line, in mm; shown until the tool changes
@@ -441,6 +444,7 @@ final class DesignCanvas: NSView {
         // On thread, each needle point gets a light ring so it shows on any thread color.
         if threadView && showStitches { context.setStrokeColor(NSColor.white.withAlphaComponent(0.85).cgColor); context.setLineWidth(0.8); context.addPath(needles); context.strokePath() }
         context.setFillColor(Theme.Canvas.needle.cgColor); context.addPath(needles); context.fillPath()
+        let sewn = sewnEnds()
         for object in design.objects where state.isShown(object) {
             let selected = state.selection.contains(object.id)
             if object.kind == .vector || selected || state.showOutlines || state.busy || state.generationError != nil || preview != nil {
@@ -452,6 +456,13 @@ final class DesignCanvas: NSView {
                     (broken ? NSColor.systemRed : selected ? Theme.Canvas.selection : object.color.nsColor.withAlphaComponent(0.4)).setStroke(); path.lineWidth = broken ? 2 : 1
                     if selected { path.setLineDash([2, 2], count: 2, phase: 0) }; path.stroke()
                 }
+            }
+            // Where it starts and ends sewing (drawn before its nodes, so a node on the same spot stays on top).
+            if selected {
+                let ends = markerPoints(object, sewn: sewn, few: design.objects.filter { state.selection.contains($0.id) }.count <= Self.fewForMarkers)
+                drawStartMarker(ends.start, label: object.entry != nil ? "Start" : nil)
+                drawEndMarker(ends.end, label: object.exit != nil ? "End" : nil)
+                drawMarker(radialCenter(object), label: "Center", color: Theme.Canvas.handle)
             }
             // Nodes show only with Edit Nodes, the one tool that can move them.
             if selected && state.tool == .node && !object.locked && object.kind != .raw {
@@ -482,12 +493,6 @@ final class DesignCanvas: NSView {
                     let chosen = state.selectedAngle.map { $0.object == object.id && $0.index == index } ?? false
                     drawAngleLine(line[0], line[1], selected: chosen)
                 }
-            }
-            if selected {
-                drawMarker(object.entry, label: "Start", color: Theme.Canvas.entry)
-                // An open line or satin can only finish at one of its ends, so its End marker shows at the one it sews to.
-                drawMarker(object.exit.map { object.sewnEnd ?? $0 }, label: "End", color: Theme.Canvas.exit)
-                drawMarker(radialCenter(object), label: "Center", color: Theme.Canvas.handle)
             }
         }
         if !state.draft.isEmpty {
@@ -521,6 +526,7 @@ final class DesignCanvas: NSView {
         }
         if let drag = fillAngleDrag, drag.slideFrom == nil, let object = (preview ?? state.design).objects.first(where: { $0.id == drag.object }),
            let ends = StitchAngleLine.ends(of: object) { drawAngleReading(ends.0, ends.1, at: drag.pointer) }
+        if state.tool == .select && !state.hasVersionMismatch, let box = selectionBox(in: design) { drawResizeHandles(box) }
         if state.tool == .branch, let start = state.branchPoints.first { drawMarker(start, label: "Branch start", color: Theme.Canvas.entry) }
         if let box = zoomBox {
             let rect = NSBezierPath(rect: CGRect(x: min(box.start.x, box.end.x), y: min(box.start.y, box.end.y), width: abs(box.end.x - box.start.x), height: abs(box.end.y - box.start.y)))
@@ -657,6 +663,79 @@ final class DesignCanvas: NSView {
         context.strokePath(); context.restoreGState()
     }
     /// A small labeled dot showing where the selected object starts or ends sewing.
+    /// Up to this many selected objects show where they start and end even without points set (more would crowd the
+    /// canvas, as when a whole word is selected); points that were set always show.
+    static let fewForMarkers = 10
+    /// Where each selected object's stitches really begin and end, read from the stitch plan.
+    private func sewnEnds() -> [UUID: (first: Point, last: Point)] {
+        var ends: [UUID: (first: Point, last: Point)] = [:]
+        for command in state.plan.commands where command.op == .stitch {
+            guard let id = command.objectID, state.selection.contains(id) else { continue }
+            ends[id] = (ends[id]?.first ?? command.point, command.point)
+        }
+        return ends
+    }
+    /// Where a selected object's Start and End markers go: where its stitches really begin and end (from `sewn`), or
+    /// where a point was set when the stitches aren't worked out yet or that marker is being dragged. With many
+    /// objects selected (`few` false), only points that were set.
+    private func markerPoints(_ object: RunObject, sewn: [UUID: (first: Point, last: Point)], few: Bool) -> (start: Point?, end: Point?) {
+        let dragging = draggedMarker?.object == object.id ? draggedMarker?.kind : nil
+        let set = (start: object.entry, end: object.exit.map { object.sewnEnd ?? $0 })
+        guard dragging == nil, let real = sewn[object.id] else { return set }
+        return (object.entry != nil || few ? real.first : nil, object.exit != nil || few ? real.last : nil)
+    }
+    /// The start marker: a small ring, dark with a white edge so it shows on any thread (labelled when the point was set).
+    private func drawStartMarker(_ point: Point?, label: String?) {
+        guard let point else { return }
+        let p = screen(point), ring = NSBezierPath(ovalIn: CGRect(x: p.x - 5.5, y: p.y - 5.5, width: 11, height: 11))
+        NSColor.white.setStroke(); ring.lineWidth = 4; ring.stroke()
+        NSColor(white: 0.12, alpha: 1).setStroke(); ring.lineWidth = 1.6; ring.stroke()
+        if let label { drawMarkerLabel(label, beside: p) }
+    }
+    /// The end marker: squares inside squares, dark and white so it shows on any thread (labelled when the point was set).
+    private func drawEndMarker(_ point: Point?, label: String?) {
+        guard let point else { return }
+        let p = screen(point)
+        for (size, color) in [(14.0, NSColor(white: 0.12, alpha: 1)), (10.0, .white), (6.0, NSColor(white: 0.12, alpha: 1)), (2.5, .white)] {
+            color.setFill(); NSBezierPath(rect: CGRect(x: p.x - size / 2, y: p.y - size / 2, width: size, height: size)).fill()
+        }
+        if let label { drawMarkerLabel(label, beside: p) }
+    }
+    /// A marker's small label to its right, on a light backing so it reads on top of dark stitches.
+    private func drawMarkerLabel(_ label: String, beside p: CGPoint) {
+        let width = (label as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 10, weight: .medium)]).width
+        Theme.Canvas.ruler.withAlphaComponent(0.9).setFill()
+        NSBezierPath(roundedRect: CGRect(x: p.x + 9, y: p.y - 8, width: width + 8, height: 15), xRadius: 4, yRadius: 4).fill()
+        drawLabel(label, at: CGPoint(x: p.x + 13, y: p.y - 7), size: 10)
+    }
+    /// The selection's box on screen: around every selected, shown, unlocked object's outline. Nil when nothing
+    /// that can be resized is selected.
+    private func selectionBox(in design: Design) -> CGRect? {
+        let points = design.objects.filter { state.selection.contains($0.id) && !$0.locked && state.isShown($0) }.flatMap { $0.outlinePaths.flatMap { $0 } }
+        guard let x0 = points.map(\.x).min(), let x1 = points.map(\.x).max(), let y0 = points.map(\.y).min(), let y1 = points.map(\.y).max() else { return nil }
+        let a = screen(Point(x0, y0)), b = screen(Point(x1, y1))
+        return CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(b.x - a.x), height: abs(b.y - a.y))
+    }
+    /// The 8 resize handles round `box` (on screen), a few points outside it: the corners and the middle of each side,
+    /// with which sides each moves (-1 left/bottom, 1 right/top, 0 neither). A side too short for three handles has
+    /// just its corners.
+    private func resizeHandles(_ box: CGRect) -> [(point: CGPoint, dx: Int, dy: Int)] {
+        let gap: CGFloat = 6
+        var handles: [(point: CGPoint, dx: Int, dy: Int)] = []
+        for dx in -1...1 { for dy in -1...1 where dx != 0 || dy != 0 {
+            if (dx == 0 && box.width < 24) || (dy == 0 && box.height < 24) { continue }
+            let x = dx < 0 ? box.minX - gap : dx > 0 ? box.maxX + gap : box.midX, y = dy < 0 ? box.minY - gap : dy > 0 ? box.maxY + gap : box.midY
+            handles.append((CGPoint(x: x, y: y), dx, dy))
+        } }
+        return handles
+    }
+    /// The resize handles: small dark squares with a white edge, so they show on any thread or fabric.
+    private func drawResizeHandles(_ box: CGRect) {
+        for handle in resizeHandles(box) {
+            let square = NSBezierPath(rect: CGRect(x: handle.point.x - 3.5, y: handle.point.y - 3.5, width: 7, height: 7))
+            NSColor(white: 0.2, alpha: 1).setFill(); square.fill(); NSColor.white.setStroke(); square.lineWidth = 1; square.stroke()
+        }
+    }
     private func drawMarker(_ point: Point?, label: String, color: NSColor) {
         guard let point else { return }
         let p = screen(point), dot = NSBezierPath(ovalIn: CGRect(x: p.x - 6, y: p.y - 6, width: 12, height: 12))
@@ -794,6 +873,12 @@ final class DesignCanvas: NSView {
         if state.tool == .select || state.tool == .entryExit, let marker = nearestMarker(point) {
             draggedMarker = marker; dragStart = point; dragSnapshot = state.design; return
         }
+        // A resize handle round the selection: dragging it resizes the selection from the opposite side or corner.
+        if state.tool == .select, !state.hasVersionMismatch, let box = selectionBox(in: state.design),
+           let handle = resizeHandles(box).first(where: { hypot($0.point.x - location.x, $0.point.y - location.y) <= 6 }) {
+            resizeDrag = (handle.dx, handle.dy, model(CGPoint(x: box.minX, y: box.minY)), model(CGPoint(x: box.maxX, y: box.maxY)))
+            dragStart = point; dragSnapshot = state.design; return
+        }
         if state.tool == .entryExit { setEntryOrExit(at: point, exit: event.modifierFlags.contains(.option)); return }
         pointer=point
         // Handles sit on top of nodes, so they are checked first. Both are picked where the pointer really is: the
@@ -922,6 +1007,20 @@ final class DesignCanvas: NSView {
             needsDisplay = true; return
         }
         guard let start = dragStart, var next = dragSnapshot else { return }
+        if let drag = resizeDrag {
+            let target = snapped(model(location)), width = drag.high.x - drag.low.x, height = drag.high.y - drag.low.y
+            // Each side the handle moves follows the pointer; the opposite side (or corner) stays where it was.
+            var sx = drag.dx == 0 || width < 0.01 ? 1 : (drag.dx > 0 ? target.x - drag.low.x : drag.high.x - target.x) / width
+            var sy = drag.dy == 0 || height < 0.01 ? 1 : (drag.dy > 0 ? target.y - drag.low.y : drag.high.y - target.y) / height
+            // A corner keeps the proportions unless Shift is held: both sides follow whichever moved further.
+            let corner = drag.dx != 0 && drag.dy != 0
+            if corner && !event.modifierFlags.contains(.shift) { let s = abs(sx - 1) > abs(sy - 1) ? sx : sy; sx = s; sy = s }
+            sx = max(0.05, sx); sy = max(0.05, sy)   // never flipped over or squashed to nothing
+            let anchor = Point(drag.dx > 0 ? drag.low.x : drag.high.x, drag.dy > 0 ? drag.low.y : drag.high.y)
+            preview = EditorState.scaling(next, ids: state.editableSelection, about: anchor, sx: sx, sy: sy)
+            state.status = "Size \(Preferences.shared.unit.size(width * sx, height * sy))" + (corner ? " · ⇧ stretches freely" : "")
+            needsDisplay = true; return
+        }
         if let corner = artworkDrag, let artwork = next.artwork {
             next.artwork = artwork.adjusted(corner: corner, from: start, to: snapped(model(location)), free: event.modifierFlags.contains(.shift))
             preview = next; needsDisplay = true; return
@@ -968,6 +1067,10 @@ final class DesignCanvas: NSView {
     override func mouseUp(with event: NSEvent) {
         if measuring { measuring = false; return }
         if dropDragIfDesignChanged() { return }
+        if resizeDrag != nil {
+            if let preview { state.document?.replace(preview, action: "Resize Objects") }
+            resizeDrag = nil; preview = nil; dragStart = nil; dragSnapshot = nil; needsDisplay = true; return
+        }
         if let drag = guideDrag {
             // Let go over its own ruler, a guide is removed (or, if it was just dragged out, never added).
             let removing = overOwnRuler(convert(event.locationInWindow, from: nil), vertical: drag.vertical)
@@ -1036,7 +1139,7 @@ final class DesignCanvas: NSView {
     private func dropDragIfDesignChanged() -> Bool {
         guard state.revision != dragRevision, stitchDrag != nil || dragSnapshot != nil else { return false }
         stitchDrag = nil; stitchPreview = nil; preview = nil; dragSnapshot = nil; dragStart = nil; angleDrag = nil; fillAngleDrag = nil; guideDrag = nil
-        draggedNode = nil; draggedHandle = nil; draggedMarker = nil; artworkDrag = nil; nodeJustAdded = false; dragProblem = nil; needsDisplay = true
+        draggedNode = nil; draggedHandle = nil; draggedMarker = nil; artworkDrag = nil; nodeJustAdded = false; dragProblem = nil; resizeDrag = nil; needsDisplay = true
         state.status = "The design changed during the drag, so the drag was cancelled."
         return true
     }
@@ -1089,9 +1192,11 @@ final class DesignCanvas: NSView {
     /// The Start, End or Center marker of a selected, unlocked object under the pointer, if any.
     private func nearestMarker(_ p: Point) -> (object: UUID, kind: Marker)? {
         let reach = 9 / state.zoom
+        let sewn = sewnEnds(), few = state.selection.count <= Self.fewForMarkers
         for object in state.design.objects.reversed() where state.selection.contains(object.id) && !object.locked && object.visible {
-            if let entry = object.entry, entry.distance(to: p) < reach { return (object.id, .start) }
-            if let exit = object.exit.map({ object.sewnEnd ?? $0 }), exit.distance(to: p) < reach { return (object.id, .end) }
+            let ends = markerPoints(object, sewn: sewn, few: few)
+            if let start = ends.start, start.distance(to: p) < reach { return (object.id, .start) }
+            if let end = ends.end, end.distance(to: p) < reach { return (object.id, .end) }
             if let center = radialCenter(object), center.distance(to: p) < reach { return (object.id, .center) }
         }
         return nil
