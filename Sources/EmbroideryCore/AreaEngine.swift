@@ -469,7 +469,12 @@ public enum StitchEngine {
         case .raw:throw DesignError.invalid("Imported stitch data is missing.")
         case .vector:return ObjectStitches()
         // sewingOrder() reorders nodes to honor a chosen start point; without one it returns the object unchanged.
-        case .run:return ObjectStitches(sections:[StitchSection(try RunningEngine.repeated(RunningEngine.stitches(for:object.sewingOrder()),passes:object.settings.runPasses ?? 1))])
+        case .run:
+            let ordered=object.sewingOrder(),line=try RunningEngine.stitches(for:ordered)
+            let sewn=try RunningEngine.repeated(line,passes:object.settings.runPasses ?? 1)
+            // A start point part way along an open line: start there and run back along the line to its first end.
+            if !object.closed,let entry=object.entry,let lead=RunningEngine.leadIn(along:line,from:entry) {return ObjectStitches(sections:[StitchSection(lead+sewn.dropFirst())])}
+            return ObjectStitches(sections:[StitchSection(sewn)])
         case .satin:return try AreaEngine.satin(object.sewingOrder())
         case .fill:
             guard object.settings.cutOutOverlaps == true else{return try AreaEngine.fill(object)}

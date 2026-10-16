@@ -126,6 +126,23 @@ public enum RunningEngine {
         return result
     }
 
+    /// The run that takes an open line's sewing from its start point to the end it sews from: from the point on the
+    /// line nearest `entry`, back along `stitches` through the line's own needle holes to its first one. That stretch
+    /// is sewn twice, which keeps the travel on the line instead of across the fabric. Nil when the start point is
+    /// more than 1 mm off the line, or within 1 mm of the line's start (measured along it): the line then simply
+    /// starts at its end, as it always did.
+    public static func leadIn(along stitches: [Point], from entry: Point) -> [Point]? {
+        guard stitches.count >= 2 else { return nil }
+        var nearest = (index: 0, point: stitches[0], distance: Double.infinity)
+        for i in stitches.indices.dropLast() {
+            let q = AreaGeometry.projection(entry, stitches[i], stitches[i + 1]), d = q.distance(to: entry)
+            if d < nearest.distance { nearest = (i, q, d) }
+        }
+        let back = [nearest.point] + stitches[...nearest.index].reversed()
+        guard nearest.distance <= 1, zip(back, back.dropFirst()).reduce(0, { $0 + $1.0.distance(to: $1.1) }) > 1 else { return nil }
+        return back
+    }
+
     /// Sample each source segment at equal distances so no long stitch spans a corner.
     public static func stitches(for object: RunObject) throws -> [Point] {
         // Reject excessive work before allocating flattened geometry or needle arrays.

@@ -483,8 +483,8 @@ final class DesignCanvas: NSView {
             }
             if selected {
                 drawMarker(object.entry, label: "Start", color: Theme.Canvas.entry)
-                // An open satin can only finish at one of its ends, so its End marker shows at the one it sews to.
-                drawMarker(object.exit.map { object.satinFinish ?? $0 }, label: "End", color: Theme.Canvas.exit)
+                // An open line or satin can only finish at one of its ends, so its End marker shows at the one it sews to.
+                drawMarker(object.exit.map { object.sewnEnd ?? $0 }, label: "End", color: Theme.Canvas.exit)
                 drawMarker(radialCenter(object), label: "Center", color: Theme.Canvas.handle)
             }
         }
@@ -1089,7 +1089,7 @@ final class DesignCanvas: NSView {
         let reach = 9 / state.zoom
         for object in state.design.objects.reversed() where state.selection.contains(object.id) && !object.locked && object.visible {
             if let entry = object.entry, entry.distance(to: p) < reach { return (object.id, .start) }
-            if let exit = object.exit.map({ object.satinFinish ?? $0 }), exit.distance(to: p) < reach { return (object.id, .end) }
+            if let exit = object.exit.map({ object.sewnEnd ?? $0 }), exit.distance(to: p) < reach { return (object.id, .end) }
             if let center = radialCenter(object), center.distance(to: p) < reach { return (object.id, .center) }
         }
         return nil
