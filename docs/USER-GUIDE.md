@@ -252,7 +252,14 @@ Print it, or choose **PDF** in the print dialog to save it.
 
 **Around the hoop:** **Settings → General** sets the color behind the hoop, or follows light and dark mode.
 
-**Millimeters or inches:** **Settings → General → Units**, or **View → Use Inches**, switches how sizes and positions are shown and typed: object, design and hoop sizes, positions, start and end points, the rulers, guides, Measure, nudge, lettering and monogram height, and the worksheet. In inches the grid draws a line every ½ in (¼ in zoomed in) and Snap rounds to 0.05 in. Stitch settings (stitch length, row spacing, satin and border widths, underlay, compensation) always stay in millimeters, as digitizers usually give them. Designs are saved the same either way, so switching never changes a design.
+**Grid & snap:** **Settings → General → Grid & snap** sets how far apart the grid's lines are (5, 10 or 20 mm, or ¼, ½ or 1 in; half that when zoomed in) and the steps Snap moves points to (0.5, 1 or 2 mm, or 0.025, 0.05 or 0.1 in).
+
+**New designs and objects:** **Settings → Designs** sets what things start with:
+- **New designs:** the fabric type, and the hoop: the one you used last, or one you pick there (then choosing another hoop for one design doesn't change it).
+- **New objects:** the stitch length of lines and fills, the fill angle, and satin compensation, for shapes you draw. Row spacing, pull compensation and underlay come from the design's fabric type; lettering, monograms and imports keep their own settings.
+- **Machine:** how many stitches a minute your machine sews, for the time estimate in the status bar and on worksheets.
+
+**Millimeters or inches:** **Settings → General → Units**, or **View → Use Inches**, switches how sizes and positions are shown and typed: object, design and hoop sizes, positions, start and end points, the rulers, guides, Measure, nudge, lettering and monogram height, and the worksheet. In inches the grid draws a line every ½ in (¼ in zoomed in) and Snap rounds to 0.05 in, unless Grid & snap is set finer or coarser. Stitch settings (stitch length, row spacing, satin and border widths, underlay, compensation) always stay in millimeters, as digitizers usually give them. Designs are saved the same either way, so switching never changes a design.
 
 **Toolbar:** secondary-click it to customize.
 

@@ -186,7 +186,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         let kind:StitchKind=tool == .satin ? .satin : tool == .fill ? .fill:.run
         var object=RunObject(name:"\(kind.title) \(design.objects.count+1)",nodes:draft,color:currentColor)
         if kind != .run {object.digitizing=DigitizingSettings(kind:kind);object.closed=kind == .fill;object.stitchLength=kind == .fill ? 3:2.5}
-        object=design.withFabric(object)   // new fills and satins start with the design's fabric values
+        object=design.withFabric(Preferences.shared.withNewObjectDefaults(object))   // Settings' starting values, then the design's fabric values
         edit("Draw \(kind.title)"){$0.objects.append(object)}
         draft=[];selection=[object.id];selectedNode=nil;status="\(kind.title) added. Keep drawing, or press \(Preferences.shared.key(.selectTool)) to select."
     }
@@ -341,10 +341,10 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     }
     /// The width (mm) of satin lines and satin outlines drawn with the shape tools.
     private var satinLineWidth:Double {Preferences.shared.data.satinLineWidth ?? SatinLine.defaultWidth}
-    /// Adds newly drawn objects (a shape, or a shape's fill and its outline) with the design's fabric values,
+    /// Adds newly drawn objects (a shape, or a shape's fill and its outline) with Settings' starting values and the design's fabric values,
     /// selects them and clears the draft.
     private func addDrawn(_ objects:[RunObject],action:String) {
-        let objects=objects.map{design.withFabric($0)}
+        let objects=objects.map{design.withFabric(Preferences.shared.withNewObjectDefaults($0))}
         edit(action){$0.objects+=objects}
         draft=[];selection=Set(objects.map(\.id));selectedNode=nil
         status="\(objects[0].name)\(objects.count>1 ? " and its outline" : "") added. Keep drawing, or press \(Preferences.shared.key(.selectTool)) to select."

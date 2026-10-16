@@ -139,13 +139,14 @@ final class DesignCanvas: NSView {
     var origin: CGPoint { CGPoint(x: bounds.midX + pan.x, y: bounds.midY + pan.y) }
     func screen(_ p: Point) -> CGPoint { CGPoint(x: origin.x + p.x * state.zoom, y: origin.y + p.y * state.zoom) }
     func model(_ p: CGPoint) -> Point { Point((p.x - origin.x) / state.zoom, (p.y - origin.y) / state.zoom) }
-    /// With Snap on: `p` on a guide within 6 points on screen, otherwise on the nearest whole millimeter (0.05 in when
-    /// working in inches).
+    /// With Snap on: `p` on a guide within 6 points on screen, otherwise on the nearest snap step (normally a whole
+    /// millimeter, or 0.05 in when working in inches; Settings › General › Grid & snap changes it).
     func snapped(_ p: Point) -> Point {
         guard state.snap else { return p }
         let onGuide = Guide.snap(p, to: rulersShown ? state.design.guides ?? [] : [], reach: 6 / state.zoom)   // hidden guides don't catch points
         let unit = Preferences.shared.unit
-        return Point(onGuide.x ?? unit.snap(p.x), onGuide.y ?? unit.snap(p.y))
+        let size = Preferences.shared.snapSize
+        return Point(onGuide.x ?? unit.snap(p.x, size: size), onGuide.y ?? unit.snap(p.y, size: size))
     }
     /// Thread View: draws each stitch as its own strand of thread `width` points wide (0.45 mm, a 40-weight thread lying
     /// flat), shaded like real thread: darkest where the thread dives into the cloth at each needle hole
@@ -379,9 +380,10 @@ final class DesignCanvas: NSView {
             let preferences = Preferences.shared.data
             context.setStrokeColor(Self.gridColor(fabric: design.fabricColor, custom: preferences.gridColor, opacity: preferences.gridOpacity).cgColor); context.setLineWidth(0.5)
             // Millimeters: a line every 10 mm (5 mm zoomed in) from the hoop's edge. Inches: every ½ in (¼ in zoomed in),
-            // counted from the hoop's center like the rulers, so a line falls on each whole inch.
+            // counted from the hoop's center like the rulers, so a line falls on each whole inch. (Those are the normal
+            // size; Settings › General › Grid & snap can make them finer or coarser.)
             let inches = Preferences.shared.unit == .inches
-            let spacing = inches ? (state.zoom < 3 ? 12.7 : 6.35) : (state.zoom < 3 ? 10.0 : 5.0)
+            let spacing = Preferences.shared.unit.gridSpacing(Preferences.shared.gridSize) / (state.zoom < 3 ? 1 : 2)
             func first(_ size: Double) -> Double { inches ? (-size / 2 / spacing).rounded(.up) * spacing : -size / 2 }
             for x in stride(from: first(design.hoop.width), through: design.hoop.width / 2, by: spacing) { context.move(to: screen(Point(x, -design.hoop.height / 2))); context.addLine(to: screen(Point(x, design.hoop.height / 2))) }
             for y in stride(from: first(design.hoop.height), through: design.hoop.height / 2, by: spacing) { context.move(to: screen(Point(-design.hoop.width / 2, y))); context.addLine(to: screen(Point(design.hoop.width / 2, y))) }

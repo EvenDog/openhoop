@@ -91,6 +91,19 @@ struct PreferenceData: Codable {
     var showRulers: Bool?
     /// Light, dark, or following the Mac's setting; nil means following the Mac.
     var appearance: AppAppearance?
+    /// How far apart the grid's lines are, and how far Snap moves; nil means normal (10 mm and 1 mm, or ½ in and 0.05 in).
+    var gridSize: GridSize?
+    var snapSize: GridSize?
+    /// The fabric type blank new designs start with; nil means woven.
+    var newDesignFabric: FabricType?
+    /// True when `newDesignHoop` was picked in Settings, so choosing another hoop for one design doesn't change it.
+    var newDesignHoopPinned: Bool?
+    /// Starting values for objects drawn with the digitizing and shape tools; nil keeps the built-in ones (2.5 mm
+    /// line stitches, 3 mm fill stitches, 45° fill rows, 3% satin compensation).
+    var lineStitchLength: Double?
+    var fillStitchLength: Double?
+    var fillAngle: Double?
+    var satinPullPercent: Double?
 }
 
 @MainActor final class Preferences: ObservableObject {
@@ -124,6 +137,38 @@ struct PreferenceData: Codable {
     func setShowRulers(_ on: Bool) { data.showRulers = on; save(announce: false) }   // the menus show its check mark as they open
     /// Switches between millimeters and inches for every window, and remembers it.
     func setUnit(_ unit: LengthUnit) { guard unit != self.unit else { return }; data.lengthUnit = unit; save() }
+    /// The grid's line spacing and Snap's step (Settings › General › Grid & snap).
+    var gridSize: GridSize { data.gridSize ?? .normal }
+    var snapSize: GridSize { data.snapSize ?? .normal }
+    /// Gives a blank new design the hoop and fabric for new designs (Settings › Designs): the hoop used last, or the one
+    /// picked there, and the fabric picked there (woven if none).
+    func startNewDesign(_ design: inout Design) {
+        if let hoop = data.newDesignHoop { design.hoop = hoop }
+        design.fabricType = data.newDesignFabric
+    }
+    /// Remembers `hoop`, just chosen for a design, as the one new designs start with, unless a hoop for new designs
+    /// was picked in Settings.
+    func rememberHoop(_ hoop: Hoop) {
+        guard data.newDesignHoopPinned != true else { return }
+        data.newDesignHoop = hoop; save()
+    }
+    /// The built-in starting values for drawn objects, shown in Settings until they're changed.
+    static let builtInLineStitchLength = 2.5, builtInFillStitchLength = 3.0, builtInFillAngle = 45.0
+    /// A newly drawn object with the starting values from Settings › Designs › New objects: its stitch length, and a
+    /// fill's angle or a satin's compensation. Only values changed in Settings are set, so the defaults the tools
+    /// already use stay otherwise.
+    func withNewObjectDefaults(_ object: RunObject) -> RunObject {
+        var object = object
+        switch object.kind {
+        case .run: if let length = data.lineStitchLength { object.stitchLength = length }
+        case .fill:
+            if let length = data.fillStitchLength { object.stitchLength = length }
+            if let angle = data.fillAngle { object.digitizing?.angle = angle }
+        case .satin: if let pull = data.satinPullPercent { object.digitizing?.pullPercent = pull }
+        default: break
+        }
+        return object
+    }
     /// The stitch and shape choices for the next shape drawn (shared by every design window).
     var shapes: ShapeSettings { data.shapes ?? ShapeSettings() }
     /// Changes the shape tools' choices and saves them.
