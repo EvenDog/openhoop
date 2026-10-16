@@ -1275,10 +1275,11 @@ struct PlayerPanel: View {
             }
             Slider(value: $state.playback, in: 0...1).tint(Theme.accent).help("Stitch sequence")
             HStack(spacing: 6) {
-                Text("Speed").foregroundStyle(Theme.inkSecondary)
+                // The labels stay on one line: a narrow Player panel squeezes the slider instead of wrapping them.
+                Text("Speed").foregroundStyle(Theme.inkSecondary).fixedSize()
                 PlaybackSpeedSlider()
-                PlaybackSpeedField().frame(width: 60)
-                Text("stitches/s").foregroundStyle(Theme.inkSecondary)
+                PlaybackSpeedField().frame(width: 48)
+                Text("stitches/s").foregroundStyle(Theme.inkSecondary).fixedSize()
             }.font(Theme.body(11))
         }
         .foregroundStyle(Theme.ink)
@@ -1392,87 +1393,89 @@ struct SettingsView: View {
 struct GeneralSettings: View {
     @ObservedObject var preferences = Preferences.shared
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("General").font(Theme.heading(28))
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Appearance").font(Theme.body(14, weight: .bold))
-                Text("Light or dark for every OpenHoop window. Match system follows the Mac's own setting, including when it changes through the day.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
-                Picker("Appearance", selection: Binding(get: { preferences.appearance }, set: { preferences.setAppearance($0) })) {
-                    Text("Match system").tag(AppAppearance.system)
-                    Text("Light").tag(AppAppearance.light)
-                    Text("Dark").tag(AppAppearance.dark)
+        // Scrolls, since the cards are taller than the Settings window at its smallest.
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("General").font(Theme.heading(28))
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Appearance").font(Theme.body(14, weight: .bold))
+                    Text("Light or dark for every OpenHoop window. Match system follows the Mac's own setting, including when it changes through the day.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
+                    Picker("Appearance", selection: Binding(get: { preferences.appearance }, set: { preferences.setAppearance($0) })) {
+                        Text("Match system").tag(AppAppearance.system)
+                        Text("Light").tag(AppAppearance.light)
+                        Text("Dark").tag(AppAppearance.dark)
+                    }
+                    .pickerStyle(.radioGroup).labelsHidden().font(Theme.body(13))
                 }
-                .pickerStyle(.radioGroup).labelsHidden().font(Theme.body(13))
+                .padding(16).frame(maxWidth: 520, alignment: .leading)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Units").font(Theme.body(14, weight: .bold))
+                    Text("How sizes and positions are shown and typed: design and hoop sizes, rulers, the grid, Measure and nudge. Stitch settings such as stitch length and row spacing always stay in millimeters. View › Use Inches switches too.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
+                    Picker("Units", selection: Binding(get: { preferences.unit }, set: { preferences.setUnit($0) })) {
+                        Text("Millimeters").tag(LengthUnit.millimeters)
+                        Text("Inches").tag(LengthUnit.inches)
+                    }
+                    .pickerStyle(.radioGroup).labelsHidden().font(Theme.body(13))
+                }
+                .padding(16).frame(maxWidth: 520, alignment: .leading)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Around the hoop").font(Theme.body(14, weight: .bold))
+                    Text("The work surface behind the hoop on every design's canvas.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary)
+                    Picker("Around the hoop", selection: Binding(get: { preferences.data.pasteboardColor == nil },
+                                                                 set: { follow in preferences.data.pasteboardColor = follow ? nil : 0xE8DCC8; preferences.save() })) {
+                        Text("Match light or dark mode").tag(true)
+                        Text("Custom color").tag(false)
+                    }
+                    .pickerStyle(.radioGroup).labelsHidden().font(Theme.body(13))
+                    if let hex = preferences.data.pasteboardColor {
+                        ColorPicker("Color", selection: Binding(get: { Color(nsColor: Theme.fixed(hex)) },
+                                                                set: { preferences.data.pasteboardColor = Theme.hex(of: $0); preferences.save() }), supportsOpacity: false)
+                            .font(Theme.body(13))
+                    }
+                }
+                .padding(16).frame(maxWidth: 520, alignment: .leading)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Grid lines").font(Theme.body(14, weight: .bold))
+                    Text("The grid inside the hoop. Automatic draws light lines on dark cloth and dark lines on light cloth.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
+                    Picker("Grid lines", selection: Binding(get: { preferences.data.gridColor == nil },
+                                                            set: { automatic in preferences.data.gridColor = automatic ? nil : 0xFFFFFF; preferences.data.gridOpacity = automatic ? nil : 0.4; preferences.save() })) {
+                        Text("Automatic").tag(true)
+                        Text("Custom color").tag(false)
+                    }
+                    .pickerStyle(.radioGroup).labelsHidden().font(Theme.body(13))
+                    if let hex = preferences.data.gridColor {
+                        // The picker's opacity slider sets how strong the lines are.
+                        ColorPicker("Color", selection: Binding(get: { Color(nsColor: Theme.fixed(hex).withAlphaComponent(preferences.data.gridOpacity ?? 0.4)) },
+                                                                set: { color in
+                                                                    preferences.data.gridColor = Theme.hex(of: color)
+                                                                    preferences.data.gridOpacity = Double(NSColor(color).alphaComponent)
+                                                                    preferences.save()
+                                                                }), supportsOpacity: true)
+                            .font(Theme.body(13))
+                    }
+                }
+                .padding(16).frame(maxWidth: 520, alignment: .leading)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Pro view tools").font(Theme.body(14, weight: .bold))
+                    Text("Where the Pro view puts its tools. Every tool is one click away either way.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary)
+                    Picker("Pro view tools", selection: Binding(get: { preferences.proToolsOnLeft },
+                                                                set: { onLeft in preferences.data.proToolsOnLeft = onLeft ? true : nil; preferences.save() })) {
+                        Text("Across the top, in two rows").tag(false)
+                        Text("Down the left side").tag(true)
+                    }
+                    .pickerStyle(.radioGroup).labelsHidden().font(Theme.body(13))
+                }
+                .padding(16).frame(maxWidth: 520, alignment: .leading)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
+                Text("Fabric color is chosen per design: click empty canvas so nothing is selected, then look under Fabric in Properties.")
+                    .font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).frame(maxWidth: 520, alignment: .leading)
             }
-            .padding(16).frame(maxWidth: 520, alignment: .leading)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Units").font(Theme.body(14, weight: .bold))
-                Text("How sizes and positions are shown and typed: design and hoop sizes, rulers, the grid, Measure and nudge. Stitch settings such as stitch length and row spacing always stay in millimeters. View › Use Inches switches too.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
-                Picker("Units", selection: Binding(get: { preferences.unit }, set: { preferences.setUnit($0) })) {
-                    Text("Millimeters").tag(LengthUnit.millimeters)
-                    Text("Inches").tag(LengthUnit.inches)
-                }
-                .pickerStyle(.radioGroup).labelsHidden().font(Theme.body(13))
-            }
-            .padding(16).frame(maxWidth: 520, alignment: .leading)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Around the hoop").font(Theme.body(14, weight: .bold))
-                Text("The work surface behind the hoop on every design's canvas.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary)
-                Picker("Around the hoop", selection: Binding(get: { preferences.data.pasteboardColor == nil },
-                                                             set: { follow in preferences.data.pasteboardColor = follow ? nil : 0xE8DCC8; preferences.save() })) {
-                    Text("Match light or dark mode").tag(true)
-                    Text("Custom color").tag(false)
-                }
-                .pickerStyle(.radioGroup).labelsHidden().font(Theme.body(13))
-                if let hex = preferences.data.pasteboardColor {
-                    ColorPicker("Color", selection: Binding(get: { Color(nsColor: Theme.fixed(hex)) },
-                                                            set: { preferences.data.pasteboardColor = Theme.hex(of: $0); preferences.save() }), supportsOpacity: false)
-                        .font(Theme.body(13))
-                }
-            }
-            .padding(16).frame(maxWidth: 520, alignment: .leading)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Grid lines").font(Theme.body(14, weight: .bold))
-                Text("The grid inside the hoop. Automatic draws light lines on dark cloth and dark lines on light cloth.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary)
-                Picker("Grid lines", selection: Binding(get: { preferences.data.gridColor == nil },
-                                                        set: { automatic in preferences.data.gridColor = automatic ? nil : 0xFFFFFF; preferences.data.gridOpacity = automatic ? nil : 0.4; preferences.save() })) {
-                    Text("Automatic").tag(true)
-                    Text("Custom color").tag(false)
-                }
-                .pickerStyle(.radioGroup).labelsHidden().font(Theme.body(13))
-                if let hex = preferences.data.gridColor {
-                    // The picker's opacity slider sets how strong the lines are.
-                    ColorPicker("Color", selection: Binding(get: { Color(nsColor: Theme.fixed(hex).withAlphaComponent(preferences.data.gridOpacity ?? 0.4)) },
-                                                            set: { color in
-                                                                preferences.data.gridColor = Theme.hex(of: color)
-                                                                preferences.data.gridOpacity = Double(NSColor(color).alphaComponent)
-                                                                preferences.save()
-                                                            }), supportsOpacity: true)
-                        .font(Theme.body(13))
-                }
-            }
-            .padding(16).frame(maxWidth: 520, alignment: .leading)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Pro view tools").font(Theme.body(14, weight: .bold))
-                Text("Where the Pro view puts its tools. Every tool is one click away either way.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary)
-                Picker("Pro view tools", selection: Binding(get: { preferences.proToolsOnLeft },
-                                                            set: { onLeft in preferences.data.proToolsOnLeft = onLeft ? true : nil; preferences.save() })) {
-                    Text("Across the top, in two rows").tag(false)
-                    Text("Down the left side").tag(true)
-                }
-                .pickerStyle(.radioGroup).labelsHidden().font(Theme.body(13))
-            }
-            .padding(16).frame(maxWidth: 520, alignment: .leading)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
-            Text("Fabric color is chosen per design: click empty canvas so nothing is selected, then look under Fabric in Properties.")
-                .font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).frame(maxWidth: 520, alignment: .leading)
-            Spacer(minLength: 0)
+            .padding(24).frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .padding(24).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .foregroundStyle(Theme.ink).background(Theme.ground)
     }
 }

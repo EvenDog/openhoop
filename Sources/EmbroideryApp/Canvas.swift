@@ -674,8 +674,21 @@ final class DesignCanvas: NSView {
     // Redraw with the other palette as soon as the Mac switches between light and dark mode.
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
     private func drawLabel(_ text: String, at point: CGPoint, size: CGFloat, color: NSColor = Theme.Canvas.label) {
+        (text as NSString).draw(at: point, withAttributes: [.font: labelFont(size), .foregroundColor: color])
+    }
+    /// The rounded font canvas labels use.
+    private func labelFont(_ size: CGFloat) -> NSFont {
         let rounded = NSFont.systemFont(ofSize: size, weight: .medium).fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: size) }
-        (text as NSString).draw(at: point, withAttributes: [.font: rounded ?? NSFont.systemFont(ofSize: size, weight: .medium), .foregroundColor: color])
+        return rounded ?? NSFont.systemFont(ofSize: size, weight: .medium)
+    }
+    /// How wide a label drawn by `drawLabel` is, in points.
+    private func labelWidth(_ text: String, size: CGFloat) -> CGFloat { (text as NSString).size(withAttributes: [.font: labelFont(size)]).width }
+    /// An inch ruler's label for a position in mm, e.g. "1.5". Labels fall on whole and half inches, so the position is
+    /// rounded to the nearest half first: adding up steps leaves tiny errors, and one just below zero would read "-0".
+    static func inchRulerLabel(_ millimeters: Double) -> String {
+        let halves = (LengthUnit.inches.shown(millimeters) * 2).rounded()
+        let inches = halves == 0 ? 0 : halves / 2   // rounding -0.0000001 gives -0, which would print with its minus sign
+        return inches.formatted(.number.precision(.fractionLength(0...1)))
     }
     /// True when the rulers and guides are shown (View › Show Rulers & Guides).
     var rulersShown: Bool { Preferences.shared.showsRulers }
@@ -695,10 +708,14 @@ final class DesignCanvas: NSView {
         // A label every 20 mm (10 mm zoomed in), or every inch (½ in zoomed in).
         let unit = Preferences.shared.unit
         let step = unit == .inches ? (state.zoom < 3 ? 25.4 : 12.7) : (state.zoom < 3 ? 20.0 : 10.0)
-        func label(_ mm: Double) -> String { unit == .inches ? unit.shown(mm).formatted(.number.precision(.fractionLength(0...1))) : String(Int(mm)) }
+        func label(_ mm: Double) -> String { unit == .inches ? Self.inchRulerLabel(mm) : String(Int(mm)) }
         let minimum = floor(model(.zero).x / step) * step, maximum = model(CGPoint(x: bounds.maxX, y: 0)).x
         // Labels that would land on the other ruler are skipped, so the corner where the rulers meet stays clear.
-        for x in stride(from: minimum, through: maximum, by: step) { let p = screen(Point(x, 0)); if p.x >= 27 { drawLabel(label(x), at: CGPoint(x: p.x + 3, y: bounds.height - 18), size: 9) } }
+        // Labels that would run off the right edge are skipped too, rather than drawn cut in half.
+        for x in stride(from: minimum, through: maximum, by: step) {
+            let p = screen(Point(x, 0)), text = label(x)
+            if p.x >= 27 && p.x + 3 + labelWidth(text, size: 9) <= bounds.width { drawLabel(text, at: CGPoint(x: p.x + 3, y: bounds.height - 18), size: 9) }
+        }
         let minY = floor(model(.zero).y / step) * step, maxY = model(CGPoint(x: 0, y: bounds.maxY)).y
         for y in stride(from: minY, through: maxY, by: step) { let p = screen(Point(0, y)); if p.y + 14 <= bounds.height - 23 { drawLabel(label(y), at: CGPoint(x: 3, y: p.y + 2), size: 8) } }
     }

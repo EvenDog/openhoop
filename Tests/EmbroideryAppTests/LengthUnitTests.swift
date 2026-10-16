@@ -17,6 +17,12 @@ final class LengthUnitTests: XCTestCase {
         XCTAssertEqual(DesignCanvas.measurementText(from: Point(0, 0), to: Point(3, 4), unit: .inches), "0.20 in · 53°", "Measure reads in inches too")
     }
 
+    func testInchRulerLabelsNeverReadMinusZero() {
+        XCTAssertEqual(DesignCanvas.inchRulerLabel(-25.4 + 25.4 * (1 - 1e-15)), "0", "a sum of steps landing just below zero")
+        XCTAssertEqual(DesignCanvas.inchRulerLabel(38.1), "1.5")
+        XCTAssertEqual(DesignCanvas.inchRulerLabel(-25.4), "-1")
+    }
+
     func testSnapsToWholeMillimetersOrTwentiethsOfAnInch() {
         XCTAssertEqual(LengthUnit.millimeters.snap(12.4), 12)
         XCTAssertEqual(LengthUnit.inches.snap(12.4), 12.7, accuracy: 1e-9, "0.5 in")
