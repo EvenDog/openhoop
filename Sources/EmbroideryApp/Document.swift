@@ -578,6 +578,10 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         }
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         children["design.json"] = FileWrapper(regularFileWithContents: try encoder.encode(snapshot))
+        // macOS looks for QuickLook/Thumbnail.png inside a package and shows it as the file's icon in Finder.
+        if let thumbnail = StitchThumbnail.png(of: snapshot.objects) {
+            children["QuickLook"] = FileWrapper(directoryWithFileWrappers: ["Thumbnail.png": FileWrapper(regularFileWithContents: thumbnail)])
+        }
         return FileWrapper(directoryWithFileWrappers: children)
     }
     override func read(from fileWrapper: FileWrapper, ofType typeName: String) throws {

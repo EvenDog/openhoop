@@ -143,6 +143,20 @@ struct StitchThumbnail: View {
                     context.fill(shape, with: .color(Color(nsColor: object.color.nsColor)), style: FillStyle(eoFill: true))
                     continue
                 }
+                let paths = object.outlinePaths
+                if object.kind == .satin, paths.count >= 2, paths[0].count > 1, paths[1].count > 1 {
+                    // A satin column is the band between its two rails (the first two outline paths): down one rail and
+                    // back up the other. A closed satin (a border) is two loops instead, and even-odd leaves its middle open.
+                    var band = Path()
+                    if object.closed {
+                        band.addLines(paths[0].map(place)); band.closeSubpath()
+                        band.addLines(paths[1].map(place)); band.closeSubpath()
+                    } else {
+                        band.addLines((paths[0] + paths[1].reversed()).map(place)); band.closeSubpath()
+                    }
+                    context.fill(band, with: .color(Color(nsColor: object.color.nsColor)), style: FillStyle(eoFill: true))
+                    continue
+                }
                 for path in object.outlinePaths where path.count > 1 {
                     var line = Path(); line.move(to: place(path[0])); for point in path.dropFirst() { line.addLine(to: place(point)) }
                     context.stroke(line, with: .color(Color(nsColor: object.color.nsColor)), lineWidth: 0.8)
@@ -151,6 +165,17 @@ struct StitchThumbnail: View {
         }
         .background(Theme.ground, in: RoundedRectangle(cornerRadius: 14))
         .accessibilityLabel(label)
+    }
+
+    /// Draws the design on cream fabric as a 512×512-pixel PNG (saved projects carry it for Finder), or nil if drawing fails.
+    @MainActor static func png(of objects: [RunObject]) -> Data? {
+        let renderer = ImageRenderer(content: StitchThumbnail(objects: objects).frame(width: 256, height: 256))
+        renderer.scale = 2   // 256 points at 2 pixels per point
+        var picture: CGImage?
+        // The app's cream turns dark brown in Dark Mode; drawing under the light appearance keeps the saved picture cream.
+        NSAppearance(named: .aqua)?.performAsCurrentDrawingAppearance { picture = renderer.cgImage }
+        guard let picture else { return nil }
+        return NSBitmapImageRep(cgImage: picture).representation(using: .png, properties: [:])
     }
 }
 
