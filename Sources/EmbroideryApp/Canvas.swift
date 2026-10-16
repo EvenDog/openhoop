@@ -59,12 +59,12 @@ final class DesignCanvas: NSView {
     private(set) var hoveredGuide: Int?
     /// The Next Shape bar floating over the canvas (DesignTabs.swift). The pointer keeps its normal arrow over it.
     weak var floatingBar: NSView?
-    /// A measurement as the Measure tool shows it: the distance in mm, and the angle from the start, counterclockwise
-    /// from pointing right (the same way Rotate counts), e.g. "12.5 mm · 37°".
-    static func measurementText(from start: Point, to end: Point) -> String {
+    /// A measurement as the Measure tool shows it: the distance in `unit`, and the angle from the start, counterclockwise
+    /// from pointing right (the same way Rotate counts), e.g. "12.5 mm · 37°" or "0.49 in · 37°".
+    static func measurementText(from start: Point, to end: Point, unit: LengthUnit = .millimeters) -> String {
         let dx = end.x - start.x, dy = end.y - start.y
         let degrees = (atan2(dy, dx) * 180 / .pi).rounded()
-        return String(format: "%.1f mm · %.0f°", hypot(dx, dy), degrees == -180 ? 180 : degrees)
+        return unit.text(hypot(dx, dy)) + String(format: " · %.0f°", degrees == -180 ? 180 : degrees)
     }
     /// While a panel's tab is dragged over the canvas: where it would land (a dock edge, or floating at a point).
     private enum PanelDropHint: Equatable { case dock(DockSide), float(CGPoint) }
@@ -129,11 +129,13 @@ final class DesignCanvas: NSView {
     var origin: CGPoint { CGPoint(x: bounds.midX + pan.x, y: bounds.midY + pan.y) }
     func screen(_ p: Point) -> CGPoint { CGPoint(x: origin.x + p.x * state.zoom, y: origin.y + p.y * state.zoom) }
     func model(_ p: CGPoint) -> Point { Point((p.x - origin.x) / state.zoom, (p.y - origin.y) / state.zoom) }
-    /// With Snap on: `p` on a guide within 6 points on screen, otherwise on the nearest whole millimeter.
+    /// With Snap on: `p` on a guide within 6 points on screen, otherwise on the nearest whole millimeter (0.05 in when
+    /// working in inches).
     func snapped(_ p: Point) -> Point {
         guard state.snap else { return p }
         let onGuide = Guide.snap(p, to: state.design.guides ?? [], reach: 6 / state.zoom)
-        return Point(onGuide.x ?? p.x.rounded(), onGuide.y ?? p.y.rounded())
+        let unit = Preferences.shared.unit
+        return Point(onGuide.x ?? unit.snap(p.x), onGuide.y ?? unit.snap(p.y))
     }
     /// Thread View: draws each stitch as its own strand of thread `width` points wide (0.45 mm, a 40-weight thread lying
     /// flat), shaded like real thread: darkest where the thread dives into the cloth at each needle hole
@@ -366,9 +368,13 @@ final class DesignCanvas: NSView {
             context.saveGState(); context.addPath(hoopPath.cgPathCopy); context.clip()
             let preferences = Preferences.shared.data
             context.setStrokeColor(Self.gridColor(fabric: design.fabricColor, custom: preferences.gridColor, opacity: preferences.gridOpacity).cgColor); context.setLineWidth(0.5)
-            let spacing = state.zoom < 3 ? 10.0 : 5.0
-            for x in stride(from: -design.hoop.width / 2, through: design.hoop.width / 2, by: spacing) { context.move(to: screen(Point(x, -design.hoop.height / 2))); context.addLine(to: screen(Point(x, design.hoop.height / 2))) }
-            for y in stride(from: -design.hoop.height / 2, through: design.hoop.height / 2, by: spacing) { context.move(to: screen(Point(-design.hoop.width / 2, y))); context.addLine(to: screen(Point(design.hoop.width / 2, y))) }
+            // Millimeters: a line every 10 mm (5 mm zoomed in) from the hoop's edge. Inches: every ½ in (¼ in zoomed in),
+            // counted from the hoop's center like the rulers, so a line falls on each whole inch.
+            let inches = Preferences.shared.unit == .inches
+            let spacing = inches ? (state.zoom < 3 ? 12.7 : 6.35) : (state.zoom < 3 ? 10.0 : 5.0)
+            func first(_ size: Double) -> Double { inches ? (-size / 2 / spacing).rounded(.up) * spacing : -size / 2 }
+            for x in stride(from: first(design.hoop.width), through: design.hoop.width / 2, by: spacing) { context.move(to: screen(Point(x, -design.hoop.height / 2))); context.addLine(to: screen(Point(x, design.hoop.height / 2))) }
+            for y in stride(from: first(design.hoop.height), through: design.hoop.height / 2, by: spacing) { context.move(to: screen(Point(-design.hoop.width / 2, y))); context.addLine(to: screen(Point(design.hoop.width / 2, y))) }
             context.strokePath(); context.restoreGState()
         }
         // A dashed "stitched" outline marks the sewing area inside the cloth.
@@ -489,7 +495,7 @@ final class DesignCanvas: NSView {
                 if state.tool == .satin {drawLabel("\(index/2+1)\(index%2==0 ? "L":"R")",at:CGPoint(x:p.x+5,y:p.y+5),size:9)}
             }
         }
-        drawLabel("\(Int(design.hoop.width)) × \(Int(design.hoop.height)) mm  ·  SEWING AREA", at: CGPoint(x: hoop.minX, y: hoop.minY - 44), size: 10)
+        drawLabel(Preferences.shared.unit.size(design.hoop.width, design.hoop.height, decimals: Preferences.shared.unit == .inches ? 1 : 0) + "  ·  SEWING AREA", at: CGPoint(x: hoop.minX, y: hoop.minY - 44), size: 10)
         if state.tool == .measure, let line = measurement { drawMeasurement(line) }
         if state.tool == .stitchEdit { drawStitchEdit() }
         if state.tool == .addAngles, let start = state.angleStart { drawAngleLine(start, pointer); drawAngleReading(start, pointer, at: pointer) }   // the line being added follows the pointer
@@ -570,7 +576,7 @@ final class DesignCanvas: NSView {
         }
         guard let drag = guideDrag, let guide = (preview?.guides ?? []).indices.contains(drag.index) ? preview?.guides?[drag.index] : nil else { return }
         let text = overOwnRuler(drag.pointer, vertical: drag.vertical) ? (drag.isNew ? "Let go to cancel" : "Let go to remove")
-            : "\(guide.vertical ? "X" : "Y") \(guide.position.formatted(.number.precision(.fractionLength(0...1)))) mm"
+            : "\(guide.vertical ? "X" : "Y") \(Preferences.shared.unit.short(guide.position))"
         let width = (text as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 11, weight: .medium)]).width
         Theme.Canvas.ruler.withAlphaComponent(0.92).setFill()
         NSBezierPath(roundedRect: CGRect(x: drag.pointer.x + 10, y: drag.pointer.y + 6, width: width + 12, height: 18), xRadius: 4, yRadius: 4).fill()
@@ -615,7 +621,7 @@ final class DesignCanvas: NSView {
         let path = NSBezierPath(); path.move(to: a); path.line(to: b)
         for p in [a, b] { path.move(to: CGPoint(x: p.x - 5, y: p.y)); path.line(to: CGPoint(x: p.x + 5, y: p.y)); path.move(to: CGPoint(x: p.x, y: p.y - 5)); path.line(to: CGPoint(x: p.x, y: p.y + 5)) }
         Theme.Canvas.handle.setStroke(); path.lineWidth = 1.5; path.stroke()
-        let text = Self.measurementText(from: line.start, to: line.end)
+        let text = Self.measurementText(from: line.start, to: line.end, unit: Preferences.shared.unit)
         let width = (text as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 11, weight: .medium)]).width
         Theme.Canvas.ruler.withAlphaComponent(0.92).setFill()
         NSBezierPath(roundedRect: CGRect(x: b.x + 10, y: b.y + 6, width: width + 12, height: 18), xRadius: 4, yRadius: 4).fill()
@@ -669,12 +675,15 @@ final class DesignCanvas: NSView {
         Theme.Canvas.ruler.setFill()
         CGRect(x: 0, y: bounds.height - 23, width: bounds.width, height: 23).fill()
         CGRect(x: 0, y: 0, width: 27, height: bounds.height).fill()
-        let step = state.zoom < 3 ? 20.0 : 10.0
+        // A label every 20 mm (10 mm zoomed in), or every inch (½ in zoomed in).
+        let unit = Preferences.shared.unit
+        let step = unit == .inches ? (state.zoom < 3 ? 25.4 : 12.7) : (state.zoom < 3 ? 20.0 : 10.0)
+        func label(_ mm: Double) -> String { unit == .inches ? unit.shown(mm).formatted(.number.precision(.fractionLength(0...1))) : String(Int(mm)) }
         let minimum = floor(model(.zero).x / step) * step, maximum = model(CGPoint(x: bounds.maxX, y: 0)).x
         // Labels that would land on the other ruler are skipped, so the corner where the rulers meet stays clear.
-        for x in stride(from: minimum, through: maximum, by: step) { let p = screen(Point(x, 0)); if p.x >= 27 { drawLabel(String(Int(x)), at: CGPoint(x: p.x + 3, y: bounds.height - 18), size: 9) } }
+        for x in stride(from: minimum, through: maximum, by: step) { let p = screen(Point(x, 0)); if p.x >= 27 { drawLabel(label(x), at: CGPoint(x: p.x + 3, y: bounds.height - 18), size: 9) } }
         let minY = floor(model(.zero).y / step) * step, maxY = model(CGPoint(x: 0, y: bounds.maxY)).y
-        for y in stride(from: minY, through: maxY, by: step) { let p = screen(Point(0, y)); if p.y + 14 <= bounds.height - 23 { drawLabel(String(Int(y)), at: CGPoint(x: 3, y: p.y + 2), size: 8) } }
+        for y in stride(from: minY, through: maxY, by: step) { let p = screen(Point(0, y)); if p.y + 14 <= bounds.height - 23 { drawLabel(label(y), at: CGPoint(x: 3, y: p.y + 2), size: 8) } }
     }
     override func mouseDown(with event: NSEvent) {
         state.focusCanvas()
@@ -809,7 +818,7 @@ final class DesignCanvas: NSView {
         if dropDragIfDesignChanged() { return }
         if let drag = guideDrag, var next = dragSnapshot {
             let p = model(location), raw = drag.vertical ? p.x : p.y
-            let position = state.snap ? raw.rounded() : (raw * 10).rounded() / 10   // whole mm with Snap on, else 0.1 mm
+            let position = state.snap ? Preferences.shared.unit.snap(raw) : (raw * 10).rounded() / 10   // a snap step with Snap on, else 0.1 mm
             var guides = next.guides ?? []
             if drag.isNew { guides.append(Guide(vertical: drag.vertical, position: position)) } else { guides[drag.index].position = position }
             next.guides = guides; preview = next; guideDrag?.pointer = location; needsDisplay = true; return
@@ -839,7 +848,7 @@ final class DesignCanvas: NSView {
         }
         if measuring, let line = measurement {
             measurement = (line.start, snapped(model(location)))
-            state.status = "Measured " + Self.measurementText(from: line.start, to: measurement!.end)
+            state.status = "Measured " + Self.measurementText(from: line.start, to: measurement!.end, unit: Preferences.shared.unit)
             needsDisplay = true; return
         }
         if freehandStroke != nil {
@@ -904,7 +913,7 @@ final class DesignCanvas: NSView {
                 next?.guides?.remove(at: drag.index); if next?.guides?.isEmpty == true { next?.guides = nil }
             }
             if let next {
-                state.status = removing ? "Guide removed." : "Guide at \(drag.vertical ? "X" : "Y") \(next.guides![drag.index].position.formatted()) mm · drag it back onto the ruler to remove it"
+                state.status = removing ? "Guide removed." : "Guide at \(drag.vertical ? "X" : "Y") \(Preferences.shared.unit.short(next.guides![drag.index].position)) · drag it back onto the ruler to remove it"
                 state.document?.replace(next, action: drag.isNew ? "Add Guide" : removing ? "Remove Guide" : "Move Guide")
             }
             guideDrag = nil; preview = nil; dragSnapshot = nil; needsDisplay = true

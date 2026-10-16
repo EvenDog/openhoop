@@ -72,6 +72,8 @@ struct PreferenceData: Codable {
     var satinLineWidth: Double?
     /// The stitch and shape choices the Open Shape, Closed Shape and shape tools use next; nil means the defaults.
     var shapes: ShapeSettings?
+    /// The unit sizes and positions are shown and typed in; nil means millimeters.
+    var lengthUnit: LengthUnit?
 }
 
 @MainActor final class Preferences: ObservableObject {
@@ -90,6 +92,10 @@ struct PreferenceData: Codable {
     var proToolsOnLeft: Bool { data.proToolsOnLeft ?? false }
     /// How far the arrow keys move the selection, in mm.
     var nudge: Double { data.nudgeDistance ?? 1 }
+    /// The unit sizes and positions are shown and typed in (designs themselves always stay in millimeters).
+    var unit: LengthUnit { data.lengthUnit ?? .millimeters }
+    /// Switches between millimeters and inches for every window, and remembers it.
+    func setUnit(_ unit: LengthUnit) { guard unit != self.unit else { return }; data.lengthUnit = unit; save() }
     /// The stitch and shape choices for the next shape drawn (shared by every design window).
     var shapes: ShapeSettings { data.shapes ?? ShapeSettings() }
     /// Changes the shape tools' choices and saves them.

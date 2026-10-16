@@ -68,7 +68,7 @@ struct MonogramView: View {
                         }
                     }.font(Theme.body(13, weight: .semibold))
                     Stepper(value: $spec.height, in: MonogramSpec.heights, step: 1) {
-                        Text("Height: \(spec.height.formatted()) mm").font(Theme.body(13, weight: .semibold))
+                        Text("Height: \(Preferences.shared.unit.short(spec.height))").font(Theme.body(13, weight: .semibold))
                     }
                     Picker("Layout", selection: $spec.layout) { ForEach(MonogramLayout.allCases, id: \.self) { Text($0.title).tag($0) } }
                         .font(Theme.body(13, weight: .semibold))
@@ -81,7 +81,7 @@ struct MonogramView: View {
                             Text("Border width: \(spec.borderWidth.formatted()) mm").font(Theme.body(13, weight: .semibold))
                         }
                         Stepper(value: $spec.borderGap, in: MonogramSpec.borderGaps, step: 0.5) {
-                            Text("Gap: \(spec.borderGap.formatted()) mm").font(Theme.body(13, weight: .semibold))
+                            Text("Gap: \(Preferences.shared.unit.short(spec.borderGap))").font(Theme.body(13, weight: .semibold))
                         }
                     }
                     HStack(spacing: 6) {

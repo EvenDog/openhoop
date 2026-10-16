@@ -445,7 +445,8 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
                 guard startRevision == revision else { status = "The design changed meanwhile. Run Auto Start Points again."; return }
                 guard next != design else { status = "Start points already follow the sewing order."; return }
                 edit("Auto Start Points") { $0 = next }
-                status = String(format: "Start points set. Travel between parts: %.0f mm → %.0f mm. Adjust any with the Start & End tool.", before, after)
+                let unit = Preferences.shared.unit
+                status = "Start points set. Travel between parts: \(unit.text(before, decimals: 0)) → \(unit.text(after, decimals: 0)). Adjust any with the Start & End tool."
             } catch { status = error.localizedDescription }
         }
     }

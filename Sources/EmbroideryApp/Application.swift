@@ -327,6 +327,7 @@ import EmbroideryCore
         if let panel = PanelID(command: command) { menuItem.state = Preferences.shared.panels.isVisible(panel) ? .on : .off; return true }
         if command == .proView { menuItem.state = Preferences.shared.isPro ? .on : .off; return true }
         if command == .threadView { menuItem.state = Preferences.shared.threadView ? .on : .off; return true }
+        if command == .useInches { menuItem.state = Preferences.shared.unit == .inches ? .on : .off; return true }
         if [.new, .open, .sample, .stitchSampler, .settings, .restoreWorkspace].contains(command) { return true }
         if command == .close { return NSApp.keyWindow != nil }
         guard let state = active?.state else { return false }
@@ -366,6 +367,11 @@ import EmbroideryCore
             Preferences.shared.setPro(pro)
             let key = Preferences.shared.label(.proView)
             active?.state.status = pro ? "Pro view: every tool and setting on screen.\(key.isEmpty ? "" : " \(key) switches back to Guided.")" : "Guided view: the everyday settings, with the rest under More settings."
+            return
+        case .useInches:
+            let inches = Preferences.shared.unit != .inches
+            Preferences.shared.setUnit(inches ? .inches : .millimeters)
+            active?.state.status = inches ? "Sizes and positions now show in inches. Stitch settings stay in millimeters." : "Sizes and positions now show in millimeters."
             return
         case .threadView:
             Preferences.shared.setThreadView(!Preferences.shared.threadView)
@@ -960,7 +966,7 @@ import EmbroideryCore
             ("File", [.new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportPES, .exportMachine, .exportDST, .exportEXP, .exportJEF, .exportVP3, .exportXXX, .exportPEC, .exportThreadList, .productionWorksheet, .sample, .stitchSampler]),
             ("Edit", [.undo, .redo, .cutObjects, .copyObjects, .pasteObjects, .selectAll, .delete, .duplicate, .group, .ungroup, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .sequenceBySelection, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .closePath, .lockObject, .hideObject, .renameObject, .threadChart]),
             ("Digitize", [.done]),
-            ("View", [.proView, .threadView, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .clearGuides, .needles, .artwork, .showUnderlay, .play, .rewind]),
+            ("View", [.proView, .threadView, .useInches, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .clearGuides, .needles, .artwork, .showUnderlay, .play, .rewind]),
             ("Window", [.nextTab, .previousTab] + PanelID.allCases.map(\.command) + [.saveWorkspace, .restoreWorkspace])]
         for (name, commands) in groups {
             let item = NSMenuItem(); item.submenu = NSMenu(title: name); item.title = name; menu.addItem(item)

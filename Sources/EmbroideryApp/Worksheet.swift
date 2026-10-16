@@ -112,7 +112,7 @@ struct WorksheetPage: View {
             Text("\(content.date.formatted(date: .long, time: .omitted)) · Hoop \(content.hoop.label) · \(summary.fabric.title)")
                 .font(Theme.body(9)).foregroundStyle(Paper.secondary)
             HStack(spacing: 6) {
-                tile("Size", "\(Self.millimeters(summary.width)) × \(Self.millimeters(summary.height)) mm")
+                tile("Size", Preferences.shared.unit.size(summary.width, summary.height))
                 tile("Stitches", summary.stitchCount.formatted())
                 tile("Thread steps", "\(summary.steps.count)")
                 tile("Stops", "\(summary.stops)")
@@ -165,17 +165,19 @@ struct WorksheetPage: View {
             caption
         }
     }
-    /// Under the picture: a 10 mm scale bar and what scale the picture is printed at.
+    /// Under the picture: a scale bar (10 mm, or ½ in when working in inches) and what scale the picture is printed at.
     private var caption: some View {
-        HStack(spacing: 6) {
+        let inches = Preferences.shared.unit == .inches
+        let barMillimeters = inches ? 12.7 : 10, barLabel = inches ? "½ in" : "10 mm"
+        return HStack(spacing: 6) {
             Canvas { context, size in
-                let length = 10 * WorksheetLayout.pointsPerMillimeter * layout.pictureScale, y = size.height / 2
+                let length = barMillimeters * WorksheetLayout.pointsPerMillimeter * layout.pictureScale, y = size.height / 2
                 var bar = Path(); bar.move(to: CGPoint(x: 0.5, y: y)); bar.addLine(to: CGPoint(x: 0.5 + length, y: y))
                 for x in [0.5, 0.5 + length] { bar.move(to: CGPoint(x: x, y: y - 3)); bar.addLine(to: CGPoint(x: x, y: y + 3)) }
                 context.stroke(bar, with: .color(Paper.ink), lineWidth: 0.75)
-            }.frame(width: 10 * WorksheetLayout.pointsPerMillimeter * layout.pictureScale + 1, height: 10)
-            Text("10 mm").font(Theme.body(8, weight: .semibold))
-            Text(layout.pictureScale >= 0.999 ? "Actual size: print at 100% and the bar measures 10 mm. + marks the hoop center."
+            }.frame(width: barMillimeters * WorksheetLayout.pointsPerMillimeter * layout.pictureScale + 1, height: 10)
+            Text(barLabel).font(Theme.body(8, weight: .semibold))
+            Text(layout.pictureScale >= 0.999 ? "Actual size: print at 100% and the bar measures \(barLabel). + marks the hoop center."
                                               : "Scaled to \(Int((layout.pictureScale * 100).rounded(.down)))% to fit the page. + marks the hoop center.")
                 .font(Theme.body(8)).foregroundStyle(Paper.secondary)
         }.frame(height: WorksheetLayout.captionHeight)
@@ -254,8 +256,6 @@ struct WorksheetPage: View {
         .frame(height: WorksheetLayout.footerHeight, alignment: .bottom)
     }
 
-    /// A length in mm with one decimal place, like the rest of the app.
-    static func millimeters(_ value: Double) -> String { String(format: "%.1f", value) }
 }
 
 /// The preview dialog: the machine speed for the time estimate, and the pages as they'll print.
