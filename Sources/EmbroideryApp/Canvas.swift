@@ -843,11 +843,11 @@ final class DesignCanvas: NSView {
         state.focusCanvas()
         let point = snapped(model(convert(event.locationInWindow, from: nil)))
         if state.tool.draws && !state.hasVersionMismatch { state.draft.append(PathNode(point, smooth: true)) }
-        else if state.tool == .node,let location=nearestNode(point) {
+        // Right-click on a point switches it between corner and smooth. It's picked where the pointer really is, as a
+        // left-click is (Snap could otherwise pick its neighbour).
+        else if state.tool == .node,let location=nearestNode(model(convert(event.locationInWindow,from:nil))) {
             state.selection=[location.object];state.selectedNode=location
-            state.editSelected("Change Node Type"){object in
-                if location.ring<0{object.nodes[location.index].toggleSmooth()}else{object.holes?[location.ring][location.index].toggleSmooth()}
-            }
+            state.setSelectedNode(smooth:!(state.selectedPathNode?.smooth ?? true))
         }
         // Right-click on a selected object's edge adds a curve node: drag it and the edge bends smoothly through it.
         else if state.tool == .node,!state.hasVersionMismatch,let edge=edge(near:model(convert(event.locationInWindow,from:nil)),reach:6/state.zoom) {
