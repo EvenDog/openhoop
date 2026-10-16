@@ -214,4 +214,28 @@ final class FillStyleTests: XCTestCase {
             XCTAssertLessThanOrEqual(longest, length + 0.0001, "stitch length \(length)")
         }
     }
+
+    /// A big contour fill's rings used to be made by shrinking the ring before, which piled up corner points depth
+    /// after depth. On this 90 mm star the rings passed the geometry library's 20,000-point limit and the fill failed
+    /// (found by the random design tests). Each depth is now shrunk from the whole shape, so it sews, and no ring
+    /// carries more than a few hundred points.
+    func testBigContourFillKeepsItsRingsSmall() throws {
+        let star = (0..<20).map { i -> Point in
+            let angle = Double(i) * .pi / 10, reach = i % 2 == 0 ? 45.0 : 30.0
+            return Point(cos(angle) * reach, sin(angle) * reach)
+        }
+        var object = shape(star, style: .contour)
+        object.digitizing?.spacing = 0.25; object.digitizing?.expansion = 0.5
+        XCTAssertNil(StitchEngine.shapeProblem(object))
+        XCTAssertFalse(try AreaEngine.fill(object).sections.isEmpty)
+
+        var steps = [try AreaGeometry.offset([star], by: 0.5)], depths = 0, most = 0
+        while true {
+            let rings = try FillStyles.shrunk(&steps, by: 0.125 + Double(depths) * 0.25)
+            if rings.isEmpty { break }
+            depths += 1; most = max(most, rings.map(\.count).max()!)
+        }
+        XCTAssertGreaterThan(depths, 100, "a ring every 0.25 mm, from the edge to the middle")
+        XCTAssertLessThan(most, 1000, "points in the biggest ring")
+    }
 }
