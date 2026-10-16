@@ -667,11 +667,17 @@ final class DesignCanvas: NSView {
     /// With the Start & End tool: sets where the single selected object starts (or, with Option, ends) sewing.
     /// If nothing suitable is selected, the click selects the object under the pointer first.
     private func setEntryOrExit(at point: Point, exit: Bool) {
-        if state.selection.count == 1, let object = state.selected, object.kind != .raw, object.kind != .vector, !object.locked {
+        // One object selected: the click places its point. Several (such as the parts of a laydown or a word, which are
+        // grouped): the click places the point of the selected part under the pointer, even one lying under other
+        // objects, and selects just that part.
+        let target = state.selection.count == 1 ? state.selected : state.selection.count > 1 ? hit(point, among: state.selection) : nil
+        if let object = target, object.kind != .raw, object.kind != .vector, !object.locked {
+            state.selection = [object.id]
             state.editSelected(exit ? "Set End Point" : "Set Start Point") { if exit { $0.exit = point } else { $0.entry = point } }
             state.status = exit ? "End point set: the stitching finishes there." : "Start point set. Option-click to set where it ends."
         } else if let object = hit(point) {
-            state.select(object.id)
+            // Just this object, not its whole group: start and end points belong to one object at a time.
+            state.select(object.id, single: true)
             state.status = object.kind == .raw ? "Imported stitches keep their own sewing order." : "Now click where \(object.name) should start sewing."
         } else { state.status = "Select one object, then click where it should start sewing." }
     }
@@ -1189,9 +1195,10 @@ final class DesignCanvas: NSView {
         let added=addingNode(on:edge,smooth:nil,to:state.design)
         state.edit("Insert Node"){$0=added.design}
     }
-    private func hit(_ p: Point) -> RunObject? {
+    /// The topmost shown object under `p` (model mm), only looking at the objects in `ids` when given.
+    private func hit(_ p: Point, among ids: Set<UUID>? = nil) -> RunObject? {
         state.design.objects.reversed().first { object in
-            guard state.isShown(object) else { return false }   // what can't be seen can't be clicked
+            guard state.isShown(object), ids?.contains(object.id) ?? true else { return false }   // what can't be seen can't be clicked
             if (object.kind == .fill || (object.kind == .vector && object.closed)),AreaGeometry.contains(p,rings:([object.nodes]+(object.holes ?? [])).map{AreaGeometry.ring($0)}){return true}
             return object.outlinePaths.contains{segment in zip(segment,segment.dropFirst()).contains{a,b in p.distance(to:AreaGeometry.projection(p,a,b))<8/state.zoom}}
         }
