@@ -11,17 +11,16 @@ enum FillStyles {
     /// for a short step (another lobe of the shape), a new section starts. Sewing begins on an outermost ring, at
     /// the point nearest `start` if given.
     static func contour(in region: [[Point]], spacing: Double, length: Double, start: Point?) throws -> [[Point]] {
-        // Every ring at every depth: each depth's inset can have several rings (lobes, and the edges of holes).
-        // Each depth shrinks the one before by a row spacing (the first by half of one), since the geometry library
-        // only offsets up to 10 mm at a time.
-        var loops: [[Point]] = [], round: [Bool] = [], outermost = 0, total = 0, inset = region
+        // Every ring at every depth: each depth's inset can have several rings (lobes, and the edges of holes). The
+        // first depth is half a row spacing in from the edge, and each one after is a row spacing further in.
+        var loops: [[Point]] = [], round: [Bool] = [], counterclockwise: [Bool] = [], outermost = 0, total = 0, steps = [region]
         for level in 0... {
             try Task.checkCancellation()
-            inset = try AreaGeometry.offset(inset, by: level == 0 ? -spacing / 2 : -spacing)
+            let inset = try shrunk(&steps, by: spacing / 2 + Double(level) * spacing)
             if inset.isEmpty { break }
             for ring in inset {
                 let loop = resampled(ring, length: length)
-                if loop.count >= 3 { loops.append(loop); round.append(isRound(ring)); total += loop.count }
+                if loop.count >= 3 { loops.append(loop); round.append(isRound(ring)); counterclockwise.append(AreaGeometry.area(ring) > 0); total += loop.count }
             }
             if level == 0 { outermost = loops.count }   // loops before this index are the first depth's
             guard level < 5000, total <= 1_000_000 else { throw DesignError.invalid("Fill would produce too many stitches. Reduce its size or increase spacing.") }
@@ -30,7 +29,7 @@ enum FillStyles {
 
         // First the order: each ring, starting at the point nearest where the last one ended, and whether the needle
         // can step straight onto it from there (false starts a new section).
-        var order: [(loop: [Point], round: Bool, joined: Bool)] = []
+        var order: [(loop: [Point], round: Bool, counterclockwise: Bool, joined: Bool)] = []
         var needle = start ?? loops[0][0], remaining = Set(loops.indices)
         let shortStep = 2 * spacing + length   // the longest step that's sewn straight across to the next ring
         while !remaining.isEmpty {
@@ -44,15 +43,18 @@ enum FillStyles {
             }
             let ring = loops[best.ring]
             let loop = Array(ring[best.index...] + ring[..<best.index]) + [ring[best.index]]   // all the way round
-            order.append((loop, round[best.ring], !order.isEmpty && best.distance <= shortStep && AreaGeometry.segmentInside(needle, loop[0], rings: region)))
+            order.append((loop, round[best.ring], counterclockwise[best.ring], !order.isEmpty && best.distance <= shortStep && AreaGeometry.segmentInside(needle, loop[0], rings: region)))
             needle = loop.last!; remaining.remove(best.ring)
         }
         // Then the stitches. Stepping straight across after every ring lines the steps up into a visible seam from the
         // edge to the middle, so between two round rings the needle spirals instead: over the lap, it drifts from this
         // ring to the next (by the share of the lap sewn so far), ending where the next ring begins. A run of spiral
         // laps starts and ends with a plain ring, so the edges stay covered. Rings with sharp corners keep the step:
-        // matching points between them bends the laps across each other near the corners.
-        func spirals(_ k: Int) -> Bool { k >= 0 && k + 1 < order.count && order[k + 1].joined && order[k].round && order[k + 1].round }
+        // matching points between them bends the laps across each other near the corners. So do rings running opposite
+        // ways round (an outline's rings and a hole's): drifting from one to the other would swing the stitches across the hole.
+        func spirals(_ k: Int) -> Bool {
+            k >= 0 && k + 1 < order.count && order[k + 1].joined && order[k].round && order[k + 1].round && order[k].counterclockwise == order[k + 1].counterclockwise
+        }
         var sections: [[Point]] = []
         for k in order.indices {
             var stitches: [Point] = []
@@ -69,6 +71,23 @@ enum FillStyles {
             } else { sections.append(stitches) }
         }
         return sections
+    }
+
+    /// The region `steps[0]` shrunk by `depth` mm: the rings of one contour depth. Returns no rings once nothing is left.
+    ///
+    /// Each depth is shrunk from the whole region, not from the depth before it. Both give the same shape (to within
+    /// a few hundredths of a millimeter), but every shrink rounds the corners with extra points, and the next shrink
+    /// keeps those and adds more. Shrinking a shrunk ring over and over piled them up: a big fill's rings reached
+    /// many thousands of points, took seconds to work out, and could pass the geometry library's limit of 20,000
+    /// points per ring, which failed the fill.
+    /// The library shrinks at most 10 mm at a time, so deeper rings start from the region already shrunk by whole
+    /// 10 mm steps. `steps` keeps those (the region itself, then shrunk by 10, 20 … mm) and grows as depths need them.
+    static func shrunk(_ steps: inout [[[Point]]], by depth: Double) throws -> [[Point]] {
+        // Whole 10 mm steps first, then the rest: more than 0 and at most 10 mm.
+        let whole = max(0, Int(ceil(depth / 10)) - 1)
+        while steps.count <= whole, let last = steps.last, !last.isEmpty { steps.append(try AreaGeometry.offset(last, by: -10)) }
+        guard whole < steps.count, !steps[whole].isEmpty else { return [] }
+        return try AreaGeometry.offset(steps[whole], by: -(depth - Double(whole) * 10))
     }
 
     /// True when `ring` has no sharp corner: it never turns more than 60° at one point.
