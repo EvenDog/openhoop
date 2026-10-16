@@ -96,6 +96,34 @@ final class DocumentTests: XCTestCase {
         XCTAssertEqual(loaded.state.design.schemaVersion, 4, "Without handles the project stays readable by v0.5")
     }
 
+    /// The object lists select the Mac way: Shift-click takes everything in sewing order from the object clicked last,
+    /// ⌘-click (`extend`) adds or removes one, and a range takes whole groups unless Option asks for single objects.
+    @MainActor func testShiftClickInTheListsSelectsARangeInSewingOrder() {
+        _ = NSApplication.shared
+        let document = DesignDocument()
+        document.state.design.objects = (0..<5).map { RunObject(name: "Line \($0 + 1)", nodes: [PathNode(Point(Double($0) * 10, 0)), PathNode(Point(Double($0) * 10, 20))]) }
+        let ids = document.state.design.objects.map(\.id)
+        document.state.selectRange(to: ids[3])
+        XCTAssertEqual(document.state.selection, [ids[3]], "with nothing clicked before, Shift-click selects just that object")
+        document.state.select(ids[1])
+        document.state.selectRange(to: ids[3])
+        XCTAssertEqual(document.state.selection, [ids[1], ids[2], ids[3]])
+        document.state.selectRange(to: ids[0])
+        XCTAssertEqual(document.state.selection, [ids[0], ids[1]], "the range starts again from the same object, upward this time")
+        document.state.select(ids[4], extend: true)
+        XCTAssertEqual(document.state.selection, [ids[0], ids[1], ids[4]], "⌘-click adds one")
+        document.state.select(ids[0], extend: true)
+        XCTAssertEqual(document.state.selection, [ids[1], ids[4]], "⌘-click again removes it")
+        // Lines 4 and 5 become a group: a range reaching line 4 takes line 5 too, unless Option picks single objects.
+        document.state.selection = [ids[3], ids[4]]
+        document.state.groupSelection()
+        document.state.select(ids[1])
+        document.state.selectRange(to: ids[3])
+        XCTAssertEqual(document.state.selection, [ids[1], ids[2], ids[3], ids[4]])
+        document.state.selectRange(to: ids[3], single: true)
+        XCTAssertEqual(document.state.selection, [ids[1], ids[2], ids[3]])
+    }
+
     @MainActor func testGroupSelectDuplicateAndUngroup() {
         _ = NSApplication.shared
         let document = DesignDocument()

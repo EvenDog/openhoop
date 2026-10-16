@@ -530,7 +530,7 @@ struct ObjectPanel: View {
         .foregroundStyle(Theme.ink)
     }
     /// One sewing step: a numbered dot in the object's thread color, a dashed "thread" leading to the next step,
-    /// and a card with the object's name and details. Clicking selects it (Shift-click adds to the selection).
+    /// and a card with the object's name and details. Clicking selects it (Shift-click selects a range, ⌘-click adds one).
     private func stepRow(number: Int, object: RunObject, isLast: Bool, groupLabel: String?) -> some View {
         let selected = state.selection.contains(object.id)
         let details = object.kind == .raw
@@ -546,7 +546,7 @@ struct ObjectPanel: View {
                 if !isLast { ThreadLine().stroke(Theme.controlBorder, style: StrokeStyle(lineWidth: 2, dash: [4, 3])).frame(width: 2) }
             }
             .frame(width: 26)
-            Button { state.select(object.id, extend: NSEvent.modifierFlags.contains(.shift), single: NSEvent.modifierFlags.contains(.option)) } label: {
+            Button { state.listClick(object.id) } label: {
                 HStack(spacing: 6) {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 4) {

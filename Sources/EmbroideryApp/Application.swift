@@ -487,7 +487,7 @@ import EmbroideryCore
             }
         case .sequenceBySelection:
             let order = state.selectionOrder
-            guard order.count >= 2 else { state.status = "Shift-click two or more objects in the order they should sew, then sequence them."; return }
+            guard order.count >= 2 else { state.status = "Shift-click two or more objects on the canvas (⌘-click in the sewing order list) in the order they should sew, then sequence them."; return }
             guard state.edit(command.title, { $0.sequence(order) }) else { return }
             state.status = "The \(order.count) selected objects now sew in the order you clicked them, from where the first of them sewed."
         case .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters:
