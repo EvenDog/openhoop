@@ -73,13 +73,19 @@ final class DesignCanvas: NSView {
     private var imageData: Data?
     private var image: NSImage?
     private var tracking: NSTrackingArea?
+    /// The pointer's place on the rulers: a line on the top ruler at its x, and one on the left ruler at its y. They're
+    /// small views of their own, so following the mouse moves them without redrawing every stitch.
+    let topRulerMark = RulerMark(), leftRulerMark = RulerMark()
     init(state: EditorState) {
         self.state = state
         super.init(frame: .zero)
         wantsLayer = true
         state.canvas = self
+        for mark in [topRulerMark, leftRulerMark] { mark.isHidden = true; addSubview(mark) }
         observation = state.objectWillChange.sink { [weak self] _ in DispatchQueue.main.async { self?.needsDisplay = true } }
-        preferencesObservation = Preferences.shared.objectWillChange.sink { [weak self] _ in DispatchQueue.main.async { self?.needsDisplay = true } }
+        preferencesObservation = Preferences.shared.objectWillChange.sink { [weak self] _ in
+            DispatchQueue.main.async { self?.needsDisplay = true; if self?.rulersShown == false { self?.moveRulerMarks(to: nil) } }
+        }
         registerForDraggedTypes([.string])   // panel tabs dragged onto the canvas (see Docking.swift)
     }
 
@@ -133,7 +139,7 @@ final class DesignCanvas: NSView {
     /// working in inches).
     func snapped(_ p: Point) -> Point {
         guard state.snap else { return p }
-        let onGuide = Guide.snap(p, to: state.design.guides ?? [], reach: 6 / state.zoom)
+        let onGuide = Guide.snap(p, to: rulersShown ? state.design.guides ?? [] : [], reach: 6 / state.zoom)   // hidden guides don't catch points
         let unit = Preferences.shared.unit
         return Point(onGuide.x ?? unit.snap(p.x), onGuide.y ?? unit.snap(p.y))
     }
@@ -513,8 +519,7 @@ final class DesignCanvas: NSView {
             let rect = NSBezierPath(rect: CGRect(x: min(box.start.x, box.end.x), y: min(box.start.y, box.end.y), width: abs(box.end.x - box.start.x), height: abs(box.end.y - box.start.y)))
             Theme.Canvas.handle.setStroke(); rect.lineWidth = 1; rect.setLineDash([4, 3], count: 2, phase: 0); rect.stroke()
         }
-        drawGuides(design.guides ?? [])
-        drawRulers(context)
+        if rulersShown { drawGuides(design.guides ?? []); drawRulers(context) }
         drawPanelDropHint()
         if design.objects.isEmpty && state.draft.isEmpty && design.artwork == nil {
             // The hint sits on the fabric, so dark cloth gets light text.
@@ -587,7 +592,8 @@ final class DesignCanvas: NSView {
     private func overOwnRuler(_ location: CGPoint, vertical: Bool) -> Bool { vertical ? location.x <= 27 : location.y >= bounds.height - 23 }
     /// The guide within 4 points of `location` on screen, as its place in the design's guides.
     private func guide(near location: CGPoint) -> Int? {
-        (state.design.guides ?? []).indices.first { index in
+        guard rulersShown else { return nil }   // hidden guides can't be grabbed
+        return (state.design.guides ?? []).indices.first { index in
             let guide = state.design.guides![index], at = screen(Point(guide.position, guide.position))
             return abs(guide.vertical ? at.x - location.x : at.y - location.y) <= 4
         }
@@ -671,6 +677,17 @@ final class DesignCanvas: NSView {
         let rounded = NSFont.systemFont(ofSize: size, weight: .medium).fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: size) }
         (text as NSString).draw(at: point, withAttributes: [.font: rounded ?? NSFont.systemFont(ofSize: size, weight: .medium), .foregroundColor: color])
     }
+    /// True when the rulers and guides are shown (View › Show Rulers & Guides).
+    var rulersShown: Bool { Preferences.shared.showsRulers }
+    /// Puts the rulers' pointer marks at `location` (on screen), or hides them for nil or with the rulers off. Each
+    /// hides while the pointer is over the other ruler, so the corner where the rulers meet stays clear.
+    private func moveRulerMarks(to location: CGPoint?) {
+        guard let location, rulersShown else { topRulerMark.isHidden = true; leftRulerMark.isHidden = true; return }
+        topRulerMark.frame = CGRect(x: location.x.rounded() - 0.5, y: bounds.height - 23, width: 1, height: 23)
+        leftRulerMark.frame = CGRect(x: 0, y: location.y.rounded() - 0.5, width: 27, height: 1)
+        topRulerMark.isHidden = location.x < 27
+        leftRulerMark.isHidden = location.y > bounds.height - 23
+    }
     private func drawRulers(_ context: CGContext) {
         Theme.Canvas.ruler.setFill()
         CGRect(x: 0, y: bounds.height - 23, width: bounds.width, height: 23).fill()
@@ -693,7 +710,7 @@ final class DesignCanvas: NSView {
         // Dragging out of a ruler adds a guide: down from the top ruler a horizontal one, right from the left ruler a
         // vertical one. (The corner where the rulers meet does nothing.)
         let inTopRuler = overOwnRuler(location, vertical: false), inLeftRuler = overOwnRuler(location, vertical: true)
-        if inTopRuler != inLeftRuler {
+        if rulersShown && inTopRuler != inLeftRuler {
             guard !state.hasVersionMismatch else { return }
             guideDrag = ((state.design.guides ?? []).count, inLeftRuler, true, location); dragSnapshot = state.design
             guideCursor(vertical: inLeftRuler).set(); return
@@ -808,11 +825,11 @@ final class DesignCanvas: NSView {
             if let node=added.node{state.selectedNode=node;state.status="Curve node added · drag it and the edge bends smoothly through it"}
         }
     }
-    override func mouseMoved(with event:NSEvent){pointer=model(convert(event.locationInWindow,from:nil));state.pointer.position=pointer;if state.angleStart != nil{needsDisplay=true};updateGuideCursor(at:convert(event.locationInWindow,from:nil))}
-    override func mouseExited(with event: NSEvent) { state.pointer.position = nil; hoveredGuide = nil }
+    override func mouseMoved(with event:NSEvent){pointer=model(convert(event.locationInWindow,from:nil));state.pointer.position=pointer;moveRulerMarks(to:convert(event.locationInWindow,from:nil));if state.angleStart != nil{needsDisplay=true};updateGuideCursor(at:convert(event.locationInWindow,from:nil))}
+    override func mouseExited(with event: NSEvent) { state.pointer.position = nil; hoveredGuide = nil; moveRulerMarks(to: nil) }
     override func mouseDragged(with event: NSEvent) {
         let location = convert(event.locationInWindow, from: nil)
-        state.pointer.position = model(location)
+        state.pointer.position = model(location); moveRulerMarks(to: location)
         if let start = screenStart { pan = CGPoint(x: panStart.x + location.x - start.x, y: panStart.y + location.y - start.y); needsDisplay = true; return }
         if let box = zoomBox { zoomBox = (box.start, location); needsDisplay = true; return }
         if dropDragIfDesignChanged() { return }
@@ -1152,4 +1169,11 @@ private extension NSBezierPath {
         }
         return path
     }
+}
+
+/// A thin line on a ruler showing where the pointer is (DesignCanvas moves it). It never takes clicks: they go to the
+/// canvas under it.
+final class RulerMark: NSView {
+    override func draw(_ dirtyRect: NSRect) { Theme.Canvas.pointerMark.setFill(); bounds.fill() }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }

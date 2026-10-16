@@ -28,7 +28,7 @@ struct ToolStrip: View {
     /// True while the Show list is open.
     @State private var showListOpen = false
     /// What the Show list switches on and off.
-    private let showList: [CommandID] = [.showStitches, .showOutlines, .showConnectors, .needles, .showUnderlay, .hideOthers]
+    private let showList: [CommandID] = [.showStitches, .showOutlines, .showConnectors, .needles, .showUnderlay, .hideOthers, .showRulers]
     // Each group is a caption plus its slots, in on-screen order; a slot with several commands is a flyout.
     private let groups: [(title: String, slots: [[CommandID]])] = [
         ("Pick & shape", [[.selectTool], [.nodeTool, .editStitches, .smoothShapes], [.knifeTool, .weldObjects, .branching], [.entryExitTool]]),
@@ -45,7 +45,7 @@ struct ToolStrip: View {
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool]),
         ("Add", [.lettering, .addMonogram, .satinBorder, .applique, .autoDigitize, .laydown]),
         ("View", [.measureTool, .grid, .snap, .threadView]),
-        ("Show", [.showStitches, .showOutlines, .showConnectors, .needles, .showUnderlay, .hideOthers]),
+        ("Show", [.showStitches, .showOutlines, .showConnectors, .needles, .showUnderlay, .hideOthers, .showRulers]),
         ("Zoom", [.zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected])
     ]
     /// The rail's groups: the same tools, with View and Show sharing a group so the rail's rows of three fill evenly.
@@ -333,6 +333,7 @@ struct ToolStrip: View {
         case .needles: return state.needles
         case .showUnderlay: return state.showUnderlay
         case .threadView: return preferences.threadView
+        case .showRulers: return preferences.showsRulers
         case .showStitches: return state.showStitches
         case .showOutlines: return state.showOutlines
         case .showConnectors: return state.showsConnectors

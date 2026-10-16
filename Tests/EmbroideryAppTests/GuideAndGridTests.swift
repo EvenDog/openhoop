@@ -93,4 +93,44 @@ final class GuideAndGridTests: XCTestCase {
         mouse(.leftMouseDown, CGPoint(x: 10, y: 300)); mouse(.leftMouseDragged, CGPoint(x: 200, y: 300)); mouse(.leftMouseDragged, CGPoint(x: 12, y: 300)); mouse(.leftMouseUp, CGPoint(x: 12, y: 300))
         XCTAssertEqual(state.design.guides?.count, 1)
     }
+
+    /// The rulers mark where the pointer is: a line on the top ruler at its x and on the left ruler at its y. With
+    /// rulers and guides switched off (View › Show Rulers & Guides), the marks hide, guides stop catching points, and
+    /// dragging where the top ruler was adds no guide. Guides aren't deleted: they come back with the rulers.
+    @MainActor func testRulerMarksFollowThePointerAndRulersCanBeHidden() throws {
+        _ = NSApplication.shared
+        let preferences = Preferences.shared, saved = preferences.data.showRulers
+        defer { preferences.data.showRulers = saved }   // changed in memory only, never saved to the preferences file
+        preferences.data.showRulers = nil
+        let document = DesignDocument(), state = document.state
+        let canvas = DesignCanvas(state: state); canvas.frame = NSRect(x: 0, y: 0, width: 600, height: 600); state.canvas = canvas
+        func mouse(_ type: NSEvent.EventType, _ p: CGPoint) {
+            let event = NSEvent.mouseEvent(with: type, location: p, modifierFlags: [], timestamp: 0, windowNumber: 0,
+                                           context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+            switch type {
+            case .mouseMoved: canvas.mouseMoved(with: event)
+            case .leftMouseDown: canvas.mouseDown(with: event)
+            case .leftMouseDragged: canvas.mouseDragged(with: event)
+            default: canvas.mouseUp(with: event)
+            }
+        }
+        let at = canvas.screen(Point(10, -5))
+        mouse(.mouseMoved, at)
+        XCTAssertFalse(canvas.topRulerMark.isHidden); XCTAssertFalse(canvas.leftRulerMark.isHidden)
+        XCTAssertEqual(canvas.topRulerMark.frame.midX, at.x, accuracy: 0.5)
+        XCTAssertEqual(canvas.topRulerMark.frame.minY, 600 - 23, "on the top ruler")
+        XCTAssertEqual(canvas.leftRulerMark.frame.midY, at.y, accuracy: 0.5)
+        XCTAssertEqual(canvas.leftRulerMark.frame.minX, 0, "on the left ruler")
+
+        state.edit("Guide") { $0.guides = [Guide(vertical: true, position: 2.4)] }
+        state.snap = true
+        XCTAssertEqual(canvas.snapped(Point(2.5, 3)).x, 2.4, accuracy: 1e-9, "a guide catches the point")
+        preferences.data.showRulers = false
+        mouse(.mouseMoved, at)
+        XCTAssertTrue(canvas.topRulerMark.isHidden); XCTAssertTrue(canvas.leftRulerMark.isHidden)
+        XCTAssertEqual(canvas.snapped(Point(2.5, 3)).x, 3, "a hidden guide doesn't")
+        state.tool = .select
+        mouse(.leftMouseDown, CGPoint(x: 300, y: 590)); mouse(.leftMouseDragged, CGPoint(x: 300, y: 400)); mouse(.leftMouseUp, CGPoint(x: 300, y: 400))
+        XCTAssertEqual(state.design.guides?.count, 1, "no new guide without the rulers")
+    }
 }
