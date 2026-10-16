@@ -289,8 +289,8 @@ import EmbroideryCore
     @objc private func didCloseAll(_ controller: NSDocumentController, didCloseAll: Bool, contextInfo: UnsafeMutableRawPointer?) { NSApp.reply(toApplicationShouldTerminate: didCloseAll) }
     func newDocument(sample: Bool, areaSampler:Bool=false) {
         let document = DesignDocument(); if sample { document.state.design = Design.sample() };if areaSampler {document.state.design=Design.stitchSampler()}
-        // A blank design starts in the hoop picked last (sample designs keep the hoop they were made for).
-        if !sample && !areaSampler, let hoop = Preferences.shared.data.newDesignHoop { document.state.design.hoop = hoop }
+        // A blank design starts with the hoop and fabric for new designs (sample designs keep the ones they were made for).
+        if !sample && !areaSampler { Preferences.shared.startNewDesign(&document.state.design) }
         NSDocumentController.shared.addDocument(document); document.makeWindowControllers(); document.showWindows()
         if sample || areaSampler { document.updateChangeCount(.changeDone) }
     }

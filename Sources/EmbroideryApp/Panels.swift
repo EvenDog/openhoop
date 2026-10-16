@@ -939,10 +939,11 @@ struct InspectorPanel: View {
         } label: { Text(state.design.hoop.label).font(Theme.body(12, weight: .semibold)) }
         .help("Choose your machine's hoop")
     }
-    /// Changes the design's hoop (one undoable step), remembers it for new designs, and zooms to show the whole hoop.
+    /// Changes the design's hoop (one undoable step), remembers it for new designs (unless a hoop for them is picked
+    /// in Settings), and zooms to show the whole hoop.
     private func setHoop(_ hoop: Hoop, _ action: String) {
         state.edit(action) { $0.hoop = hoop }
-        preferences.data.newDesignHoop = hoop; preferences.save()
+        preferences.rememberHoop(hoop)
         state.canvas?.fit()
     }
     @ViewBuilder private var referenceSection: some View {
@@ -1383,6 +1384,7 @@ struct SettingsView: View {
     var body: some View {
         TabView {
             GeneralSettings().tabItem { Label("General", systemImage: "gearshape") }
+            DesignsSettings().tabItem { Label("Designs", systemImage: "square.on.square") }
             ShortcutSettings().tabItem { Label("Keyboard Shortcuts", systemImage: "keyboard") }
         }
         .frame(minWidth: 1000, minHeight: 680)
@@ -1455,6 +1457,26 @@ struct GeneralSettings: View {
                                                                     preferences.save()
                                                                 }), supportsOpacity: true)
                             .font(Theme.body(13))
+                    }
+                }
+                .padding(16).frame(maxWidth: 520, alignment: .leading)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Grid & snap").font(Theme.body(14, weight: .bold))
+                    Text("How far apart the grid's lines are, and the steps Snap moves points to. Zoomed in, the grid shows lines half as far apart.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
+                    HStack {
+                        Text("Grid lines every").font(Theme.body(13)).frame(width: 120, alignment: .leading)
+                        Picker("Grid lines every", selection: Binding(get: { preferences.gridSize }, set: { preferences.data.gridSize = $0; preferences.save() })) {
+                            ForEach(GridSize.allCases, id: \.self) { size in Text(preferences.unit.gridLabel(size)).tag(size) }
+                        }
+                        .pickerStyle(.segmented).labelsHidden().frame(width: 260)
+                    }
+                    HStack {
+                        Text("Snap to").font(Theme.body(13)).frame(width: 120, alignment: .leading)
+                        Picker("Snap to", selection: Binding(get: { preferences.snapSize }, set: { preferences.data.snapSize = $0; preferences.save() })) {
+                            ForEach(GridSize.allCases, id: \.self) { size in Text(preferences.unit.snapLabel(size)).tag(size) }
+                        }
+                        .pickerStyle(.segmented).labelsHidden().frame(width: 260)
                     }
                 }
                 .padding(16).frame(maxWidth: 520, alignment: .leading)

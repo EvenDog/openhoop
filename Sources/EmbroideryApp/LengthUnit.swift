@@ -32,9 +32,43 @@ enum LengthUnit: String, Codable, CaseIterable, Sendable {
         String(format: "%.\(self == .inches ? decimals + 1 : decimals)f", shown(millimeters))
     }
 
-    /// Where Snap puts a position (mm): on the nearest whole millimeter, or the nearest 0.05 in (1.27 mm).
-    func snap(_ millimeters: Double) -> Double {
-        let step = self == .inches ? 1.27 : 1
+    /// Where Snap puts a position (mm): on the nearest step of `size` (normally a whole millimeter, or 0.05 in).
+    func snap(_ millimeters: Double, size: GridSize = .normal) -> Double {
+        let step = snapStep(size)
         return (millimeters / step).rounded() * step
     }
+    /// How far apart the grid's lines are, in mm: 5, 10 or 20 mm, or ¼, ½ or 1 in. (Zoomed in, the grid shows lines
+    /// half as far apart.)
+    func gridSpacing(_ size: GridSize) -> Double {
+        switch size {
+        case .fine: return self == .inches ? 6.35 : 5
+        case .normal: return self == .inches ? 12.7 : 10
+        case .coarse: return self == .inches ? 25.4 : 20
+        }
+    }
+    /// How far Snap's steps are apart, in mm: 0.5, 1 or 2 mm, or 0.025, 0.05 or 0.1 in.
+    func snapStep(_ size: GridSize) -> Double {
+        switch size {
+        case .fine: return self == .inches ? 0.635 : 0.5
+        case .normal: return self == .inches ? 1.27 : 1
+        case .coarse: return self == .inches ? 2.54 : 2
+        }
+    }
+}
+
+extension LengthUnit {
+    /// The grid spacing of `size` as Settings shows it, e.g. "10 mm" or "½ in".
+    func gridLabel(_ size: GridSize) -> String {
+        self == .inches ? ["¼ in", "½ in", "1 in"][GridSize.allCases.firstIndex(of: size)!] : short(gridSpacing(size))
+    }
+    /// The snap step of `size` as Settings shows it, e.g. "1 mm" or "0.05 in".
+    func snapLabel(_ size: GridSize) -> String {
+        self == .inches ? ["0.025 in", "0.05 in", "0.1 in"][GridSize.allCases.firstIndex(of: size)!] : short(snapStep(size))
+    }
+}
+
+/// A size for the grid's lines or Snap's steps (Settings › General › Grid & snap). Each is a round number in either
+/// unit, so the same choice suits millimeters and inches.
+enum GridSize: String, Codable, CaseIterable, Sendable {
+    case fine, normal, coarse
 }
