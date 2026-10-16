@@ -938,6 +938,17 @@ import EmbroideryCore
         do { try WorksheetPrinter.print(content: content, speed: speed) } catch { showError(error) }
     }
 
+    /// The Digitize menu's submenus, one per toolbar group (Pick & Shape, Stitch, Shape, Add): the group's tools in
+    /// toolbar order, with related commands next to the tool they go with.
+    static let digitizeSections: [(title: String, commands: [CommandID])] = [
+        ("Pick & Shape", [.selectTool, .nodeTool, .insertNode, .deleteNode, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .branching,
+                          .entryExitTool, .autoStartPoints, .clearStartEnd, .panTool, .artworkTool]),
+        ("Stitch", [.runTool, .satinTool, .fillTool, .holeTool, .removeHoles, .addStitchAngles, .removeStitchAngles,
+                    .convertRun, .convertSatin, .convertFill, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),
+        ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool,
+                   .finishPath, .removePoint, .cancelPath]),
+        ("Add", [.lettering, .editLettering, .addMonogram, .editMonogram, .satinBorder, .applique, .autoDigitize, .laydown])
+    ]
     private func makeMenu() {
         let menu = NSMenu()
         let app = NSMenuItem(); app.submenu = NSMenu(title: "OpenHoop"); menu.addItem(app)
@@ -947,12 +958,21 @@ import EmbroideryCore
         app.submenu?.addItem(withTitle: "Quit OpenHoop", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         let groups: [(String, [CommandID])] = [
             ("File", [.new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportPES, .exportMachine, .exportDST, .exportEXP, .exportJEF, .exportVP3, .exportXXX, .exportPEC, .exportThreadList, .productionWorksheet, .sample, .stitchSampler]),
-            ("Edit", [.undo, .redo, .cutObjects, .copyObjects, .pasteObjects, .selectAll, .delete, .duplicate, .group, .ungroup, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .sequenceBySelection, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .closePath, .lockObject, .hideObject, .renameObject, .threadChart, .weldObjects, .smoothShapes]),
-            ("Digitize", [.selectTool, .runTool, .satinTool, .fillTool, .holeTool, .openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool, .knifeTool, .branching, .addStitchAngles, .removeStitchAngles, .editStitches, .removeHoles, .lettering, .editLettering, .addMonogram, .editMonogram, .autoDigitize, .satinBorder, .applique, .laydown, .done, .artworkTool, .nodeTool, .panTool, .entryExitTool, .autoStartPoints, .clearStartEnd, .finishPath, .cancelPath, .removePoint, .insertNode, .deleteNode, .convertFill, .convertRun, .convertSatin, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),
+            ("Edit", [.undo, .redo, .cutObjects, .copyObjects, .pasteObjects, .selectAll, .delete, .duplicate, .group, .ungroup, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .sequenceBySelection, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .closePath, .lockObject, .hideObject, .renameObject, .threadChart]),
+            ("Digitize", [.done]),
             ("View", [.proView, .threadView, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .clearGuides, .needles, .artwork, .showUnderlay, .play, .rewind]),
             ("Window", [.nextTab, .previousTab] + PanelID.allCases.map(\.command) + [.saveWorkspace, .restoreWorkspace])]
         for (name, commands) in groups {
             let item = NSMenuItem(); item.submenu = NSMenu(title: name); item.title = name; menu.addItem(item)
+            if name == "Digitize" {
+                // One submenu per toolbar group, then a divider before Done.
+                for section in Self.digitizeSections {
+                    let sectionItem = NSMenuItem(title: section.title, action: nil, keyEquivalent: ""); sectionItem.submenu = NSMenu(title: section.title)
+                    for command in section.commands { sectionItem.submenu?.addItem(commandItem(command)) }
+                    item.submenu?.addItem(sectionItem)
+                }
+                item.submenu?.addItem(.separator())
+            }
             for command in commands { item.submenu?.addItem(commandItem(command)) }
             if name == "Window" {
                 // Saved layouts, then the standard window items (Minimize, Zoom) that macOS adds to the Window menu.

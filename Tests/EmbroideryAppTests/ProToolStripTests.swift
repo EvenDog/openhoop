@@ -25,4 +25,17 @@ final class ProToolStripTests: XCTestCase {
         var moved = PreferenceData(); moved.proToolsOnLeft = true
         XCTAssertEqual(try JSONDecoder().decode(PreferenceData.self, from: JSONEncoder().encode(moved)).proToolsOnLeft, true)
     }
+
+    /// The Digitize menu's submenus follow the toolbar: each holds its toolbar group's tools in the same order (with
+    /// related commands next to them), and no command is listed twice.
+    @MainActor func testDigitizeSubmenusFollowTheToolbarGroups() {
+        let sections = AppDelegate.digitizeSections
+        XCTAssertEqual(sections.map(\.title), ["Pick & Shape", "Stitch", "Shape", "Add"])
+        for (section, group) in zip(sections, ToolStrip.proGroups.prefix(4)) {
+            let tools = section.commands.filter(group.commands.contains)
+            XCTAssertEqual(tools, group.commands, "\(section.title) lists the toolbar's \(group.title) tools in order")
+        }
+        let all = sections.flatMap(\.commands)
+        XCTAssertEqual(Set(all).count, all.count, "no command twice in the Digitize menu")
+    }
 }
