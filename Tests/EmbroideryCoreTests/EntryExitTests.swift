@@ -74,15 +74,36 @@ final class EntryExitTests: XCTestCase {
         XCTAssertGreaterThan(sections[0].points.count, 3, "the first section is the column's own stitching, not a run")
     }
 
+    /// A start point on a line, part way along: the needle starts there, runs back along the line through its own
+    /// needle holes to the nearer end, then sews the whole line. A start point off the line still just picks the end.
+    func testLineCanStartPartWayAlong() throws {
+        var object = line()   // (0, 0) to (20, 0)
+        object.entry = Point(14, 0.3)
+        let stitches = try StitchEngine.fresh(object, under: []).sections[0].points
+        let plain = try RunningEngine.stitches(for: object.sewingOrder())   // the line sewn from (20, 0) to (0, 0)
+        XCTAssertEqual(stitches.first, Point(14, 0), "the first stitch is on the line beside the start point")
+        XCTAssertEqual(stitches.last, Point(0, 0), "the whole line is still sewn, finishing at the far end")
+        XCTAssertTrue(stitches.allSatisfy { abs($0.y) < 1e-9 }, "every stitch stays on the line")
+        XCTAssertTrue(stitches.dropFirst().allSatisfy(plain.contains), "the run back uses the line's own needle holes")
+        XCTAssertEqual(try StitchEngine.fresh(object, under: []).sections[0].points.count, plain.count + plain.filter { $0.x > 14 }.count, "the stretch back to the end is sewn twice, nothing more")
+        object.entry = Point(14, 3)   // 3 mm off the line: it starts at the nearer end, as before
+        XCTAssertEqual(try StitchEngine.fresh(object, under: []).sections[0].points.first, Point(20, 0))
+        object.entry = Point(14, 0); object.closed = true   // a closed outline already starts beside its point
+        XCTAssertEqual(try StitchEngine.fresh(object, under: []).sections[0].points.first!.distance(to: Point(14, 0)), 0, accuracy: 0.2)
+        var end = line(); end.entry = Point(14, 0); end.exit = Point(5, 0)
+        XCTAssertEqual(end.sewnEnd, Point(0, 0), "a line's End marker shows at the end it finishes")
+    }
+
     /// The End marker of an open satin shows where it really finishes: the end it sews towards.
     func testSatinFinishIsWhereTheColumnEnds() {
         let rungs = stride(from: 0.0, through: 40, by: 5).flatMap { y in [PathNode(Point(-2, y)), PathNode(Point(2, y))] }
         var column = RunObject(name: "Column", nodes: rungs); column.digitizing = DigitizingSettings(kind: .satin)
         column.entry = Point(0, 30); column.exit = Point(0, 35)   // starts from the top, so it finishes at the bottom
-        XCTAssertEqual(column.satinFinish, Point(0, 0))
+        XCTAssertEqual(column.sewnEnd, Point(0, 0))
         column.entry = nil   // with only the end point, it finishes at the end nearer it
-        XCTAssertEqual(column.satinFinish, Point(0, 40))
-        XCTAssertNil(RunObject(name: "Line", nodes: [PathNode(Point(0, 0)), PathNode(Point(5, 0))]).satinFinish)
+        XCTAssertEqual(column.sewnEnd, Point(0, 40))
+        var ring = column; ring.closed = true
+        XCTAssertNil(ring.sewnEnd, "a closed column ends where it starts, so its marker stays put")
     }
 
     /// With only an end point set, lines and satins are sewn so they finish there.
