@@ -1,0 +1,38 @@
+# Publishes the website/ folder to GitHub Pages (https://openhoop.app).
+# Runs whenever a change to website/ (or this file) lands on main,
+# and can also be started by hand from the repository's Actions tab.
+name: Publish website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+# The minimum access needed: read the code, write to Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two publishes at once; a newer push waits for the current one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: website
+      - id: deployment
+        uses: actions/deploy-pages@v4

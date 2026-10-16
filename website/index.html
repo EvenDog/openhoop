@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1b2a44">
+  <title>OpenHoop — From an idea to a stitched thing.</title>
+  <meta name="description" content="Free, open-source machine embroidery software for the Mac. Turn artwork, lettering and patch ideas into stitches with OpenHoop.">
+  <link rel="icon" href="assets/AppIcon-preview.png" type="image/png">
+  <link rel="preload" href="assets/fonts/BricolageGrotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header wrap">
+    <a class="brand" href="#" aria-label="OpenHoop home"><img src="assets/AppIcon-preview.png" width="44" height="44" alt=""><span>OpenHoop</span></a>
+    <nav aria-label="Main navigation"><a class="nav-pill" href="#how-it-works">The process</a><a class="nav-pill" href="#workspace">The workspace</a><a class="nav-pill nav-source" href="https://github.com/EvenDog/openhoop">GitHub <span aria-hidden="true">↗</span></a></nav>
+  </header>
+  <main id="main">
+    <section class="hero wrap" aria-labelledby="hero-title" data-preview>
+      <div class="hero-copy">
+        <p class="hero-tag">Open-source embroidery for Mac</p>
+        <h1 id="hero-title">From an idea to a <em>stitched</em> thing.</h1>
+        <p class="hero-intro">That sketch. Your club’s logo. A patch that’s entirely yours. Turn it into machine embroidery, right on your Mac.</p>
+        <div class="actions">
+          <a class="button button-gold" href="https://github.com/EvenDog/openhoop#build-and-run">Get the source <span aria-hidden="true">↗</span></a>
+          <a class="button button-stitched" href="https://github.com/EvenDog/openhoop/blob/main/docs/USER-GUIDE.md">Read the user guide <span aria-hidden="true">↗</span></a>
+        </div>
+        <p class="fine-print">Free &amp; open source · macOS 14+ · Apple Silicon</p>
+      </div>
+
+      <div class="preview-toolbar">
+        <div class="pill-group" role="group" aria-label="Main view">
+          <button type="button" class="pill-button is-active" data-mode="guided" aria-pressed="true" aria-controls="hero-comparison">Guided</button>
+          <button type="button" class="pill-button" data-mode="pro" aria-pressed="false" aria-controls="hero-comparison">Pro</button>
+        </div>
+        <div class="pill-group" role="group" aria-label="Main appearance">
+          <button type="button" class="pill-button is-active" data-theme="light" aria-pressed="true" aria-controls="hero-comparison">Light</button>
+          <button type="button" class="pill-button" data-theme="dark" aria-pressed="false" aria-controls="hero-comparison">Dark</button>
+        </div>
+        <button type="button" class="inspect-button" data-inspect aria-pressed="false" aria-controls="hero-comparison">⌕ <span>Inspect stitches</span></button>
+      </div>
+      <!-- The wooden hoop frame; its clamp at the top shows the current view. -->
+      <div class="hoop">
+        <span class="hoop-clamp" data-preview-label>Guided · Light</span>
+        <div class="preview-surface" id="hero-comparison" data-preview-surface tabindex="-1" role="group" aria-label="App screenshot. With Inspect stitches enabled, move or tap to magnify; arrow keys move the lens.">
+          <img data-light src="assets/screenshot-guided-light.jpg" width="2048" height="1212" fetchpriority="high" alt="OpenHoop’s Guided view in light mode showing the Trail Club patch.">
+          <img data-dark hidden src="assets/screenshot-guided-dark.jpg" width="2048" height="1212" loading="lazy" alt="The same Trail Club patch in Guided view, dark mode.">
+          <div class="stitch-lens" data-lens hidden aria-hidden="true"><div data-lens-light></div><div data-lens-dark hidden></div><span>THREAD DETAIL</span></div>
+        </div>
+      </div>
+      <p class="preview-hint" data-hint aria-live="polite">Choose your view and lighting.</p>
+      <div class="image-caption"><span data-preview-caption aria-live="polite">Guided · Light mode · Trail Club patch</span><a href="#stitch-preview">Watch it stitch <span aria-hidden="true">↓</span></a></div>
+    </section>
+
+    <section class="band band-cream" id="how-it-works" aria-labelledby="process-title">
+      <div class="wrap">
+        <div class="section-heading centered"><p class="kicker">From screen to sewing machine</p><h2 id="process-title">Make something you can hold.</h2><p>You bring the idea. OpenHoop gives you the tools to turn it into a stitch file.</p></div>
+        <div class="patches">
+          <article class="patch patch-gold"><span class="patch-number">01</span><h3>Start with your spark.</h3><p>Trace a photo or sketch, bring in SVG outlines, or draw from scratch. Simple artwork can become fills with auto-digitizing.</p><span class="patch-note">PNG · JPEG · SVG · Your imagination</span></article>
+          <article class="patch patch-tomato"><span class="patch-number">02</span><h3>Give it some thread.</h3><p>Shape running stitches, satin edges and textured fills. Add lettering, choose your colors, and fine-tune individual stitches.</p><span class="patch-note">Patches, monograms &amp; everyday ideas</span></article>
+          <article class="patch patch-sage"><span class="patch-number">03</span><h3>Off the screen. Onto fabric.</h3><p>Preview the sewing order, export a machine file, and take it to your embroidery machine. Start with a test sew-out on scrap fabric.</p><span class="patch-note">Seven machine formats, ready to export</span></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="workspace" aria-labelledby="workspace-title">
+      <div class="wrap split">
+        <div class="section-heading"><p class="kicker">A workspace that grows with you</p><h2 id="workspace-title">Find your flow.</h2><p>Start with clearly labeled tools and helpful explanations. Switch to Pro when you want more controls close at hand.</p></div>
+        <div class="workspace-list">
+          <article><span class="dot dot-gold" aria-hidden="true">G</span><div><h3>Start with Guided.</h3><p>Clearly labeled tools and plain-English settings help you find your way from artwork to stitches.</p></div></article>
+          <article><span class="dot dot-tomato" aria-hidden="true">P</span><div><h3>Go deeper with Pro.</h3><p>Keep more controls close at hand as you shape curves, set stitch angles, and fine-tune individual needle points.</p></div></article>
+          <article><span class="dot dot-sage" aria-hidden="true">✦</span><div><h3>Make yourself at home.</h3><p>Arrange your panels, customize shortcuts, and switch between Guided and Pro whenever you like.</p></div></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-deep" id="stitch-preview" aria-labelledby="stitch-title">
+      <div class="wrap stitch-section">
+        <div class="stitch-player" data-stitch-player aria-busy="true">
+          <!-- An oval hoop holding cream fabric; the canvas draws the real stitch sequence onto it. -->
+          <div class="stitch-hoop"><div class="stitch-fabric"><canvas data-stitch-canvas width="1000" height="800" role="img" aria-label="Stitch sequence preview of the Trail Club patch: a leaf and sun above a wave band, with Trail Club lettering."></canvas><span class="fabric-label">TRAIL CLUB / STITCH STUDY No. 01</span></div></div>
+          <div class="player-controls"><div class="player-top"><button class="button button-gold" type="button" data-play disabled>Watch it stitch <span aria-hidden="true">▷</span></button><button class="restart-button" type="button" data-restart disabled aria-label="Restart stitch preview">↺</button><label class="speed-label">Speed <select data-speed aria-label="Playback speed"><option value="350">Slow</option><option value="700" selected>Medium</option><option value="1400">Fast</option></select></label></div><label class="sr-only" for="stitch-progress">Stitch progress</label><input id="stitch-progress" data-progress type="range" min="0" max="8107" value="8107" disabled><div class="player-status"><span data-stitch-count>Loading stitch preview…</span><span data-thread-name></span></div><p class="sr-only" data-player-status role="status"></p></div>
+        </div>
+        <div class="stitch-copy section-heading"><p class="kicker">One stitch leads to another</p><h2 id="stitch-title">Watch an idea take shape.</h2><p>A leaf. A little sunshine. A place to belong. Follow the Trail Club patch from its first stitch to its last.</p><p class="stitch-note">A web preview of the patch’s actual stitch sequence. Press play, or scrub through at your own pace.</p><div class="thread-key" data-thread-key aria-label="Threads in this design"></div></div>
+      </div>
+    </section>
+
+    <section class="band" aria-labelledby="toolbox-title">
+      <div class="wrap">
+        <div class="section-heading centered"><p class="kicker">The small things make the thing</p><h2 id="toolbox-title">A well-stocked sewing box.</h2><p>Tools for the creative part. Controls for the practical part.</p></div>
+        <div class="badges">
+          <article><span class="badge badge-gold" aria-hidden="true">Aa</span><h3>Lettering with character</h3><p>18 bundled embroidery fonts, plus fonts from your Mac. Straight text, curved lettering and monograms.</p></article>
+          <article><span class="badge badge-tomato" aria-hidden="true"><i class="badge-square"></i></span><h3>A proper finish</h3><p>Satin patch borders and appliqué steps, with placement lines, tack-down stitches and stops.</p></article>
+          <article><span class="badge badge-sage" aria-hidden="true"></span><h3>Consider the fabric</h3><p>Presets for woven, knit, towel, denim and felt. Adjust underlay, density and pull compensation as you test.</p></article>
+          <article><span class="badge badge-cream" aria-hidden="true"><i class="badge-ring"></i></span><h3>Ready for the machine</h3><p>Built-in hoop sizes, thread charts and a printable production worksheet to keep beside your machine.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-cream formats" aria-labelledby="formats-title">
+      <div class="wrap">
+        <h2 id="formats-title">One design. Seven export formats.</h2>
+        <p>Each exported file is read back and checked before saving.</p>
+        <ul class="labels" aria-label="Supported export formats"><li>PES</li><li class="label-tomato">PEC</li><li>DST</li><li class="label-gold">EXP</li><li>JEF</li><li class="label-sage">VP3</li><li>XXX</li></ul>
+      </div>
+    </section>
+
+    <section class="band" id="get-started" aria-labelledby="start-title">
+      <div class="wrap get-started">
+        <div class="start-main"><p class="kicker">Free to make. Open to everyone.</p><h2 id="start-title">Your next idea belongs in a hoop.</h2><p>OpenHoop is free, open-source software, built for the Mac. Explore the project, build the app, and help shape what comes next.</p><div class="actions"><a class="button button-denim" href="https://github.com/EvenDog/openhoop#build-and-run">Get the source <span aria-hidden="true">↗</span></a><a class="button button-stitched" href="https://github.com/EvenDog/openhoop/blob/main/docs/USER-GUIDE.md">Read the user guide <span aria-hidden="true">↗</span></a></div></div>
+        <aside class="development-note"><p class="kicker">A work in progress</p><h3>Early days. Plenty to make.</h3><p>OpenHoop is in active development. Sew-out testing is under way, and stitch settings may change as the app improves.</p><p>For now, getting started means building from source. You’ll need an Apple Silicon Mac running macOS 14 or later, the Swift 6 toolchain or a compatible Xcode installation, and Python 3.</p><a href="https://github.com/EvenDog/openhoop/issues">Share feedback on GitHub <span aria-hidden="true">↗</span></a></aside>
+      </div>
+    </section>
+  </main>
+  <footer class="site-footer wrap"><a class="brand" href="#"><img src="assets/AppIcon-preview.png" width="36" height="36" alt=""><span>OpenHoop</span></a><p>Made for the things you want to make.</p><div><a href="https://github.com/EvenDog/openhoop/blob/main/LICENSE">GPL-3.0</a><span>© 2026 EvenDog</span></div></footer>
+</body>
+</html>
