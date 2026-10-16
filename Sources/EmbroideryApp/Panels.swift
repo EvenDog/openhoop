@@ -1395,6 +1395,18 @@ struct GeneralSettings: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("General").font(Theme.heading(28))
             VStack(alignment: .leading, spacing: 10) {
+                Text("Appearance").font(Theme.body(14, weight: .bold))
+                Text("Light or dark for every OpenHoop window. Match system follows the Mac's own setting, including when it changes through the day.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
+                Picker("Appearance", selection: Binding(get: { preferences.appearance }, set: { preferences.setAppearance($0) })) {
+                    Text("Match system").tag(AppAppearance.system)
+                    Text("Light").tag(AppAppearance.light)
+                    Text("Dark").tag(AppAppearance.dark)
+                }
+                .pickerStyle(.radioGroup).labelsHidden().font(Theme.body(13))
+            }
+            .padding(16).frame(maxWidth: 520, alignment: .leading)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
+            VStack(alignment: .leading, spacing: 10) {
                 Text("Units").font(Theme.body(14, weight: .bold))
                 Text("How sizes and positions are shown and typed: design and hoop sizes, rulers, the grid, Measure and nudge. Stitch settings such as stitch length and row spacing always stay in millimeters. View › Use Inches switches too.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
                 Picker("Units", selection: Binding(get: { preferences.unit }, set: { preferences.setUnit($0) })) {

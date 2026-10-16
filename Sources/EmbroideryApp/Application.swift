@@ -256,6 +256,7 @@ import EmbroideryCore
     }
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
+        NSApp.appearance = Preferences.shared.appearance.nsAppearance   // Light, Dark or the Mac's setting, before any window opens
         NSWindow.allowsAutomaticWindowTabbing = false   // designs use OpenHoop's own tabs, not macOS window tabs
         makeMenu()
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in

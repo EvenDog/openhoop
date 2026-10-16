@@ -3,6 +3,19 @@ import AppKit
 import Combine
 import EmbroideryCore
 
+/// Light or dark: follow the Mac's own setting (System Settings › Appearance), or always one of the two.
+enum AppAppearance: String, Codable, CaseIterable {
+    case system, light, dark
+    /// What OpenHoop's windows use; nil follows the Mac.
+    var nsAppearance: NSAppearance? {
+        switch self {
+        case .system: return nil
+        case .light: return NSAppearance(named: .aqua)
+        case .dark: return NSAppearance(named: .darkAqua)
+        }
+    }
+}
+
 struct Workspace: Codable, Equatable, Identifiable {
     var id = UUID()
     var name = "Default"
@@ -76,6 +89,8 @@ struct PreferenceData: Codable {
     var lengthUnit: LengthUnit?
     /// Whether the canvas shows its rulers and guide lines; nil means yes.
     var showRulers: Bool?
+    /// Light, dark, or following the Mac's setting; nil means following the Mac.
+    var appearance: AppAppearance?
 }
 
 @MainActor final class Preferences: ObservableObject {
@@ -96,6 +111,13 @@ struct PreferenceData: Codable {
     var nudge: Double { data.nudgeDistance ?? 1 }
     /// The unit sizes and positions are shown and typed in (designs themselves always stay in millimeters).
     var unit: LengthUnit { data.lengthUnit ?? .millimeters }
+    /// Light, dark, or following the Mac's setting (Settings › General › Appearance).
+    var appearance: AppAppearance { data.appearance ?? .system }
+    /// Switches every window to light, dark or the Mac's setting at once, and remembers it.
+    func setAppearance(_ appearance: AppAppearance) {
+        data.appearance = appearance; save(announce: false)
+        NSApp.appearance = appearance.nsAppearance   // every window and panel redraws in the new colors
+    }
     /// True when the canvas shows its rulers and guides (View › Show Rulers & Guides). It's app-wide and remembered.
     var showsRulers: Bool { data.showRulers ?? true }
     /// Shows or hides the rulers and guides in every design window. Guides stay in the design while hidden.
