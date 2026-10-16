@@ -248,6 +248,8 @@ Print it, or choose **PDF** in the print dialog to save it.
 
 **Tabs:** designs open as tabs in the window's title bar; **⌘N** or **+** starts a new one. An orange dot marks unsaved changes. **⌘W** or the tab's **×** closes a design (asking to save first); **⌃⇥** and **⌃⇧⇥** (or **⇧⌘]** and **⇧⌘[**) move between tabs. Closing the window closes each design in turn.
 
+**Light or dark:** **Settings → General → Appearance** keeps OpenHoop light or dark, or **Match system** follows the Mac's own setting (the default).
+
 **Around the hoop:** **Settings → General** sets the color behind the hoop, or follows light and dark mode.
 
 **Millimeters or inches:** **Settings → General → Units**, or **View → Use Inches**, switches how sizes and positions are shown and typed: object, design and hoop sizes, positions, start and end points, the rulers, guides, Measure, nudge, lettering and monogram height, and the worksheet. In inches the grid draws a line every ½ in (¼ in zoomed in) and Snap rounds to 0.05 in. Stitch settings (stitch length, row spacing, satin and border widths, underlay, compensation) always stay in millimeters, as digitizers usually give them. Designs are saved the same either way, so switching never changes a design.
