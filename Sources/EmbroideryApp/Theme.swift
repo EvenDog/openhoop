@@ -73,6 +73,7 @@ enum Theme {
             appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? rgb(0xF2E9DC).withAlphaComponent(0.16) : gridOnLight
         }
         static let guide = nsAdaptive(light: 0x1F8FA8, dark: 0x5FCFE4)                // guide lines dragged from the rulers
+        static let pointerMark = nsAdaptive(light: 0x34507A, dark: 0x9DB7DE)          // the pointer's place on the rulers
         static let ruler = nsAdaptive(light: 0xFFFDF8, dark: 0x2A231E)
         static let label = nsAdaptive(light: 0x6B5A4C, dark: 0xBFAE9A)
         static let jump = nsAdaptive(light: 0x34507A, dark: 0x9DB7DE, alpha: 0.35)  // travel moves between parts

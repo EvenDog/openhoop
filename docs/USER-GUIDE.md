@@ -132,8 +132,11 @@ Satins with a chosen (not Auto) underlay can have a **second underlay** (More se
 - **Connectors (⇧C):** the dashed travel moves between parts. They show in the stitch view and are hidden in Thread View until you switch them.
 - **Needle points (.)** and **Underlay (⇧U).** Needle points show as small dots once you zoom in (300% or more), in Thread View too.
 - **Hide unselected objects (⇧S):** keeps only the selection in view, to work on one part of a busy design. Clicking empty canvas shows everything again until you select something else.
+- **Rulers & guides (⌘R):** hides the rulers and guide lines for a clear canvas. Your guides are kept and come back with the rulers.
 
 **Measure (M)** (in the Pan slot): drag from one point to another to read the distance (in mm or inches) and its angle (counted counterclockwise from pointing right, like Rotate). The line stays until you measure again or change tools. Snap to grid applies.
+
+**Rulers:** a thin line on each ruler follows the pointer, so you can read where it is at a glance.
 
 **Guides:** drag down from the top ruler for a side-to-side guide line, or right from the left ruler for an up-and-down one; the position shows beside the pointer while you drag. With Select, drag a guide (where no object is under the pointer, the pointer turns ↔ or ↕) to move it, or back onto its ruler to remove it. **View → Clear Guides** removes them all. With **Snap to grid** on, points and drags close to a guide land on it. Guides are saved with the design but never sewn.
 
@@ -280,6 +283,7 @@ These are the starting keys; every one can be changed. Tools on a function key a
 | Edit stitches | E | | |
 | Add monogram | ⌥⇧M | | |
 | Hole in fill | ⌥H | Grid / snap to grid | ⇧G / ⇧⌘G |
+| | | Rulers & guides | ⌘R |
 | Start & end points | ⌥E | Show needle points | . (period) |
 | Move & size artwork | ⌥D | Show / hide reference image | D |
 | Auto-digitize | ⌥M | Play / pause stitches, back to start | Space or ⇧R, Home |

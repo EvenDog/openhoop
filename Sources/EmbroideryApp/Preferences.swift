@@ -74,6 +74,8 @@ struct PreferenceData: Codable {
     var shapes: ShapeSettings?
     /// The unit sizes and positions are shown and typed in; nil means millimeters.
     var lengthUnit: LengthUnit?
+    /// Whether the canvas shows its rulers and guide lines; nil means yes.
+    var showRulers: Bool?
 }
 
 @MainActor final class Preferences: ObservableObject {
@@ -94,6 +96,10 @@ struct PreferenceData: Codable {
     var nudge: Double { data.nudgeDistance ?? 1 }
     /// The unit sizes and positions are shown and typed in (designs themselves always stay in millimeters).
     var unit: LengthUnit { data.lengthUnit ?? .millimeters }
+    /// True when the canvas shows its rulers and guides (View › Show Rulers & Guides). It's app-wide and remembered.
+    var showsRulers: Bool { data.showRulers ?? true }
+    /// Shows or hides the rulers and guides in every design window. Guides stay in the design while hidden.
+    func setShowRulers(_ on: Bool) { data.showRulers = on; save(announce: false) }   // the menus show its check mark as they open
     /// Switches between millimeters and inches for every window, and remembers it.
     func setUnit(_ unit: LengthUnit) { guard unit != self.unit else { return }; data.lengthUnit = unit; save() }
     /// The stitch and shape choices for the next shape drawn (shared by every design window).
