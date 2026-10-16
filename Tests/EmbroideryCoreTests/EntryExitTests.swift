@@ -48,6 +48,43 @@ final class EntryExitTests: XCTestCase {
         XCTAssertLessThan(try AreaEngine.satin(satin.sewingOrder()).sections[0].points[0].x, -20)
     }
 
+    /// A start point away from a satin column's ends: the needle starts there and runs hidden along the middle of the
+    /// column to the end nearer it, then the column sews from that end as usual (covering the run).
+    func testSatinCanStartPartWayAlong() throws {
+        let rungs = stride(from: 0.0, through: 40, by: 5).flatMap { y in [PathNode(Point(-2, y)), PathNode(Point(2, y))] }
+        var column = RunObject(name: "Column", nodes: rungs); column.digitizing = DigitizingSettings(kind: .satin)
+        let region = [[Point(-2, 0), Point(2, 0), Point(2, 40), Point(-2, 40)]]
+
+        column.entry = Point(1, 25)   // inside the column, nearer the top end
+        var sections = try AreaEngine.satin(column.sewingOrder()).sections
+        let lead = sections[0].points
+        XCTAssertEqual(lead.first, Point(1, 25), "the first stitch is on the start point")
+        XCTAssertEqual(lead.last!.y, 40, accuracy: 0.01, "the run reaches the top end")
+        XCTAssertTrue(sections[0].underlay, "the run is hidden under the column")
+        XCTAssertTrue(zip(lead, lead.dropFirst()).allSatisfy { AreaGeometry.segmentInside($0, $1, rings: region) }, "it stays inside the column")
+        XCTAssertLessThan(sections.last!.points.last!.y, 1, "the column still sews right through to the bottom end")
+
+        column.entry = Point(6, 25)   // beside the column: the run starts on its middle line
+        sections = try AreaEngine.satin(column.sewingOrder()).sections
+        XCTAssertEqual(sections[0].points.first!.distance(to: Point(0, 25)), 0, accuracy: 0.01)
+
+        column.entry = Point(0, 39.5)   // within 1 mm of the end: no run, the column starts at the end
+        sections = try AreaEngine.satin(column.sewingOrder()).sections
+        XCTAssertGreaterThan(sections[0].points.first!.y, 39)
+        XCTAssertGreaterThan(sections[0].points.count, 3, "the first section is the column's own stitching, not a run")
+    }
+
+    /// The End marker of an open satin shows where it really finishes: the end it sews towards.
+    func testSatinFinishIsWhereTheColumnEnds() {
+        let rungs = stride(from: 0.0, through: 40, by: 5).flatMap { y in [PathNode(Point(-2, y)), PathNode(Point(2, y))] }
+        var column = RunObject(name: "Column", nodes: rungs); column.digitizing = DigitizingSettings(kind: .satin)
+        column.entry = Point(0, 30); column.exit = Point(0, 35)   // starts from the top, so it finishes at the bottom
+        XCTAssertEqual(column.satinFinish, Point(0, 0))
+        column.entry = nil   // with only the end point, it finishes at the end nearer it
+        XCTAssertEqual(column.satinFinish, Point(0, 40))
+        XCTAssertNil(RunObject(name: "Line", nodes: [PathNode(Point(0, 0)), PathNode(Point(5, 0))]).satinFinish)
+    }
+
     /// With only an end point set, lines and satins are sewn so they finish there.
     func testEndPointAloneDecidesWhereLinesAndSatinsFinish() throws {
         var object = line(); object.exit = Point(1, 1)
