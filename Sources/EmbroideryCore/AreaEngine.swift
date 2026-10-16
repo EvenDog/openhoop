@@ -331,13 +331,22 @@ public enum AreaEngine {
         // their tight curves and fanned ends the needle holes otherwise pile up. Measured over every bundled font,
         // this cut needle-hole pile-ups by about a quarter.
         if s.shortStitches == true || relaxed {pairs=shortened(pairs)}
-        var top:[Point]=[]
-        for pair in pairs {top += [pair.0,pair.1]}
-        if s.autoSplit == true {top=splitLong(top,maximum:s.maximumSatin)}
-        guard zip(top,top.dropFirst()).allSatisfy({$0.distance(to:$1)<=s.maximumSatin+0.0001}) else{throw DesignError.invalid("Satin exceeds the \(String(format:"%.1f",s.maximumSatin)) mm stitch limit after compensation. Narrow or split the column, turn on Split wide satin, or use fill.")}
-        for (index,segment) in zip(top,top.dropFirst()).enumerated() {
-            if index%32==0 {try Task.checkCancellation()}
-            guard relaxed || AreaGeometry.segmentInside(segment.0,segment.1,rings:allowedCompensated) else{throw DesignError.invalid("Satin stitches leave the column at a tight corner. Reshape or split it.")}
+        // An end point part way along an open column: a single pass can only finish at an end, so the column is sewn
+        // in two halves that meet there. The first runs from the start up to the end point; then the needle runs
+        // hidden through the unsewn half to the far end, and the second half sews back to meet the first.
+        var halves=[pairs]
+        if !object.closed,object.satinEndsPartWay,let exit=object.exit,let k=meetingRung(exit,pairs) {halves=[Array(pairs[...k]),Array(pairs[(k+1)...].reversed())]}
+        var tops:[[Point]]=[]
+        for half in halves {
+            var top:[Point]=[]
+            for pair in half {top += [pair.0,pair.1]}
+            if s.autoSplit == true {top=splitLong(top,maximum:s.maximumSatin)}
+            guard zip(top,top.dropFirst()).allSatisfy({$0.distance(to:$1)<=s.maximumSatin+0.0001}) else{throw DesignError.invalid("Satin exceeds the \(String(format:"%.1f",s.maximumSatin)) mm stitch limit after compensation. Narrow or split the column, turn on Split wide satin, or use fill.")}
+            for (index,segment) in zip(top,top.dropFirst()).enumerated() {
+                if index%32==0 {try Task.checkCancellation()}
+                guard relaxed || AreaGeometry.segmentInside(segment.0,segment.1,rings:allowedCompensated) else{throw DesignError.invalid("Satin stitches leave the column at a tight corner. Reshape or split it.")}
+            }
+            tops.append(top)
         }
         var result=ObjectStitches()
         if warningNarrow{result.warnings.append("Satin is narrower than 1 mm in places; check crowding during sew-out.")}
@@ -386,7 +395,7 @@ public enum AreaEngine {
             }
             if layer==1 {for i in sectionsBefore..<result.sections.count {result.sections[i].points.reverse()}}
         }
-        result.sections.append(StitchSection(top))
+        result.sections += tops.map{StitchSection($0)}
         // A start point part way along an open column: the needle starts there and runs along the column's middle to
         // the end it sews from, hidden under the stitches that follow.
         if !object.closed,let entry=object.entry,let lead=satinLeadIn(from:entry,center:underPairs.map{($0.0+$0.1)*0.5},region:regionRings) {
@@ -405,6 +414,13 @@ extension AreaEngine {
     /// the column, the nearest point on its middle line) along the middle line `center` back to its first point.
     /// Returns nil when the start point is within 1 mm of the column's start, measured along the middle line: the
     /// column then simply starts at its end, as it always did.
+    /// Where a satin sewn in two halves meets: the index of the last stitch pair of the first half, the one nearest
+    /// `exit` along the column's middle. Both halves keep at least two pairs; nil when the column is too short.
+    static func meetingRung(_ exit:Point,_ pairs:[(Point,Point)]) -> Int? {
+        guard pairs.count>=4 else{return nil}
+        let along=AreaGeometry.alongPath(exit,pairs.map{($0.0+$0.1)*0.5})
+        return min(max(1,along.index),pairs.count-3)
+    }
     static func satinLeadIn(from entry:Point,center:[Point],region:[[Point]]) -> [Point]? {
         guard center.count>=2 else{return nil}
         // The nearest point on the middle line, and which piece of the line it's on.
