@@ -310,6 +310,8 @@ import EmbroideryCore
         // While Branching waits for its start and end, Return lets OpenHoop choose the point.
         if editor.state.tool == .branch, key == KeyBinding("return") { editor.state.addBranchPoint(nil); return true }
         guard let command = Preferences.shared.profile.command(for: key, context: context, repeating: event.isARepeat) else { return false }
+        // With Edit Nodes and a point selected, the Play key (Space) switches the point between corner and smooth instead.
+        if command == .play, editor.state.tool == .node, editor.state.selectedPathNode != nil { perform(.toggleNodeType); return true }
         perform(command); return true
     }
     @objc func applySavedLayout(_ sender: NSMenuItem) {
@@ -542,6 +544,7 @@ import EmbroideryCore
         case .closePath: state.editSelected("Closed Path") { if $0.kind == .run || $0.kind == .vector {$0.closed.toggle()} }
         case .insertNode:state.canvas?.insertNode()
         case .deleteNode:state.canvas?.deleteNode()
+        case .toggleNodeType:state.setSelectedNode(smooth:!(state.selectedPathNode?.smooth ?? true))
         case .renameObject:if let object=state.selected,let name=askName("Rename object",value:object.name){state.editSelected("Rename Object"){$0.name=name}}
         case .convertFill,.convertRun:
             guard state.draft.isEmpty else{return}
@@ -954,7 +957,7 @@ import EmbroideryCore
     /// The Digitize menu's submenus, one per toolbar group (Pick & Shape, Stitch, Shape, Add): the group's tools in
     /// toolbar order, with related commands next to the tool they go with.
     static let digitizeSections: [(title: String, commands: [CommandID])] = [
-        ("Pick & Shape", [.selectTool, .nodeTool, .insertNode, .deleteNode, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .branching,
+        ("Pick & Shape", [.selectTool, .nodeTool, .insertNode, .deleteNode, .toggleNodeType, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .branching,
                           .entryExitTool, .autoStartPoints, .clearStartEnd, .panTool, .artworkTool]),
         ("Stitch", [.runTool, .satinTool, .fillTool, .holeTool, .removeHoles, .addStitchAngles, .removeStitchAngles,
                     .convertRun, .convertSatin, .convertFill, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),

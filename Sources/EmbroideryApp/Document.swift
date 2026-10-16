@@ -151,6 +151,26 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     func editSelected(_ name: String, _ block: (inout RunObject) -> Void) {
         edit(name) { next in for index in next.objects.indices where selection.contains(next.objects[index].id) && !next.objects[index].locked { block(&next.objects[index]) } }
     }
+    /// The selected point (Edit Nodes), if it still exists.
+    var selectedPathNode: PathNode? {
+        guard let location = selectedNode, let object = design.objects.first(where: { $0.id == location.object }) else { return nil }
+        let nodes = location.ring < 0 ? object.nodes : (object.holes ?? []).indices.contains(location.ring) ? object.holes![location.ring] : []
+        return nodes.indices.contains(location.index) ? nodes[location.index] : nil
+    }
+    /// Makes the selected point a smooth (curve) point or a sharp corner, as one undoable step. A corner loses its
+    /// handles; a new smooth point starts with automatic ones that follow its neighbours.
+    func setSelectedNode(smooth: Bool) {
+        guard let location = selectedNode, let node = selectedPathNode,
+              design.objects.first(where: { $0.id == location.object })?.locked == false else {
+            status = "Choose \(Preferences.shared.key(.nodeTool)) and click a point first, then switch it between corner and smooth."; return
+        }
+        guard node.smooth != smooth else { return }
+        edit(smooth ? "Make Smooth Point" : "Make Corner Point") { design in
+            guard let i = design.objects.firstIndex(where: { $0.id == location.object }) else { return }
+            if location.ring < 0 { design.objects[i].nodes[location.index].toggleSmooth() } else { design.objects[i].holes?[location.ring][location.index].toggleSmooth() }
+        }
+        status = smooth ? "Smooth point: the outline curves through it. Drag its handles to shape the curve." : "Corner point: the outline turns sharply here."
+    }
     func finishPath() {
         guard !hasVersionMismatch else{return}
         if let shape=tool.draggedShape {

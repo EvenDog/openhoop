@@ -372,8 +372,9 @@ struct ToolStrip: View {
     }
 }
 
-/// A small bar floating at the top of the canvas: the Next Shape choices while a shape tool is on, or, in Edit
-/// Stitches, which mode it is and how to leave it (its needle-point squares otherwise look like a view setting).
+/// A small bar floating at the top of the canvas: the Next Shape choices while a shape tool is on, the selected
+/// point's type (corner or smooth) in Edit Nodes, or, in Edit Stitches, which mode it is and how to leave it (its
+/// needle-point squares otherwise look like a view setting).
 /// Being outside the tool strip, it never pushes the strip into its compact form.
 struct CanvasShapeBar: View {
     @ObservedObject var state: EditorState
@@ -382,6 +383,18 @@ struct CanvasShapeBar: View {
             chrome {
                 Text("NEXT SHAPE").font(Theme.caption).tracking(0.8).foregroundStyle(Theme.accent).lineLimit(1)
                 ShapeOptionsBar(tool: state.tool)
+            }
+        } else if state.tool == .node, let node = state.selectedPathNode {
+            // The selected point's type, so it can be seen and switched without knowing the right-click or the key.
+            chrome {
+                Text("POINT").font(Theme.caption).tracking(0.8).foregroundStyle(Theme.accent).lineLimit(1)
+                Picker("Point", selection: Binding(get: { node.smooth }, set: { state.setSelectedNode(smooth: $0) })) {
+                    Text("Corner").tag(false)
+                    Text("Smooth").tag(true)
+                }
+                .pickerStyle(.segmented).labelsHidden().fixedSize()
+                .help("A corner turns sharply; a smooth point curves through. \(Preferences.shared.key(.play)) or a right-click switches it too.")
+                Text("\(Preferences.shared.key(.play)) switches").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).lineLimit(1)
             }
         } else if state.tool == .stitchEdit {
             let key = Preferences.shared.key
