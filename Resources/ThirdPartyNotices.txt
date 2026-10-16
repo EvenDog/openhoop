@@ -1,4 +1,10 @@
-Embroidery 0.1 bundles pyembroidery 1.5.1 and the Python runtime through PyInstaller.
+OpenHoop bundles these parts by other people, each under its own license:
+
+- pyembroidery 1.5.1 (MIT License, below), which reads and writes machine embroidery files, with the Python
+  runtime it needs, packaged through PyInstaller (licenses below; the Python license is in Python-LICENSE.txt).
+- Clipper2 (Boost Software License 1.0, in Clipper2-LICENSE.txt), for polygon offsetting and clipping.
+- Hand-digitized embroidery fonts from the Ink/Stitch font collection (see EMBROIDERY FONTS at the end).
+- Thread charts made from pyembroidery's machine palettes (MIT License, below).
 
 LICENSE — pyembroidery-1.5.1.dist-info
 MIT License
