@@ -94,11 +94,36 @@ final class EntryExitTests: XCTestCase {
         XCTAssertEqual(end.sewnEnd, Point(0, 0), "a line's End marker shows at the end it finishes")
     }
 
+    /// An end point part way along a satin: the column is sewn in two halves that meet there, so it finishes at the
+    /// end point. Every stitch stays in the column, the whole column is still covered, and all travel is hidden.
+    func testSatinCanEndPartWayAlong() throws {
+        let rungs = stride(from: 0.0, through: 40, by: 5).flatMap { y in [PathNode(Point(-2, y)), PathNode(Point(2, y))] }
+        var column = RunObject(name: "Column", nodes: rungs); column.digitizing = DigitizingSettings(kind: .satin)
+        column.digitizing?.underlay = UnderlayStyle.none
+        let whole = try AreaEngine.satin(column.sewingOrder()).sections.filter { !$0.underlay }.flatMap(\.points)
+
+        column.entry = Point(0, 2); column.exit = Point(0, 25)
+        XCTAssertTrue(column.satinEndsPartWay)
+        let sections = try AreaEngine.satin(column.sewingOrder()).sections
+        let top = sections.filter { !$0.underlay }.flatMap(\.points)
+        XCTAssertEqual(sections.last!.points.last!.y, 25, accuracy: 0.5, "it finishes at the end point")
+        XCTAssertEqual(top.map(\.y).min()!, 0, accuracy: 0.5); XCTAssertEqual(top.map(\.y).max()!, 40, accuracy: 0.5, "the whole column is covered")
+        XCTAssertLessThanOrEqual(top.count, whole.count + 20, "the same satin in two halves, plus the hidden run between them")
+        let column3 = [[Point(-2.5, -0.5), Point(2.5, -0.5), Point(2.5, 40.5), Point(-2.5, 40.5)]]
+        XCTAssertTrue(sections.flatMap(\.points).allSatisfy { AreaGeometry.contains($0, rings: column3) }, "every stitch stays in the column")
+        XCTAssertNil(column.sewnEnd, "the End marker stays where it was put")
+
+        column.exit = Point(0, 39.5)   // within 1 mm of the end: one piece, finishing at that end
+        XCTAssertFalse(column.satinEndsPartWay)
+        XCTAssertGreaterThan(try AreaEngine.satin(column.sewingOrder()).sections.last!.points.last!.y, 39.5, "sewn in one pass to the top end")
+        XCTAssertEqual(column.sewnEnd, Point(0, 40))
+    }
+
     /// The End marker of an open satin shows where it really finishes: the end it sews towards.
     func testSatinFinishIsWhereTheColumnEnds() {
         let rungs = stride(from: 0.0, through: 40, by: 5).flatMap { y in [PathNode(Point(-2, y)), PathNode(Point(2, y))] }
         var column = RunObject(name: "Column", nodes: rungs); column.digitizing = DigitizingSettings(kind: .satin)
-        column.entry = Point(0, 30); column.exit = Point(0, 35)   // starts from the top, so it finishes at the bottom
+        column.entry = Point(0, 30); column.exit = Point(0, 39.5)   // starts from the top, so it finishes at the bottom
         XCTAssertEqual(column.sewnEnd, Point(0, 0))
         column.entry = nil   // with only the end point, it finishes at the end nearer it
         XCTAssertEqual(column.sewnEnd, Point(0, 40))

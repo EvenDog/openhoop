@@ -180,9 +180,20 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
         let ordered = sewingOrder().nodes
         switch kind {
         case .run where ordered.count >= 2: return ordered.last!.point
-        case .satin where ordered.count >= 4: return (ordered[ordered.count - 2].point + ordered[ordered.count - 1].point) * 0.5
+        case .satin where ordered.count >= 4:
+            // Part way along, the column is sewn in two halves that finish there, so the marker stays put.
+            if satinEndsPartWay { return nil }
+            return (ordered[ordered.count - 2].point + ordered[ordered.count - 1].point) * 0.5
         default: return nil
         }
+    }
+    /// True when an open satin's end point is more than 1 mm from both ends of the column, measured along its middle:
+    /// the column is then sewn in two halves that meet there (see `AreaEngine.satin`).
+    public var satinEndsPartWay: Bool {
+        guard kind == .satin, !closed, let exit, nodes.count >= 4, nodes.count % 2 == 0 else { return false }
+        let middle = stride(from: 0, to: nodes.count, by: 2).map { (nodes[$0].point + nodes[$0 + 1].point) * 0.5 }
+        let place = AreaGeometry.alongPath(exit, middle)
+        return place.along > 1 && place.total - place.along > 1
     }
     public func runningOutlines()->[RunObject] {
         guard rawStitches==nil else{return [self]}

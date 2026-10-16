@@ -15,6 +15,17 @@ public enum AreaGeometry {
     public static func area(_ ring: [Point]) -> Double {
         guard ring.count>=3 else{return 0}; return ring.indices.reduce(0){$0+cross(ring[$1],ring[($1+1)%ring.count])}/2
     }
+    /// The point on the open polyline `path` nearest `p`: which piece it's on (the index of the piece's first point),
+    /// how far along the path it is, and the path's whole length (mm).
+    public static func alongPath(_ p: Point, _ path: [Point]) -> (index: Int, along: Double, total: Double) {
+        var best = (index: 0, along: 0.0, distance: Double.infinity), walked = 0.0
+        for i in path.indices.dropLast() {
+            let q = projection(p, path[i], path[i + 1]), d = q.distance(to: p)
+            if d < best.distance { best = (i, walked + path[i].distance(to: q), d) }
+            walked += path[i].distance(to: path[i + 1])
+        }
+        return (best.index, best.along, walked)
+    }
     public static func projection(_ p: Point, _ a: Point, _ b: Point) -> Point {
         let v=b-a, d=v.x*v.x+v.y*v.y
         let t=d>0 ? max(0,min(1,((p-a).x*v.x+(p-a).y*v.y)/d)):0
