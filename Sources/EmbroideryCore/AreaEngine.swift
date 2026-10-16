@@ -324,6 +324,11 @@ public enum AreaEngine {
             for i in 0...underCount where span==0 || i>0 {underPairs.append((a.at(Double(i)/Double(underCount)),b.at(Double(i)/Double(underCount))))}
         }
         guard pairs.count>=2 else{throw DesignError.invalid("Satin rails have no usable area.")}
+        // A closed column (a border) starts at the stitch pair nearest its start point (or its end point, when that's
+        // the only one), and so does its underlay, wherever that falls between the border's corners.
+        if object.closed,let start=object.entry ?? object.exit {
+            pairs=rotatedRing(pairs,toward:start);underPairs=rotatedRing(underPairs,toward:start)
+        }
         // The compensated column, which every top stitch must stay inside (give or take the same hair as above).
         let compensated=object.closed ? [deduplicated(pairs.map{$0.0}),deduplicated(pairs.map{$0.1})] : [pairs.map{$0.0}+pairs.reversed().map{$0.1}]
         let allowedCompensated=(try? AreaGeometry.offset(compensated,by:strayAllowance)) ?? compensated
@@ -336,6 +341,9 @@ public enum AreaEngine {
         // hidden through the unsewn half to the far end, and the second half sews back to meet the first.
         var halves=[pairs]
         if !object.closed,object.satinEndsPartWay,let exit=object.exit,let k=meetingRung(exit,pairs) {halves=[Array(pairs[...k]),Array(pairs[(k+1)...].reversed())]}
+        // A closed column with both points set ends at its end point the same way: first the longer way round from the
+        // start to the end point, then (after a hidden run back through the shorter, unsewn way) the shorter way.
+        if object.closed,object.entry != nil,let exit=object.exit,let split=ringHalves(exit,pairs) {halves=split}
         var tops:[[Point]]=[]
         for half in halves {
             var top:[Point]=[]
@@ -371,6 +379,13 @@ public enum AreaEngine {
                 let needle=result.sections.last?.points.last ?? underPairs.first.map{($0.0+$0.1)*0.5}
                 func startNearNeedle(_ ring:[Point])->[Point] {
                     guard let needle,let k=ring.indices.min(by:{ring[$0].distance(to:needle)<ring[$1].distance(to:needle)}) else{return ring}
+                    // A border's ring can have points only at its corners, so with a start point it starts at the
+                    // nearest place along the ring, between them, to begin beside that point.
+                    if object.closed && object.entry != nil {
+                        var best=(index:0,point:ring[0],distance:Double.infinity)
+                        for i in ring.indices {let q=AreaGeometry.projection(needle,ring[i],ring[(i+1)%ring.count]),d=q.distance(to:needle);if d<best.distance{best=(i,q,d)}}
+                        return [best.point]+Array(ring[(best.index+1)...]+ring[...best.index])
+                    }
                     return Array(ring[k...]+ring[..<k])
                 }
                 result.sections += inset.map{startNearNeedle($0)}.map{StitchSection(AreaGeometry.sampled($0+Array($0.prefix(1)),length:2.5),underlay:true)}
@@ -395,16 +410,30 @@ public enum AreaEngine {
             }
             if layer==1 {for i in sectionsBefore..<result.sections.count {result.sections[i].points.reverse()}}
         }
-        result.sections += tops.map{StitchSection($0)}
+        // The edges travel follows and the area it stays inside: the column, just inside its edge.
+        let edges=(try? AreaGeometry.offset(regionRings,by:-0.25)).flatMap{$0.count==regionRings.count ? $0:nil} ?? regionRings
+        let bounds=(try? AreaGeometry.offset(compensated,by:0.01)) ?? compensated
+        let router=TravelRouter(edges:edges,bounds:bounds)
+        for (index,top) in tops.enumerated() {
+            // Between two halves the needle runs through the part not sewn yet, which the second half then covers, so
+            // the run stays hidden however long it is (joining below only allows short runs once the top has begun).
+            if index>0,let router,let from=tops[index-1].last,let to=top.first,let path=router.route(from:from,to:to) {
+                let travel=router.travelStitches(path)
+                if travel.count>1 {result.sections.append(StitchSection(travel,joined:true))}
+            }
+            result.sections.append(StitchSection(top))
+        }
         // A start point part way along an open column: the needle starts there and runs along the column's middle to
         // the end it sews from, hidden under the stitches that follow.
         if !object.closed,let entry=object.entry,let lead=satinLeadIn(from:entry,center:underPairs.map{($0.0+$0.1)*0.5},region:regionRings) {
             result.sections.insert(StitchSection(lead,underlay:true),at:0)
         }
+        // A closed column starts on its start point when that's inside it: one hidden stitch from there to where its
+        // first stitches begin (the underlay runs beside the middle, not on it).
+        if object.closed,let entry=object.entry,let first=result.sections.first?.points.first,entry.distance(to:first)>StitchEngine.smallestStitch,
+           AreaGeometry.segmentInside(entry,first,rings:regionRings) {result.sections[0].points.insert(entry,at:0)}
         // The top layer starts back at the beginning of the column; travel there inside the column (the satin covers it).
-        let edges=(try? AreaGeometry.offset(regionRings,by:-0.25)).flatMap{$0.count==regionRings.count ? $0:nil} ?? regionRings
-        let bounds=(try? AreaGeometry.offset(compensated,by:0.01)) ?? compensated
-        result.sections=TravelRouter(edges:edges,bounds:bounds)?.join(result.sections) ?? result.sections
+        result.sections=router?.join(result.sections) ?? result.sections
         return result
     }
 }
@@ -414,6 +443,26 @@ extension AreaEngine {
     /// the column, the nearest point on its middle line) along the middle line `center` back to its first point.
     /// Returns nil when the start point is within 1 mm of the column's start, measured along the middle line: the
     /// column then simply starts at its end, as it always did.
+    /// A closed column's stitch pairs (its last pair repeats its first, closing the ring) turned to begin at the pair
+    /// whose middle is nearest `point`, and still closed.
+    static func rotatedRing(_ pairs:[(Point,Point)],toward point:Point) -> [(Point,Point)] {
+        let closes=pairs.count>2 && pairs[0].0.distance(to:pairs.last!.0)<1e-6 && pairs[0].1.distance(to:pairs.last!.1)<1e-6
+        let ring=closes ? Array(pairs.dropLast()):pairs
+        guard let k=ring.indices.min(by:{((ring[$0].0+ring[$0].1)*0.5).distance(to:point)<((ring[$1].0+ring[$1].1)*0.5).distance(to:point)}),k>0 else{return pairs}
+        let turned=Array(ring[k...]+ring[..<k])
+        return closes ? turned+[turned[0]]:turned
+    }
+    /// A closed column (its pairs starting at the start point and closing back there) split into two halves that both
+    /// finish beside `exit`: the longer way round first, then the shorter way. Nil when the end point is within 1 mm
+    /// of the start, measured round the column's middle, or the ring is too small to split.
+    static func ringHalves(_ exit:Point,_ pairs:[(Point,Point)]) -> [[(Point,Point)]]? {
+        guard pairs.count>=6 else{return nil}
+        let place=AreaGeometry.alongPath(exit,pairs.map{($0.0+$0.1)*0.5})
+        guard place.along>1,place.total-place.along>1 else{return nil}
+        let k=min(max(2,place.index),pairs.count-3)
+        // Forward is pairs 0…k; backward runs from the last pair (the start again) down to k.
+        return place.along>=place.total-place.along ? [Array(pairs[...k]),Array(pairs[(k+1)...].reversed())] : [Array(pairs[k...].reversed()),Array(pairs[..<k])]
+    }
     /// Where a satin sewn in two halves meets: the index of the last stitch pair of the first half, the one nearest
     /// `exit` along the column's middle. Both halves keep at least two pairs; nil when the column is too short.
     static func meetingRung(_ exit:Point,_ pairs:[(Point,Point)]) -> Int? {
@@ -488,9 +537,13 @@ public enum StitchEngine {
         case .run:
             let ordered=object.sewingOrder(),line=try RunningEngine.stitches(for:ordered)
             let sewn=try RunningEngine.repeated(line,passes:object.settings.runPasses ?? 1)
+            var points=sewn
             // A start point part way along an open line: start there and run back along the line to its first end.
-            if !object.closed,let entry=object.entry,let lead=RunningEngine.leadIn(along:line,from:entry) {return ObjectStitches(sections:[StitchSection(lead+sewn.dropFirst())])}
-            return ObjectStitches(sections:[StitchSection(sewn)])
+            if !object.closed,let entry=object.entry,let lead=RunningEngine.leadIn(along:line,from:entry) {points=lead+points.dropFirst()}
+            // An end point part way along: after the line, come back along it through its own needle holes to the end
+            // point (round a closed outline, whichever way is shorter).
+            if let exit=object.exit,object.closed ? object.entry != nil : true,let tail=RunningEngine.tail(along:line,to:exit,closed:object.closed) {points+=tail}
+            return ObjectStitches(sections:[StitchSection(points)])
         case .satin:return try AreaEngine.satin(object.sewingOrder())
         case .fill:
             guard object.settings.cutOutOverlaps == true else{return try AreaEngine.fill(object)}

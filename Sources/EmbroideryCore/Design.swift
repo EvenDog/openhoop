@@ -179,7 +179,10 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
         guard !closed, rawStitches == nil else { return nil }
         let ordered = sewingOrder().nodes
         switch kind {
-        case .run where ordered.count >= 2: return ordered.last!.point
+        case .run where ordered.count >= 2:
+            // An end point on the line part way along: the line comes back to finish there, so the marker stays put.
+            if let exit, let line = try? RunningEngine.stitches(for: sewingOrder()), RunningEngine.tail(along: line, to: exit, closed: false) != nil { return nil }
+            return ordered.last!.point
         case .satin where ordered.count >= 4:
             // Part way along, the column is sewn in two halves that finish there, so the marker stays put.
             if satinEndsPartWay { return nil }

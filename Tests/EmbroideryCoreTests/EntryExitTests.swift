@@ -90,8 +90,8 @@ final class EntryExitTests: XCTestCase {
         XCTAssertEqual(try StitchEngine.fresh(object, under: []).sections[0].points.first, Point(20, 0))
         object.entry = Point(14, 0); object.closed = true   // a closed outline already starts beside its point
         XCTAssertEqual(try StitchEngine.fresh(object, under: []).sections[0].points.first!.distance(to: Point(14, 0)), 0, accuracy: 0.2)
-        var end = line(); end.entry = Point(14, 0); end.exit = Point(5, 0)
-        XCTAssertEqual(end.sewnEnd, Point(0, 0), "a line's End marker shows at the end it finishes")
+        var end = line(); end.entry = Point(14, 0); end.exit = Point(5, 3)
+        XCTAssertEqual(end.sewnEnd, Point(0, 0), "an end point off the line: its End marker shows at the end it finishes")
     }
 
     /// An end point part way along a satin: the column is sewn in two halves that meet there, so it finishes at the
@@ -117,6 +117,51 @@ final class EntryExitTests: XCTestCase {
         XCTAssertFalse(column.satinEndsPartWay)
         XCTAssertGreaterThan(try AreaEngine.satin(column.sewingOrder()).sections.last!.points.last!.y, 39.5, "sewn in one pass to the top end")
         XCTAssertEqual(column.sewnEnd, Point(0, 40))
+    }
+
+    /// An end point part way along a line: after the line, the needle comes back along it through its own needle
+    /// holes and finishes there. Round a closed outline it goes the shorter way.
+    func testLinesAndOutlinesEndAtTheirEndPoints() throws {
+        var object = line()   // (0, 0) to (20, 0)
+        object.exit = Point(6, 0.4)
+        var stitches = try StitchEngine.fresh(object, under: []).sections[0].points
+        XCTAssertEqual(stitches.last, Point(6, 0), "it finishes on the line beside the end point")
+        XCTAssertTrue(stitches.allSatisfy { abs($0.y) < 1e-9 }, "every stitch stays on the line")
+        XCTAssertNil(object.sewnEnd, "the End marker stays where it was put")
+
+        var square = RunObject(name: "Square", nodes: [Point(-15, -15), Point(15, -15), Point(15, 15), Point(-15, 15)].map { PathNode($0) })
+        square.closed = true; square.entry = Point(-15, 2); square.exit = Point(15, -7)
+        stitches = try StitchEngine.fresh(square, under: []).sections[0].points
+        XCTAssertEqual(stitches.first!.distance(to: Point(-15, 2)), 0, accuracy: 0.2, "it starts at the start point")
+        XCTAssertEqual(stitches.last!.distance(to: Point(15, -7)), 0, accuracy: 1e-9, "and finishes at the end point")
+        let onEdge = stitches.allSatisfy { abs(abs($0.x) - 15) < 1e-6 || abs(abs($0.y) - 15) < 1e-6 }
+        XCTAssertTrue(onEdge, "every stitch is on the outline")
+        let sewn = zip(stitches, stitches.dropFirst()).reduce(0) { $0 + $1.0.distance(to: $1.1) }
+        XCTAssertLessThanOrEqual(sewn, 120 + 60 + 0.5, "once round, then at most half way round again to the end point")
+        square.exit = Point(-15, 2.5)   // right beside the start: it just finishes where it started
+        XCTAssertEqual(try StitchEngine.fresh(square, under: []).sections[0].points.last!.distance(to: Point(-15, 2)), 0, accuracy: 0.2)
+    }
+
+    /// A satin border starts at the stitch nearest its start point, not at the nearest corner, and with an end point
+    /// it's sewn in two halves that finish beside it, every stitch inside the border.
+    func testSatinBorderStartsAndEndsAtItsPoints() throws {
+        var source = RunObject(name: "Square", nodes: [Point(-15, -15), Point(15, -15), Point(15, 15), Point(-15, 15)].map { PathNode($0) })
+        source.closed = true; source.digitizing = DigitizingSettings(kind: .fill)
+        var border = try SatinBorder.around(source, width: 4, color: ThreadColor.palette[0]).object
+        let whole = try AreaEngine.satin(border.sewingOrder()).sections.filter { !$0.underlay }.flatMap(\.points).count
+        border.entry = Point(-15, 2)
+        var sections = try AreaEngine.satin(border.sewingOrder()).sections
+        XCTAssertLessThan(sections[0].points[0].distance(to: Point(-15, 2)), 1, "it starts beside the start point")
+        border.exit = Point(15, -7)
+        sections = try AreaEngine.satin(border.sewingOrder()).sections
+        XCTAssertLessThan(sections[0].points[0].distance(to: Point(-15, 2)), 1)
+        XCTAssertLessThan(sections.last!.points.last!.distance(to: Point(15, -7)), 3, "it finishes beside the end point (on a rail of the border)")
+        let ring = [[Point(-17.6, -17.6), Point(17.6, -17.6), Point(17.6, 17.6), Point(-17.6, 17.6)], [Point(-12.4, -12.4), Point(12.4, -12.4), Point(12.4, 12.4), Point(-12.4, 12.4)]]
+        XCTAssertTrue(sections.flatMap(\.points).allSatisfy { AreaGeometry.contains($0, rings: ring) }, "every stitch stays in the border")
+        XCTAssertLessThanOrEqual(sections.filter { !$0.underlay }.flatMap(\.points).count, whole + 40, "the same border in two halves, plus the hidden run")
+        // The halves are joined by a run inside the border, never a jump straight across it.
+        let points = sections.flatMap(\.points)
+        XCTAssertTrue(zip(points, points.dropFirst()).allSatisfy { $0.distance(to: $1) < 8 }, "no long jump between the halves")
     }
 
     /// The End marker of an open satin shows where it really finishes: the end it sews towards.
