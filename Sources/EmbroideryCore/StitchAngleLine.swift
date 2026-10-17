@@ -7,13 +7,14 @@ public enum StitchAngleLine {
     /// How far (mm) the line reaches past the shape's edge, so its ends sit clear of the outline's nodes.
     static let overhang = 2.0
 
-    /// True for fills whose rows follow the Angle setting: tatami (unless stitch angle lines steer it) and wave.
+    /// True for fills whose rows follow the Angle setting: tatami (unless stitch angle lines steer it), wave, gradient
+    /// and motif.
     public static func applies(to object: RunObject) -> Bool {
         guard object.kind == .fill else { return false }
         switch object.settings.fillStyle ?? .tatami {
         case .tatami: return (object.settings.angleLines ?? []).isEmpty
-        case .wave: return true
-        case .contour, .radial, .stipple: return false
+        case .wave, .gradient, .motif: return true   // gradient rows and motif rows run at the angle too
+        case .contour, .radial, .stipple, .crossStitch: return false
         }
     }
 

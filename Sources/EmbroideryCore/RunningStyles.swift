@@ -5,18 +5,36 @@ import Foundation
 
 public enum RunningStyles {
     /// The needle points for `style` along the line `path` (its points in sewing order; a closed line's last point is
-    /// its first again). `width` is across the line and `spacing` along it (mm); `length` is the stitch length.
-    /// Returns nil for plain running stitch, which RunningEngine sews.
-    public static func stitches(_ style: RunStyle, along path: [Point], closed: Bool, width: Double, spacing: Double, length: Double) -> [Point]? {
+    /// its first again). `width` is across the line and `spacing` along it (mm), for a motif its size and the gap
+    /// between motifs; `length` is the stitch length. Returns nil for plain running stitch, which RunningEngine sews.
+    public static func stitches(_ style: RunStyle, along path: [Point], closed: Bool, width: Double, spacing: Double, length: Double, motif: Motif = .heart) -> [Point]? {
         let line = Measured(path)
-        guard line.total > 0.01 else { return nil }
+        guard line.total > 0.01, style != .running else { return nil }
+        // Back and stem stitch step forward two stitch lengths, so their stitch length is kept to 4 mm at most.
+        let points: [Point]
         switch style {
         case .running: return nil
-        case .zigzag: return zigzag(line, closed: closed, width: width, spacing: spacing)
-        case .blanket: return blanket(line, closed: closed, prong: width, spacing: spacing, length: length, inward: closed && AreaGeometry.area(path) > 0)
-        case .backStitch: return backStitch(line, length: length, offset: 0)
-        case .stemStitch: return backStitch(line, length: length, offset: width / 2)
+        case .zigzag: points = zigzag(line, closed: closed, width: width, spacing: spacing)
+        case .blanket: points = blanket(line, closed: closed, prong: width, spacing: spacing, length: length, inward: closed && AreaGeometry.area(path) > 0)
+        case .backStitch: points = backStitch(line, length: min(length, 4), offset: 0)
+        case .stemStitch: points = backStitch(line, length: min(length, 4), offset: width / 2)
+        case .motif: points = Motifs.run(along: path, motif: motif, size: width, gap: spacing, length: length)
         }
+        return split(points, longest: longestStitch)
+    }
+
+    /// The longest stitch a line style makes (mm). A longer one (a very wide, very open zigzag, say) is split into
+    /// equal stitches along it: machines can't sew much over 12 mm, and long stitches snag.
+    static let longestStitch = 10.0
+    /// `points` with every stitch longer than `longest` split into equal pieces along it.
+    static func split(_ points: [Point], longest: Double) -> [Point] {
+        guard let first = points.first else { return points }
+        var result = [first]
+        for (a, b) in zip(points, points.dropFirst()) {
+            let pieces = max(1, Int(ceil(a.distance(to: b) / longest)))
+            for i in 1...pieces { result.append(a + (b - a) * (Double(i) / Double(pieces))) }
+        }
+        return result
     }
 
     /// Zigzag: points spaced about `spacing` apart along the line, alternately half the width to its left and right.

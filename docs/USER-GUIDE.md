@@ -52,8 +52,9 @@ A line of stitches along your path. Set **Stitch length** in Properties.
 | **Blanket** | Running stitch with short prongs at regular spacing, like hand blanket stitch: the classic appliqué edge. On a closed shape the prongs point inward | **Prong length** (2.5 mm), **Prong spacing** (3 mm) |
 | **Back stitch** | Each stitch goes forward two lengths and back one: a solid, hand-sewn line | **Stitch length** |
 | **Stem stitch** | Like back stitch, with each stitch slanting across the line: a twisted rope | **Width** (1 mm), **Stitch length** |
+| **Motif** | A small pattern repeated along the line, joined by short runs: hearts, leaves, diamonds, stars, scallops or circles. Each motif bends with the line | **Motif**, **Motif size** (4 mm), **Gap** (1 mm) |
 
-Projects using line styles or stipple fills are saved as file version 6, which versions of OpenHoop before these stitches refuse to open rather than sewing them as plain stitches.
+Projects using line styles, the stipple, motif, cross stitch or gradient fills, or raised satin are saved as file version 6, which versions of OpenHoop before these stitches refuse to open rather than sewing them as plain stitches.
 
 ### Satin columns (⇧A)
 
@@ -64,6 +65,7 @@ Smooth, shiny columns for borders, outlines and lettering. Two ways to make one:
 Settings: **Row spacing**, **Compensation** per side (extra width because thread pulls the fabric in), **Compensation % of width** (More settings; in Pro, **% of width**), and **Maximum stitch**. The percentage adds a share of each stitch's own width on top, so wide parts of a satin get more: new satins start at 3%, so a 2 mm part gets 0.26 mm per side and a 6 mm part 0.38 mm. It's a starting value to tune after a test sew-out. Two helpers, on for new satins:
 - **Short stitches on curves:** on the inside of a curve, every other stitch stops short so the thread doesn't pile up.
 - **Split wide satin:** stitches longer than the maximum are split into shorter, staggered ones instead of the column being refused.
+- **Raised (padded):** lanes of padding stitches are sewn along the column first, so the satin stands up off the fabric for a 3D look. Best on columns 3 mm and wider.
 
 ### Fills (F3)
 
@@ -76,6 +78,9 @@ Trace a closed outline and press Return. Settings: **Row spacing**, **Stitch len
 | **Radial** | Stitches fanning out from a center point; drag the **Center** dot on the canvas to move it |
 | **Wave** | Rows that ripple, with a wave height and length |
 | **Stipple** | One wandering line that loops through the whole shape and never crosses itself: the quilting look, or a light background. **Stipple spacing** (4 mm) sets how far apart its passes are; it sews without underlay, in stitches of 2 mm at most so its curves stay round |
+| **Motif** | Rows of whole motifs (hearts, leaves, stars…) across the shape at the fill angle, every other row shifted half a motif. **Motif**, **Motif size** (5 mm) and **Gap** (1.5 mm); no underlay |
+| **Cross stitch** | X's on a square grid, like hand cross-stitch, in every square entirely inside the shape, so the edge steps. Each diagonal is sewn three times for the weight of floss. **Square size** (3 mm); no underlay |
+| **Gradient** | Tatami rows that open up across the shape, from **Spacing at start** (0.4 mm, solid) to **Spacing at end** (2.5 mm, sheer), for shading or blending two colors. Turning the angle by 180° swaps the solid and sheer sides |
 
 **Holes:** select a fill and press **⌥H** to trace a hole (or use **+** and **−** next to Holes).
 

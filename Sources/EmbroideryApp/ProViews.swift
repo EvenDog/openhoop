@@ -346,8 +346,8 @@ extension InspectorPanel {
         case .vector: proOutline(object)
         case .raw: EmptyView()
         }
-        // Stipple sews without underlay, so it has no Underlay section.
-        if object.kind == .satin || (object.kind == .fill && object.settings.fillStyle != .stipple) { proUnderlay(object) }
+        // Stipple, motif and cross stitch fills sew without underlay, so they have no Underlay section.
+        if object.kind == .satin || (object.kind == .fill && ![.stipple, .motif, .crossStitch].contains(object.settings.fillStyle ?? .tatami)) { proUnderlay(object) }
         if object.kind != .vector { proFinish(object) }
         if object.kind == .run || object.kind == .satin || object.kind == .fill { proStartEnd(object) }
         proSection("Object") {
@@ -367,9 +367,7 @@ extension InspectorPanel {
         return HStack(spacing: 10) {
             if object.kind == .run || object.kind == .satin || object.kind == .fill {
                 StitchPreview(kind: object.kind, color: Color(nsColor: object.color.nsColor), spacing: object.settings.spacing, stitchLength: object.stitchLength, angle: object.settings.angle,
-                              fillStyle: object.settings.fillStyle ?? .tatami, waveHeight: object.settings.waveHeight ?? DigitizingSettings.defaultWaveHeight, waveLength: object.settings.waveLength ?? DigitizingSettings.defaultWaveLength,
-                          runStyle: object.settings.runStyle ?? .running, runWidth: object.settings.runWidth ?? DigitizingSettings.defaultRunWidth(object.settings.runStyle ?? .running),
-                          runSpacing: object.settings.runSpacing ?? DigitizingSettings.defaultRunSpacing(object.settings.runStyle ?? .running), stippleSpacing: object.settings.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing)
+                              fillStyle: object.settings.fillStyle ?? .tatami, waveHeight: object.settings.waveHeight ?? DigitizingSettings.defaultWaveHeight, waveLength: object.settings.waveLength ?? DigitizingSettings.defaultWaveLength, settings: object.settings)
                     .frame(width: 40, height: 40)
                     .background(Theme.ground)
                     .clipShape(RoundedRectangle(cornerRadius: 5))
@@ -406,7 +404,7 @@ extension InspectorPanel {
                 }
                 .labelsHidden().frame(width: 120)
             }
-            if style == .tatami || style == .wave {
+            if [.tatami, .wave, .gradient, .motif].contains(style) {
                 number("Angle °", value: object.settings.angle, id: "fillAngle", range: -180...180, help: "The direction the fill rows run.") { value in settings(.fill, "Fill Angle") { $0.angle = value } }
             }
             if style == .tatami { stitchAngles(object) }
@@ -424,9 +422,8 @@ extension InspectorPanel {
                     }
                 }
             }
-            if style == .stipple {
-                number("Stipple spacing", value: object.settings.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing, range: DigitizingSettings.stippleSpacingRange, help: "How far apart the line's neighbouring passes are (mm). Smaller is denser. Stipple sews without underlay.") { value in settings(.fill, "Stipple Spacing") { $0.stippleSpacing = value } }
-            } else {
+            patternSettings(object)
+            if ![.stipple, .motif, .crossStitch, .gradient].contains(style) {
                 number("Row spacing", value: object.settings.spacing, id: "rowSpacing", range: 0.15...5, help: "Gap between each pass of thread. Smaller gaps give fuller coverage and use more stitches.") { value in settings(.fill, "Row Spacing") { $0.spacing = value } }
             }
             number("Stitch length", value: object.stitchLength, id: "stitchLength", range: 0.3...10, help: "Length of each stitch along a fill row.") { value in state.editSelected("Stitch Length") { $0.stitchLength = value } }

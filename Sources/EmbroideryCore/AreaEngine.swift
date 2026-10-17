@@ -31,8 +31,8 @@ public enum AreaEngine {
         }
         let entry=reachable(object.entry),exit=reachable(object.exit)
         let style=s.fillStyle ?? .tatami
-        // Stipple is a loose, quilting-style line, sewn without underlay.
-        if s.underlay != .none && style != .stipple {
+        // Stipple, motif and cross stitch fills are open, decorative stitches, sewn without underlay.
+        if s.underlay != .none && ![.stipple,.motif,.crossStitch].contains(style) {
             // Underlay is inset from the source, never expanded a second time.
             let inset=try AreaGeometry.offset(original,by:-s.inset)
             if inset.isEmpty {result.warnings.append("Underlay collapsed at the chosen inset; no underlay was generated.")}
@@ -56,19 +56,21 @@ public enum AreaEngine {
         case .tatami where !(s.angleLines ?? []).isEmpty:
             parts=[try TurningFill.rows(in:expanded,angleLines:s.angleLines!,spacing:s.spacing,length:object.stitchLength,start:start)]
             guard !parts[0].isEmpty else{throw DesignError.invalid("The stitch angle lines don't cross this fill. Draw them across it, or remove them.")}
-        case .tatami,.wave:parts=try topRows(in:expanded,object,entry:entry,exit:exit)
+        case .tatami,.wave,.gradient:parts=try topRows(in:expanded,object,entry:entry,exit:exit)
         case .contour:parts=[try FillStyles.contour(in:expanded,spacing:s.spacing,length:object.stitchLength,start:start)]
+        case .motif:parts=[try Motifs.fill(in:expanded,motif:s.motif ?? .heart,size:s.patternSize ?? DigitizingSettings.defaultPatternSize(.motif),gap:s.patternGap ?? DigitizingSettings.defaultPatternGap,angle:s.angle,length:object.stitchLength)]
+        case .crossStitch:parts=[try Motifs.crossStitch(in:expanded,size:s.patternSize ?? DigitizingSettings.defaultPatternSize(.crossStitch))]
         case .stipple:parts=[try FillStyles.stipple(in:expanded,spacing:s.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing,length:object.stitchLength,start:start)]
         case .radial:parts=[try FillStyles.radial(in:expanded,center:s.radialCenter ?? AreaGeometry.centroid(original[0]),spacing:s.spacing,length:object.stitchLength,start:start)]
         }
         parts=parts.map{$0.filter(isLongEnough)}.filter{!$0.isEmpty}
-        guard !parts.isEmpty else{throw DesignError.invalid("This fill is too small for the selected row spacing.")}
+        guard !parts.isEmpty else{throw DesignError.invalid(tooSmall(style))}
         // A 0.01 mm margin keeps row ends, which lie exactly on the edge, reliably "inside" for routing. Wave row ends
         // can sit a few thousandths of a millimeter further out (the edge is bent back in short pieces), so they get 0.05 mm.
         let bounds=(try? AreaGeometry.offset(expanded,by:style == .wave ? 0.05:0.01)) ?? expanded
         // Contour, radial and turning stitches run every which way, so travel across them is priced like satin (no
         // row angle), and their rows already come in sewing order.
-        let rowStyle=(style == .tatami && (s.angleLines ?? []).isEmpty) || style == .wave
+        let rowStyle=(style == .tatami && (s.angleLines ?? []).isEmpty) || style == .wave || style == .gradient
         let router=TravelRouter(edges:edges,bounds:bounds,rowAngle:rowStyle ? s.angle:nil)
         // Sew each part's sections in the order (and from the ends) that keep travel shortest. Its first section stays
         // first (it honors the start point); with an end point, the last part's last stays last. Contour and radial
@@ -92,6 +94,15 @@ public enum AreaEngine {
         if trims>0 {result.warnings.append("Fill needs \(trims) trim\(trims==1 ? "":"s") between sections that no short path inside the shape connects.")}
         return result
     }
+    /// Why a fill came out empty, in the terms of its style.
+    static func tooSmall(_ style:FillStyle)->String {
+        switch style {
+        case .motif:return "This fill is too small for its motifs. Make the motifs smaller or the shape bigger."
+        case .crossStitch:return "This fill is too small for its cross-stitch squares. Make the squares smaller or the shape bigger."
+        case .stipple:return "This fill is too small for its stipple spacing. Make the spacing smaller or the shape bigger."
+        default:return "This fill is too small for the selected row spacing."
+        }
+    }
     /// False for a scrap of a row (clipped at a sharp corner) too short to make one stitch: it would sew as a single
     /// stitch under 0.3 mm and hold nothing, so it's left out.
     private static func isLongEnough(_ row:[Point])->Bool {AreaGeometry.pathLength(row)>=StitchEngine.smallestStitch}
@@ -102,12 +113,16 @@ public enum AreaEngine {
     private static func topRows(in region:[[Point]],_ object:RunObject,entry:Point?,exit:Point?) throws -> [[[Point]]] {
         let s=object.settings
         let wave=s.fillStyle == .wave ? (height:s.waveHeight ?? DigitizingSettings.defaultWaveHeight,length:s.waveLength ?? DigitizingSettings.defaultWaveLength) : nil
+        // Gradient fills: the rows' spacing grows from start to end across the whole shape, measured once here, so a
+        // fill split in two by its end point still shades smoothly from one side to the other.
+        let heightsAcross=region.flatMap{$0}.map{AreaGeometry.rotate($0,degrees:-s.angle).y}
+        let gradient=s.fillStyle == .gradient ? (from:s.gradientStart ?? DigitizingSettings.defaultGradientStart,to:s.gradientEnd ?? DigitizingSettings.defaultGradientEnd,low:heightsAcross.min() ?? 0,high:heightsAcross.max() ?? 0) : nil
         /// Of the ways to sew `part` (from the sides in `fromTop`, the first row either way), the one with the lowest score.
         func best(_ part:[[Point]],fromTop:[Bool],_ score:([[Point]])->Double) throws -> [[Point]] {
             var best:(score:Double,rows:[[Point]])?
             for top in fromTop {
                 for reversed in [false,true] {
-                    let candidate=try rows(in:part,angle:s.angle,spacing:s.spacing,length:object.stitchLength,fromTop:top,startReversed:reversed,wave:wave)
+                    let candidate=try rows(in:part,angle:s.angle,spacing:s.spacing,length:object.stitchLength,fromTop:top,startReversed:reversed,wave:wave,gradient:gradient)
                     guard !candidate.isEmpty else{continue}
                     let value=score(candidate)
                     if best==nil || value<best!.score {best=(value,candidate)}
@@ -115,7 +130,7 @@ public enum AreaEngine {
             }
             return best?.rows ?? []
         }
-        guard entry != nil || exit != nil else{return [try rows(in:region,angle:s.angle,spacing:s.spacing,length:object.stitchLength,wave:wave)]}
+        guard entry != nil || exit != nil else{return [try rows(in:region,angle:s.angle,spacing:s.spacing,length:object.stitchLength,wave:wave,gradient:gradient)]}
         guard let exit else{return [try best(region,fromTop:[false,true]){$0[0][0].distance(to:entry!)}]}
         // The two sides of the line through the end point. Rows sew upward (fromTop false) on the side below it.
         // `far` is longer than any line across the shape, so each half covers the whole of its side.
@@ -141,7 +156,10 @@ public enum AreaEngine {
     /// With `wave`, each row ripples: the shape is first bent the opposite way (y − ripple(x), after turning the rows
     /// level), straight rows are laid in the bent shape, and bending them back turns them into waves that still fill
     /// the real shape edge to edge. The shape's edges are cut into short pieces first so they bend smoothly.
-    public static func rows(in region:[[Point]],angle:Double,spacing:Double,length:Double,fromTop:Bool=false,startReversed:Bool=false,wave:(height:Double,length:Double)?=nil) throws -> [[Point]] {
+    /// `gradient`: rows from `low` to `high` (across the rows, after turning by `angle`) whose spacing grows steadily
+    /// from `from` to `to`, instead of all `spacing` apart.
+    public static func rows(in region:[[Point]],angle:Double,spacing:Double,length:Double,fromTop:Bool=false,startReversed:Bool=false,wave:(height:Double,length:Double)?=nil,
+                            gradient:(from:Double,to:Double,low:Double,high:Double)?=nil) throws -> [[Point]] {
         var rings=region.map{$0.map{AreaGeometry.rotate($0,degrees:-angle)}}
         var ripple:(Double)->Double={_ in 0}
         if let wave,wave.height>0,wave.length>0 {
@@ -151,13 +169,27 @@ public enum AreaEngine {
         }
         let points=rings.flatMap{$0}
         guard let minY=points.map(\.y).min(),let maxY=points.map(\.y).max(),let minX=points.map(\.x).min(),let maxX=points.map(\.x).max(),maxY-minY>0.0001 else{return []}
-        let rowCount=max(1,Int(ceil((maxY-minY)/spacing)))
+        // Where each row runs: evenly `spacing` apart, or for a gradient further apart the further across it is.
+        var heights:[Double]=[]
+        if let gradient,gradient.high>gradient.low {
+            var y=gradient.low+gradient.from/2
+            while y<gradient.high && heights.count<=20000 {
+                if y>minY && y<maxY {heights.append(y)}
+                let t=min(1,max(0,(y-gradient.low)/(gradient.high-gradient.low)))
+                y+=gradient.from+(gradient.to-gradient.from)*t
+            }
+            if heights.isEmpty {heights=[(minY+maxY)/2]}
+            if fromTop {heights.reverse()}
+        } else {
+            let count=max(1,Int(ceil((maxY-minY)/spacing))),step=(maxY-minY)/Double(count)
+            heights=(0..<count).map{fromTop ? maxY-(Double($0)+0.5)*step : minY+(Double($0)+0.5)*step}
+        }
+        let rowCount=heights.count
         guard rowCount<=20000,Double(rowCount)*ceil((maxX-minX)/length+2)<1_000_000 else{throw DesignError.invalid("Fill would produce too many stitches. Reduce its size or increase spacing.")}
-        let step=(maxY-minY)/Double(rowCount)
         var sections:[[Point]]=[],previous:[Interval]=[],total=0
         for row in 0..<rowCount {
             try Task.checkCancellation()
-            let y=fromTop ? maxY-(Double(row)+0.5)*step : minY+(Double(row)+0.5)*step
+            let y=heights[row]
             var intersections:[Double]=[]
             for ring in rings {for i in ring.indices {
                 let a=ring[i],b=ring[(i+1)%ring.count]
@@ -412,6 +444,17 @@ public enum AreaEngine {
             }
             if layer==1 {for i in sectionsBefore..<result.sections.count {result.sections[i].points.reverse()}}
         }
+        // Raised satin: padding under the top stitches, lanes of running stitch along the column about 0.7 mm apart
+        // (inside its middle 80%), sewn back and forth, so the satin stands up over them.
+        if s.raised == true {
+            let lanes=max(2,Int((widthTotal/Double(max(1,widthCount)))/0.7))
+            for lane in 0..<lanes {
+                let share=0.1+0.8*Double(lane)/Double(lanes-1)
+                var path=underPairs.map{$0.0+($0.1-$0.0)*share}
+                if lane%2==1 {path.reverse()}
+                result.sections.append(StitchSection(AreaGeometry.sampled(path,length:2.5),underlay:true))
+            }
+        }
         // The edges travel follows and the area it stays inside: the column, just inside its edge.
         let edges=(try? AreaGeometry.offset(regionRings,by:-0.25)).flatMap{$0.count==regionRings.count ? $0:nil} ?? regionRings
         let bounds=(try? AreaGeometry.offset(compensated,by:0.01)) ?? compensated
@@ -542,7 +585,7 @@ public enum StitchEngine {
             // stitch, its repeated form) along the line's stitches.
             let path=RunningEngine.flatten(ordered.nodes,closed:ordered.closed).flatMap{$0}
             let styled=RunningStyles.stitches(style,along:path,closed:ordered.closed,width:s.runWidth ?? DigitizingSettings.defaultRunWidth(style),
-                                              spacing:s.runSpacing ?? DigitizingSettings.defaultRunSpacing(style),length:object.stitchLength)
+                                              spacing:s.runSpacing ?? DigitizingSettings.defaultRunSpacing(style),length:object.stitchLength,motif:s.motif ?? .heart)
             let line=try styled ?? RunningEngine.stitches(for:ordered)
             let sewn=styled != nil ? line : try RunningEngine.repeated(line,passes:s.runPasses ?? 1)
             var points=sewn

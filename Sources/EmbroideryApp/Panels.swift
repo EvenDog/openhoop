@@ -756,7 +756,7 @@ struct InspectorPanel: View {
                     ForEach(FillStyle.allCases,id:\.self){Text($0.title).tag($0)}
                 }.font(Theme.body(12, weight: .semibold)).help(style.summary)
                 explain(style.summary)
-                if style == .tatami || style == .wave {
+                if [.tatami, .wave, .gradient, .motif].contains(style) {
                     number("Fill angle °",value:object.settings.angle,id:"fillAngle",range:-180...180,help:"The direction the fill rows run."){value in settings(.fill,"Fill Angle"){$0.angle=value}}
                 }
                 if style == .tatami { stitchAngles(object) }
@@ -765,9 +765,7 @@ struct InspectorPanel: View {
                     number("Wave height",value:object.settings.waveHeight ?? DigitizingSettings.defaultWaveHeight,range:DigitizingSettings.waveHeightRange,hover:waveHelp){value in settings(.fill,"Wave Height"){$0.waveHeight=value}}
                     number("Wave length",value:object.settings.waveLength ?? DigitizingSettings.defaultWaveLength,range:DigitizingSettings.waveLengthRange,help:waveHelp){value in settings(.fill,"Wave Length"){$0.waveLength=value}}
                 }
-                if style == .stipple {
-                    number("Stipple spacing",value:object.settings.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing,range:DigitizingSettings.stippleSpacingRange,help:"How far apart the line's neighbouring passes are (mm). Smaller is denser. Stipple sews without underlay."){value in settings(.fill,"Stipple Spacing"){$0.stippleSpacing=value}}
-                }
+                patternSettings(object)
                 if style == .radial {
                     explain("Drag the Center dot on the canvas to move the point the stitches fan out from.")
                     if object.settings.radialCenter != nil {Button("Center in the shape"){settings(.fill,"Reset Radial Center"){$0.radialCenter=nil}}.buttonStyle(ThemedButtonStyle()).help("Move the radial center back to the middle of the shape")}
@@ -798,9 +796,11 @@ struct InspectorPanel: View {
                 explain("This outline does not sew until you assign stitches. Satin requires manually drawn edge pairs.")
                 HStack{Button("Running Stitch"){AppDelegate.shared.perform(.convertRun)}.help(preferences.hint(.convertRun));Button("Tatami Fill"){AppDelegate.shared.perform(.convertFill)}.help(preferences.hint(.convertFill))}.buttonStyle(ThemedButtonStyle())
             }
-            let stipple = object.kind == .fill && object.settings.fillStyle == .stipple   // no rows and no underlay
+            // Fill styles with a spacing of their own (no Row spacing), and the open, decorative ones (no underlay).
+            let ownSpacing = object.kind == .fill && [.stipple, .motif, .crossStitch, .gradient].contains(object.settings.fillStyle ?? .tatami)
+            let noUnderlay = object.kind == .fill && [.stipple, .motif, .crossStitch].contains(object.settings.fillStyle ?? .tatami)
             if object.kind == .satin || object.kind == .fill {
-                if !stipple { number("Row spacing",value:object.settings.spacing,id:"rowSpacing",range:0.15...5,help:"Gap between each pass of thread. Smaller gaps give fuller coverage and use more stitches."){value in settings(object.kind,"Row Spacing"){$0.spacing=value}} }
+                if !ownSpacing { number("Row spacing",value:object.settings.spacing,id:"rowSpacing",range:0.15...5,help:"Gap between each pass of thread. Smaller gaps give fuller coverage and use more stitches."){value in settings(object.kind,"Row Spacing"){$0.spacing=value}} }
                 if object.kind == .fill {
                     HStack{Button("Add hole"){AppDelegate.shared.perform(.holeTool)}.buttonStyle(ThemedButtonStyle()).help(preferences.hint(.holeTool));Text(ProStats.count(object.holes?.count ?? 0, "hole")).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)}
                     if !(object.holes ?? []).isEmpty {Button("Remove all holes"){AppDelegate.shared.perform(.removeHoles)}.buttonStyle(ThemedButtonStyle()).help(preferences.hint(.removeHoles))}
@@ -808,7 +808,7 @@ struct InspectorPanel: View {
                     explain("Leaves out the part of this fill that shapes sewn after it cover, so it isn't stitched twice. The fill still reaches 1 mm under their edges so no gap shows.")
                 }
                 sectionDivider
-                if stipple { explain("Stipple sews without underlay.") } else {
+                if noUnderlay { explain("\(object.settings.fillStyle?.title ?? "This") fill sews without underlay.") } else {
                 Picker("Underlay",selection:Binding(get:{object.settings.underlay},set:{value in settings(object.kind,"Underlay"){$0.underlay=value}})){
                     ForEach(object.kind == .fill ? [UnderlayStyle.none,.edge,.edgeAndSparse]:[.auto,.none,.center,.edge,.zigzag],id:\.self){style in Text(style.title).tag(style)}
                 }.font(Theme.body(12, weight: .semibold)).help("A quick first layer under the stitches. It holds the fabric still so the top stitches lie smooth.")
@@ -1002,9 +1002,7 @@ struct InspectorPanel: View {
         VStack(alignment: .leading, spacing: 4) {
             SectionLabel(title: "Close-up")
             StitchPreview(kind: object.kind, color: Color(nsColor: object.color.nsColor), spacing: object.settings.spacing, stitchLength: object.stitchLength, angle: object.settings.angle,
-                          fillStyle: object.settings.fillStyle ?? .tatami, waveHeight: object.settings.waveHeight ?? DigitizingSettings.defaultWaveHeight, waveLength: object.settings.waveLength ?? DigitizingSettings.defaultWaveLength,
-                          runStyle: object.settings.runStyle ?? .running, runWidth: object.settings.runWidth ?? DigitizingSettings.defaultRunWidth(object.settings.runStyle ?? .running),
-                          runSpacing: object.settings.runSpacing ?? DigitizingSettings.defaultRunSpacing(object.settings.runStyle ?? .running), stippleSpacing: object.settings.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing)
+                          fillStyle: object.settings.fillStyle ?? .tatami, waveHeight: object.settings.waveHeight ?? DigitizingSettings.defaultWaveHeight, waveLength: object.settings.waveLength ?? DigitizingSettings.defaultWaveLength, settings: object.settings)
                 .frame(height: 44)
         }
         .padding(10)
@@ -1142,6 +1140,8 @@ struct InspectorPanel: View {
             .help("On the inside of a curve, every other stitch stops short so thread doesn't pile up into a hard ridge.")
         toggle("Split wide satin", value: object.settings.autoSplit == true) { on in settings(.satin, "Split Wide Satin") { $0.autoSplit = on } }
             .help("Stitches longer than the maximum stitch are split into shorter ones, staggered like bricks, instead of the column being refused.")
+        toggle("Raised (padded)", value: object.settings.raised == true) { on in settings(.satin, "Raised Satin") { $0.raised = on ? true : nil } }
+            .help("Lanes of padding stitches are sewn along the column first, so the satin stands up off the fabric for a 3D look. Uses more thread; best on columns 3 mm and wider.")
     }
     /// Satin from a center line: a width and a button that turns this line into a satin column. Shared with Pro.
     @ViewBuilder func satinLine(_ object: RunObject) -> some View {
@@ -1149,8 +1149,36 @@ struct InspectorPanel: View {
         Button("Make satin column") { AppDelegate.shared.perform(.convertSatin) }.buttonStyle(ThemedButtonStyle())
             .help("Turn this line into a satin column centered on it (\(Preferences.shared.label(.convertSatin).isEmpty ? "Digitize menu" : Preferences.shared.label(.convertSatin)))")
     }
-    /// Running stitch passes: Single, or bean stitch sewing each stitch 3 or 5 times. Shared with the Pro layout.
-    /// A line's stitch style (running, zigzag, blanket, back or stem stitch), with the width and spacing the style
+    /// The settings a fill style has of its own: stipple spacing; a motif fill's motif, size and gap; a cross stitch
+    /// fill's square size; a gradient fill's row spacing where it starts and ends. Shared with the Pro layout.
+    @ViewBuilder func patternSettings(_ object: RunObject) -> some View {
+        let s = object.settings
+        switch s.fillStyle ?? .tatami {
+        case .stipple:
+            number("Stipple spacing", value: s.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing, range: DigitizingSettings.stippleSpacingRange, help: "How far apart the line's neighbouring passes are (mm). Smaller is denser. Stipple sews without underlay.") { value in settings(.fill, "Stipple Spacing") { $0.stippleSpacing = value } }
+        case .motif:
+            motifPicker(object, kind: .fill)
+            number("Motif size", value: s.patternSize ?? DigitizingSettings.defaultPatternSize(.motif), range: DigitizingSettings.patternSizeRange, help: "How big each motif is (mm). Only whole motifs that fit inside the shape are sewn.") { value in settings(.fill, "Motif Size") { $0.patternSize = value } }
+            number("Gap", value: s.patternGap ?? DigitizingSettings.defaultPatternGap, range: DigitizingSettings.patternGapRange, help: "The space between motifs (mm).") { value in settings(.fill, "Motif Gap") { $0.patternGap = value } }
+        case .crossStitch:
+            number("Square size", value: s.patternSize ?? DigitizingSettings.defaultPatternSize(.crossStitch), range: DigitizingSettings.patternSizeRange, help: "The size of each cross-stitch square (mm). Smaller squares follow the shape more closely and take more stitches.") { value in settings(.fill, "Square Size") { $0.patternSize = value } }
+        case .gradient:
+            let gradientHelp = "Row spacing where the rows start (the solid end) and where they finish (the open end), in mm. The rows run at the fill angle and open up from one side of the shape to the other; turning the angle by 180° swaps the sides."
+            number("Spacing at start", value: s.gradientStart ?? DigitizingSettings.defaultGradientStart, range: DigitizingSettings.gradientSpacingRange, hover: gradientHelp) { value in settings(.fill, "Gradient Start") { $0.gradientStart = value } }
+            number("Spacing at end", value: s.gradientEnd ?? DigitizingSettings.defaultGradientEnd, range: DigitizingSettings.gradientSpacingRange, help: gradientHelp) { value in settings(.fill, "Gradient End") { $0.gradientEnd = value } }
+        default: EmptyView()
+        }
+    }
+    /// The pattern a motif run or motif fill repeats.
+    func motifPicker(_ object: RunObject, kind: StitchKind) -> some View {
+        HStack {
+            Text("Motif").font(Theme.body(pro ? 11 : 12, weight: pro ? .regular : .semibold)); Spacer()
+            Picker("Motif", selection: Binding(get: { object.settings.motif ?? .heart }, set: { value in settings(kind, "Motif") { $0.motif = value == .heart ? nil : value } })) {
+                ForEach(Motif.allCases, id: \.self) { Text($0.title).tag($0) }
+            }.labelsHidden().frame(width: pro ? 120 : 140)
+        }
+    }
+    /// A line's stitch style (running, zigzag, blanket, back or stem stitch, motif), with the width and spacing the style
     /// uses. Guided explains the style under the picker; Pro shows the explanation as a tooltip.
     @ViewBuilder func runStyle(_ object: RunObject) -> some View {
         let style = object.settings.runStyle ?? .running
@@ -1162,15 +1190,17 @@ struct InspectorPanel: View {
         }
         .help(style.summary)
         if !pro { explain(style.summary) }
+        if style == .motif { motifPicker(object, kind: .run) }
         if style.hasWidth {
-            number(style == .blanket ? "Prong length" : "Width", value: object.settings.runWidth ?? DigitizingSettings.defaultRunWidth(style), range: DigitizingSettings.runWidthRange,
-                   help: style == .blanket ? "How far each prong reaches from the line (mm)." : "How wide the stitch is across the line (mm).") { value in settings(.run, "Line Width") { $0.runWidth = value } }
+            number(style == .blanket ? "Prong length" : style == .motif ? "Motif size" : "Width", value: object.settings.runWidth ?? DigitizingSettings.defaultRunWidth(style), range: DigitizingSettings.runWidthRange,
+                   help: style == .blanket ? "How far each prong reaches from the line (mm)." : style == .motif ? "How long each motif is along the line (mm)." : "How wide the stitch is across the line (mm).") { value in settings(.run, "Line Width") { $0.runWidth = value } }
         }
         if style.hasSpacing {
-            number(style == .blanket ? "Prong spacing" : "Spacing", value: object.settings.runSpacing ?? DigitizingSettings.defaultRunSpacing(style), range: DigitizingSettings.runSpacingRange,
-                   help: style == .blanket ? "How far apart the prongs are along the line (mm)." : "How far the needle moves along the line with each swing (mm). Smaller is denser.") { value in settings(.run, "Line Spacing") { $0.runSpacing = value } }
+            number(style == .blanket ? "Prong spacing" : style == .motif ? "Gap" : "Spacing", value: object.settings.runSpacing ?? DigitizingSettings.defaultRunSpacing(style), range: DigitizingSettings.runSpacingRange,
+                   help: style == .blanket ? "How far apart the prongs are along the line (mm)." : style == .motif ? "The running stitch between motifs (mm)." : "How far the needle moves along the line with each swing (mm). Smaller is denser.") { value in settings(.run, "Line Spacing") { $0.runSpacing = value } }
         }
     }
+    /// Running stitch passes: Single, or bean stitch sewing each stitch 3 or 5 times. Shared with the Pro layout.
     func runPasses(_ object: RunObject) -> some View {
         HStack {
             Text("Passes").font(Theme.body(pro ? 11 : 12, weight: pro ? .regular : .semibold)); Spacer()
@@ -1200,7 +1230,8 @@ struct InspectorPanel: View {
 
 /// A tiny drawing of the selected stitch settings, at roughly 12 points per millimetre:
 /// satin as a zigzag at the row spacing, fill as offset rows at the fill angle, running stitch as a dashed curve. Line
-/// stitch styles and stipple fills are the real stitches, worked out for a short line or a small patch.
+/// stitch styles and the stipple, motif, cross stitch and gradient fills are the real stitches, worked out for a short
+/// line or a small patch with the object's own `settings`.
 struct StitchPreview: View {
     var kind: StitchKind
     var color: Color
@@ -1209,9 +1240,9 @@ struct StitchPreview: View {
     var angle: Double         // fill row direction, in degrees
     var fillStyle = FillStyle.tatami
     var waveHeight = DigitizingSettings.defaultWaveHeight, waveLength = DigitizingSettings.defaultWaveLength   // mm
-    var runStyle = RunStyle.running
-    var runWidth = 2.0, runSpacing = 1.5, stippleSpacing = DigitizingSettings.defaultStippleSpacing   // mm
+    var settings = DigitizingSettings(kind: .run)
     var body: some View {
+        let runStyle = settings.runStyle ?? .running
         // Canvas is SwiftUI's free-drawing view: its closure receives a drawing context and the space available.
         Canvas { context, size in
             let scale = 12.0, inset = 4.0
@@ -1230,7 +1261,8 @@ struct StitchPreview: View {
                 // The style's own stitches along a straight line across the box (blanket's prongs reach up from near
                 // the bottom, so they fit).
                 let length = (size.width - 2 * inset) / scale, baseline = runStyle == .blanket ? size.height - inset : size.height / 2
-                let points = RunningStyles.stitches(runStyle, along: [Point(0, 0), Point(length, 0)], closed: false, width: runWidth, spacing: runSpacing, length: stitchLength) ?? []
+                let points = RunningStyles.stitches(runStyle, along: [Point(0, 0), Point(length, 0)], closed: false, width: settings.runWidth ?? DigitizingSettings.defaultRunWidth(runStyle),
+                                                    spacing: settings.runSpacing ?? DigitizingSettings.defaultRunSpacing(runStyle), length: stitchLength, motif: settings.motif ?? .heart) ?? []
                 var path = Path()
                 for (index, p) in points.enumerated() {
                     let q = CGPoint(x: inset + p.x * scale, y: baseline - p.y * scale)
@@ -1238,13 +1270,13 @@ struct StitchPreview: View {
                 }
                 context.clip(to: Path(CGRect(origin: .zero, size: size)))
                 context.stroke(path, with: .color(color), lineWidth: 1.3)
-            case .fill where fillStyle == .stipple:
-                // A real stipple fill of a patch the size of the box, drawn smaller (2 points per mm) so a few of its
-                // loops fit.
+            case .fill where [.stipple, .motif, .crossStitch, .gradient].contains(fillStyle):
+                // The real fill of a patch the size of the box, drawn smaller (2 points per mm) so a few of its loops,
+                // motifs or squares fit.
                 let small = 2.0, w = size.width / small, h = size.height / small
                 var patch = RunObject(name: "Preview", nodes: [Point(0, 0), Point(w, 0), Point(w, h), Point(0, h)].map { PathNode($0) })
                 patch.closed = true; patch.stitchLength = stitchLength
-                patch.digitizing = DigitizingSettings(kind: .fill); patch.digitizing?.fillStyle = .stipple; patch.digitizing?.stippleSpacing = stippleSpacing
+                patch.digitizing = settings; patch.digitizing?.kind = .fill; patch.digitizing?.underlay = UnderlayStyle.none
                 var path = Path()
                 for section in (try? AreaEngine.fill(patch).sections) ?? [] {
                     for (index, p) in section.points.enumerated() {
