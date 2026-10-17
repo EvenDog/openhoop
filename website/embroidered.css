@@ -1,0 +1,70 @@
+/*
+  The embroidered look, layered on top of styles.css.
+  stitch.js draws the thread itself; this file adds fabric textures and hides the old dashed lines.
+  Everything is scoped to html.embroidered, a class stitch.js adds when it runs, so without
+  JavaScript the page keeps its plain dashed "stitches".
+*/
+
+/* The canvases stitch.js adds sit under each element's text but above its background. */
+.is-stitched { position: relative; isolation: isolate; }
+.stitches { position: absolute; z-index: -1; pointer-events: none; filter: drop-shadow(0 1px 1px #050c1a8c); }
+html:not(.embroidered) .stitches { display: none; }
+.pill-button:not(.is-active) > .stitches { display: none; } /* only the selected toggle gets a stitched edge */
+
+/* ---------- Fabric ---------- */
+/* Denim twill: fine diagonal ribs plus a little grain. */
+html.embroidered body, html.embroidered .band-deep {
+  background-image:
+    repeating-linear-gradient(-45deg, #ffffff0a 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(45deg, #00000014 0 1px, transparent 1px 5px);
+}
+html.embroidered .band-deep { background-color: var(--denim-light); }
+/* Cream linen: a plain over-under weave. */
+html.embroidered .band-cream {
+  position: relative;
+  background-image:
+    repeating-linear-gradient(0deg, #7d6c4c14 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, #ffffff40 0 1px, transparent 1px 3px);
+}
+/* Woven labels keep a tight weave of their own. */
+html.embroidered .labels li {
+  background-image:
+    repeating-linear-gradient(0deg, #ffffff12 0 1px, transparent 1px 2px),
+    repeating-linear-gradient(90deg, #00000022 0 1px, transparent 1px 2px);
+}
+
+/* ---------- Old dashed "stitches", replaced by drawn thread ---------- */
+html.embroidered .early-banner { border-bottom-color: transparent; }
+html.embroidered .nav-pill,
+html.embroidered .button-stitched,
+html.embroidered .inspect-button,
+html.embroidered .restart-button,
+html.embroidered .workspace-list article { border-color: transparent; }
+html.embroidered .patch { border-color: transparent; outline: none; }
+html.embroidered .hero-tag,
+html.embroidered .badge,
+html.embroidered .labels li,
+html.embroidered .start-main { outline: none; }
+html.embroidered .site-footer { border-top-color: transparent; }
+
+/* The satin-stitched patches lift off the fabric a little. */
+html.embroidered .patch,
+html.embroidered .badge,
+html.embroidered .hero-tag,
+html.embroidered .start-main,
+html.embroidered .labels li { box-shadow: 0 3px 0 #050c1a40, 0 10px 24px #050c1a40; }
+html.embroidered .button-gold,
+html.embroidered .button-denim,
+html.embroidered .nav-source { box-shadow: 0 2px 0 #050c1a55, 0 6px 14px #050c1a40; }
+
+/* "stitched" in the headline is satin-stitched: fine slanted threads with a sheen across them. */
+html.embroidered h1 em {
+  background:
+    linear-gradient(170deg, #fff4 0%, transparent 45%, #0003 100%),
+    repeating-linear-gradient(72deg, #c98d22 0 0.8px, #f2b33d 0.8px 2.2px, #ffd889 2.2px 2.8px, #f2b33d 2.8px 3.6px);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 0 #050c1a99);
+}
+
