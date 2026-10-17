@@ -21,7 +21,6 @@ const THREADS = {
 const STITCH_PLAN = [
   // On filled shapes the edge stitch straddles the edge (inset ≈ 1), covering where the fill ends,
   // the way a satin border covers the raw edge of a real patch.
-  ['.early-banner-link', [{ type: 'zigzag', width: 4, inset: 1, thread: 'gold' }]],
   ['.nav-pill:not(.nav-source)', [{ type: 'run', inset: 1, thread: 'denimLine' }]],
   ['.nav-source', [{ type: 'zigzag', width: 5, inset: 1, thread: 'denim' }]],
   ['.hero-tag', [{ type: 'tatami', thread: 'tomato', angle: 30 }, { type: 'satin', width: 5, inset: 1, thread: 'white' }]],
