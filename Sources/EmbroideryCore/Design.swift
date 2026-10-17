@@ -245,11 +245,13 @@ public enum UnderlayStyle: String, Codable, CaseIterable, Sendable {case none, c
     public var title:String {switch self {case .none:return "None";case .center:return "Center run";case .edge:return "Inset edge run";case .zigzag:return "Inset zigzag";case .edgeAndSparse:return "Edge + sparse fill";case .auto:return "Auto (by width)"}}
 }
 /// How a fill lays down its thread: straight rows (tatami), rings that follow the outline inward (contour), rays
-/// fanning out from a center (radial), rows that ripple (wave), or one wandering line that never crosses itself (stipple).
+/// fanning out from a center (radial), rows that ripple (wave), one wandering line that never crosses itself (stipple),
+/// a small pattern tiled across the shape (motif), a grid of X's (cross stitch), or rows that open up across the shape
+/// (gradient).
 public enum FillStyle: String, Codable, CaseIterable, Sendable {
-    case tatami, contour, radial, wave, stipple
+    case tatami, contour, radial, wave, stipple, motif, crossStitch, gradient
     public var title: String {
-        switch self { case .tatami: return "Tatami"; case .contour: return "Contour"; case .radial: return "Radial"; case .wave: return "Wave"; case .stipple: return "Stipple" }
+        switch self { case .tatami: return "Tatami"; case .contour: return "Contour"; case .radial: return "Radial"; case .wave: return "Wave"; case .stipple: return "Stipple"; case .motif: return "Motif"; case .crossStitch: return "Cross stitch"; case .gradient: return "Gradient" }
     }
     public var summary: String {
         switch self {
@@ -258,15 +260,18 @@ public enum FillStyle: String, Codable, CaseIterable, Sendable {
         case .radial: return "Stitches fan out from a center point, like sun rays. Good for flowers, suns and round badges."
         case .wave: return "Rows that ripple in a gentle wave instead of running straight."
         case .stipple: return "One wandering line that loops through the whole shape and never crosses itself: the quilting look, or a light background texture."
+        case .motif: return "A small pattern (hearts, leaves, stars…) repeated in rows across the shape: a decorative, open fill."
+        case .crossStitch: return "Little X's on a square grid, like hand cross-stitch. Only whole squares inside the shape get one, so the edge steps like a real cross-stitch."
+        case .gradient: return "Tatami rows that start close together and open up across the shape, from solid to sheer: for shading, or for blending one thread color into another."
         }
     }
 }
 /// How a running line is sewn: plain running stitch, or one of the decorative line stitches built along it
 /// (RunningStyles.swift).
 public enum RunStyle: String, Codable, CaseIterable, Sendable {
-    case running, zigzag, blanket, backStitch, stemStitch
+    case running, zigzag, blanket, backStitch, stemStitch, motif
     public var title: String {
-        switch self { case .running: return "Running"; case .zigzag: return "Zigzag"; case .blanket: return "Blanket"; case .backStitch: return "Back stitch"; case .stemStitch: return "Stem stitch" }
+        switch self { case .running: return "Running"; case .zigzag: return "Zigzag"; case .blanket: return "Blanket"; case .backStitch: return "Back stitch"; case .stemStitch: return "Stem stitch"; case .motif: return "Motif" }
     }
     public var summary: String {
         switch self {
@@ -275,11 +280,18 @@ public enum RunStyle: String, Codable, CaseIterable, Sendable {
         case .blanket: return "A running line with short prongs at regular spacing, like hand blanket stitch: the classic appliqué edge. On a closed shape the prongs point inward."
         case .backStitch: return "Each stitch goes forward two lengths and back one, for a solid line that looks hand-sewn."
         case .stemStitch: return "Like back stitch, but each stitch slants across the line, for a twisted rope look."
+        case .motif: return "A small pattern (hearts, leaves, stars…) repeated along the line, joined by short runs."
         }
     }
-    /// True for styles with a width across the line (and, for zigzag and blanket, a spacing along it).
-    public var hasWidth: Bool { self == .zigzag || self == .blanket || self == .stemStitch }
-    public var hasSpacing: Bool { self == .zigzag || self == .blanket }
+    /// True for styles with a width across the line (and, for zigzag, blanket and motif, a spacing along it). For a
+    /// motif they're its size and the gap between motifs.
+    public var hasWidth: Bool { self == .zigzag || self == .blanket || self == .stemStitch || self == .motif }
+    public var hasSpacing: Bool { self == .zigzag || self == .blanket || self == .motif }
+}
+/// The small patterns motif runs and motif fills repeat (Motifs.swift draws them).
+public enum Motif: String, Codable, CaseIterable, Sendable {
+    case heart, leaf, diamond, star, scallop, circle
+    public var title: String { rawValue.prefix(1).uppercased() + rawValue.dropFirst() }
 }
 public struct DigitizingSettings: Codable, Hashable, Sendable {
     public var kind:StitchKind
@@ -347,8 +359,23 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     public var runWidth:Double?
     public var runSpacing:Double?
     /// Each line style's starting width and spacing (mm), and the sizes Properties offers and project files may hold.
-    public static func defaultRunWidth(_ style:RunStyle)->Double {style == .blanket ? 2.5 : style == .stemStitch ? 1 : 2}
-    public static func defaultRunSpacing(_ style:RunStyle)->Double {style == .blanket ? 3 : 1.5}
+    public static func defaultRunWidth(_ style:RunStyle)->Double {style == .blanket ? 2.5 : style == .stemStitch ? 1 : style == .motif ? 4 : 2}
+    public static func defaultRunSpacing(_ style:RunStyle)->Double {style == .blanket ? 3 : style == .motif ? 1 : 1.5}
+    /// Motif runs and motif fills: which pattern (nil means hearts).
+    public var motif:Motif?
+    /// Motif and cross stitch fills: the size of each motif or cross-stitch square, and (motif fills) the gap
+    /// between motifs, in mm. nil uses the defaults below.
+    public var patternSize:Double?
+    public var patternGap:Double?
+    public static func defaultPatternSize(_ style:FillStyle)->Double {style == .crossStitch ? 3 : 5}
+    public static let defaultPatternGap=1.5, patternSizeRange=1.5...20.0, patternGapRange=0.0...10.0
+    /// Gradient fills: the row spacing where the rows start (the densest end) and where they finish, in mm.
+    public var gradientStart:Double?
+    public var gradientEnd:Double?
+    public static let defaultGradientStart=0.4, defaultGradientEnd=2.5, gradientSpacingRange=0.2...6.0
+    /// Satin only: padding sewn lengthwise inside the column before the satin, so it stands up off the fabric.
+    /// nil (the default, and in older files) means flat.
+    public var raised:Bool?
     public static let runWidthRange=0.3...10.0, runSpacingRange=0.5...10.0
     /// Stipple fills: how far apart the wandering line's neighbouring passes are, in mm (nil uses the default). It's
     /// separate from the row spacing, which fabric types set for dense fills.
@@ -472,10 +499,12 @@ public struct Design: Codable, Equatable, Sendable {
     /// Closed satins (borders) count too: an older version would sew them with their last span missing.
     /// So do contour, radial and wave fills: an older version would sew them as straight rows. And satins with a
     /// second underlay, Auto underlay or compensation by width, which an older version would leave out.
-    /// True when a design uses something added in file version 6 (line stitch styles, stipple fills), so it's saved
+    /// True when a design uses something added in file version 6 (line stitch styles; stipple, motif, cross stitch and
+    /// gradient fills; raised satin), so it's saved
     /// as version 6 and older versions of the app, which would sew those as plain stitches, refuse it instead.
     public var needsSchemaSix: Bool {
-        objects.contains { ($0.kind == .run && ($0.settings.runStyle ?? .running) != .running) || ($0.kind == .fill && $0.settings.fillStyle == .stipple) }
+        objects.contains { ($0.kind == .run && ($0.settings.runStyle ?? .running) != .running)
+            || ($0.kind == .fill && [.stipple, .motif, .crossStitch, .gradient].contains($0.settings.fillStyle ?? .tatami)) || ($0.kind == .satin && $0.settings.raised == true) }
     }
     public var needsSchemaFive: Bool { usesHandles || basting != nil || objects.contains { $0.branchID != nil || $0.stitchEdits != nil || $0.entry != nil || $0.exit != nil || ($0.kind == .satin && ($0.closed || $0.settings.relaxedChecks == true)) || ($0.kind == .fill && ($0.settings.fillStyle ?? .tatami) != .tatami) || ($0.kind == .run && ($0.settings.runPasses ?? 1) > 1) || ($0.kind == .satin && ($0.settings.shortStitches == true || $0.settings.autoSplit == true)) || ($0.kind == .fill && ($0.settings.cutOutOverlaps == true || !($0.settings.angleLines ?? []).isEmpty)) || ($0.kind == .satin && ($0.settings.secondUnderlay != nil || $0.settings.underlay == .auto || $0.settings.pullPercent != nil)) } }
     public static func sample() -> Self {
@@ -519,7 +548,9 @@ public struct Design: Codable, Equatable, Sendable {
             }
             guard DigitizingSettings.runPassChoices.contains(object.settings.runPasses ?? 1) else { throw DesignError.invalid("Invalid number of running stitch passes in \(object.name).") }
             guard object.settings.runWidth.map(DigitizingSettings.runWidthRange.contains) ?? true, object.settings.runSpacing.map(DigitizingSettings.runSpacingRange.contains) ?? true,
-                  object.settings.stippleSpacing.map(DigitizingSettings.stippleSpacingRange.contains) ?? true else { throw DesignError.invalid("Invalid line stitch or stipple size in \(object.name).") }
+                  object.settings.stippleSpacing.map(DigitizingSettings.stippleSpacingRange.contains) ?? true,
+                  object.settings.patternSize.map(DigitizingSettings.patternSizeRange.contains) ?? true, object.settings.patternGap.map(DigitizingSettings.patternGapRange.contains) ?? true,
+                  [object.settings.gradientStart, object.settings.gradientEnd].allSatisfy({ $0.map(DigitizingSettings.gradientSpacingRange.contains) ?? true }) else { throw DesignError.invalid("Invalid line stitch or pattern size in \(object.name).") }
             guard (0...0xffffff).contains(object.color.hex),object.color.name.count<=256,(object.color.brand?.count ?? 0)<=100,(object.color.code?.count ?? 0)<=100 else{throw DesignError.invalid("Invalid thread color.")}
             if let raw=object.rawStitches {
                 guard object.nodes.isEmpty,(object.holes ?? []).isEmpty,object.digitizing==nil,MachineFormat(rawValue:raw.sourceFormat) != nil,

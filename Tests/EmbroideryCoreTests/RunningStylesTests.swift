@@ -77,6 +77,75 @@ final class RunningStylesTests: XCTestCase {
         XCTAssertEqual(try AreaEngine.fill(fill).sections.flatMap(\.points), points, "the same shape always sews the same way")
     }
 
+    /// No line style makes a stitch over 10 mm, even at the largest settings (stem stitch at a 10 mm stitch length,
+    /// zigzag 10 mm wide and 10 mm open).
+    func testLineStylesKeepStitchesSewable() throws {
+        var stem = line(.stemStitch, width: 1); stem.stitchLength = 10
+        var zigzag = line(.zigzag, width: 10, spacing: 10)
+        zigzag.stitchLength = 10
+        for object in [stem, zigzag] {
+            let points = try stitches(object)
+            XCTAssertTrue(zip(points, points.dropFirst()).allSatisfy { $0.distance(to: $1) <= 10 + 1e-9 }, "\(object.settings.runStyle!) stitches at most 10 mm")
+        }
+    }
+
+    /// A 30 mm heart run: whole hearts 4 mm long with 1 mm gaps, centered, joined along the line, standing on it.
+    func testMotifRunStringsWholeMotifsAlongTheLine() throws {
+        var object = line(.motif, width: 4, spacing: 1); object.digitizing?.motif = .heart
+        let points = try stitches(object)
+        XCTAssertEqual(points.first!.x, 0, accuracy: 1e-9); XCTAssertEqual(points.last!.x, 30, accuracy: 1e-9)
+        XCTAssertTrue(points.allSatisfy { $0.y >= -1e-9 && $0.y <= 4 + 1e-9 }, "hearts stand on the line, 4 mm tall")
+        let tips = points.filter { $0.y > 3.5 }.map(\.x)   // the top of each heart's two lobes
+        let hearts = Set(tips.map { Int(($0 - 0.5) / 5) }).count
+        XCTAssertEqual(hearts, 6, "six 4 mm hearts with 1 mm gaps fit in 30 mm")
+        for motif in Motif.allCases {
+            object.digitizing?.motif = motif
+            let run = try stitches(object)
+            XCTAssertTrue(zip(run, run.dropFirst()).allSatisfy { $0.distance(to: $1) <= 2.5 + 1e-6 }, "\(motif) stitches no longer than the stitch length")
+            XCTAssertEqual(run.last!.x, 30, accuracy: 1e-9, "\(motif) ends at the line's end")
+        }
+    }
+
+    /// Motif, cross stitch and gradient fills of a 40 × 30 mm rectangle stay inside it and have their own structure.
+    func testPatternFillsStayInsideTheShape() throws {
+        func rectangle(_ style: FillStyle) -> RunObject {
+            var fill = RunObject(name: style.title, nodes: [Point(0, 0), Point(40, 0), Point(40, 30), Point(0, 30)].map { PathNode($0) })
+            fill.closed = true; fill.digitizing = DigitizingSettings(kind: .fill); fill.digitizing?.fillStyle = style; fill.digitizing?.angle = 0
+            fill.digitizing?.expansion = 0; fill.stitchLength = 2.5
+            return fill
+        }
+        let box = [[Point(-0.01, -0.01), Point(40.01, -0.01), Point(40.01, 30.01), Point(-0.01, 30.01)]]
+        for style in [FillStyle.motif, .crossStitch, .gradient] {
+            let sections = try AreaEngine.fill(rectangle(style)).sections
+            XCTAssertTrue(sections.flatMap(\.points).allSatisfy { AreaGeometry.contains($0, rings: box) }, "\(style) stays inside")
+            if style != .gradient { XCTAssertFalse(sections.contains(where: \.underlay), "\(style) has no underlay") }
+        }
+        // Cross stitch: every needle point on a corner of the 3 mm grid, and plenty of X's (a 13 × 10 grid fits).
+        let cross = try Motifs.crossStitch(in: [[Point(0, 0), Point(40, 0), Point(40, 30), Point(0, 30)]], size: 3).flatMap { $0 }
+        let onGrid = cross.allSatisfy { p in [p.x, p.y].allSatisfy { v in let r = (v / 3).truncatingRemainder(dividingBy: 1); return r < 1e-6 || r > 1 - 1e-6 || abs(r - 0.5) < 1e-6 } }
+        XCTAssertTrue(onGrid, "needle points on the grid's corners")
+        // Gradient: rows start 0.4 mm apart and open up to about 2.5 mm.
+        // A row is a height where many stitches line up (travel between rows only passes through).
+        let heights = try AreaEngine.fill(rectangle(.gradient)).sections.filter { !$0.underlay }.flatMap(\.points).map { ($0.y * 1000).rounded() / 1000 }
+        let rows = Dictionary(grouping: heights, by: { $0 }).filter { $0.value.count >= 5 }.keys.sorted()
+        let gaps = zip(rows, rows.dropFirst()).map { $1 - $0 }.filter { $0 > 0.05 }
+        XCTAssertEqual(gaps.first!, 0.4, accuracy: 0.05, "dense where it starts")
+        XCTAssertGreaterThan(gaps.last!, 2, "open where it ends")
+        XCTAssertTrue(zip(gaps, gaps.dropFirst()).allSatisfy { $1 >= $0 - 0.05 }, "the gaps only grow")
+    }
+
+    /// Raised satin: padding lanes along the column, inside it, before the top stitches.
+    func testRaisedSatinIsPadded() throws {
+        let rungs = stride(from: 0.0, through: 30, by: 5).flatMap { y in [PathNode(Point(-2.5, y)), PathNode(Point(2.5, y))] }
+        var column = RunObject(name: "Column", nodes: rungs); column.digitizing = DigitizingSettings(kind: .satin)
+        let flat = try AreaEngine.satin(column).sections.filter(\.underlay).count
+        column.digitizing?.raised = true
+        let sections = try AreaEngine.satin(column).sections
+        XCTAssertGreaterThanOrEqual(sections.filter(\.underlay).count, flat + 7, "a 5 mm column gets about seven padding lanes")
+        XCTAssertTrue(sections.filter(\.underlay).flatMap(\.points).allSatisfy { abs($0.x) <= 2.5 + 1e-9 }, "padding stays inside the column")
+        XCTAssertFalse(sections.last!.underlay, "the satin sews last, over the padding")
+    }
+
     func testNewStitchesSaveAsVersionSixAndOldDesignsDont() {
         var design = Design(); design.objects = [RunObject(name: "Plain", nodes: [Point(0, 0), Point(10, 0)].map { PathNode($0) })]
         XCTAssertFalse(design.needsSchemaSix)
@@ -84,6 +153,8 @@ final class RunningStylesTests: XCTestCase {
         XCTAssertTrue(design.needsSchemaSix)
         design.objects = [RunObject(name: "Fill", nodes: [Point(0, 0), Point(10, 0), Point(10, 10)].map { PathNode($0) })]
         design.objects[0].closed = true; design.objects[0].digitizing = DigitizingSettings(kind: .fill); design.objects[0].digitizing?.fillStyle = .stipple
+        XCTAssertTrue(design.needsSchemaSix)
+        design.objects[0].digitizing?.fillStyle = .gradient
         XCTAssertTrue(design.needsSchemaSix)
         design.schemaVersion = 6
         XCTAssertNoThrow(try design.validate())

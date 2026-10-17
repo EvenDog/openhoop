@@ -1,6 +1,6 @@
-// The sew-out test pack: six designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
+// The sew-out test pack: seven designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
 // machine side by side (satin widths and compensation, the fill styles, small lettering, a monogram, travel and
-// finishing, and the line styles and stipple). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
+// finishing, the line styles and stipple, and motifs, cross stitch, gradient and raised satin). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
 // designs there as OpenHoop projects:
 //   SEWOUT_DIR="$PWD/docs/sewout" swift test --filter SewOutPackTests
 import XCTest
@@ -130,9 +130,30 @@ final class SewOutPackTests: XCTestCase {
         return design
     }
 
+    /// 7 · Motifs and more: heart, leaf and star motif runs (top left), a star motif fill (top right), and along the
+    /// bottom a cross stitch fill, a gradient fill, and a 5 mm satin flat then raised.
+    func patternSheet() -> Design {
+        var design = newDesign()
+        for (row, motif) in [Motif.heart, .leaf, .star].enumerated() {
+            let y = 40.0 - Double(row) * 12
+            var line = RunObject(name: "\(motif.title) motif run", nodes: [PathNode(Point(-44, y)), PathNode(Point(-24, y + 2), smooth: true), PathNode(Point(-4, y))], color: threads[row])
+            line.digitizing = DigitizingSettings(kind: .run); line.digitizing?.runStyle = .motif; line.digitizing?.motif = motif
+            design.objects.append(line)
+        }
+        var motifs = fill("Star motif fill", ShapeGeometry.nodes(.ellipse, in: (Point(6, 10), Point(44, 46))), color: threads[2])
+        motifs.digitizing?.fillStyle = .motif; motifs.digitizing?.motif = .star; motifs.digitizing?.angle = 0
+        var cross = fill("Cross stitch fill", ShapeGeometry.nodes(.ellipse, in: (Point(-44, -44), Point(-14, -14))), color: threads[1])
+        cross.digitizing?.fillStyle = .crossStitch
+        var gradient = fill("Gradient fill", ShapeGeometry.nodes(.rectangle, in: (Point(-8, -44), Point(16, -12))), color: threads[0])
+        gradient.digitizing?.fillStyle = .gradient; gradient.digitizing?.angle = 0
+        var raised = column("Satin 5 mm, raised", at: Point(38, -44), length: 30, width: 5, color: threads[4]); raised.digitizing?.raised = true
+        design.objects += [motifs, cross, gradient, column("Satin 5 mm, flat", at: Point(27, -44), length: 30, width: 5, color: threads[4]), raised]
+        return design
+    }
+
     func testEverySheetSewsAndFitsTheHoop() throws {
         let sheets: [(String, Design)] = [("1 Satin", satinSheet()), ("2 Fills", fillSheet()), ("3 Lettering", try letteringSheet()),
-                                          ("4 Monogram", try monogramSheet()), ("5 Travel and finishing", try travelSheet()), ("6 Line styles and stipple", lineStyleSheet())]
+                                          ("4 Monogram", try monogramSheet()), ("5 Travel and finishing", try travelSheet()), ("6 Line styles and stipple", lineStyleSheet()), ("7 Motifs, cross stitch and more", patternSheet())]
         for (name, sheet) in sheets {
             var design = sheet
             design.schemaVersion = design.needsSchemaSix ? 6 : design.needsSchemaFive ? 5 : 4
