@@ -517,7 +517,7 @@ public struct Design: Codable, Equatable, Sendable {
     /// as version 6 and older versions of the app, which would sew those as plain stitches, refuse it instead.
     public var needsSchemaSix: Bool {
         objects.contains { ($0.kind == .run && ($0.settings.runStyle ?? .running) != .running)
-            || $0.lettering.map { $0.letterSpacing != nil || !($0.letterOffsets ?? [:]).isEmpty || $0.entry != nil || $0.exit != nil } == true
+            || $0.lettering.map { $0.letterSpacing != nil || !($0.letterOffsets ?? [:]).isEmpty || $0.entry != nil || $0.exit != nil || $0.shape == .onLine } == true
             || ($0.kind == .fill && [.stipple, .motif, .crossStitch, .gradient, .guided].contains($0.settings.fillStyle ?? .tatami)) || ($0.kind == .satin && $0.settings.raised == true)
             || $0.guideFor != nil }
     }
@@ -557,6 +557,9 @@ public struct Design: Codable, Equatable, Sendable {
             guard (0.3...10).contains(object.stitchLength), object.nodes.count <= 100_000,
                   object.allNodes.allSatisfy({ node in [node.point, node.inHandle, node.outHandle].allSatisfy { $0.map { $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 } ?? true } }) else {
                 throw DesignError.invalid("Invalid geometry or stitch length in \(object.name).")
+            }
+            guard object.lettering?.path.map({ path in path.count <= 20_000 && path.allSatisfy { $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 } }) ?? true else {
+                throw DesignError.invalid("Invalid lettering line in \(object.name).")
             }
             guard [object.entry, object.exit].allSatisfy({ $0.map { $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 } ?? true }) else {
                 throw DesignError.invalid("Invalid start or end point in \(object.name).")

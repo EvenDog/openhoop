@@ -33,7 +33,7 @@ extension Design {
             if let old = copy.monogram?.id { if newLettering[old] == nil { newLettering[old] = UUID() }; copy.monogram?.id = newLettering[old]! }   // a separate monogram too
             ids.append(copy.id); objects.append(copy)
         }
-        relinkCopiedGuides(copies)   // a copied guide line guides the copied fill
+        relinkCopiedGuides(copies.merging(newLettering) { a, _ in a })   // a copied guide line guides the copied fill or lettering
         return ids
     }
 }

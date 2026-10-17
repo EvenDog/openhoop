@@ -176,7 +176,12 @@ Press **A** (or **Add → Text**) to add lettering.
 - **Embroidery fonts** (recommended): 18 hand-digitized satin fonts, from 2.8 mm tiny text to 140 mm monograms. Each shows its stitched preview and the size range it was made for. **Font credits…** lists each font's license.
 - **System fonts:** any font on your Mac, as fills or outlines, 3–200 mm tall. Below about 10 mm, use an embroidery font instead.
 - **Several lines:** up to 10, aligned left, center or right, with adjustable line spacing.
-- **Shape:** **Straight**, **Arch up** or **Arch down**, with the arc's radius.
+- **Shape:** **Straight**, **Arch up** or **Arch down**, with the arc's radius, or **On a line** (below).
+- **Lettering on a line:** draw a line with the line tool, select the lettering and the line (Shift-click), and choose **Digitize → Add → Put Lettering on Line**.
+  - Each letter stands on the line, turned to follow it. The word is centered on the line, and past the line's ends it carries straight on.
+  - The line stops sewing and becomes a dashed guide, grouped with the word.
+  - Reshape the line with **Edit Nodes (H)** and the letters follow.
+  - It works with one line of text. Choosing **Straight** or an arch in Properties takes the word off the line; the line stays, unstitched, for you to delete or reuse.
 - **One object:** lettering is one step in the sewing order and moves, resizes and recolors as one. Clicking any letter (even Option-clicking) selects the whole word, and Ungroup leaves it whole.
 - **Edit it in Properties:** with the lettering selected, **Lettering** in Properties changes the text (the letters update when you pause typing), the font, height, **Letter spacing** (extra space between letters in mm; negative pulls them closer) and the **Baseline** (straight or arched, with its radius). Each change is one step to undo. **More options…** (or double-click, or **⌥L**) opens the full dialog for several lines and alignment. If you had changed any letters by hand, Properties says that these settings rebuild them.
 - **Move one letter:** with **Edit Nodes (H)**, each letter has a small diamond handle below it. Drag it to move just that letter, sideways or up and down. It stays where you put it when you change the text, font, size or spacing (moves are kept by the letter's place in the word: 1st letter, 2nd letter…). **Reset letter positions** in Properties puts them back.

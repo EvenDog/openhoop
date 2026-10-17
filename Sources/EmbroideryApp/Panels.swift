@@ -317,6 +317,7 @@ struct ToolStrip: View {
         case .addStitchAngles: return state.selection.count == 1 && state.selected?.kind == .fill && state.selected?.locked == false && (state.selected?.settings.fillStyle ?? .tatami) == .tatami
         case .removeStitchAngles: return state.selection.count == 1 && state.selected?.locked == false && !(state.selected?.settings.angleLines ?? []).isEmpty
         case .useAsFillGuide: return state.fillAndGuideLine != nil
+        case .putLetteringOnLine: return state.letteringAndLine != nil
         case .satinBorder, .applique: return state.design.objects.contains { state.selection.contains($0.id) && !$0.locked && SatinBorder.canBorder($0) }
         case .autoDigitize: return state.design.artwork != nil
         case .weldObjects: return state.design.objects.filter { state.selection.contains($0.id) && !$0.locked && $0.areaRings != nil }.count >= 2

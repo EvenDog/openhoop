@@ -60,10 +60,12 @@ extension InspectorPanel {
             HStack {
                 Text("Baseline").font(Theme.body(pro ? 11 : 12, weight: pro ? .regular : .semibold)).fixedSize(); Spacer()
                 Picker("Baseline", selection: Binding(get: { spec.shape }, set: { shape in var next = spec; next.shape = shape; state.rebuildLettering(next, action: "Lettering Baseline") })) {
-                    ForEach(LetteringShape.allCases, id: \.self) { Text($0.title).tag($0) }
+                    // On a line shows only while the lettering is on one (Put Lettering on Line puts it there).
+                    ForEach(LetteringShape.pickable + (spec.shape == .onLine ? [.onLine] : []), id: \.self) { Text($0.title).tag($0) }
                 }.pickerStyle(.segmented).labelsHidden().fixedSize()
             }
-            if spec.shape != .straight {
+            if spec.shape == .onLine { explain("The letters sit along the dashed line. Reshape it with Edit Nodes and they follow; choose Straight or an arch to take them off it.") }
+            if spec.shape.isArch {
                 number("Arc radius", value: spec.radius, range: Lettering.radii, length: true, help: "The circle the letters follow. Smaller is more curved.") { radius in
                     var next = spec; next.radius = radius
                     state.rebuildLettering(next, action: "Arc Radius")

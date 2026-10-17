@@ -547,6 +547,28 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             status = "The line now guides the fill: its rows follow it, and it doesn't sew. Reshape the dashed guide with Edit Nodes\(key.isEmpty ? "" : " (\(key))") and the rows follow."
         } catch { status = error.localizedDescription }
     }
+    /// The lettering and the line, when the selection is all the letters of one unlocked piece of lettering and one
+    /// unlocked open line (the pair Put Lettering on Line links).
+    var letteringAndLine: (lettering: UUID, line: UUID)? {
+        let chosen = design.objects.filter { selection.contains($0.id) }
+        let lines = chosen.filter { $0.lettering == nil }
+        guard lines.count == 1, let line = lines.first, [.run, .vector].contains(line.kind), !line.closed, line.monogram == nil, !line.locked,
+              let spec = chosen.first(where: { $0.lettering != nil })?.lettering,
+              chosen.allSatisfy({ $0.lettering == nil || $0.lettering?.id == spec.id }) else { return nil }
+        return (spec.id, line.id)
+    }
+    /// Put Lettering on Line: sets the selected lettering along the selected line as one undoable step, or says what
+    /// to select.
+    func putSelectedLetteringOnLine() {
+        guard let pair = letteringAndLine else { status = "Select some lettering and an open line (Shift-click to select both), then choose \(CommandID.putLetteringOnLine.title)."; return }
+        do {
+            var next = design; try next.putLettering(pair.lettering, onLine: pair.line, embroideryFonts: EmbroideryFontLibrary.fonts)
+            edit(CommandID.putLetteringOnLine.title) { $0 = next }
+            selection = Set(design.objects.filter { $0.lettering?.id == pair.lettering || $0.id == pair.line }.map(\.id)); selectedNode = nil
+            let key = Preferences.shared.label(.nodeTool)
+            status = "The lettering now sits along the line, which doesn't sew. Reshape the dashed line with Edit Nodes\(key.isEmpty ? "" : " (\(key))") and the letters follow."
+        } catch { status = error.localizedDescription }
+    }
     /// True when `id` is a letter of a piece of lettering.
     func isLettering(_ id: UUID) -> Bool { design.objects.first { $0.id == id }?.lettering != nil }
     /// Break Apart Lettering: turns the selected lettering into plain shapes (still grouped, so they move together
@@ -591,7 +613,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
                 if let old = copy.monogram?.id { if newLettering[old] == nil { newLettering[old] = UUID() }; copy.monogram?.id = newLettering[old]! }   // a separate monogram too
                 ids.insert(copy.id); design.objects.append(copy)
             }
-            design.relinkCopiedGuides(copies)   // a copied guide line guides the copied fill
+            design.relinkCopiedGuides(copies.merging(newLettering) { a, _ in a })   // a copied guide line guides the copied fill or lettering
         }; selection = ids
     }
 }
@@ -645,11 +667,16 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         // stitches (Undo brings the edits back).
         let lost=updated.dropStaleStitchEdits()
         updated.keepArtworkPlace(from:state.design)   // the reference picture stays between the same objects
-        updated.syncGuides()   // guided fills follow their guide lines' new shapes
+        // Guided fills and lettering on a line follow their guide lines' new shapes. Rebuilt letters are new objects,
+        // so selected lettering stays selected by its lettering id.
+        let selectedLettering = Set(updated.objects.filter { state.selection.contains($0.id) }.compactMap { $0.lettering?.id })
+        let guideProblems = updated.syncGuides(embroideryFonts: EmbroideryFontLibrary.fonts)
         if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
         state.design = updated; state.revision += 1
         if !lost.isEmpty { state.status = "\(lost.joined(separator: ", ")): stitches edited by hand were replaced by fresh ones, because the shape or settings changed. Undo (⌘Z) brings them back." }
-        state.selection.formIntersection(Set(next.objects.map(\.id)))
+        if let problem = guideProblems.first { state.status = problem }
+        state.selection.formIntersection(Set(updated.objects.map(\.id)))
+        state.selection.formUnion(updated.objects.filter { $0.lettering.map { selectedLettering.contains($0.id) } ?? false }.map(\.id))
         regenerate()
     }
     func regenerate() {

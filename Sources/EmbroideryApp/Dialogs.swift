@@ -506,9 +506,10 @@ struct LetteringView: View {
                     .font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
             }
             field("Shape") {
-                Picker("Shape", selection: $choices.shape) { ForEach(LetteringShape.allCases, id: \.self) { Text($0.title).tag($0) } }.pickerStyle(.segmented).labelsHidden()
+                // On a line shows only for lettering already on one (Put Lettering on Line puts it there).
+                Picker("Shape", selection: $choices.shape) { ForEach(LetteringShape.pickable + (choices.shape == .onLine ? [.onLine] : []), id: \.self) { Text($0.title).tag($0) } }.pickerStyle(.segmented).labelsHidden()
             }
-            if choices.shape != .straight {
+            if choices.shape.isArch {
                 field("Arc radius") {
                     HStack(spacing: 6) {
                         TextField("Radius", text: $radiusText).textFieldStyle(.roundedBorder).frame(width: 70)
