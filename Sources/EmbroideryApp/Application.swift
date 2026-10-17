@@ -32,7 +32,7 @@ import EmbroideryCore
         window.titlebarAppearsTransparent = true; window.backgroundColor = NSColor(Theme.card); window.titlebarSeparatorStyle = .line
         window.tabbingMode = .disallowed   // OpenHoop's own tabs replace the macOS ones
         super.init(window: window)
-        window.delegate = self; window.setFrameAutosaveName("DesignWindow")
+        window.delegate = self
         container.view = NSView()
         window.contentViewController = container
         // The close button closes the tabs one at a time, so each design can ask to be saved.
@@ -42,6 +42,9 @@ import EmbroideryCore
         tabModel.onClose = { [weak self] id in MainActor.assumeIsolated { if let pane = self?.panes.first(where: { ObjectIdentifier($0) == id }) { self?.closeTab(pane) } } }
         let toolbar = NSToolbar(identifier: "EmbroideryToolbar"); toolbar.delegate = self; toolbar.allowsUserCustomization = true; toolbar.autosavesConfiguration = true; toolbar.displayMode = .iconOnly
         window.toolbar = toolbar
+        // Restores the size and place the window was last left at. This comes after the content and toolbar,
+        // because setting those resizes the window and would undo it.
+        window.setFrameAutosaveName("DesignWindow")
         observers.append(NotificationCenter.default.addObserver(forName: .preferencesChanged, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.applyWorkspace(); self?.updateToolbarHints(); self?.state.canvas?.needsDisplay = true }
         })
