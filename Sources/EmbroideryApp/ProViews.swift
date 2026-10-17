@@ -346,7 +346,8 @@ extension InspectorPanel {
         case .vector: proOutline(object)
         case .raw: EmptyView()
         }
-        if object.kind == .satin || object.kind == .fill { proUnderlay(object) }
+        // Stipple sews without underlay, so it has no Underlay section.
+        if object.kind == .satin || (object.kind == .fill && object.settings.fillStyle != .stipple) { proUnderlay(object) }
         if object.kind != .vector { proFinish(object) }
         if object.kind == .run || object.kind == .satin || object.kind == .fill { proStartEnd(object) }
         proSection("Object") {
@@ -366,7 +367,9 @@ extension InspectorPanel {
         return HStack(spacing: 10) {
             if object.kind == .run || object.kind == .satin || object.kind == .fill {
                 StitchPreview(kind: object.kind, color: Color(nsColor: object.color.nsColor), spacing: object.settings.spacing, stitchLength: object.stitchLength, angle: object.settings.angle,
-                              fillStyle: object.settings.fillStyle ?? .tatami, waveHeight: object.settings.waveHeight ?? DigitizingSettings.defaultWaveHeight, waveLength: object.settings.waveLength ?? DigitizingSettings.defaultWaveLength)
+                              fillStyle: object.settings.fillStyle ?? .tatami, waveHeight: object.settings.waveHeight ?? DigitizingSettings.defaultWaveHeight, waveLength: object.settings.waveLength ?? DigitizingSettings.defaultWaveLength,
+                          runStyle: object.settings.runStyle ?? .running, runWidth: object.settings.runWidth ?? DigitizingSettings.defaultRunWidth(object.settings.runStyle ?? .running),
+                          runSpacing: object.settings.runSpacing ?? DigitizingSettings.defaultRunSpacing(object.settings.runStyle ?? .running), stippleSpacing: object.settings.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing)
                     .frame(width: 40, height: 40)
                     .background(Theme.ground)
                     .clipShape(RoundedRectangle(cornerRadius: 5))
@@ -421,7 +424,11 @@ extension InspectorPanel {
                     }
                 }
             }
-            number("Row spacing", value: object.settings.spacing, id: "rowSpacing", range: 0.15...5, help: "Gap between each pass of thread. Smaller gaps give fuller coverage and use more stitches.") { value in settings(.fill, "Row Spacing") { $0.spacing = value } }
+            if style == .stipple {
+                number("Stipple spacing", value: object.settings.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing, range: DigitizingSettings.stippleSpacingRange, help: "How far apart the line's neighbouring passes are (mm). Smaller is denser. Stipple sews without underlay.") { value in settings(.fill, "Stipple Spacing") { $0.stippleSpacing = value } }
+            } else {
+                number("Row spacing", value: object.settings.spacing, id: "rowSpacing", range: 0.15...5, help: "Gap between each pass of thread. Smaller gaps give fuller coverage and use more stitches.") { value in settings(.fill, "Row Spacing") { $0.spacing = value } }
+            }
             number("Stitch length", value: object.stitchLength, id: "stitchLength", range: 0.3...10, help: "Length of each stitch along a fill row.") { value in state.editSelected("Stitch Length") { $0.stitchLength = value } }
             number("Expansion", value: object.settings.expansion, range: 0...2, help: "Grows the fill past its outline by this much, because thread pulls fabric inward as it sews.") { value in settings(.fill, "Compensation") { $0.expansion = value } }
             proRow("Holes", help: "Holes are areas inside the fill left unstitched. + traces a new one; − removes them all.") {
@@ -448,7 +455,8 @@ extension InspectorPanel {
     private func proRunning(_ object: RunObject) -> some View {
         proSection("Running") {
             number("Stitch length", value: object.stitchLength, id: "stitchLength", range: 0.3...10, help: "How far the needle moves per stitch. Shorter stitches follow curves more closely.") { value in state.editSelected("Stitch Length") { $0.stitchLength = value } }
-            runPasses(object)
+            runStyle(object)
+            if (object.settings.runStyle ?? .running) == .running { runPasses(object) }
             toggle("Closed path", value: object.closed) { _ in AppDelegate.shared.perform(.closePath) }.help(preferences.hint(.closePath))
             satinLine(object)
             border(object)

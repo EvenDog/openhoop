@@ -13,9 +13,16 @@ public enum BasicShape: String, Codable, CaseIterable, Sendable {
 
 /// The stitch the Open Shape tool puts on a new line.
 public enum OpenShapeStitch: String, Codable, CaseIterable, Sendable {
-    case running, bean, satin
+    case running, bean, satin, zigzag, blanket, backStitch, stemStitch
     public var title: String {
-        switch self { case .running: return "Running"; case .bean: return "Bean (triple run)"; case .satin: return "Satin line" }
+        switch self {
+        case .running: return "Running"; case .bean: return "Bean (triple run)"; case .satin: return "Satin line"
+        case .zigzag: return "Zigzag"; case .blanket: return "Blanket"; case .backStitch: return "Back stitch"; case .stemStitch: return "Stem stitch"
+        }
+    }
+    /// The line stitch style this choice puts on a running line, for the styles that are one.
+    var runStyle: RunStyle? {
+        switch self { case .zigzag: return .zigzag; case .blanket: return .blanket; case .backStitch: return .backStitch; case .stemStitch: return .stemStitch; default: return nil }
     }
 }
 
@@ -40,7 +47,10 @@ public struct ShapeSettings: Codable, Equatable, Sendable {
     /// The next closed shape's stitches in words, such as "Tatami fill + satin outline".
     public var closedSummary: String {
         let outline = closedOutline.map { outline -> String in
-            switch outline { case .running: return "running outline"; case .bean: return "bean outline"; case .satin: return "satin outline" }
+            switch outline {
+            case .running: return "running outline"; case .bean: return "bean outline"; case .satin: return "satin outline"
+            case .zigzag, .blanket, .backStitch, .stemStitch: return "\(outline.title.lowercased()) outline"
+            }
         }
         guard let fill = closedFill else { return outline!.prefix(1).uppercased() + outline!.dropFirst() }   // one of them is always on
         return outline.map { "\(fill.title) fill + \($0)" } ?? "\(fill.title) fill"
@@ -181,6 +191,7 @@ public enum ShapeStitching {
         case .running: return line
         case .bean: line.digitizing = DigitizingSettings(kind: .run); line.digitizing?.runPasses = 3; return line
         case .satin: return try SatinLine.column(from: line, width: satinWidth)
+        case .zigzag, .blanket, .backStitch, .stemStitch: line.digitizing = DigitizingSettings(kind: .run); line.digitizing?.runStyle = stitch.runStyle; return line
         }
     }
 
@@ -202,6 +213,7 @@ public enum ShapeStitching {
             case .running: break
             case .bean: edge.digitizing = DigitizingSettings(kind: .run); edge.digitizing?.runPasses = 3
             case .satin: edge = try SatinLine.column(from: edge, width: satinWidth)
+            case .zigzag, .blanket, .backStitch, .stemStitch: edge.digitizing = DigitizingSettings(kind: .run); edge.digitizing?.runStyle = outline.runStyle
             }
             made.append(edge)
         }

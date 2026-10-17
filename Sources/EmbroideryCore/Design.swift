@@ -101,6 +101,7 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
     public var settings: DigitizingSettings { digitizing ?? DigitizingSettings(kind: .run) }
     /// What the stitches are called in lists: the stitch kind, naming the fill style for fills (such as "Contour Fill").
     public var stitchTitle: String {
+        if kind == .run, let style = settings.runStyle, style != .running { return style.title }
         if kind == .run && (settings.runPasses ?? 1) > 1 { return "Bean" }
         return kind == .fill && (settings.fillStyle ?? .tatami) != .tatami ? "\(settings.fillStyle!.title) Fill" : kind.title
     }
@@ -244,11 +245,11 @@ public enum UnderlayStyle: String, Codable, CaseIterable, Sendable {case none, c
     public var title:String {switch self {case .none:return "None";case .center:return "Center run";case .edge:return "Inset edge run";case .zigzag:return "Inset zigzag";case .edgeAndSparse:return "Edge + sparse fill";case .auto:return "Auto (by width)"}}
 }
 /// How a fill lays down its thread: straight rows (tatami), rings that follow the outline inward (contour), rays
-/// fanning out from a center (radial), or rows that ripple (wave).
+/// fanning out from a center (radial), rows that ripple (wave), or one wandering line that never crosses itself (stipple).
 public enum FillStyle: String, Codable, CaseIterable, Sendable {
-    case tatami, contour, radial, wave
+    case tatami, contour, radial, wave, stipple
     public var title: String {
-        switch self { case .tatami: return "Tatami"; case .contour: return "Contour"; case .radial: return "Radial"; case .wave: return "Wave" }
+        switch self { case .tatami: return "Tatami"; case .contour: return "Contour"; case .radial: return "Radial"; case .wave: return "Wave"; case .stipple: return "Stipple" }
     }
     public var summary: String {
         switch self {
@@ -256,8 +257,29 @@ public enum FillStyle: String, Codable, CaseIterable, Sendable {
         case .contour: return "Rings that follow the outline inward, like ripples. Good for organic shapes and letters."
         case .radial: return "Stitches fan out from a center point, like sun rays. Good for flowers, suns and round badges."
         case .wave: return "Rows that ripple in a gentle wave instead of running straight."
+        case .stipple: return "One wandering line that loops through the whole shape and never crosses itself: the quilting look, or a light background texture."
         }
     }
+}
+/// How a running line is sewn: plain running stitch, or one of the decorative line stitches built along it
+/// (RunningStyles.swift).
+public enum RunStyle: String, Codable, CaseIterable, Sendable {
+    case running, zigzag, blanket, backStitch, stemStitch
+    public var title: String {
+        switch self { case .running: return "Running"; case .zigzag: return "Zigzag"; case .blanket: return "Blanket"; case .backStitch: return "Back stitch"; case .stemStitch: return "Stem stitch" }
+    }
+    public var summary: String {
+        switch self {
+        case .running: return "Plain running stitch along the line."
+        case .zigzag: return "The needle swings from side to side along the line: a decorative edge, or a light tack-down."
+        case .blanket: return "A running line with short prongs at regular spacing, like hand blanket stitch: the classic appliqué edge. On a closed shape the prongs point inward."
+        case .backStitch: return "Each stitch goes forward two lengths and back one, for a solid line that looks hand-sewn."
+        case .stemStitch: return "Like back stitch, but each stitch slants across the line, for a twisted rope look."
+        }
+    }
+    /// True for styles with a width across the line (and, for zigzag and blanket, a spacing along it).
+    public var hasWidth: Bool { self == .zigzag || self == .blanket || self == .stemStitch }
+    public var hasSpacing: Bool { self == .zigzag || self == .blanket }
 }
 public struct DigitizingSettings: Codable, Hashable, Sendable {
     public var kind:StitchKind
@@ -319,6 +341,19 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     /// line). nil (the default, and in older files) means once.
     public var runPasses:Int?
     public static let runPassChoices=[1,3,5]
+    /// Running lines only: the line stitch (nil, the default and in older files, means plain running stitch), and its
+    /// width across the line and spacing along it in mm (nil uses the style's defaults below).
+    public var runStyle:RunStyle?
+    public var runWidth:Double?
+    public var runSpacing:Double?
+    /// Each line style's starting width and spacing (mm), and the sizes Properties offers and project files may hold.
+    public static func defaultRunWidth(_ style:RunStyle)->Double {style == .blanket ? 2.5 : style == .stemStitch ? 1 : 2}
+    public static func defaultRunSpacing(_ style:RunStyle)->Double {style == .blanket ? 3 : 1.5}
+    public static let runWidthRange=0.3...10.0, runSpacingRange=0.5...10.0
+    /// Stipple fills: how far apart the wandering line's neighbouring passes are, in mm (nil uses the default). It's
+    /// separate from the row spacing, which fabric types set for dense fills.
+    public var stippleSpacing:Double?
+    public static let defaultStippleSpacing=4.0, stippleSpacingRange=1.0...10.0
     /// Satin only: on the inside of a curve, where stitches crowd together, every other stitch stops short of the
     /// inner edge. nil (older files) means off, so existing designs sew as they did; new satins start with it on.
     public var shortStitches:Bool?
@@ -437,6 +472,11 @@ public struct Design: Codable, Equatable, Sendable {
     /// Closed satins (borders) count too: an older version would sew them with their last span missing.
     /// So do contour, radial and wave fills: an older version would sew them as straight rows. And satins with a
     /// second underlay, Auto underlay or compensation by width, which an older version would leave out.
+    /// True when a design uses something added in file version 6 (line stitch styles, stipple fills), so it's saved
+    /// as version 6 and older versions of the app, which would sew those as plain stitches, refuse it instead.
+    public var needsSchemaSix: Bool {
+        objects.contains { ($0.kind == .run && ($0.settings.runStyle ?? .running) != .running) || ($0.kind == .fill && $0.settings.fillStyle == .stipple) }
+    }
     public var needsSchemaFive: Bool { usesHandles || basting != nil || objects.contains { $0.branchID != nil || $0.stitchEdits != nil || $0.entry != nil || $0.exit != nil || ($0.kind == .satin && ($0.closed || $0.settings.relaxedChecks == true)) || ($0.kind == .fill && ($0.settings.fillStyle ?? .tatami) != .tatami) || ($0.kind == .run && ($0.settings.runPasses ?? 1) > 1) || ($0.kind == .satin && ($0.settings.shortStitches == true || $0.settings.autoSplit == true)) || ($0.kind == .fill && ($0.settings.cutOutOverlaps == true || !($0.settings.angleLines ?? []).isEmpty)) || ($0.kind == .satin && ($0.settings.secondUnderlay != nil || $0.settings.underlay == .auto || $0.settings.pullPercent != nil)) } }
     public static func sample() -> Self {
         var design = Self()
@@ -459,7 +499,7 @@ public struct Design: Codable, Equatable, Sendable {
 
     /// Reject corrupt or unreasonable input before it reaches the renderer or generator.
     public func validate() throws {
-        guard (1...5).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
+        guard (1...6).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }
@@ -478,6 +518,8 @@ public struct Design: Codable, Equatable, Sendable {
                 throw DesignError.invalid("Invalid start or end point in \(object.name).")
             }
             guard DigitizingSettings.runPassChoices.contains(object.settings.runPasses ?? 1) else { throw DesignError.invalid("Invalid number of running stitch passes in \(object.name).") }
+            guard object.settings.runWidth.map(DigitizingSettings.runWidthRange.contains) ?? true, object.settings.runSpacing.map(DigitizingSettings.runSpacingRange.contains) ?? true,
+                  object.settings.stippleSpacing.map(DigitizingSettings.stippleSpacingRange.contains) ?? true else { throw DesignError.invalid("Invalid line stitch or stipple size in \(object.name).") }
             guard (0...0xffffff).contains(object.color.hex),object.color.name.count<=256,(object.color.brand?.count ?? 0)<=100,(object.color.code?.count ?? 0)<=100 else{throw DesignError.invalid("Invalid thread color.")}
             if let raw=object.rawStitches {
                 guard object.nodes.isEmpty,(object.holes ?? []).isEmpty,object.digitizing==nil,MachineFormat(rawValue:raw.sourceFormat) != nil,

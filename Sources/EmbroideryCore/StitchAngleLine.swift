@@ -13,7 +13,7 @@ public enum StitchAngleLine {
         switch object.settings.fillStyle ?? .tatami {
         case .tatami: return (object.settings.angleLines ?? []).isEmpty
         case .wave: return true
-        case .contour, .radial: return false
+        case .contour, .radial, .stipple: return false
         }
     }
 

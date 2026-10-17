@@ -44,6 +44,17 @@ A line of stitches along your path. Set **Stitch length** in Properties.
 
 **Bean stitch:** set **Passes** to **Bean ×3** or **Bean ×5** for a bold outline. Each stitch is sewn forward, back and forward again. Stitch lengths of 2.5–3.5 mm suit it.
 
+**Line styles:** **Line style** in Properties sews a line as something other than plain running stitch:
+
+| Style | What it looks like | Settings |
+|---|---|---|
+| **Zigzag** | The needle swings side to side along the line: a decorative edge, or a light tack-down | **Width** (2 mm), **Spacing** along the line (1.5 mm) |
+| **Blanket** | Running stitch with short prongs at regular spacing, like hand blanket stitch: the classic appliqué edge. On a closed shape the prongs point inward | **Prong length** (2.5 mm), **Prong spacing** (3 mm) |
+| **Back stitch** | Each stitch goes forward two lengths and back one: a solid, hand-sewn line | **Stitch length** |
+| **Stem stitch** | Like back stitch, with each stitch slanting across the line: a twisted rope | **Width** (1 mm), **Stitch length** |
+
+Projects using line styles or stipple fills are saved as file version 6, which versions of OpenHoop before these stitches refuse to open rather than sewing them as plain stitches.
+
 ### Satin columns (⇧A)
 
 Smooth, shiny columns for borders, outlines and lettering. Two ways to make one:
@@ -64,6 +75,7 @@ Trace a closed outline and press Return. Settings: **Row spacing**, **Stitch len
 | **Contour** | Rings following the outline inward, sewn as a few long spirals |
 | **Radial** | Stitches fanning out from a center point; drag the **Center** dot on the canvas to move it |
 | **Wave** | Rows that ripple, with a wave height and length |
+| **Stipple** | One wandering line that loops through the whole shape and never crosses itself: the quilting look, or a light background. **Stipple spacing** (4 mm) sets how far apart its passes are; it sews without underlay, in stitches of 2 mm at most so its curves stay round |
 
 **Holes:** select a fill and press **⌥H** to trace a hole (or use **+** and **−** next to Holes).
 
@@ -77,8 +89,8 @@ Pick a stitch first, then draw. The **Shape** group in the tool strip holds them
 
 | Tool | How to draw | Stitch it gets |
 | --- | --- | --- |
-| **Digitize Open Shape (⌥O)** | Click corners, drag or secondary-click for curves, Return to finish | Running, Bean (triple run) or Satin line (as wide as **Width** in the bar) |
-| **Digitize Closed Shape (⌥S)** | The same, and the outline closes itself | A **Fill** (Tatami, Contour, Radial, Wave or None) and an **Outline** (Running, Bean, Satin line or None) |
+| **Digitize Open Shape (⌥O)** | Click corners, drag or secondary-click for curves, Return to finish | Running, Bean (triple run), Satin line (as wide as **Width** in the bar), Zigzag, Blanket, Back stitch or Stem stitch |
+| **Digitize Closed Shape (⌥S)** | The same, and the outline closes itself | A **Fill** (Tatami, Contour, Radial, Wave, Stipple or None) and an **Outline** (Running, Bean, Satin line, Zigzag, Blanket, Back stitch, Stem stitch or None) |
 | **Freehand Open Shape (⌥⇧O)** | Press and drag; the line follows the pointer and is smoothed when you let go | The Open Shape stitch |
 | **Freehand Closed Shape (⌥⇧S)** | The same, and the outline closes itself when you let go | The Closed Shape stitches |
 | **Rectangle (⌥R)** | Drag corner to corner; set **Corners** for rounded ones | The Closed Shape stitch |

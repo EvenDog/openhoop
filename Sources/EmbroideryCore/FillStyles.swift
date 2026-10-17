@@ -90,6 +90,141 @@ enum FillStyles {
         return try AreaGeometry.offset(steps[whole], by: -(depth - Double(whole) * 10))
     }
 
+    /// Stipple fill: one wandering line per separate part of `region` that loops through it and never crosses itself,
+    /// about `spacing` apart from its own neighbouring passes, in stitches of about `length` (2 mm at most). Sewing begins on the
+    /// loop nearest `start`, at its point nearest it.
+    ///
+    /// How: the shape is covered with square cells twice `spacing` across, and a random maze (a tree of corridors) is
+    /// dug through the cells that fit inside it. Walking round the walls of a maze, always keeping them on one side,
+    /// visits every cell and comes back to the start without crossing its own path, so that walk is the line. Its
+    /// corners are wobbled a little and rounded off, so it meanders instead of looking like a maze. The randomness is
+    /// seeded from the shape itself, so the same shape always sews the same way.
+    static func stipple(in region: [[Point]], spacing: Double, length: Double, start: Point?) throws -> [[Point]] {
+        let cell = spacing * 2, all = region.flatMap { $0 }
+        guard let minX = all.map(\.x).min(), let maxX = all.map(\.x).max(), let minY = all.map(\.y).min(), let maxY = all.map(\.y).max() else { return [] }
+        let columns = Int(ceil((maxX - minX) / cell)), rows = Int(ceil((maxY - minY) / cell))
+        guard columns * rows <= 250_000 else { throw DesignError.invalid("This stipple fill is too big for its spacing. Increase the stipple spacing.") }
+        // The cells the line can use: the square the line wanders in (half a cell across, round the cell's middle)
+        // lies inside the shape.
+        func middle(_ i: Int, _ j: Int) -> Point { Point(minX + (Double(i) + 0.5) * cell, minY + (Double(j) + 0.5) * cell) }
+        var usable = [Bool](repeating: false, count: columns * rows)
+        for i in 0..<columns { for j in 0..<rows {
+            let m = middle(i, j), h = spacing / 2
+            usable[i * rows + j] = [m, m + Point(-h, -h), m + Point(h, -h), m + Point(h, h), m + Point(-h, h)].allSatisfy { AreaGeometry.contains($0, rings: region) }
+        } }
+        var random = Seeded(region)
+        // The maze: from each part's first cell, dig to a random unvisited neighbour, backing up when there's none.
+        // It prefers to turn rather than go straight on, so the corridors twist and the line wiggles everywhere
+        // instead of running straight. open[cell][direction] says whether a corridor leads that way (0 right, 1 up,
+        // 2 left, 3 down).
+        let steps = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+        var open = [[Bool]](repeating: [false, false, false, false], count: columns * rows), visited = usable.map { !$0 }
+        var parts: [Int] = []   // each part's first cell
+        var arrivedBy = [Int](repeating: -1, count: columns * rows)   // the direction each cell was dug into from
+        for first in usable.indices where !visited[first] {
+            parts.append(first); visited[first] = true
+            var stack = [first]
+            while let here = stack.last {
+                let i = here / rows, j = here % rows
+                let ways = (0..<4).filter { d in
+                    let (a, b) = (i + steps[d].0, j + steps[d].1)
+                    return a >= 0 && a < columns && b >= 0 && b < rows && !visited[a * rows + b]
+                }
+                guard !ways.isEmpty else { stack.removeLast(); continue }
+                // Straight on only one time in five when there's a turn to take instead.
+                let turns = ways.filter { $0 != arrivedBy[here] }
+                let choices = !turns.isEmpty && turns.count < ways.count && random.below(5) > 0 ? turns : ways
+                let d = choices[random.below(choices.count)], next = (i + steps[d].0) * rows + j + steps[d].1
+                open[here][d] = true; open[next][(d + 2) % 4] = true; visited[next] = true; arrivedBy[next] = d; stack.append(next)
+            }
+        }
+        // The walk round the walls, on a grid twice as fine: each cell has four corner points, joined across the
+        // cell where a wall closes that side and through to the next cell where a corridor opens it. Every point
+        // then has exactly two neighbours, so following them goes once round each part's maze.
+        let fine = rows * 2
+        func id(_ x: Int, _ y: Int) -> Int { x * fine + y }
+        var links: [Int: [Int]] = [:]
+        func link(_ a: Int, _ b: Int) { links[a, default: []].append(b); links[b, default: []].append(a) }
+        for here in usable.indices where usable[here] {
+            let x = here / rows * 2, y = here % rows * 2
+            if open[here][0] { link(id(x + 1, y), id(x + 2, y)); link(id(x + 1, y + 1), id(x + 2, y + 1)) } else { link(id(x + 1, y), id(x + 1, y + 1)) }
+            if open[here][1] { link(id(x, y + 1), id(x, y + 2)); link(id(x + 1, y + 1), id(x + 1, y + 2)) } else { link(id(x, y + 1), id(x + 1, y + 1)) }
+            if !open[here][2] { link(id(x, y), id(x, y + 1)) }
+            if !open[here][3] { link(id(x, y), id(x + 1, y)) }
+        }
+        // Each corner point's place, wobbled by up to 0.15 × spacing so the line meanders (neighbouring passes stay at
+        // least 0.7 × spacing apart, so it still can't cross).
+        // A point the wobble would push out of the shape (where the line runs along its edge) stays put.
+        func place(_ point: Int) -> Point {
+            var wobble = Seeded(seed: UInt64(point) &* 0x9E3779B97F4A7C15 &+ random.seed)
+            let x = Double(point / fine), y = Double(point % fine)
+            let exact = Point(minX + (x + 0.5) * spacing, minY + (y + 0.5) * spacing)
+            let moved = exact + Point((wobble.unit() - 0.5) * 0.3 * spacing, (wobble.unit() - 0.5) * 0.3 * spacing)
+            return AreaGeometry.contains(moved, rings: region) ? moved : exact
+        }
+        var loops: [[Point]] = []
+        for first in parts {
+            let begin = id(first / rows * 2, first % rows * 2)
+            var loop = [begin], previous = -1, here = begin
+            while let next = links[here]?.first(where: { $0 != previous }) ?? links[here]?.first, next != begin {
+                loop.append(next); previous = here; here = next
+                guard loop.count <= 4 * columns * rows + 4 else { break }
+            }
+            // Rounded off: each corner is cut twice (Chaikin), which keeps the line inside the corridors.
+            var points = loop.map(place)
+            for _ in 0..<3 { points = points.indices.flatMap { k -> [Point] in let a = points[k], b = points[(k + 1) % points.count]; return [a * 0.75 + b * 0.25, a * 0.25 + b * 0.75] } }
+            // A gentle wave along the line (0.2 × spacing to either side, a crest every 1.6 × spacing) breaks up straight
+            // stretches so it meanders everywhere. With the wobble above, neighbouring passes still keep at least
+            // 0.3 × spacing apart.
+            let even = resampled(points, length: spacing / 8)
+            var walked = 0.0, waved: [Point] = []
+            for k in even.indices {
+                let a = even[(k + even.count - 1) % even.count], b = even[(k + 1) % even.count], d = b - a, size = max(1e-9, hypot(d.x, d.y))
+                if k > 0 { walked += even[k].distance(to: even[k - 1]) }
+                let moved = even[k] + Point(-d.y / size, d.x / size) * (0.2 * spacing * sin(2 * .pi * walked / (1.6 * spacing)))
+                waved.append(AreaGeometry.contains(moved, rings: region) ? moved : even[k])   // never out past the edge
+            }
+            // Stitches no longer than 2 mm, so the rounded turns stay round rather than becoming a stitch or two.
+            loops.append(resampled(waved, length: min(length, 2)))
+        }
+        // Each loop begins at its point nearest the needle (the start point, then where the last loop ended) and goes
+        // all the way round; the nearest loop goes first.
+        var needle = start ?? loops.first?.first ?? Point(minX, minY), remaining = loops.filter { $0.count >= 3 }, sections: [[Point]] = []
+        while !remaining.isEmpty {
+            let nearest = remaining.indices.min { remaining[$0].map { $0.distance(to: needle) }.min()! < remaining[$1].map { $0.distance(to: needle) }.min()! }!
+            let loop = remaining.remove(at: nearest), k = loop.indices.min { loop[$0].distance(to: needle) < loop[$1].distance(to: needle) }!
+            let section = Array(loop[k...] + loop[..<k]) + [loop[k]]
+            sections.append(section); needle = section.last!
+        }
+        return sections
+    }
+
+    /// Random numbers that come out the same every time for the same seed (SplitMix64), so a stipple fill doesn't
+    /// change from one launch to the next.
+    struct Seeded {
+        private(set) var seed: UInt64
+        private var state: UInt64
+        init(seed: UInt64) { self.seed = seed; state = seed }
+        /// Seeded from a shape's points (to a thousandth of a millimeter), so each shape gets its own pattern.
+        init(_ region: [[Point]]) {
+            var h: UInt64 = 0xcbf29ce484222325
+            for p in region.flatMap({ $0 }) {
+                for v in [p.x, p.y] { h = (h ^ UInt64(bitPattern: Int64((v * 1000).rounded()))) &* 0x100000001b3 }
+            }
+            self.init(seed: h)
+        }
+        mutating func next() -> UInt64 {
+            state &+= 0x9E3779B97F4A7C15
+            var z = state
+            z = (z ^ (z >> 30)) &* 0xBF58476D1CE4E5B9; z = (z ^ (z >> 27)) &* 0x94D049BB133111EB
+            return z ^ (z >> 31)
+        }
+        /// A whole number from 0 up to (not including) `n`.
+        mutating func below(_ n: Int) -> Int { Int(next() % UInt64(n)) }
+        /// A number from 0 up to 1.
+        mutating func unit() -> Double { Double(next() >> 11) / Double(1 << 53) }
+    }
+
     /// True when `ring` has no sharp corner: it never turns more than 60° at one point.
     static func isRound(_ ring: [Point]) -> Bool {
         let n = ring.count
