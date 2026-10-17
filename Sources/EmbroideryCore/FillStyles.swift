@@ -101,17 +101,24 @@ enum FillStyles {
     /// seeded from the shape itself, so the same shape always sews the same way.
     static func stipple(in region: [[Point]], spacing: Double, length: Double, start: Point?) throws -> [[Point]] {
         let cell = spacing * 2, all = region.flatMap { $0 }
-        guard let minX = all.map(\.x).min(), let maxX = all.map(\.x).max(), let minY = all.map(\.y).min(), let maxY = all.map(\.y).max() else { return [] }
-        let columns = Int(ceil((maxX - minX) / cell)), rows = Int(ceil((maxY - minY) / cell))
+        guard let left = all.map(\.x).min(), let right = all.map(\.x).max(), let low = all.map(\.y).min(), let high = all.map(\.y).max() else { return [] }
+        // One cell more each way, so the grid can be shifted by up to a cell and still cover the shape.
+        let columns = Int(ceil((right - left) / cell)) + 1, rows = Int(ceil((high - low) / cell)) + 1
         guard columns * rows <= 250_000 else { throw DesignError.invalid("This stipple fill is too big for its spacing. Increase the stipple spacing.") }
         // The cells the line can use: the square the line wanders in (half a cell across, round the cell's middle)
-        // lies inside the shape.
-        func middle(_ i: Int, _ j: Int) -> Point { Point(minX + (Double(i) + 0.5) * cell, minY + (Double(j) + 0.5) * cell) }
-        var usable = [Bool](repeating: false, count: columns * rows)
-        for i in 0..<columns { for j in 0..<rows {
-            let m = middle(i, j), h = spacing / 2
-            usable[i * rows + j] = [m, m + Point(-h, -h), m + Point(h, -h), m + Point(h, h), m + Point(-h, h)].allSatisfy { AreaGeometry.contains($0, rings: region) }
-        } }
+        // lies inside the shape. Which cells fit depends on where the grid lines fall, so the grid is tried at four
+        // positions (shifted by half a cell across and up) and the one fitting the most cells is kept.
+        func cells(_ minX: Double, _ minY: Double) -> [Bool] {
+            var usable = [Bool](repeating: false, count: columns * rows)
+            for i in 0..<columns { for j in 0..<rows {
+                let m = Point(minX + (Double(i) + 0.5) * cell, minY + (Double(j) + 0.5) * cell), h = spacing / 2
+                usable[i * rows + j] = [m, m + Point(-h, -h), m + Point(h, -h), m + Point(h, h), m + Point(-h, h)].allSatisfy { AreaGeometry.contains($0, rings: region) }
+            } }
+            return usable
+        }
+        let shifts = [(0.0, 0.0), (0.5, 0.0), (0.0, 0.5), (0.5, 0.5)].map { (x: left - $0.0 * cell, y: low - $0.1 * cell, usable: cells(left - $0.0 * cell, low - $0.1 * cell)) }
+        let best = shifts.max { $0.usable.filter { $0 }.count < $1.usable.filter { $0 }.count }!
+        let minX = best.x, minY = best.y, usable = best.usable
         var random = Seeded(region)
         // The maze: from each part's first cell, dig to a random unvisited neighbour, backing up when there's none.
         // It prefers to turn rather than go straight on, so the corridors twist and the line wiggles everywhere

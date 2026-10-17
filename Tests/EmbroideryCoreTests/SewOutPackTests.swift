@@ -1,6 +1,6 @@
-// The sew-out test pack: five designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
-// machine side by side (satin widths and compensation, the fill styles, small lettering, a monogram, and travel and
-// finishing). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
+// The sew-out test pack: six designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
+// machine side by side (satin widths and compensation, the fill styles, small lettering, a monogram, travel and
+// finishing, and the line styles and stipple). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
 // designs there as OpenHoop projects:
 //   SEWOUT_DIR="$PWD/docs/sewout" swift test --filter SewOutPackTests
 import XCTest
@@ -103,12 +103,39 @@ final class SewOutPackTests: XCTestCase {
         return design
     }
 
+    /// 6 · Line styles and stipple: zigzag at 2 and 4 mm, back stitch, stem stitch and an open blanket line (left),
+    /// a square with a blanket edge whose prongs should point inward (top right), and stipple at 4 and 2.5 mm (bottom).
+    func lineStyleSheet() -> Design {
+        var design = newDesign()
+        func line(_ name: String, y: Double, _ style: RunStyle, width: Double? = nil, spacing: Double? = nil, color: ThreadColor) -> RunObject {
+            var object = RunObject(name: name, nodes: [PathNode(Point(-44, y)), PathNode(Point(-24, y + 3), smooth: true), PathNode(Point(-4, y))], color: color)
+            object.digitizing = DigitizingSettings(kind: .run); object.digitizing?.runStyle = style
+            object.digitizing?.runWidth = width; object.digitizing?.runSpacing = spacing
+            return object
+        }
+        design.objects = [
+            line("Zigzag 2 mm", y: 40, .zigzag, color: threads[0]), line("Zigzag 4 mm, spacing 2 mm", y: 30, .zigzag, width: 4, spacing: 2, color: threads[0]),
+            line("Back stitch", y: 20, .backStitch, color: threads[1]), line("Stem stitch", y: 10, .stemStitch, color: threads[1]),
+            line("Blanket line", y: -2, .blanket, color: threads[2])
+        ]
+        var square = RunObject(name: "Blanket edge (prongs inward)", nodes: ShapeGeometry.nodes(.rectangle, in: box(Point(24, 24), 13)), color: threads[2])
+        square.closed = true; square.digitizing = DigitizingSettings(kind: .run); square.digitizing?.runStyle = .blanket
+        design.objects.append(square)
+        for (index, spacing) in [4.0, 2.5].enumerated() {
+            let x = index == 0 ? -22.0 : 22.0
+            var stipple = fill("Stipple \(spacing.formatted()) mm", ShapeGeometry.nodes(.ellipse, in: (Point(x - 19, -44), Point(x + 19, -16))), color: threads[3 + index])
+            stipple.digitizing?.fillStyle = .stipple; stipple.digitizing?.stippleSpacing = spacing
+            design.objects.append(stipple)
+        }
+        return design
+    }
+
     func testEverySheetSewsAndFitsTheHoop() throws {
         let sheets: [(String, Design)] = [("1 Satin", satinSheet()), ("2 Fills", fillSheet()), ("3 Lettering", try letteringSheet()),
-                                          ("4 Monogram", try monogramSheet()), ("5 Travel and finishing", try travelSheet())]
+                                          ("4 Monogram", try monogramSheet()), ("5 Travel and finishing", try travelSheet()), ("6 Line styles and stipple", lineStyleSheet())]
         for (name, sheet) in sheets {
             var design = sheet
-            design.schemaVersion = design.needsSchemaFive ? 5 : 4
+            design.schemaVersion = design.needsSchemaSix ? 6 : design.needsSchemaFive ? 5 : 4
             let plan = try RunningEngine.compile(design)
             XCTAssertGreaterThan(plan.stitchCount, 100, name)
             XCTAssertTrue(plan.commands.allSatisfy { design.hoop.contains($0.point, tolerance: -2) }, "\(name) stays 2 mm inside the hoop")
