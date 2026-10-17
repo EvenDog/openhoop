@@ -5,7 +5,7 @@ import Foundation
 
 /// The panels that can be docked, tabbed, floated or hidden.
 public enum PanelID: String, Codable, CaseIterable, Sendable {
-    case sewingOrder, properties, design, reference, threads, player
+    case sewingOrder, properties, design, reference, threads
     public var title: String {
         switch self {
         case .sewingOrder: return "Sewing order"
@@ -13,7 +13,6 @@ public enum PanelID: String, Codable, CaseIterable, Sendable {
         case .design: return "Design"
         case .reference: return "Reference image"
         case .threads: return "Threads"
-        case .player: return "Stitch player"
         }
     }
 }
@@ -25,6 +24,16 @@ public struct PanelGroup: Codable, Equatable, Sendable {
     /// The height (points) chosen by dragging the divider below it; nil shares the dock's room evenly.
     public var height: Double?
     public init(_ panels: [PanelID], selected: PanelID? = nil) { self.panels = panels; self.selected = selected ?? panels[0] }
+
+    private enum CodingKeys: String, CodingKey { case panels, selected, height }
+    /// Reads a group saved by any version. Panels this version doesn't have (such as the old Stitch player panel,
+    /// now in the title bar) are left out; a group left with none is dropped by `PanelLayout.normalized()`.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        panels = try container.decode([String].self, forKey: .panels).compactMap(PanelID.init(rawValue:))
+        selected = PanelID(rawValue: try container.decode(String.self, forKey: .selected)) ?? panels.first ?? .properties
+        height = try container.decodeIfPresent(Double.self, forKey: .height)
+    }
 }
 
 /// A group in its own floating window, with the window's frame in screen points (origin at the bottom-left).
@@ -52,15 +61,15 @@ public struct PanelLayout: Codable, Equatable, Sendable {
     public var rightWidth = 280.0
 
     /// The out-of-the-box arrangement: sewing order and threads on the left; properties, design and reference image
-    /// (as tabs) and the stitch player on the right.
+    /// (as tabs) on the right.
     public static let standard = PanelLayout(left: [PanelGroup([.sewingOrder]), PanelGroup([.threads])],
-                                             right: [PanelGroup([.properties]), PanelGroup([.design, .reference]), PanelGroup([.player])])
+                                             right: [PanelGroup([.properties]), PanelGroup([.design, .reference])])
 
     /// The Pro view's out-of-the-box arrangement: sewing order, design and reference image (as tabs) above the
-    /// threads on a wider left dock; properties above the stitch player on the right.
+    /// threads on a wider left dock; properties on the right.
     public static let pro: PanelLayout = {
         var layout = PanelLayout(left: [PanelGroup([.sewingOrder, .design, .reference]), PanelGroup([.threads])],
-                                 right: [PanelGroup([.properties]), PanelGroup([.player])])
+                                 right: [PanelGroup([.properties])])
         layout.leftWidth = 340; layout.rightWidth = 290
         return layout
     }()

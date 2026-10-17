@@ -13,7 +13,7 @@ Open `dist/OpenHoop.app` after building it. To look around first, choose **File 
 **The window:**
 - **Tool strip** (under the toolbar): tools grouped as *Pick & shape*, *Stitch*, *Add* and *View*, each with its key. Some tools share a slot (Fill and Hole; Text, Satin border, Appliqué and Auto-digitize); click the slot's arrow to pick one. Tools that can't be used yet are dimmed.
 - **Canvas:** the hoop with your design. Scroll to pan, pinch or Option-scroll to zoom, **⌥0** to fit the hoop. More ways to look: [Viewing and measuring](#viewing-and-measuring).
-- **Panels:** Sewing order, Properties, Design (fabric and hoop), Reference image, Threads and Stitch player.
+- **Panels:** Sewing order, Properties, Design (fabric and hoop), Reference image and Threads. The stitch player sits in the title bar, next to the design tabs.
 - **Status bar:** messages, and a **Ready to save** check that turns orange with a short reason when something needs fixing before export.
 
 **Guided and Pro views.** Same features, two layouts; switch with **⌥⌘P** or the **Guided | Pro** toggle in the toolbar. Pro shows every tool as its own button on a walnut band, two rows across the top; **Settings › General › Pro view tools** moves them to a rail down the left side instead.
@@ -255,7 +255,7 @@ Hoops are listed upright; **Turn sideways** swaps width and height. You can also
 
 **Thread View.** Press **T** (or the Thread View button under View) to switch between Thread View and the stitch view. Thread View draws each stitch as its own strand of thread, 0.45 mm wide, dark where it dives into the cloth and bright in the middle, so you see roughly how the design will sew out; travel moves between pieces and needle points are hidden. The stitch view draws thin lines and shows travel moves dashed, which is handier for checking the sewing path. The app remembers which one you used last.
 
-**Stitch player.** Press **Space** or **⇧R** (or ▶) to watch the design sew, and **Home** to go back to the start; drag the slider to step through it. **.** (period) shows the needle points. **Speed** sets how many stitches it sews per second (1–5,000; 120 to start, and back to 120 each time the app opens): drag its slider to slow down or speed up while it plays, or type an exact number in the box. A machine sews about 12. In Pro, the speed slider and box sit next to the mini player.
+**Stitch player.** The player sits in the title bar, next to the design tabs. Press **Space** or **⇧R** (or ▶) to watch the design sew, and **Home** (or ⏮) to go back to the start; drag the slider to step through it. **.** (period) shows the needle points. The speed buttons set how many stitches it sews per second (12, 120, 500 and 2,000 to start; a machine sews about 12), and you can switch between them while it plays. Change the four speeds in **Settings › General › Stitch player speeds**. For a one-off speed, right-click the buttons and choose **Custom Speed…** (1–5,000). Each time the app opens, the player starts on the second button.
 
 **Density map.** Turn on **View → Density Map** (or **Density** in the Show list) to color the spots that lay too much thread, in 1 mm squares. They show in both views and update as you edit.
 - **Yellow** is heavy: more than about 4 layers of fill (for example, two satins crossing).

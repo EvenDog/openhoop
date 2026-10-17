@@ -1415,40 +1415,9 @@ struct ThreadsPanel: View {
     }
 }
 
-/// The Stitch player panel: watch the design sew, step through it, or jump back to the whole design.
-struct PlayerPanel: View {
-    @ObservedObject var state: EditorState
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                Button { AppDelegate.shared.perform(.rewind) } label: { Image(systemName: "backward.end.fill").frame(width: 28, height: 28) }.buttonStyle(.plain).help("Rewind stitch preview")
-                Button { AppDelegate.shared.perform(.play) } label: {
-                    Image(systemName: state.playing ? "pause.fill" : "play.fill").font(.system(size: 12))
-                        .frame(width: 30, height: 30).background(Circle().fill(Theme.accent)).foregroundStyle(Theme.onAccent)
-                }.buttonStyle(.plain).help(state.playing ? "Pause" : "Watch it sew")
-                Text("Stitch \(Int(state.playback * Double(state.plan.stitchCount)).formatted()) of \(state.plan.stitchCount.formatted())")
-                    .font(Theme.body(11, weight: .semibold)).monospacedDigit().foregroundStyle(Theme.inkSecondary)
-                Spacer()
-                if state.playback < 0.9999 && !state.playing {
-                    Button("Show all") { AppDelegate.shared.perform(.done) }.buttonStyle(ThemedButtonStyle()).help("Show the whole design again (Esc)")
-                }
-            }
-            Slider(value: $state.playback, in: 0...1).tint(Theme.accent).help("Stitch sequence")
-            HStack(spacing: 6) {
-                // The labels stay on one line: a narrow Player panel squeezes the slider instead of wrapping them.
-                Text("Speed").foregroundStyle(Theme.inkSecondary).fixedSize()
-                PlaybackSpeedSlider()
-                PlaybackSpeedField().frame(width: 48)
-                Text("stitches/s").foregroundStyle(Theme.inkSecondary).fixedSize()
-            }.font(Theme.body(11))
-        }
-        .foregroundStyle(Theme.ink)
-    }
-}
-
-/// The stitch player's speed in stitches per second, shared by every design window (Guided's Stitch player panel
-/// and Pro's mini player). Numbers outside 1–5,000 are pulled back into range; the new speed applies once you press
-/// Return or leave the box.
+/// The stitch player's speed in stitches per second, shared by every design window (it's in the player's Custom
+/// Speed box). Numbers outside 1–5,000 are pulled back into range; the new speed applies once you press Return or
+/// leave the box.
 struct PlaybackSpeedField: View {
     @ObservedObject var preferences = Preferences.shared
     var body: some View {
@@ -1461,22 +1430,6 @@ struct PlaybackSpeedField: View {
     }
 }
 
-/// A slider for the same playback speed, to speed up or slow down while the design plays. It is logarithmic: the
-/// slider moves through log10(speed), so each step multiplies the speed (the middle is about 70 stitches/s) and the
-/// slow end isn't squeezed into a sliver of the track.
-struct PlaybackSpeedSlider: View {
-    @ObservedObject var preferences = Preferences.shared
-    var body: some View {
-        let range = Preferences.playbackSpeeds
-        Slider(value: Binding(get: { log10(preferences.playbackSpeed) },
-                              set: { preferences.playbackSpeed = pow(10, $0).rounded() }),
-               in: log10(range.lowerBound)...log10(range.upperBound))
-            .tint(Theme.accent)
-            .help("Drag to slow down or speed up, even while playing")
-            .accessibilityLabel("Playback speed")
-    }
-}
-
 /// The status bar along the bottom of the window: the latest message, the "Ready to save" checks, stitch count and zoom.
 struct FooterPanel: View {
     @ObservedObject var state: EditorState
@@ -1484,7 +1437,6 @@ struct FooterPanel: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                if preferences.isPro { MiniPlayer(state: state).padding(.trailing, 4) }
                 Circle().fill(state.busy ? Color.orange : Theme.accent).frame(width: 6, height: 6)
                 Text(state.busy ? "Generating stitches…" : (state.generationError ?? state.status)).foregroundStyle(state.generationError == nil ? Theme.inkSecondary : Color.red).lineLimit(1).help(state.generationError ?? state.status)
                 Spacer()
@@ -1636,6 +1588,24 @@ struct GeneralSettings: View {
                             ForEach(GridSize.allCases, id: \.self) { size in Text(preferences.unit.snapLabel(size)).tag(size) }
                         }
                         .pickerStyle(.segmented).labelsHidden().frame(width: 260)
+                    }
+                }
+                .padding(16).frame(maxWidth: 520, alignment: .leading)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Stitch player speeds").font(Theme.body(14, weight: .bold))
+                    Text("The speed buttons in the stitch player at the top of the window, in stitches per second (1–5,000). A machine sews about 12. Right-click the buttons for a one-off speed.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
+                    HStack(alignment: .bottom, spacing: 12) {
+                        ForEach(0..<preferences.speedPresets.count, id: \.self) { index in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Button \(index + 1)").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary)
+                                TextField("Button \(index + 1)", value: Binding(get: { preferences.speedPresets[index] }, set: { preferences.setSpeedPreset(index, to: $0) }),
+                                          format: .number.precision(.fractionLength(0)))
+                                    .textFieldStyle(.roundedBorder).multilineTextAlignment(.trailing).frame(width: 70)
+                            }
+                        }
+                        Button("Reset") { preferences.resetSpeedPresets() }.buttonStyle(ThemedButtonStyle())
+                            .disabled(preferences.data.speedPresets == nil).help("Back to 12, 120, 500 and 2,000")
                     }
                 }
                 .padding(16).frame(maxWidth: 520, alignment: .leading)

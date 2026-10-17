@@ -581,30 +581,3 @@ extension InspectorPanel {
         .help(help)
     }
 }
-
-/// The Pro status bar's stitch player: play/pause and a bar to scrub through the stitches. (The Player panel has
-/// the same controls, larger, so it can stay closed in Pro.)
-struct MiniPlayer: View {
-    @ObservedObject var state: EditorState
-    @ObservedObject var preferences = Preferences.shared
-    var body: some View {
-        HStack(spacing: 6) {
-            Button { AppDelegate.shared.perform(.play) } label: {
-                Image(systemName: state.playing ? "pause.fill" : "play.fill").font(.system(size: 8))
-                    .frame(width: 22, height: 18)
-                    .background(Theme.accentSoft, in: RoundedRectangle(cornerRadius: 4))
-                    .foregroundStyle(Theme.accent)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help((state.playing ? "Pause" : "Watch it sew") + "  \(preferences.label(.play))")
-            .accessibilityLabel(state.playing ? "Pause" : "Play")
-            Slider(value: $state.playback, in: 0...1).controlSize(.mini).tint(Theme.accent).frame(width: 110)
-                .help("Stitch \(Int(state.playback * Double(state.plan.stitchCount)).formatted()) of \(state.plan.stitchCount.formatted()): drag to step through the design")
-                .accessibilityLabel("Stitch sequence")
-            Text("Speed").font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).fixedSize().padding(.leading, 6)   // tells the two sliders apart
-            PlaybackSpeedSlider().controlSize(.mini).frame(width: 60)
-            PlaybackSpeedField().controlSize(.mini).frame(width: 46)
-        }
-    }
-}

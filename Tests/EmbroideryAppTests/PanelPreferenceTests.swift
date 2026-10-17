@@ -10,7 +10,7 @@ final class PanelPreferenceTests: XCTestCase {
         let workspace = try JSONDecoder().decode(Workspace.self, from: Data(old.utf8))
         XCTAssertNil(workspace.panels)
         let layout = workspace.panelLayout
-        XCTAssertFalse(layout.isVisible(.properties)); XCTAssertFalse(layout.isVisible(.threads)); XCTAssertFalse(layout.isVisible(.player))
+        XCTAssertFalse(layout.isVisible(.properties)); XCTAssertFalse(layout.isVisible(.threads))
         XCTAssertEqual(layout.right.map(\.panels), [[.sewingOrder]], "The sides swap, as the inspector was on the left")
         XCTAssertEqual(layout.left.map(\.panels), [[.design, .reference]])
         XCTAssertEqual(layout.rightWidth, 240)
@@ -29,9 +29,9 @@ final class PanelPreferenceTests: XCTestCase {
         workspace.setPanels(pro, pro: true)
         XCTAssertFalse(workspace.proPanelLayout.isVisible(.threads))
         XCTAssertTrue(workspace.panelLayout.isVisible(.threads))
-        var guided = workspace.panelLayout; guided.hide(.player)
+        var guided = workspace.panelLayout; guided.hide(.reference)
         workspace.setPanels(guided, pro: false)
-        XCTAssertTrue(workspace.proPanelLayout.isVisible(.player)); XCTAssertFalse(workspace.panelLayout.isVisible(.player))
+        XCTAssertTrue(workspace.proPanelLayout.isVisible(.reference)); XCTAssertFalse(workspace.panelLayout.isVisible(.reference))
         let reopened = try JSONDecoder().decode(Workspace.self, from: JSONEncoder().encode(workspace))
         XCTAssertEqual(reopened.proPanelLayout, workspace.proPanelLayout); XCTAssertEqual(reopened.panelLayout, workspace.panelLayout)
     }
