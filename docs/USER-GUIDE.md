@@ -53,8 +53,9 @@ A line of stitches along your path. Set **Stitch length** in Properties.
 | **Back stitch** | Each stitch goes forward two lengths and back one: a solid, hand-sewn line | **Stitch length** |
 | **Stem stitch** | Like back stitch, with each stitch slanting across the line: a twisted rope | **Width** (1 mm), **Stitch length** |
 | **Motif** | A small pattern repeated along the line, joined by short runs: hearts, leaves, diamonds, stars, scallops or circles. Each motif bends with the line | **Motif**, **Motif size** (4 mm), **Gap** (1 mm) |
+| **Ripple** | The line sewn again and again, each copy the same shape but smaller, shrinking toward a **Target** dot (drag it on the canvas; **Reset target** puts it back). A closed shape spirals in, in one unbroken line; an open line is sewn there and back, each copy smaller. The target starts in the middle of a closed shape, and to one side of a straight or wavy open line | **Lines** (10, from 2 to 50), **Stitch length** |
 
-Projects using line styles, the stipple, motif, cross stitch or gradient fills, or raised satin are saved as file version 6, which versions of OpenHoop before these stitches refuse to open rather than sewing them as plain stitches.
+Projects using line styles, the stipple, motif, cross stitch, gradient or guided fills, lettering on a line, or raised satin are saved as file version 6, which versions of OpenHoop before these stitches refuse to open rather than sewing them as plain stitches.
 
 ### Satin columns (⇧A)
 

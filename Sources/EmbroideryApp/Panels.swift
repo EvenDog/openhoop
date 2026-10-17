@@ -1224,6 +1224,15 @@ struct InspectorPanel: View {
             number(style == .blanket ? "Prong spacing" : style == .motif ? "Gap" : "Spacing", value: object.settings.runSpacing ?? DigitizingSettings.defaultRunSpacing(style), range: DigitizingSettings.runSpacingRange,
                    help: style == .blanket ? "How far apart the prongs are along the line (mm)." : style == .motif ? "The running stitch between motifs (mm)." : "How far the needle moves along the line with each swing (mm). Smaller is denser.") { value in settings(.run, "Line Spacing") { $0.runSpacing = value } }
         }
+        if style == .ripple {
+            let range = DigitizingSettings.rippleLineRange
+            number("Lines", value: Double(object.settings.rippleLines ?? DigitizingSettings.defaultRippleLines), range: Double(range.lowerBound)...Double(range.upperBound),
+                   help: "How many times the line is sewn, each copy smaller. More lines sit closer together.") { value in settings(.run, "Ripple Lines") { $0.rippleLines = Int(value.rounded()) } }
+            if object.settings.radialCenter != nil {
+                Button("Reset target") { settings(.run, "Reset Ripple Target") { $0.radialCenter = nil } }.buttonStyle(ThemedButtonStyle())
+                    .help("Move the Target dot back to where it starts: the middle of the shape")
+            }
+        }
     }
     /// Running stitch passes: Single, or bean stitch sewing each stitch 3 or 5 times. Shared with the Pro layout.
     func runPasses(_ object: RunObject) -> some View {

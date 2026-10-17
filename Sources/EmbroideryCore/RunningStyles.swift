@@ -1,13 +1,15 @@
 // The decorative line stitches a running line can have instead of plain running stitch: zigzag, blanket (E-stitch),
-// back stitch and stem stitch. Each is built along the line's path, measured by distance along it, so it follows
-// curves and corners. Properties picks the style (DigitizingSettings.runStyle).
+// back stitch, stem stitch, motifs and ripple. Each is built along the line's path, measured by distance along it, so
+// it follows curves and corners. Properties picks the style (DigitizingSettings.runStyle).
 import Foundation
 
 public enum RunningStyles {
     /// The needle points for `style` along the line `path` (its points in sewing order; a closed line's last point is
     /// its first again). `width` is across the line and `spacing` along it (mm), for a motif its size and the gap
-    /// between motifs; `length` is the stitch length. Returns nil for plain running stitch, which RunningEngine sews.
-    public static func stitches(_ style: RunStyle, along path: [Point], closed: Bool, width: Double, spacing: Double, length: Double, motif: Motif = .heart) -> [Point]? {
+    /// between motifs; `length` is the stitch length. A ripple shrinks `lines` copies toward `target` (nil is the
+    /// default, `rippleTarget`). Returns nil for plain running stitch, which RunningEngine sews.
+    public static func stitches(_ style: RunStyle, along path: [Point], closed: Bool, width: Double, spacing: Double, length: Double, motif: Motif = .heart,
+                                target: Point? = nil, lines: Int = DigitizingSettings.defaultRippleLines) -> [Point]? {
         let line = Measured(path)
         guard line.total > 0.01, style != .running else { return nil }
         // Back and stem stitch step forward two stitch lengths, so their stitch length is kept to 4 mm at most.
@@ -19,8 +21,54 @@ public enum RunningStyles {
         case .backStitch: points = backStitch(line, length: min(length, 4), offset: 0)
         case .stemStitch: points = backStitch(line, length: min(length, 4), offset: width / 2)
         case .motif: points = Motifs.run(along: path, motif: motif, size: width, gap: spacing, length: length)
+        case .ripple: points = ripple(line, closed: closed, target: target ?? rippleTarget(path, closed: closed), lines: lines, length: length)
         }
         return split(points, longest: longestStitch)
+    }
+
+    /// Ripple: the line sewn `lines` times, each copy the same shape scaled down toward `target`, like ripples on
+    /// water. A closed line spirals in: the copy shrinks gradually all the way round each lap, so it's one unbroken
+    /// line from the outline in to the smallest ring (a `lines`th of the size). An open line is sewn there and back,
+    /// each copy smaller, joined by a short stitch from one copy's end to the next. In stitches of about `length`.
+    static func ripple(_ line: Measured, closed: Bool, target: Point, lines: Int, length: Double) -> [Point] {
+        let count = max(2, lines)
+        func scaled(_ p: Point, _ factor: Double) -> Point { target + (p - target) * factor }
+        guard closed else {
+            var points: [Point] = []
+            for k in 0..<count {
+                let copy = line.points.map { scaled($0, 1 - Double(k) / Double(count)) }
+                points += GuidedFill.stitches(k % 2 == 0 ? copy : copy.reversed(), length: length, offset: 0)
+            }
+            return points
+        }
+        // Where the spiral is worked out on each lap: every corner of the outline, and every quarter millimetre.
+        let marks = Array(Set(line.distances + stride(from: 0, to: line.total, by: 0.25).map { $0 })).sorted().filter { $0 < line.total }
+        var spiral: [Point] = []
+        for lap in 0..<(count - 1) {
+            for s in marks { spiral.append(scaled(line.point(at: s), 1 - (Double(lap) + s / line.total) / Double(count))) }
+        }
+        spiral.append(scaled(line.points[0], 1 / Double(count)))
+        // (GuidedFill.stitches spaces stitches evenly along a curved path, with a needle point at every sharp corner.)
+        return GuidedFill.stitches(spiral, length: length, offset: 0)
+    }
+    /// Where a ripple shrinks toward unless its target has been moved: the middle of a closed shape; for an open line,
+    /// the middle of its points, or, when that's on the line (a nearly straight or wavy one), half the distance
+    /// between its ends off to one side of the line from end to end, so the copies fan out. The line's direction
+    /// doesn't matter.
+    public static func rippleTarget(_ path: [Point], closed: Bool) -> Point {
+        let line = Measured(path)
+        guard line.points.count >= 2 else { return line.points.first ?? Point(0, 0) }
+        if closed { return AreaGeometry.centroid(line.points) }
+        // The line taken from its left (or lower) end, so the side doesn't depend on which way it's sewn.
+        let first = line.points[0], last = line.points[line.points.count - 1]
+        let forward = first.x < last.x || (first.x == last.x && first.y <= last.y)
+        let along = forward ? line : Measured(line.points.reversed())
+        var middle = Point(0, 0)
+        for (a, b) in zip(along.points, along.points.dropFirst()) { middle = middle + (a + b) * (0.5 * a.distance(to: b) / along.total) }
+        let nearest = zip(along.points, along.points.dropFirst()).map { middle.distance(to: AreaGeometry.projection(middle, $0, $1)) }.min() ?? 0
+        guard nearest < 0.15 * along.total else { return middle }
+        let ends = along.points[along.points.count - 1] - along.points[0], span = max(1e-9, ends.distance(to: Point(0, 0)))
+        return (along.points[0] + along.points[along.points.count - 1]) * 0.5 + Point(-ends.y, ends.x) * (0.5 * max(span, along.total / 2) / span)
     }
 
     /// The longest stitch a line style makes (mm). A longer one (a very wide, very open zigzag, say) is split into
