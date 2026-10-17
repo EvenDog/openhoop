@@ -446,6 +446,7 @@ final class DesignCanvas: NSView {
         // On thread, each needle point gets a light ring so it shows on any thread color.
         if threadView && showStitches { context.setStrokeColor(NSColor.white.withAlphaComponent(0.85).cgColor); context.setLineWidth(0.8); context.addPath(needles); context.strokePath() }
         context.setFillColor(Theme.Canvas.needle.cgColor); context.addPath(needles); context.fillPath()
+        if state.showDensity { drawDensityMap(context) }
         let sewn = sewnEnds()
         for object in design.objects where state.isShown(object) {
             let selected = state.selection.contains(object.id)
@@ -666,6 +667,17 @@ final class DesignCanvas: NSView {
         context.strokePath(); context.restoreGState()
     }
     /// A small labeled dot showing where the selected object starts or ends sewing.
+    /// The density map worked out for the stitches of one compiled revision (worked out again only when they change).
+    private var densityCache: (revision: Int, cells: [(corner: Point, level: DensityMap.Level)])?
+    /// The density map over the stitches: each heavy 1 mm square tinted yellow and each too-dense one red.
+    private func drawDensityMap(_ context: CGContext) {
+        if densityCache?.revision != state.compiledRevision { densityCache = (state.compiledRevision, DensityMap.cells(state.plan)) }
+        for cell in densityCache?.cells ?? [] {
+            let a = screen(cell.corner), b = screen(cell.corner + Point(1, 1))
+            context.setFillColor((cell.level == .tooDense ? NSColor.systemRed : NSColor.systemYellow).withAlphaComponent(0.5).cgColor)
+            context.fill(CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(b.x - a.x), height: abs(b.y - a.y)))
+        }
+    }
     /// Up to this many selected objects show where they start and end even without points set (more would crowd the
     /// canvas, as when a whole word is selected); points that were set always show.
     static let fewForMarkers = 10
