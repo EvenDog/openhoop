@@ -88,6 +88,8 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     /// The stitch angle line clicked (a fill and which of its lines), which Delete removes; nil when none is.
     @Published var selectedAngle:(object:UUID,index:Int)?
     @Published var showUnderlay=true
+    /// The density map: heavy (yellow) and too dense (red) 1 mm squares drawn over the stitches.
+    @Published var showDensity=false
     @Published var draft: [PathNode] = [] {
         didSet { if draft != oldValue { document?.draftDidChange() } }
     }

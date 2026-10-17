@@ -238,6 +238,17 @@ Hoops are listed upright; **Turn sideways** swaps width and height. You can also
 
 **Stitch player.** Press **Space** or **⇧R** (or ▶) to watch the design sew, and **Home** to go back to the start; drag the slider to step through it. **.** (period) shows the needle points. **Speed** sets how many stitches it sews per second (1–5,000; 120 to start, and back to 120 each time the app opens): drag its slider to slow down or speed up while it plays, or type an exact number in the box. A machine sews about 12. In Pro, the speed slider and box sit next to the mini player.
 
+**Density map.** Turn on **View → Density Map** (or **Density** in the Show list) to color the spots that lay too much thread, in 1 mm squares. They show in both views and update as you edit.
+- **Yellow** is heavy: more than about 4 layers of fill (for example, two satins crossing).
+- **Red** is too dense: more than about 6 layers, or 5 or more needle holes inside a quarter of a millimetre. Expect stiff patches there, broken thread, or holes cut in the fabric.
+- The status line gives the total area of each.
+
+**Test swatches.** Not sure which row spacing or compensation suits your fabric? Select one line, fill or satin and choose **Digitize → Make Test Swatches…**.
+- Pick the setting to step (row spacing, stitch length, compensation, compensation %, fill angle or underlay spacing), the value to start at, the step and how many (2–25).
+- The preview shows them laid out in your hoop. **Make Swatches** opens them as a new design.
+- Each copy is named after its value ("Row spacing 0.35 mm") and they sew in order, top left first, so you can tell them apart on the fabric.
+- If they don't fit the hoop, make fewer or shrink the shape first.
+
 **Save your work** as a `.stitchproj` project; that's what you keep editing. Machine files are output only.
 
 **Export:**

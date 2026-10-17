@@ -287,6 +287,19 @@ import EmbroideryCore
         return .terminateLater
     }
     @objc private func didCloseAll(_ controller: NSDocumentController, didCloseAll: Bool, contextInfo: UnsafeMutableRawPointer?) { NSApp.reply(toApplicationShouldTerminate: didCloseAll) }
+    /// Make Test Swatches: the dialog picks a setting of the selected object and the values to try; the swatches
+    /// open as a new design in the same hoop and fabric, ready to export and sew.
+    private func makeTestSwatches(_ state: EditorState) {
+        guard state.selection.count == 1, let object = state.selected, !SwatchSetting.available(for: object.kind).isEmpty else {
+            state.status = "Select one line, fill or satin first; the swatches are copies of it."; return
+        }
+        guard var design = GuidedDialog.testSwatches(object, hoop: state.design.hoop) else { state.status = "Test swatches cancelled."; return }
+        design.fabricType = state.design.fabricType; design.fabricColor = state.design.fabricColor
+        let document = DesignDocument(); document.state.design = design
+        NSDocumentController.shared.addDocument(document); document.makeWindowControllers(); document.showWindows()
+        document.updateChangeCount(.changeDone)
+        document.state.status = "\(design.objects.count) test swatches, sewn in order. Each is named after its value."
+    }
     func newDocument(sample: Bool, areaSampler:Bool=false) {
         let document = DesignDocument(); if sample { document.state.design = Design.sample() };if areaSampler {document.state.design=Design.stitchSampler()}
         // A blank design starts with the hoop and fabric for new designs (sample designs keep the ones they were made for).
@@ -336,7 +349,7 @@ import EmbroideryCore
         if command == .close { return NSApp.keyWindow != nil }
         guard let state = active?.state else { return false }
         let shown: [CommandID: Bool] = [.showStitches: state.showStitches, .showOutlines: state.showOutlines, .showConnectors: state.showsConnectors, .hideOthers: state.hideOthers,
-                                        .grid: state.grid, .snap: state.snap, .needles: state.needles, .showUnderlay: state.showUnderlay]
+                                        .grid: state.grid, .snap: state.snap, .needles: state.needles, .showUnderlay: state.showUnderlay, .densityMap: state.showDensity]
         if let on = shown[command] { menuItem.state = on ? .on : .off; return true }
         if command == .cutObjects || command == .copyObjects { return !state.selection.isEmpty }
         if command == .pasteObjects { return NSPasteboard.general.data(forType: .init(ObjectClipboard.pasteboardType)) != nil }
@@ -344,7 +357,7 @@ import EmbroideryCore
         return true
     }
     /// Commands that open a dialog and wait for it to close.
-    private static let opensDialog: Set<CommandID> = [.laydown, .addMonogram, .editMonogram, .lettering, .editLettering, .autoDigitize, .satinBorder, .applique, .threadChart, .renameObject, .importImage]
+    private static let opensDialog: Set<CommandID> = [.laydown, .testSwatches, .addMonogram, .editMonogram, .lettering, .editLettering, .autoDigitize, .satinBorder, .applique, .threadChart, .renameObject, .importImage]
     /// `now` is false unless the command was already put off by one beat (see below).
     func perform(_ command: CommandID, now: Bool = false) {
         // A dialog opened inside a SwiftUI button's action never updates (no typing, no setup), because SwiftUI
@@ -568,6 +581,13 @@ import EmbroideryCore
         case .removeHoles:state.editSelected(command.title){if $0.kind == .fill{$0.holes=[]}}
         case .toggleUnderlay:state.editSelected(command.title){object in if object.kind == .satin || object.kind == .fill{var settings=object.settings;settings.underlay=settings.underlay == .none ? (object.kind == .fill ? .edgeAndSparse:.auto):.none;object.digitizing=settings}}
         case .showUnderlay:state.showUnderlay.toggle()
+        case .densityMap:
+            state.showDensity.toggle()
+            if state.showDensity {
+                let cells = DensityMap.cells(state.plan), red = cells.filter { $0.level == .tooDense }.count, yellow = cells.count - red
+                state.status = cells.isEmpty ? "Density map: no heavy or over-dense spots." : "Density map: \(red) mm² too dense (red: over 6 layers of thread, or needle holes piling up) · \(yellow) mm² heavy (yellow: over 4 layers)."
+            }
+        case .testSwatches: makeTestSwatches(state)
         case .tieIn: state.editSelected(command.title) { if $0.kind != .raw {$0.tieIn.toggle()} }
         case .tieOut: state.editSelected(command.title) { if $0.kind != .raw {$0.tieOut.toggle()} }
         case .trimAfter: state.editSelected(command.title) { $0.trimAfter.toggle() }
@@ -964,7 +984,7 @@ import EmbroideryCore
                     .convertRun, .convertSatin, .convertFill, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool,
                    .finishPath, .removePoint, .cancelPath]),
-        ("Add", [.lettering, .editLettering, .breakApartLettering, .addMonogram, .editMonogram, .satinBorder, .applique, .autoDigitize, .laydown])
+        ("Add", [.lettering, .editLettering, .breakApartLettering, .addMonogram, .editMonogram, .satinBorder, .applique, .autoDigitize, .laydown, .testSwatches])
     ]
     private func makeMenu() {
         let menu = NSMenu()
@@ -977,7 +997,7 @@ import EmbroideryCore
             ("File", [.new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportPES, .exportMachine, .exportDST, .exportEXP, .exportJEF, .exportVP3, .exportXXX, .exportPEC, .exportThreadList, .productionWorksheet, .sample, .stitchSampler]),
             ("Edit", [.undo, .redo, .cutObjects, .copyObjects, .pasteObjects, .selectAll, .delete, .duplicate, .group, .ungroup, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .sequenceBySelection, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .closePath, .lockObject, .hideObject, .renameObject, .threadChart]),
             ("Digitize", [.done]),
-            ("View", [.proView, .threadView, .useInches, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .showRulers, .clearGuides, .needles, .artwork, .showUnderlay, .play, .rewind]),
+            ("View", [.proView, .threadView, .useInches, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .showRulers, .clearGuides, .needles, .artwork, .showUnderlay, .densityMap, .play, .rewind]),
             ("Window", [.nextTab, .previousTab] + PanelID.allCases.map(\.command) + [.saveWorkspace, .restoreWorkspace])]
         for (name, commands) in groups {
             let item = NSMenuItem(); item.submenu = NSMenu(title: name); item.title = name; menu.addItem(item)

@@ -28,7 +28,7 @@ struct ToolStrip: View {
     /// True while the Show list is open.
     @State private var showListOpen = false
     /// What the Show list switches on and off.
-    private let showList: [CommandID] = [.showStitches, .showOutlines, .showConnectors, .needles, .showUnderlay, .hideOthers, .showRulers]
+    private let showList: [CommandID] = [.showStitches, .showOutlines, .showConnectors, .needles, .showUnderlay, .hideOthers, .showRulers, .densityMap]
     // Each group is a caption plus its slots, in on-screen order; a slot with several commands is a flyout.
     private let groups: [(title: String, slots: [[CommandID]])] = [
         ("Pick & shape", [[.selectTool], [.nodeTool, .editStitches, .smoothShapes], [.knifeTool, .weldObjects, .branching], [.entryExitTool]]),
@@ -45,7 +45,7 @@ struct ToolStrip: View {
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool]),
         ("Add", [.lettering, .addMonogram, .satinBorder, .applique, .autoDigitize, .laydown]),
         ("View", [.measureTool, .grid, .snap, .threadView]),
-        ("Show", [.showStitches, .showOutlines, .showConnectors, .needles, .showUnderlay, .hideOthers, .showRulers]),
+        ("Show", [.showStitches, .showOutlines, .showConnectors, .needles, .showUnderlay, .hideOthers, .showRulers, .densityMap]),
         ("Zoom", [.zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected])
     ]
     /// The rail's groups: the same tools, with View and Show sharing a group so the rail's rows of three fill evenly.
@@ -272,6 +272,7 @@ struct ToolStrip: View {
         case .showConnectors: return "Connectors (travel moves)"
         case .needles: return "Needle points"
         case .showUnderlay: return "Underlay"
+        case .densityMap: return "Density"
         case .hideOthers: return "Hide unselected objects"
         default: return command.title
         }
@@ -332,6 +333,7 @@ struct ToolStrip: View {
         case .snap: return state.snap
         case .needles: return state.needles
         case .showUnderlay: return state.showUnderlay
+        case .densityMap: return state.showDensity
         case .threadView: return preferences.threadView
         case .showRulers: return preferences.showsRulers
         case .showStitches: return state.showStitches

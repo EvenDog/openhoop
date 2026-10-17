@@ -16,7 +16,7 @@ public struct KeyBinding: Codable, Hashable, Sendable {
 
 public enum CommandID: String, Codable, CaseIterable, Sendable {
     case new, open, save, saveAs, close, importImage, importSVG, importMachine, exportPES, exportMachine, exportDST, exportEXP, exportJEF, exportVP3, exportXXX, exportPEC, exportThreadList, productionWorksheet, sample, stitchSampler, settings
-    case selectTool, artworkTool, runTool, satinTool, fillTool, holeTool, removeHoles, nodeTool, panTool, entryExitTool, autoStartPoints, clearStartEnd, lettering, editLettering, autoDigitize, satinBorder, applique, done, finishPath, cancelPath, removePoint, insertNode, deleteNode, toggleNodeType, breakApartLettering, renameObject, convertFill, convertRun, convertSatin, toggleUnderlay, showUnderlay, focusSpacing, focusAngle
+    case selectTool, artworkTool, runTool, satinTool, fillTool, holeTool, removeHoles, nodeTool, panTool, entryExitTool, autoStartPoints, clearStartEnd, lettering, editLettering, autoDigitize, satinBorder, applique, done, finishPath, cancelPath, removePoint, insertNode, deleteNode, toggleNodeType, breakApartLettering, densityMap, testSwatches, renameObject, convertFill, convertRun, convertSatin, toggleUnderlay, showUnderlay, focusSpacing, focusAngle
     case openShapeTool, closedShapeTool, freehandOpenTool, freehandClosedTool, rectangleTool, ellipseTool, basicShapeTool, knifeTool, weldObjects, smoothShapes, laydown, branching, addStitchAngles, removeStitchAngles, editStitches, addMonogram, editMonogram
     case undo, redo, delete, selectAll, sequenceBySelection, alignLeft, alignCentersVertically, alignRight, alignTop, alignCentersHorizontally, alignBottom, alignCenters, spaceAcross, spaceDown, duplicate, mirrorH, mirrorV, rotateLeft, rotateRight, earlier, later, closePath, lockObject, hideObject, tieIn, tieOut, trimAfter, stopAfter, group, ungroup, threadChart, cutObjects, copyObjects, pasteObjects
     case zoomIn, zoomOut, zoomFit, zoomDesign, zoomBoxTool, zoomActual, zoomSelected, showStitches, showOutlines, showConnectors, hideOthers, measureTool, grid, snap, clearGuides, needles, threadView, artwork, inspector, palette, restoreWorkspace, saveWorkspace, proView, useInches, showRulers
@@ -42,7 +42,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .stitchSampler:return "Open Satin + Fill Sampler"
         case .removeHoles:return "Remove All Fill Holes"
         case .satinTool:return "Satin Column";case .fillTool:return "Tatami Fill";case .holeTool:return "Add Fill Hole"
-        case .insertNode:return "Insert Node at Pointer";case .deleteNode:return "Delete Selected Node";case .toggleNodeType:return "Corner / Smooth Point";case .breakApartLettering:return "Break Apart Lettering"
+        case .insertNode:return "Insert Node at Pointer";case .deleteNode:return "Delete Selected Node";case .toggleNodeType:return "Corner / Smooth Point";case .breakApartLettering:return "Break Apart Lettering";case .densityMap:return "Density Map";case .testSwatches:return "Make Test Swatches…"
         case .renameObject:return "Rename Object…";case .convertFill:return "Convert to Tatami Fill";case .convertRun:return "Convert to Running Stitch";case .convertSatin:return "Make Satin Column from Line"
         case .toggleUnderlay:return "Toggle Underlay";case .showUnderlay:return "Show Underlay Stitches";case .focusSpacing:return "Focus Row Spacing";case .focusAngle:return "Focus Fill Angle"
         case .new: return "New Design"; case .open: return "Open Project…"; case .save: return "Save"; case .saveAs: return "Save As…"
@@ -130,6 +130,8 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .deleteNode: return "Remove the selected point from the outline."
         case .toggleNodeType: return "Switch the selected point between a sharp corner and a smooth curve."
         case .breakApartLettering: return "Turn the selected lettering into separate shapes you can reshape one by one. Its text can't be edited any more."
+        case .densityMap: return "Mark where the stitching is heavy (yellow) or too dense (red), before you sew."
+        case .testSwatches: return "Make a design of copies of the selected object with one setting stepped, to sew and compare on the fabric."
         case .renameObject: return "Give the selected object a name of your own."
         case .convertFill: return "Turn the selected outline into a tatami fill."
         case .convertRun: return "Turn the selected shape into a running-stitch outline."
@@ -236,7 +238,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportPES, .exportMachine, .exportDST, .exportEXP, .exportJEF, .exportVP3, .exportXXX, .exportPEC, .exportThreadList, .productionWorksheet, .sample, .stitchSampler: return "File"
         case .selectTool, .runTool, .satinTool, .fillTool, .holeTool, .nodeTool, .panTool, .entryExitTool, .autoStartPoints, .clearStartEnd, .lettering, .editLettering, .autoDigitize, .satinBorder, .applique, .done, .artworkTool, .finishPath, .cancelPath, .removePoint, .openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool, .knifeTool, .laydown, .branching, .addStitchAngles, .removeStitchAngles, .editStitches, .addMonogram, .editMonogram: return "Digitizing"
         case .settings, .inspector, .palette, .restoreWorkspace, .saveWorkspace, .panelSewingOrder, .panelDesign, .panelReference, .panelPlayer, .nextTab, .previousTab: return "Workspace"
-        case .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .clearGuides, .needles, .threadView, .artwork, .play, .rewind, .proView, .useInches, .showRulers: return "View"
+        case .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .clearGuides, .needles, .threadView, .artwork, .play, .rewind, .proView, .useInches, .showRulers, .densityMap: return "View"
         default: return "Edit"
         }
     }
@@ -325,7 +327,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         switch self {
         case .satinTool:return "line.3.horizontal";case .fillTool:return "square.fill";case .holeTool:return "circle.dashed"
         case .selectTool: return "cursorarrow"; case .runTool: return "point.topleft.down.to.point.bottomright.curvepath"
-        case .nodeTool: return "point.3.connected.trianglepath.dotted"; case .toggleNodeType: return "circle.square"; case .breakApartLettering: return "burst"; case .panTool: return "hand.draw"; case .entryExitTool: return "flag"; case .autoStartPoints: return "wand.and.stars"; case .clearStartEnd: return "flag.slash"; case .lettering: return "textformat"; case .editLettering: return "character.cursor.ibeam"; case .autoDigitize: return "wand.and.rays"; case .satinBorder: return "circle.circle"; case .applique: return "scissors"; case .done: return "checkmark.circle"; case .artworkTool: return "photo"
+        case .nodeTool: return "point.3.connected.trianglepath.dotted"; case .toggleNodeType: return "circle.square"; case .breakApartLettering: return "burst"; case .densityMap: return "circle.grid.3x3.fill"; case .testSwatches: return "square.grid.2x2"; case .panTool: return "hand.draw"; case .entryExitTool: return "flag"; case .autoStartPoints: return "wand.and.stars"; case .clearStartEnd: return "flag.slash"; case .lettering: return "textformat"; case .editLettering: return "character.cursor.ibeam"; case .autoDigitize: return "wand.and.rays"; case .satinBorder: return "circle.circle"; case .applique: return "scissors"; case .done: return "checkmark.circle"; case .artworkTool: return "photo"
         case .importImage: return "photo.badge.plus"; case .exportPES: return "square.and.arrow.up"; case .productionWorksheet: return "doc.text"; case .save: return "square.and.arrow.down"
         case .zoomFit: return "arrow.up.left.and.arrow.down.right"; case .zoomBoxTool: return "plus.magnifyingglass"; case .zoomActual: return "1.magnifyingglass"; case .zoomSelected: return "viewfinder"; case .zoomDesign: return "square.dashed";
         case .showStitches: return "point.topleft.down.to.point.bottomright.curvepath.fill"; case .showOutlines: return "rectangle.dashed"; case .showConnectors: return "line.diagonal"; case .hideOthers: return "eye.square"; case .measureTool: return "ruler"; case .sequenceBySelection: return "list.number"
