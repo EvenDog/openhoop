@@ -27,6 +27,13 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
     /// to the next as a multiple of the letter height (nil means the default).
     public var alignment: LetteringAlignment?
     public var lineSpacing: Double?
+    /// Extra space between letters, in mm (negative tightens); nil means the font's own spacing.
+    public var letterSpacing: Double?
+    public static let letterSpacings = -3.0...10.0
+    /// Letters nudged with Edit Nodes: by letter key (line × 1000 + place in the line), how far the letter moved
+    /// along and up from where the font puts it, as a share of the letter height, so the nudge scales with the size
+    /// and survives changing the text, font or size. nil means none.
+    public var letterOffsets: [Int: Point]?
     public static let defaultLineSpacing = 1.4, lineSpacings = 0.8...4.0, maximumLines = 10
     /// Placement markers, in mm. Freshly made lettering is centered on `anchor` = (0, 0), with `alongMarker`
     /// 10 mm to the right (the reading direction) and `upMarker` 10 mm up. They move, turn and mirror with the
@@ -90,16 +97,23 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
     /// lined up by `alignment`, and joined into one group sewn line by line.
     private func stackedLines(color: ThreadColor, embroideryFonts: [EmbroideryFont]) throws -> LetteringResult {
         let lines = self.lines
-        func line(_ text: String, centered: Bool) throws -> LetteringResult {
+        /// One line of lettering, its letters spaced (and, for a single line, nudged), each part knowing its letter
+        /// (line × 1000 + place).
+        func line(_ text: String, number: Int, centered: Bool) throws -> LetteringResult {
+            let spacing = letterSpacing ?? 0
+            let nudges = centered ? Dictionary(uniqueKeysWithValues: (letterOffsets ?? [:]).filter { $0.key / 1000 == number }.map { ($0.key % 1000, $0.value * height) }) : [:]
+            var result: LetteringResult
             switch fontKind {
             case .embroidery:
                 guard let embroideryFont = embroideryFonts.first(where: { $0.folder.lastPathComponent == font }) else { throw DesignError.invalid("The embroidery font ‘\(font)’ isn't available.") }
-                return try embroideryFont.shapes(text: text, height: height, color: color, shape: shape, radius: radius, centered: centered)
+                result = try embroideryFont.shapes(text: text, height: height, color: color, shape: shape, radius: radius, centered: centered, spacing: spacing, nudges: nudges)
             case .system:
-                return try Lettering.shapes(text: text, fontName: font, height: height, stitch: stitch, color: color, shape: shape, radius: radius, centered: centered)
+                result = try Lettering.shapes(text: text, fontName: font, height: height, stitch: stitch, color: color, shape: shape, radius: radius, centered: centered, spacing: spacing, nudges: nudges)
             }
+            for i in result.objects.indices { result.objects[i].letterKey = number * 1000 + (result.objects[i].letterKey ?? 0) }
+            return result
         }
-        guard lines.count > 1 else { return try line(lines.first ?? text, centered: true) }
+        guard lines.count > 1 else { return try line(lines.first ?? text, number: 0, centered: true) }
         guard lines.count <= Self.maximumLines else { throw DesignError.invalid("Lettering can have up to \(Self.maximumLines) lines.") }
         guard shape == .straight else { throw DesignError.invalid("Curved lettering is one line. Choose Straight for several lines, or make each curved line its own lettering.") }
         let spacing = lineSpacing ?? Self.defaultLineSpacing
@@ -108,7 +122,7 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
         var objects: [RunObject] = [], warnings: [String] = []
         let group = UUID()
         for (index, text) in lines.enumerated() where !text.trimmingCharacters(in: .whitespaces).isEmpty {   // blank lines just add space
-            var built = try line(text, centered: false)
+            var built = try line(text, number: index, centered: false)
             // Line up the line's left edge, middle or right edge at x = 0, and move it down to its baseline.
             let xs = built.objects.flatMap { $0.outlinePaths.flatMap { $0.map(\.x) } }
             let shift = Point(-(alignment == .left ? xs.min()! : alignment == .right ? xs.max()! : (xs.min()! + xs.max()!) / 2), -Double(index) * spacing * height)
@@ -121,6 +135,11 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
         let low = Point(points.map(\.x).min()!, points.map(\.y).min()!), high = Point(points.map(\.x).max()!, points.map(\.y).max()!)
         let center = (low + high) * 0.5
         for i in objects.indices { objects[i].transform { $0 - center } }
+        // Nudged letters move last, after the lines are lined up and centered, so the rest stay put.
+        for i in objects.indices {
+            guard let key = objects[i].letterKey, let nudge = letterOffsets?[key] else { continue }
+            objects[i].transform { $0 + nudge * height }
+        }
         var check = Design(); check.objects = objects; try check.validate()
         return LetteringResult(objects: objects, warnings: warnings, width: high.x - low.x, height: high.y - low.y)
     }

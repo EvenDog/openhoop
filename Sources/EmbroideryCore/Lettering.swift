@@ -38,7 +38,7 @@ public enum Lettering {
     /// installed or nothing in the text has an outline to stitch. With `centered` false, straight lettering keeps
     /// its baseline at y = 0 instead (used to stack lines of text).
     public static func shapes(text: String, fontName: String, height: Double, stitch: LetteringStitch, color: ThreadColor,
-                              shape: LetteringShape = .straight, radius: Double = 40, centered: Bool = true) throws -> LetteringResult {
+                              shape: LetteringShape = .straight, radius: Double = 40, centered: Bool = true, spacing: Double = 0, nudges: [Int: Point] = [:]) throws -> LetteringResult {
         guard !text.trimmingCharacters(in: .whitespaces).isEmpty else { throw DesignError.invalid("Type some text first.") }
         guard text.count <= maximumCharacters, !text.contains(where: \.isNewline) else { throw DesignError.invalid("Lettering is one line of up to \(maximumCharacters) characters.") }
         guard heights.contains(height) else { throw DesignError.invalid("Letter height must be between \(Int(heights.lowerBound)) and \(Int(heights.upperBound)) mm.") }
@@ -100,7 +100,7 @@ public enum Lettering {
         guard !objects.isEmpty else { throw DesignError.invalid("None of these characters have outlines to stitch in this font.") }
         if stitch == .fill && height < 10 { warn("Fill letters under about 10 mm tall can look rough. For small text, pick an embroidery font (hand-digitized satin) instead.") }
 
-        let size = try arrange(&objects, letters: letters, height: height, shape: shape, radius: radius, centered: centered).size
+        let size = try arrange(&objects, letters: letters, height: height, shape: shape, radius: radius, centered: centered, spacing: spacing, nudges: nudges).size
         var check = Design(); check.objects = objects; try check.validate()
         return LetteringResult(objects: objects, warnings: warnings, width: size.width, height: size.height)
     }
@@ -110,12 +110,22 @@ public enum Lettering {
     /// letter is turned whole to follow the curve, so its shape and stitches don't change; fill rows turn with it.
     /// `letters[i]` says which letter object i belongs to. Returns where each object's points moved (so other
     /// points, such as stitch ends, can be moved the same way) and the lettering's finished width and height.
-    static func arrange(_ objects: inout [RunObject], letters: [Int], height: Double, shape: LetteringShape, radius: Double, centered: Bool = true) throws -> (moves: [(Point) -> Point], size: (width: Double, height: Double)) {
+    /// `spacing` (mm) is added between neighbouring letters before the letters follow an arc (so it bends with it).
+    /// `nudges` then moves single letters (by letter number, in mm along the baseline and up) after everything is
+    /// placed and centered, so nudging one letter never shifts the others; on an arc it follows that letter's tilt.
+    static func arrange(_ objects: inout [RunObject], letters: [Int], height: Double, shape: LetteringShape, radius: Double, centered: Bool = true,
+                        spacing: Double = 0, nudges: [Int: Point] = [:]) throws -> (moves: [(Point) -> Point], size: (width: Double, height: Double)) {
         func bounds(_ objects: [RunObject]) -> (min: Point, max: Point) {
             let points = objects.flatMap { $0.outlinePaths.flatMap { $0 } }   // the curves, not just the nodes
             return (Point(points.map(\.x).min()!, points.map(\.y).min()!), Point(points.map(\.x).max()!, points.map(\.y).max()!))
         }
         var moves = [(Point) -> Point](repeating: { $0 }, count: objects.count)
+        // Each letter's own directions along its baseline and up (tilted on an arc), for its nudge at the end.
+        var frames: [Int: (along: Point, up: Point)] = [:]
+        for i in objects.indices {
+            if spacing != 0 { let shift = Point(Double(letters[i]) * spacing, 0); objects[i].transform { $0 + shift }; moves[i] = { $0 + shift } }
+            objects[i].letterKey = letters[i]
+        }
         if shape != .straight {
             guard radii.contains(radius) else { throw DesignError.invalid("The arc radius must be between \(Int(radii.lowerBound)) and \(Int(radii.upperBound)) mm.") }
             guard radius >= height * 1.5 else { throw DesignError.invalid("The arc is too tight for letters this tall. Use a radius of at least \(Int((height * 1.5).rounded(.up))) mm.") }
@@ -131,10 +141,12 @@ public enum Lettering {
                 let base = shape == .archUp ? Point(radius * sin(angle), radius * cos(angle) - radius) : Point(radius * sin(angle), radius - radius * cos(angle))
                 let along = shape == .archUp ? Point(cos(angle), -sin(angle)) : Point(cos(angle), sin(angle))
                 let up = Point(-along.y, along.x)
+                frames[letter] = (along, up)
                 let move: (Point) -> Point = { p in base + along * (p.x - center) + up * p.y }
                 let turn = atan2(along.y, along.x) * 180 / .pi
                 for i in members {
-                    objects[i].transform(move); moves[i] = move
+                    let before = moves[i]
+                    objects[i].transform(move); moves[i] = { move(before($0)) }
                     if objects[i].kind == .fill { let angle = objects[i].settings.angle; objects[i].digitizing?.angle = turned(angle, by: turn) }
                 }
             }
@@ -144,6 +156,13 @@ public enum Lettering {
         for i in objects.indices {
             objects[i].transform { $0 - center }
             let move = moves[i]; moves[i] = { move($0) - center }
+        }
+        // The nudges last, each letter on its own.
+        for i in objects.indices {
+            guard let nudge = nudges[letters[i]] else { continue }
+            let frame = frames[letters[i]] ?? (Point(1, 0), Point(0, 1)), shift = frame.along * nudge.x + frame.up * nudge.y
+            objects[i].transform { $0 + shift }
+            let move = moves[i]; moves[i] = { move($0) + shift }
         }
         return (moves, (box.max.x - box.min.x, box.max.y - box.min.y))
     }

@@ -167,7 +167,10 @@ Press **A** (or **Add → Text**) to add lettering.
 - **System fonts:** any font on your Mac, as fills or outlines, 3–200 mm tall. Below about 10 mm, use an embroidery font instead.
 - **Several lines:** up to 10, aligned left, center or right, with adjustable line spacing.
 - **Shape:** **Straight**, **Arch up** or **Arch down**, with the arc's radius.
-- **Edit it later:** double-click the letters (or press **⌥L**) to change the text, font, size or shape. If you had reshaped any letters by hand, you're warned that updating rebuilds them.
+- **One object:** lettering is one step in the sewing order and moves, resizes and recolors as one. Clicking any letter (even Option-clicking) selects the whole word, and Ungroup leaves it whole.
+- **Edit it in Properties:** with the lettering selected, **Lettering** in Properties changes the text (the letters update when you pause typing), the font, height, **Letter spacing** (extra space between letters in mm; negative pulls them closer) and the **Baseline** (straight or arched, with its radius). Each change is one step to undo. **More options…** (or double-click, or **⌥L**) opens the full dialog for several lines and alignment. If you had changed any letters by hand, Properties says that these settings rebuild them.
+- **Move one letter:** with **Edit Nodes (H)**, each letter has a small diamond handle below it. Drag it to move just that letter, sideways or up and down. It stays where you put it when you change the text, font, size or spacing (moves are kept by the letter's place in the word: 1st letter, 2nd letter…). **Reset letter positions** in Properties puts them back.
+- **Break apart:** **Digitize → Add → Break Apart Lettering** (or **Break apart** in Properties) turns the lettering into separate shapes, still grouped, so you can reshape each letter's points. Its text can't be edited after that.
 
 ### Monograms (⌥⇧M)
 
@@ -330,7 +333,7 @@ These are the starting keys; every one can be changed. Tools on a function key a
 - Contour fills spiral smoothly on round shapes (ovals, rounded corners). Shapes with sharp corners show a short step line from ring to ring; it runs from the Start point toward the middle, so put the start where it shows least. Radial fills crowd a little where the edge comes close to the center.
 - Underlay that won't fit at the chosen inset is left out, with a warning.
 
-**Lettering:** arched lettering is one line (make each curved line its own lettering). Updating lettering rebuilds every letter, so hand edits are lost (Undo brings them back). The embroidery fonts were tuned for Ink/Stitch, whose underlay and compensation differ a little, so test-sew small text.
+**Lettering:** arched lettering is one line (make each curved line its own lettering). Updating lettering rebuilds every letter, so hand edits (and stitch settings changed in Properties) are lost; Undo brings them back. Letters moved with Edit Nodes are kept. The embroidery fonts were tuned for Ink/Stitch, whose underlay and compensation differ a little, so test-sew small text.
 
 **Auto-digitize** makes fills only, and touching colors are traced separately, so check where they meet. Photos and gradients reduce to flat color patches.
 

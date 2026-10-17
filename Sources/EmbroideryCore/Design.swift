@@ -90,6 +90,9 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
     public var groupID: UUID?
     /// For letters made by the lettering tool: the recipe to rebuild them when the text is edited.
     public var lettering: LetteringSpec?
+    /// For letters made by the lettering tool: which letter this part belongs to, as line × 1000 + the letter's place
+    /// in its line (the key `LetteringSpec.letterOffsets` uses). Edit Nodes moves a letter's parts together by it.
+    public var letterKey: Int?
     /// Objects sharing a branch ID were branched (Branching.swift): one after another in the same thread, they're
     /// joined by travel runs instead of trims.
     public var branchID: UUID?
@@ -504,6 +507,7 @@ public struct Design: Codable, Equatable, Sendable {
     /// as version 6 and older versions of the app, which would sew those as plain stitches, refuse it instead.
     public var needsSchemaSix: Bool {
         objects.contains { ($0.kind == .run && ($0.settings.runStyle ?? .running) != .running)
+            || $0.lettering.map { $0.letterSpacing != nil || !($0.letterOffsets ?? [:]).isEmpty } == true
             || ($0.kind == .fill && [.stipple, .motif, .crossStitch, .gradient].contains($0.settings.fillStyle ?? .tatami)) || ($0.kind == .satin && $0.settings.raised == true) }
     }
     public var needsSchemaFive: Bool { usesHandles || basting != nil || objects.contains { $0.branchID != nil || $0.stitchEdits != nil || $0.entry != nil || $0.exit != nil || ($0.kind == .satin && ($0.closed || $0.settings.relaxedChecks == true)) || ($0.kind == .fill && ($0.settings.fillStyle ?? .tatami) != .tatami) || ($0.kind == .run && ($0.settings.runPasses ?? 1) > 1) || ($0.kind == .satin && ($0.settings.shortStitches == true || $0.settings.autoSplit == true)) || ($0.kind == .fill && ($0.settings.cutOutOverlaps == true || !($0.settings.angleLines ?? []).isEmpty)) || ($0.kind == .satin && ($0.settings.secondUnderlay != nil || $0.settings.underlay == .auto || $0.settings.pullPercent != nil)) } }

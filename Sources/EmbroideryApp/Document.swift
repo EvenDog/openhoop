@@ -433,11 +433,12 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     }
     /// The object clicked last: where a Shift-click range in the object lists starts.
     private var selectionAnchor: UUID?
-    /// Selects an object, or its whole group unless `single` (Option-click) asks for just that one.
+    /// Selects an object, or its whole group unless `single` (Option-click) asks for just that one. Lettering is
+    /// always selected whole: it's one object, and Edit Nodes moves its letters (Break Apart Lettering splits it).
     /// `extend` (Shift-click on the canvas, ⌘-click in the lists) adds it to, or removes it from, the current selection.
     func select(_ id: UUID, extend: Bool = false, single: Bool = false) {
         selectedNode=nil
-        let members = single ? [id] : design.groupMembers(of: id)
+        let members = single && !isLettering(id) ? [id] : design.groupMembers(of: id)
         if extend { if selection.contains(id) { selection.subtract(members) } else { selection.formUnion(members) } }
         else { selection = members }
         selectionAnchor = id
@@ -449,7 +450,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         let ids = design.objects.map(\.id)
         guard let anchor = selectionAnchor, let from = ids.firstIndex(of: anchor), let to = ids.firstIndex(of: id) else { select(id, single: single); return }
         selectedNode = nil
-        selection = Set(ids[min(from, to)...max(from, to)].flatMap { single ? [$0] : design.groupMembers(of: $0) })
+        selection = Set(ids[min(from, to)...max(from, to)].flatMap { single && !isLettering($0) ? [$0] : design.groupMembers(of: $0) })
         focusCanvas()   // the anchor stays put, so the next Shift-click redraws the range from the same object
     }
     /// A click on a row of the object lists, read the Mac way: Shift-click selects a range in sewing order, ⌘-click
@@ -496,16 +497,53 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     /// Removes every group that has a selected member. Ungrouped letters become plain shapes: they forget their
     /// lettering recipe, since editing the text would pull them back together.
     func ungroupSelection() {
-        let groups = Set(design.objects.filter { selection.contains($0.id) }.compactMap(\.groupID))
-        guard !groups.isEmpty else { status = "The selection isn't grouped."; return }
-        var hadLettering = false
+        // Lettering stays one object: Ungroup leaves it alone (Break Apart Lettering is the way to split it).
+        let letteringGroups = Set(design.objects.filter { selection.contains($0.id) && $0.lettering != nil }.compactMap(\.groupID))
+        let groups = Set(design.objects.filter { selection.contains($0.id) }.compactMap(\.groupID)).subtracting(letteringGroups)
+        let breakApart = Preferences.shared.label(.breakApartLettering).isEmpty ? "Break Apart Lettering" : "Break Apart Lettering (\(Preferences.shared.label(.breakApartLettering)))"
+        guard !groups.isEmpty else {
+            status = letteringGroups.isEmpty ? "The selection isn't grouped." : "Lettering stays one object. To turn it into separate shapes, use \(breakApart)."
+            return
+        }
+        var hadMonogram = false
         edit("Ungroup") { design in
             for i in design.objects.indices where design.objects[i].groupID.map(groups.contains) == true {
                 design.objects[i].groupID = nil; design.objects[i].branchID = nil   // ungrouped branches sew separately again
-                if design.objects[i].lettering != nil || design.objects[i].monogram != nil { design.objects[i].lettering = nil; design.objects[i].monogram = nil; hadLettering = true }
+                if design.objects[i].monogram != nil { design.objects[i].monogram = nil; hadMonogram = true }
             }
         }
-        status = "Ungrouped. Objects keep their place in the sewing order." + (hadLettering ? " The letters are now plain shapes; their text can't be edited any more." : "")
+        status = "Ungrouped. Objects keep their place in the sewing order." + (hadMonogram ? " The monogram's parts are now plain shapes; it can't be edited as a monogram any more." : "")
+            + (letteringGroups.isEmpty ? "" : " Lettering stays one object; use \(breakApart) to split it.")
+    }
+    /// True when `id` is a letter of a piece of lettering.
+    func isLettering(_ id: UUID) -> Bool { design.objects.first { $0.id == id }?.lettering != nil }
+    /// Break Apart Lettering: turns the selected lettering into plain shapes (still grouped, so they move together
+    /// until ungrouped). Its text can't be edited any more, but each letter can be reshaped. One undoable step.
+    func breakApartLettering() {
+        let ids = Set(design.objects.filter { selection.contains($0.id) && $0.lettering != nil }.map(\.id))
+        guard !ids.isEmpty else { status = "Select some lettering first."; return }
+        edit("Break Apart Lettering") { design in
+            for i in design.objects.indices where ids.contains(design.objects[i].id) { design.objects[i].lettering = nil; design.objects[i].letterKey = nil }
+        }
+        status = "The lettering is now \(ids.count) separate shapes, grouped. Edit Nodes reshapes each letter; Ungroup separates them."
+    }
+    /// Rebuilds the lettering with `spec.id` from `spec` (new text, font, size, spacing, baseline or letter nudges),
+    /// in the same place and thread, as one undoable step, and selects it. Says why in the status line and returns
+    /// false if it can't be built.
+    @discardableResult func rebuildLettering(_ spec: LetteringSpec, action: String = "Edit Lettering") -> Bool {
+        let old = design.letteringObjects(spec.id)
+        guard let color = old.first?.color else { return false }
+        guard !old.contains(where: \.locked) else { status = "Unlock the letters before editing the lettering."; return false }
+        do {
+            let letters = try spec.build(color: color, embroideryFonts: EmbroideryFontLibrary.fonts)
+            var candidate = design
+            let ids = candidate.replaceLettering(spec.id, with: letters)
+            try candidate.validate()
+            edit(action) { $0 = candidate }
+            selection = Set(ids); selectedNode = nil
+            if let warning = letters.warnings.first { status = warning }
+            return true
+        } catch { status = error.localizedDescription; return false }
     }
     /// Copies the selection 3 mm down-right and selects the copies. Copied groups become new, separate groups,
     /// and copied lettering becomes separate lettering that can be edited on its own.
