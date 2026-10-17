@@ -166,6 +166,13 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     func editSelected(_ name: String, _ block: (inout RunObject) -> Void) {
         edit(name) { next in for index in next.objects.indices where selection.contains(next.objects[index].id) && !next.objects[index].locked { block(&next.objects[index]) } }
     }
+    /// Gives one object a name of your own, as one Undo step. Spaces around it are trimmed; an empty or unchanged
+    /// name changes nothing.
+    func rename(_ id: UUID, to name: String) {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, let object = design.objects.first(where: { $0.id == id }), object.name != name else { return }
+        edit("Rename Object") { next in if let index = next.objects.firstIndex(where: { $0.id == id }) { next.objects[index].name = name } }
+    }
     /// The selected point (Edit Nodes), if it still exists.
     var selectedPathNode: PathNode? {
         guard let location = selectedNode, let object = design.objects.first(where: { $0.id == location.object }) else { return nil }

@@ -421,6 +421,8 @@ struct PictureRow: View {
 struct ObjectPanel: View {
     @ObservedObject var state: EditorState
     @ObservedObject var preferences = Preferences.shared
+    /// The object whose name is being typed over (after a double-click), if any.
+    @State private var renaming: UUID?
     var body: some View {
         if preferences.isPro { ProSewingOrder(state: state) } else { steps }
     }
@@ -466,7 +468,8 @@ struct ObjectPanel: View {
     }
     /// One sewing step: a numbered dot in the object's thread color, a dashed "thread" leading to the next step,
     /// and a card with the object's name and details (for lettering, its text and font). Clicking selects it
-    /// (Shift-click selects a range, ⌘-click adds one).
+    /// (Shift-click selects a range, ⌘-click adds one); double-clicking the name renames it (not lettering, which
+    /// shows its text).
     private func stepRow(number: Int, object: RunObject, isLast: Bool, groupLabel: String?, lettering: LetteringSpec?) -> some View {
         let selected = state.selection.contains(object.id)
         let font = lettering.map { $0.fontKind == .embroidery ? EmbroideryFontLibrary.font($0.font)?.name ?? $0.font : NSFont(name: $0.font, size: 12)?.displayName ?? $0.font }
@@ -506,6 +509,16 @@ struct ObjectPanel: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .simultaneousGesture(TapGesture(count: 2).onEnded { if lettering == nil { renaming = object.id } })
+            .overlay(alignment: .topLeading) {
+                // The rename box sits over the name line while typing.
+                if renaming == object.id {
+                    RenameField(state: state, object: object, font: Theme.body(12, weight: .semibold),
+                                editing: Binding(get: { renaming == object.id }, set: { if !$0 { renaming = nil } }))
+                        .padding(.leading, 5).padding(.trailing, 8).padding(.top, 3)
+                }
+            }
+            .help(lettering == nil ? "Double-click the name to rename it" : "")
             .padding(.bottom, isLast ? 0 : 8)
         }
         // fixedSize lets the dashed line stretch exactly to the height of its row instead of growing without limit.
@@ -670,7 +683,12 @@ struct InspectorPanel: View {
         } else if let object = state.selected {
             if state.selection.count > 1 && !selectionIsOneLettering { selectionSummary }
             VStack(alignment: .leading, spacing: 2) {
-                Text(heading(object)).font(Theme.heading(18)).lineLimit(2)
+                // One object (not lettering, which shows its text): click its name to rename it.
+                if object.lettering == nil && state.selection.count == 1 {
+                    ClickToRename(state: state, object: object, font: Theme.heading(18), lineLimit: 2).id(object.id)
+                } else {
+                    Text(heading(object)).font(Theme.heading(18)).lineLimit(2)
+                }
                 Text(object.kind == .raw ? object.kind.title : "\(detail(object)) · \(object.color.name) thread").font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
             }
             if object.stitchEdits != nil { stitchEditNotice(object) }

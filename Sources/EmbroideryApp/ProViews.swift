@@ -102,6 +102,8 @@ struct ProSewingOrder: View {
     @ObservedObject var state: EditorState
     /// The groups opened to show their objects (closed by default, so lettering takes one line).
     @State private var opened: Set<UUID> = []
+    /// The object whose name is being typed over (after a double-click), if any.
+    @State private var renaming: UUID?
 
     /// One line of the table: an object, or a group's heading line.
     private enum Line: Identifiable {
@@ -205,7 +207,16 @@ struct ProSewingOrder: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help("\(object.name): \(type), \(object.color.name) thread\(notes)")
+        .simultaneousGesture(TapGesture(count: 2).onEnded { if object.lettering == nil { renaming = object.id } })
+        .overlay(alignment: .leading) {
+            // The rename box sits over the name column while typing (past the number, swatch and type icon).
+            if renaming == object.id {
+                RenameField(state: state, object: object, font: Theme.body(11),
+                            editing: Binding(get: { renaming == object.id }, set: { if !$0 { renaming = nil } }))
+                    .padding(.leading, indented ? 62 : 52).padding(.trailing, 72)
+            }
+        }
+        .help("\(object.name): \(type), \(object.color.name) thread\(notes). Double-click the name to rename it.")
     }
 
     /// A group's line: open/close chevron (in the type-icon column, so the name keeps the table's full width),
@@ -383,7 +394,12 @@ extension InspectorPanel {
                     .accessibilityHidden(true)
             }
             VStack(alignment: .leading, spacing: 1) {
-                Text(heading(object)).font(Theme.heading(15)).lineLimit(1)
+                // One object (not lettering, which shows its text): click its name to rename it.
+                if object.lettering == nil && state.selection.count == 1 {
+                    ClickToRename(state: state, object: object, font: Theme.heading(15)).id(object.id)
+                } else {
+                    Text(heading(object)).font(Theme.heading(15)).lineLimit(1)
+                }
                 Text(detail + count).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).lineLimit(1)
             }
         }
