@@ -48,7 +48,7 @@ A line of stitches along your path. Set **Stitch length** in Properties.
 
 | Style | What it looks like | Settings |
 |---|---|---|
-| **Zigzag** | The needle swings side to side along the line: a decorative edge, or a light tack-down | **Width** (2 mm), **Spacing** along the line (1.5 mm) |
+| **Zigzag** | The needle swings side to side along the line: a decorative edge, or a light tack-down | **Width** (2 mm), **Spacing** along the line (1.5 mm). Together they set each stitch, so zigzag has no Stitch length |
 | **Blanket** | Running stitch with short prongs at regular spacing, like hand blanket stitch: the classic appliqué edge. On a closed shape the prongs point inward | **Prong length** (2.5 mm), **Prong spacing** (3 mm) |
 | **Back stitch** | Each stitch goes forward two lengths and back one: a solid, hand-sewn line | **Stitch length** |
 | **Stem stitch** | Like back stitch, with each stitch slanting across the line: a twisted rope | **Width** (1 mm), **Stitch length** |

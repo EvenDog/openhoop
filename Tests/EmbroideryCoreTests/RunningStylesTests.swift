@@ -20,6 +20,11 @@ final class RunningStylesTests: XCTestCase {
         XCTAssertTrue(zip(points, points.dropFirst()).allSatisfy { ($0.y > 0) != ($1.y > 0) }, "alternately left and right")
         XCTAssertEqual(points.count, 21, "a point every 1.5 mm along 30 mm")
         XCTAssertEqual(points.first!.x, 0, accuracy: 1e-9); XCTAssertEqual(points.last!.x, 30, accuracy: 1e-9)
+        // The stitch length plays no part (so Properties doesn't offer it for zigzag).
+        var longer = line(.zigzag, width: 2, spacing: 1.5); longer.stitchLength = 6
+        XCTAssertEqual(try stitches(longer), points)
+        XCTAssertFalse(RunStyle.zigzag.usesStitchLength)
+        XCTAssertTrue(RunStyle.allCases.filter { $0 != .zigzag }.allSatisfy(\.usesStitchLength))
     }
 
     func testBlanketProngsPointIntoAClosedShape() throws {

@@ -297,6 +297,9 @@ public enum RunStyle: String, Codable, CaseIterable, Sendable {
     /// motif they're its size and the gap between motifs.
     public var hasWidth: Bool { self == .zigzag || self == .blanket || self == .stemStitch || self == .motif }
     public var hasSpacing: Bool { self == .zigzag || self == .blanket || self == .motif }
+    /// False for zigzag, whose stitches are set by its width and spacing alone (each one swings from one side to the
+    /// other), so Properties doesn't offer a stitch length that would change nothing.
+    public var usesStitchLength: Bool { self != .zigzag }
 }
 /// The small patterns motif runs and motif fills repeat (Motifs.swift draws them).
 public enum Motif: String, Codable, CaseIterable, Sendable {
