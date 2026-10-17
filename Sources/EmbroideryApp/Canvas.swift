@@ -804,7 +804,13 @@ final class DesignCanvas: NSView {
         // grouped): the click places the point of the selected part under the pointer, even one lying under other
         // objects, and selects just that part.
         let target = state.selection.count == 1 ? state.selected : state.selection.count > 1 ? hit(point, among: state.selection) : nil
-        if let object = target, object.kind != .raw, object.kind != .vector, !object.locked {
+        // Lettering is one object: its start goes on its first letter and its end on its last, wherever the click.
+        if let spec = state.selectedLettering ?? target?.lettering, !state.design.letteringObjects(spec.id).contains(where: \.locked) {
+            state.edit(exit ? "Set End Point" : "Set Start Point") { design in if exit { design.setLetteringEnd(spec.id, point) } else { design.setLetteringStart(spec.id, point) } }
+            state.selection = Set(state.design.letteringObjects(spec.id).map(\.id))
+            state.status = exit ? "End point set: the lettering finishes on its last letter, at the nearest place to it."
+                                : "Start point set: the lettering starts on its first letter, at the nearest place to it. Option-click to set where it ends."
+        } else if let object = target, object.kind != .raw, object.kind != .vector, !object.locked {
             state.selection = [object.id]
             state.editSelected(exit ? "Set End Point" : "Set Start Point") { if exit { $0.exit = point } else { $0.entry = point } }
             state.status = exit ? "End point set: the stitching finishes there." : "Start point set. Option-click to set where it ends."
@@ -1089,8 +1095,9 @@ final class DesignCanvas: NSView {
         if let marker = draggedMarker, let index = next.objects.firstIndex(where: { $0.id == marker.object }) {
             let target = snapped(model(location))
             switch marker.kind {
-            case .start: next.objects[index].entry = target
-            case .end: next.objects[index].exit = target
+            // A word's start and end belong to the whole lettering (its recipe, its first and last letter).
+            case .start: if let id = next.objects[index].lettering?.id { next.setLetteringStart(id, target) } else { next.objects[index].entry = target }
+            case .end: if let id = next.objects[index].lettering?.id { next.setLetteringEnd(id, target) } else { next.objects[index].exit = target }
             case .center: next.objects[index].digitizing?.radialCenter = target
             }
             preview = next; needsDisplay = true; return

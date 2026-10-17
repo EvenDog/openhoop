@@ -62,4 +62,31 @@ final class LetteringObjectTests: XCTestCase {
         XCTAssertEqual(objects.first?.lettering?.letterOffsets?[0]?.y ?? 0, 2.0 / 12, accuracy: 1e-6, "kept as a share of the height")
         XCTAssertEqual(document.undoManager?.undoActionName, "Move Letter")
     }
+
+    /// The Start & End tool on lettering: a click anywhere on the word (here on its last letter) sets the word's start,
+    /// on its first letter; the whole word stays selected; the points survive a rebuild; Clear removes them.
+    @MainActor func testStartAndEndToolTreatsTheWordAsOne() throws {
+        let (document, spec) = try word(), state = document.state
+        let canvas = DesignCanvas(state: state); canvas.frame = NSRect(x: 0, y: 0, width: 600, height: 600); state.canvas = canvas
+        func click(_ p: Point, option: Bool = false) {
+            let event = NSEvent.mouseEvent(with: .leftMouseDown, location: canvas.screen(p), modifierFlags: option ? [.option] : [], timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+            canvas.mouseDown(with: event)
+        }
+        let all = Set(state.design.objects.map(\.id))
+        state.selection = all; state.tool = .entryExit; state.snap = false
+        let last = box(state.design.objects.filter { $0.letterKey == 2 }), lastMiddle = Point((last.min.x + last.max.x) / 2, (last.min.y + last.max.y) / 2)
+        click(lastMiddle)
+        XCTAssertEqual(state.selection, all, "the whole word stays selected")
+        XCTAssertEqual(state.design.objects.first?.entry?.distance(to: lastMiddle) ?? 99, 0, accuracy: 1e-6, "the word's start, on its first letter")
+        XCTAssertTrue(state.design.objects.dropFirst().allSatisfy { $0.entry == nil })
+        let end = lastMiddle + Point(0, 4)   // far enough from the start marker not to grab it
+        click(end, option: true)
+        XCTAssertEqual(state.design.objects.last?.exit?.distance(to: end) ?? 99, 0, accuracy: 1e-6, "the word's end, on its last letter")
+        var next = state.design.objects[0].lettering!; next.text = "Abcd"
+        XCTAssertTrue(state.rebuildLettering(next))
+        XCTAssertEqual(state.design.letteringObjects(spec.id).first?.entry?.distance(to: lastMiddle) ?? 99, 0, accuracy: 1e-6, "kept through a rebuild")
+        XCTAssertEqual(state.design.letteringObjects(spec.id).last?.exit?.distance(to: end) ?? 99, 0, accuracy: 1e-6)
+        state.clearStartEnd()
+        XCTAssertTrue(state.design.objects.allSatisfy { $0.entry == nil && $0.exit == nil && $0.lettering?.entry == nil && $0.lettering?.exit == nil })
+    }
 }

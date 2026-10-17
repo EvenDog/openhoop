@@ -34,6 +34,10 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
     /// along and up from where the font puts it, as a share of the letter height, so the nudge scales with the size
     /// and survives changing the text, font or size. nil means none.
     public var letterOffsets: [Int: Point]?
+    /// Where the lettering starts and ends sewing (Start & End points), in mm, or nil. Lettering sews its letters in
+    /// order, so the start goes on its first letter and the end on its last; kept here so rebuilding keeps them.
+    public var entry: Point?
+    public var exit: Point?
     public static let defaultLineSpacing = 1.4, lineSpacings = 0.8...4.0, maximumLines = 10
     /// Placement markers, in mm. Freshly made lettering is centered on `anchor` = (0, 0), with `alongMarker`
     /// 10 mm to the right (the reading direction) and `upMarker` 10 mm up. They move, turn and mirror with the
@@ -56,6 +60,7 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
     /// Moves the markers with the letters (called from RunObject.transform).
     public mutating func transform(_ body: (Point) -> Point) {
         anchor = body(anchor); alongMarker = body(alongMarker); upMarker = body(upMarker)
+        entry = entry.map(body); exit = exit.map(body)
     }
 
     /// Builds the lettering and puts it where the markers say: centered on `anchor`, turned and mirrored like
@@ -80,6 +85,8 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
             }
             result.objects[i].lettering = spec
         }
+        // The lettering's start goes on its first letter, its end on its last.
+        if !result.objects.isEmpty { result.objects[0].entry = entry; result.objects[result.objects.count - 1].exit = exit }
         return result
     }
 
@@ -149,8 +156,8 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
     public func matchesFreshBuild(_ objects: [RunObject], embroideryFonts: [EmbroideryFont]) -> Bool {
         guard let color = objects.first?.color, let fresh = try? build(color: color, embroideryFonts: embroideryFonts).objects,
               fresh.count == objects.count else { return false }
+        func near(_ p: Point?, _ q: Point?) -> Bool { p == nil && q == nil || (p.flatMap { p in q.map { p.distance(to: $0) < 0.01 } } ?? false) }
         func same(_ a: [PathNode], _ b: [PathNode]) -> Bool {
-            func near(_ p: Point?, _ q: Point?) -> Bool { p == nil && q == nil || (p.flatMap { p in q.map { p.distance(to: $0) < 0.01 } } ?? false) }
             return a.count == b.count && zip(a, b).allSatisfy { near($0.point, $1.point) && $0.smooth == $1.smooth && near($0.inHandle, $1.inHandle) && near($0.outHandle, $1.outHandle) }
         }
         return zip(objects, fresh).allSatisfy { old, new in
@@ -160,7 +167,7 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
             return same(old.nodes, new.nodes) && (old.holes ?? []).count == (new.holes ?? []).count && zip(old.holes ?? [], new.holes ?? []).allSatisfy(same)
                 && old.closed == new.closed && oldSettings == newSettings && anglesMatch && old.stitchLength == new.stitchLength
                 && old.tieIn == new.tieIn && old.tieOut == new.tieOut && old.trimAfter == new.trimAfter && old.stopAfter == new.stopAfter
-                && old.entry == nil && old.exit == nil
+                && near(old.entry, new.entry) && near(old.exit, new.exit)
         }
     }
 
@@ -171,6 +178,20 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
 extension Design {
     /// The objects made from the lettering with this id, in sewing order.
     public func letteringObjects(_ id: UUID) -> [RunObject] { objects.filter { $0.lettering?.id == id } }
+
+    /// Sets where the lettering with this id starts sewing (nil clears it): on its first letter, and in its recipe so
+    /// rebuilding keeps it.
+    public mutating func setLetteringStart(_ id: UUID, _ point: Point?) {
+        guard let first = objects.firstIndex(where: { $0.lettering?.id == id }) else { return }
+        for i in objects.indices where objects[i].lettering?.id == id { objects[i].lettering?.entry = point }
+        objects[first].entry = point
+    }
+    /// Sets where the lettering with this id ends sewing (nil clears it): on its last letter, and in its recipe.
+    public mutating func setLetteringEnd(_ id: UUID, _ point: Point?) {
+        guard let last = objects.lastIndex(where: { $0.lettering?.id == id }) else { return }
+        for i in objects.indices where objects[i].lettering?.id == id { objects[i].lettering?.exit = point }
+        objects[last].exit = point
+    }
 
     /// Replaces the lettering with `spec.id` by `result` (from `spec.build`): the new letters take the old ones'
     /// place in the sewing order and their group. Returns the new objects' IDs.
