@@ -456,6 +456,11 @@ final class DesignCanvas: NSView {
                     // Selected objects get a thin dotted outline in one neutral color, so it shows on any thread. One that
                     // can't be sewn (the stitch error), or would be if a node drag let go here, is outlined in red instead.
                     let broken = state.brokenObjects.contains(object.id) || dragProblem?.object == object.id
+                    if object.guideFor != nil {
+                        // A fill's guide line: long dashes in the handle color, bolder while selected.
+                        Theme.Canvas.handle.setStroke(); path.lineWidth = selected ? 2 : 1.5
+                        path.setLineDash([6, 4], count: 2, phase: 0); path.stroke(); continue
+                    }
                     (broken ? NSColor.systemRed : selected ? Theme.Canvas.selection : object.color.nsColor.withAlphaComponent(0.4)).setStroke(); path.lineWidth = broken ? 2 : 1
                     if selected { path.setLineDash([2, 2], count: 2, phase: 0) }; path.stroke()
                 }

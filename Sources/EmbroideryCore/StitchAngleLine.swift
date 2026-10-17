@@ -14,7 +14,7 @@ public enum StitchAngleLine {
         switch object.settings.fillStyle ?? .tatami {
         case .tatami: return (object.settings.angleLines ?? []).isEmpty
         case .wave, .gradient, .motif: return true   // gradient rows and motif rows run at the angle too
-        case .contour, .radial, .stipple, .crossStitch: return false
+        case .contour, .radial, .stipple, .crossStitch, .guided: return false
         }
     }
 

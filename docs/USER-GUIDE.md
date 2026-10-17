@@ -81,12 +81,22 @@ Trace a closed outline and press Return. Settings: **Row spacing**, **Stitch len
 | **Motif** | Rows of whole motifs (hearts, leaves, stars…) across the shape at the fill angle, every other row shifted half a motif. **Motif**, **Motif size** (5 mm) and **Gap** (1.5 mm); no underlay |
 | **Cross stitch** | X's on a square grid, like hand cross-stitch, in every square entirely inside the shape, so the edge steps. Each diagonal is sewn three times for the weight of floss. **Square size** (3 mm); no underlay |
 | **Gradient** | Tatami rows that open up across the shape, from **Spacing at start** (0.4 mm, solid) to **Spacing at end** (2.5 mm, sheer), for shading or blending two colors. Turning the angle by 180° swaps the solid and sheer sides |
+| **Guided** | Rows that bend to follow a guide line you draw over the shape, always one row spacing apart: for hair, feathers, petals and anything that flows. See **Guided fills** below |
 
 **Holes:** select a fill and press **⌥H** to trace a hole (or use **+** and **−** next to Holes).
 
 **Cut out shapes sewn on top** (off unless you tick it): the fill skips the area that later fills and satins cover, so the hidden part isn't stitched twice. It still sews 1 mm under their edges so no gap shows, and the shape on top can be moved freely; the fill fills back in.
 
 **Stitch angles (⌃H / ⌃⇧H)** (in the Fill slot, and **Stitch angles · Add…** in Properties): select one tatami fill, choose **Add Stitch Angles**, and click two points across it for each line. The stitches run along each line and turn gradually from one line to the next, so a fill can follow a curved shape like a satin column does. Lines don't need to end exactly on the edge: each is stretched to it. On a ring (a fill with a hole), draw each line from the outside edge to the hole's edge, and the stitches turn all the way round. Where the turning crowds the rows together, on the inside of a bend, rows stop short so thread doesn't pile up. To adjust a line, select the fill, press **H** (Edit nodes) and drag the line: drag one of its square ends to swing that end, or the middle to slide the whole line; the stitches follow when you let go. While you drag (or draw a new line), its angle shows beside the pointer, counted like the fill's Angle. To delete one line, click it (it turns orange) and press **Delete**; this works with Edit nodes or either angle tool, and deletes just the line, not the fill. **Remove Stitch Angles** takes away each line you click; **Remove all** in Properties brings back straight rows. The lines show while the fill is selected with Edit nodes or either tool.
+
+**Guided fills.** Draw a line over the fill with the line tool (it can reach past the edges; past its ends, the rows carry straight on). Select the fill and the line (Shift-click), then choose **Digitize → Stitch → Use Line as Fill Guide**.
+- The line stops sewing and becomes a dashed guide, grouped with the fill.
+- The fill's style becomes **Guided**, and its rows follow the guide.
+- Reshape the guide with Edit nodes (**H**) and the rows follow.
+
+Each row is the guide moved sideways by whole row spacings, so the spacing stays even everywhere. Far from a bend, rows on its outside round off and rows on its inside close into a corner, so gentle guides look best. A guide can't cross itself.
+
+If you delete the guide, the fill keeps sewing the last shape it had. **Running Stitch** in the guide's Properties turns it back into a line that sews.
 
 ### Shapes and the stitch picker
 

@@ -527,6 +527,26 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         guard let spec = chosen.first?.lettering, chosen.allSatisfy({ $0.lettering?.id == spec.id }) else { return nil }
         return spec
     }
+    /// The fill and the line, when the selection is exactly one unlocked fill and one unlocked open line (the pair
+    /// Use Line as Fill Guide links).
+    var fillAndGuideLine: (fill: UUID, line: UUID)? {
+        let chosen = design.objects.filter { selection.contains($0.id) && !$0.locked }
+        guard chosen.count == 2, selection.count == 2, let fill = chosen.first(where: { $0.kind == .fill }),
+              let line = chosen.first(where: { [.run, .vector].contains($0.kind) && !$0.closed && $0.lettering == nil && $0.monogram == nil }) else { return nil }
+        return (fill.id, line.id)
+    }
+    /// Use Line as Fill Guide: links the selected line to the selected fill as one undoable step, or says what to
+    /// select.
+    func useSelectedLineAsFillGuide() {
+        guard let pair = fillAndGuideLine else { status = "Select a fill and an open line drawn over it (Shift-click to select both), then choose \(CommandID.useAsFillGuide.title)."; return }
+        do {
+            var next = design; try next.useAsFillGuide(line: pair.line, fill: pair.fill)
+            edit(CommandID.useAsFillGuide.title) { $0 = next }
+            selection = [pair.fill, pair.line]
+            let key = Preferences.shared.label(.nodeTool)
+            status = "The line now guides the fill: its rows follow it, and it doesn't sew. Reshape the dashed guide with Edit Nodes\(key.isEmpty ? "" : " (\(key))") and the rows follow."
+        } catch { status = error.localizedDescription }
+    }
     /// True when `id` is a letter of a piece of lettering.
     func isLettering(_ id: UUID) -> Bool { design.objects.first { $0.id == id }?.lettering != nil }
     /// Break Apart Lettering: turns the selected lettering into plain shapes (still grouped, so they move together
@@ -560,10 +580,10 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     /// Copies the selection 3 mm down-right and selects the copies. Copied groups become new, separate groups,
     /// and copied lettering becomes separate lettering that can be edited on its own.
     func duplicateSelection() {
-        var ids: Set<UUID> = [], newGroups: [UUID: UUID] = [:], newLettering: [UUID: UUID] = [:]
+        var ids: Set<UUID> = [], newGroups: [UUID: UUID] = [:], newLettering: [UUID: UUID] = [:], copies: [UUID: UUID] = [:]
         edit("Duplicate Objects") { design in
             for object in design.objects.filter({ selection.contains($0.id) }) {
-                var copy = object; copy.id = UUID(); copy.name += " copy"; copy.locked = false
+                var copy = object; copy.id = UUID(); copy.name += " copy"; copy.locked = false; copies[object.id] = copy.id
                 copy.transform{$0+Point(3,-3)}
                 if let old = copy.groupID { if newGroups[old] == nil { newGroups[old] = UUID() }; copy.groupID = newGroups[old] }
             if let old = copy.branchID { if newGroups[old] == nil { newGroups[old] = UUID() }; copy.branchID = newGroups[old] }   // a separate branch too
@@ -571,6 +591,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
                 if let old = copy.monogram?.id { if newLettering[old] == nil { newLettering[old] = UUID() }; copy.monogram?.id = newLettering[old]! }   // a separate monogram too
                 ids.insert(copy.id); design.objects.append(copy)
             }
+            design.relinkCopiedGuides(copies)   // a copied guide line guides the copied fill
         }; selection = ids
     }
 }
@@ -624,6 +645,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         // stitches (Undo brings the edits back).
         let lost=updated.dropStaleStitchEdits()
         updated.keepArtworkPlace(from:state.design)   // the reference picture stays between the same objects
+        updated.syncGuides()   // guided fills follow their guide lines' new shapes
         if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
         state.design = updated; state.revision += 1
         if !lost.isEmpty { state.status = "\(lost.joined(separator: ", ")): stitches edited by hand were replaced by fresh ones, because the shape or settings changed. Undo (⌘Z) brings them back." }

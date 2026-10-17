@@ -316,6 +316,7 @@ struct ToolStrip: View {
         case .holeTool: return state.selection.count == 1 && state.selected?.kind == .fill && state.selected?.locked == false
         case .addStitchAngles: return state.selection.count == 1 && state.selected?.kind == .fill && state.selected?.locked == false && (state.selected?.settings.fillStyle ?? .tatami) == .tatami
         case .removeStitchAngles: return state.selection.count == 1 && state.selected?.locked == false && !(state.selected?.settings.angleLines ?? []).isEmpty
+        case .useAsFillGuide: return state.fillAndGuideLine != nil
         case .satinBorder, .applique: return state.design.objects.contains { state.selection.contains($0.id) && !$0.locked && SatinBorder.canBorder($0) }
         case .autoDigitize: return state.design.artwork != nil
         case .weldObjects: return state.design.objects.filter { state.selection.contains($0.id) && !$0.locked && $0.areaRings != nil }.count >= 2
@@ -437,7 +438,7 @@ struct ShapeOptionsBar: View {
                 // (EmbroideryCore.FillStyle is spelled out because SwiftUI has a FillStyle of its own.)
                 Picker("Fill", selection: setting(\.closedFill)) {
                     Text("None").tag(nil as EmbroideryCore.FillStyle?)
-                    ForEach(FillStyle.allCases, id: \.self) { Text($0.title).tag(Optional($0)) }
+                    ForEach(FillStyle.forNewShapes, id: \.self) { Text($0.title).tag(Optional($0)) }
                 }
                 .help("The fill the next shape gets, or None for just an outline. Change it later in Properties.")
                 Picker("Outline", selection: setting(\.closedOutline)) {
@@ -809,7 +810,10 @@ struct InspectorPanel: View {
             if object.kind == .raw {
                 explain("Existing stitches: move, rotate, mirror or recolor this thread block. Scaling changes density and stitch lengths; it does not regenerate stitches. Node editing and stitch-type conversion are unavailable.")
             }
-            if object.kind == .vector {
+            if object.kind == .vector, let fill = object.guideFor.flatMap({ id in state.design.objects.first { $0.id == id } }) {
+                explain("This dashed line guides the fill “\(fill.name)”: its rows follow it. It doesn't sew. Reshape it with Edit Nodes and the rows follow. Running Stitch turns it back into a line that sews.")
+                Button("Running Stitch"){AppDelegate.shared.perform(.convertRun)}.buttonStyle(ThemedButtonStyle()).help(preferences.hint(.convertRun))
+            } else if object.kind == .vector {
                 explain("This outline does not sew until you assign stitches. Satin requires manually drawn edge pairs.")
                 HStack{Button("Running Stitch"){AppDelegate.shared.perform(.convertRun)}.help(preferences.hint(.convertRun));Button("Tatami Fill"){AppDelegate.shared.perform(.convertFill)}.help(preferences.hint(.convertFill))}.buttonStyle(ThemedButtonStyle())
             }
@@ -1183,6 +1187,9 @@ struct InspectorPanel: View {
             let gradientHelp = "Row spacing where the rows start (the solid end) and where they finish (the open end), in mm. The rows run at the fill angle and open up from one side of the shape to the other; turning the angle by 180° swaps the sides."
             number("Spacing at start", value: s.gradientStart ?? DigitizingSettings.defaultGradientStart, range: DigitizingSettings.gradientSpacingRange, hover: gradientHelp) { value in settings(.fill, "Gradient Start") { $0.gradientStart = value } }
             number("Spacing at end", value: s.gradientEnd ?? DigitizingSettings.defaultGradientEnd, range: DigitizingSettings.gradientSpacingRange, help: gradientHelp) { value in settings(.fill, "Gradient End") { $0.gradientEnd = value } }
+        case .guided:
+            explain(s.guideLine == nil ? "Draw a line over this fill, select both and choose Digitize → Use Line as Fill Guide. The rows bend to follow it."
+                                       : "The rows follow the dashed guide line, keeping the row spacing. Reshape it with Edit Nodes and the rows follow. Keep it gentle: rows far from a tight bend round off on its outside and close into a corner on its inside.")
         default: EmptyView()
         }
     }
@@ -1247,7 +1254,7 @@ struct InspectorPanel: View {
 
 /// A tiny drawing of the selected stitch settings, at roughly 12 points per millimetre:
 /// satin as a zigzag at the row spacing, fill as offset rows at the fill angle, running stitch as a dashed curve. Line
-/// stitch styles and the stipple, motif, cross stitch and gradient fills are the real stitches, worked out for a short
+/// stitch styles and the stipple, motif, cross stitch, gradient and guided fills are the real stitches, worked out for a short
 /// line or a small patch with the object's own `settings`.
 struct StitchPreview: View {
     var kind: StitchKind
@@ -1287,13 +1294,15 @@ struct StitchPreview: View {
                 }
                 context.clip(to: Path(CGRect(origin: .zero, size: size)))
                 context.stroke(path, with: .color(color), lineWidth: 1.3)
-            case .fill where [.stipple, .motif, .crossStitch, .gradient].contains(fillStyle):
+            case .fill where [.stipple, .motif, .crossStitch, .gradient, .guided].contains(fillStyle):
                 // The real fill of a patch the size of the box, drawn smaller (2 points per mm) so a few of its loops,
                 // motifs or squares fit.
                 let small = 2.0, w = size.width / small, h = size.height / small
                 var patch = RunObject(name: "Preview", nodes: [Point(0, 0), Point(w, 0), Point(w, h), Point(0, h)].map { PathNode($0) })
                 patch.closed = true; patch.stitchLength = stitchLength
                 patch.digitizing = settings; patch.digitizing?.kind = .fill; patch.digitizing?.underlay = UnderlayStyle.none
+                // A guided fill's own guide is somewhere else in the design: the preview bends its rows along an arch.
+                if fillStyle == .guided { patch.digitizing?.guideLine = stride(from: -0.1, through: 1.1, by: 0.05).map { t in Point(w * t, h * (0.3 + 0.4 * sin(.pi * t))) } }
                 var path = Path()
                 for section in (try? AreaEngine.fill(patch).sections) ?? [] {
                     for (index, p) in section.points.enumerated() {
@@ -1487,7 +1496,7 @@ struct FooterPanel: View {
     private var readinessProblems: [String] {
         var problems: [String] = []
         if !state.draft.isEmpty { problems.append("Finish or cancel the current path") }
-        if state.design.objects.contains(where: { $0.kind == .vector }) { problems.append("Unstitched outlines will be left out") }
+        if state.design.objects.contains(where: { $0.kind == .vector && $0.guideFor == nil }) { problems.append("Unstitched outlines will be left out") }
         if state.hasVersionMismatch { problems.append("Regenerate with the current engine") }
         else if state.generationError != nil { problems.append("Fix the stitch error first") }
         else if state.busy || state.compiledRevision != state.revision { problems.append("Updating stitches…") }

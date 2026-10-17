@@ -43,11 +43,15 @@ extension StitchEngine {
                     throw DesignError.invalid("This fill is too small for the selected row spacing.")
                 }
                 // Motif, cross stitch and stipple fills need room for at least one whole motif, square or stipple cell;
-                // finding out takes only their quick grid check.
+                // finding out takes only their quick grid check. A guided fill needs its guide line, one that doesn't
+                // cross itself.
                 let fits: Bool
                 switch style {
                 case .motif: fits = try !Motifs.fill(in: expanded, motif: s.motif ?? .heart, size: s.patternSize ?? DigitizingSettings.defaultPatternSize(.motif), gap: s.patternGap ?? DigitizingSettings.defaultPatternGap, angle: s.angle, length: object.stitchLength).isEmpty
                 case .crossStitch: fits = try !Motifs.crossStitch(in: expanded, size: s.patternSize ?? DigitizingSettings.defaultPatternSize(.crossStitch)).isEmpty
+                case .guided:
+                    guard let guide = s.guideLine else { throw DesignError.invalid("This guided fill has no guide line. Draw a line over it, select both and choose Use Line as Fill Guide.") }
+                    fits = try !GuidedFill.rows(in: expanded, guide: guide, spacing: s.spacing, length: object.stitchLength).isEmpty
                 case .stipple: fits = try !FillStyles.stipple(in: expanded, spacing: s.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing, length: object.stitchLength, start: nil).isEmpty
                 default: fits = true
                 }

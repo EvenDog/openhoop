@@ -588,6 +588,7 @@ import EmbroideryCore
                 state.status = cells.isEmpty ? "Density map: no heavy or over-dense spots." : "Density map: \(red) mm² too dense (red: over 6 layers of thread, or needle holes piling up) · \(yellow) mm² heavy (yellow: over 4 layers)."
             }
         case .testSwatches: makeTestSwatches(state)
+        case .useAsFillGuide: state.useSelectedLineAsFillGuide()
         case .tieIn: state.editSelected(command.title) { if $0.kind != .raw {$0.tieIn.toggle()} }
         case .tieOut: state.editSelected(command.title) { if $0.kind != .raw {$0.tieOut.toggle()} }
         case .trimAfter: state.editSelected(command.title) { $0.trimAfter.toggle() }
@@ -944,7 +945,7 @@ import EmbroideryCore
             do {
                 let response=try await Task.detached(priority:.userInitiated){try Exporter.prepare(plan:plan,hoop:hoop,pesVersion:version,format:target)}.value
                 guard revision==state.revision else{throw DesignError.invalid("The design changed during export. Export the current revision again.")}
-                let omitted=state.design.objects.filter{$0.kind == .vector}.count
+                let omitted=state.design.objects.filter{$0.kind == .vector && $0.guideFor == nil}.count
                 let check=ExportCheck(format:target,stitchCount:response.stitchCount ?? 0,width:response.width ?? 0,height:response.height ?? 0,omittedOutlines:omitted,warnings:response.warnings ?? [],threadListOnly:threadListOnly,fileName:url.lastPathComponent)
                 if GuidedDialog.run(content: { ExportCheckView(check: check, finish: $0) }) {
                     guard revision==state.revision else{throw DesignError.invalid("The design changed. Export it again.")}
@@ -980,7 +981,7 @@ import EmbroideryCore
     static let digitizeSections: [(title: String, commands: [CommandID])] = [
         ("Pick & Shape", [.selectTool, .nodeTool, .insertNode, .deleteNode, .toggleNodeType, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .branching,
                           .entryExitTool, .autoStartPoints, .clearStartEnd, .panTool, .artworkTool]),
-        ("Stitch", [.runTool, .satinTool, .fillTool, .holeTool, .removeHoles, .addStitchAngles, .removeStitchAngles,
+        ("Stitch", [.runTool, .satinTool, .fillTool, .holeTool, .removeHoles, .addStitchAngles, .removeStitchAngles, .useAsFillGuide,
                     .convertRun, .convertSatin, .convertFill, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool,
                    .finishPath, .removePoint, .cancelPath]),
