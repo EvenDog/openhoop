@@ -741,11 +741,7 @@ struct InspectorPanel: View {
     }
     /// True when the selection is exactly one piece of lettering (all its letters): Properties then shows it as one
     /// object, not as a group of shapes.
-    var selectionIsOneLettering: Bool {
-        let chosen = state.design.objects.filter { state.selection.contains($0.id) }
-        guard let id = chosen.first?.lettering?.id else { return false }
-        return chosen.allSatisfy { $0.lettering?.id == id }
-    }
+    var selectionIsOneLettering: Bool { state.selectedLettering != nil }
     /// The heading Properties gives `object`: lettering's text, otherwise the object's name.
     func heading(_ object: RunObject) -> String { object.lettering.map { "“\($0.lines.joined(separator: " / "))”" } ?? object.name }
     /// What `object` is, under its heading: "Lettering · Helvetica Bold" for lettering, otherwise its stitch type.

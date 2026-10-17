@@ -58,4 +58,30 @@ final class LetterAdjustmentTests: XCTestCase {
         design.objects = try spec.build(color: ink, embroideryFonts: fonts).objects
         XCTAssertTrue(design.needsSchemaSix)
     }
+
+    /// The lettering's start and end: on its first and last letter, kept through a rebuild and a move, not counted as
+    /// a hand edit, and Auto Start Points gives only the first letter one.
+    func testLetteringStartAndEndBelongToTheWord() throws {
+        var spec = LetteringSpec(text: "Abc", fontKind: .embroidery, font: "small_font", height: 12)
+        var design = Design()
+        design.objects = try spec.build(color: ink, embroideryFonts: fonts).objects
+        design.setLetteringStart(spec.id, Point(-20, 0)); design.setLetteringEnd(spec.id, Point(20, 0))
+        XCTAssertEqual(design.objects.first?.entry, Point(-20, 0)); XCTAssertEqual(design.objects.last?.exit, Point(20, 0))
+        XCTAssertTrue(design.objects.dropFirst().allSatisfy { $0.entry == nil } && design.objects.dropLast().allSatisfy { $0.exit == nil }, "only the first letter starts, only the last ends")
+        spec = design.objects[0].lettering!
+        XCTAssertTrue(spec.matchesFreshBuild(design.objects, embroideryFonts: fonts), "a start and end aren't a hand edit")
+        spec.text = "Abcd"
+        let rebuilt = try spec.build(color: ink, embroideryFonts: fonts).objects
+        XCTAssertEqual(rebuilt.first?.entry, Point(-20, 0)); XCTAssertEqual(rebuilt.last?.exit, Point(20, 0), "kept when the text changes")
+        var moved = rebuilt[0]; moved.transform { $0 + Point(5, 0) }
+        XCTAssertEqual(moved.lettering?.entry, Point(-15, 0), "they move with the letters")
+
+        var square = RunObject(name: "Square", nodes: [Point(-40, -40), Point(-30, -40), Point(-30, -30), Point(-40, -30)].map { PathNode($0) })
+        square.closed = true; square.digitizing = DigitizingSettings(kind: .fill)
+        var withSquare = Design(); withSquare.objects = [square] + (try LetteringSpec(text: "Abc", fontKind: .embroidery, font: "small_font", height: 12).build(color: ink, embroideryFonts: fonts).objects)
+        let started = try StitchEngine.autoStartPoints(withSquare)
+        XCTAssertNotNil(started.objects[1].entry, "the word's first letter gets a start point")
+        XCTAssertTrue(started.objects.dropFirst(2).allSatisfy { $0.entry == nil }, "its other letters don't")
+        XCTAssertEqual(started.objects[1].lettering?.entry, started.objects[1].entry, "and its recipe keeps it")
+    }
 }

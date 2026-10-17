@@ -507,7 +507,7 @@ public struct Design: Codable, Equatable, Sendable {
     /// as version 6 and older versions of the app, which would sew those as plain stitches, refuse it instead.
     public var needsSchemaSix: Bool {
         objects.contains { ($0.kind == .run && ($0.settings.runStyle ?? .running) != .running)
-            || $0.lettering.map { $0.letterSpacing != nil || !($0.letterOffsets ?? [:]).isEmpty } == true
+            || $0.lettering.map { $0.letterSpacing != nil || !($0.letterOffsets ?? [:]).isEmpty || $0.entry != nil || $0.exit != nil } == true
             || ($0.kind == .fill && [.stipple, .motif, .crossStitch, .gradient].contains($0.settings.fillStyle ?? .tatami)) || ($0.kind == .satin && $0.settings.raised == true) }
     }
     public var needsSchemaFive: Bool { usesHandles || basting != nil || objects.contains { $0.branchID != nil || $0.stitchEdits != nil || $0.entry != nil || $0.exit != nil || ($0.kind == .satin && ($0.closed || $0.settings.relaxedChecks == true)) || ($0.kind == .fill && ($0.settings.fillStyle ?? .tatami) != .tatami) || ($0.kind == .run && ($0.settings.runPasses ?? 1) > 1) || ($0.kind == .satin && ($0.settings.shortStitches == true || $0.settings.autoSplit == true)) || ($0.kind == .fill && ($0.settings.cutOutOverlaps == true || !($0.settings.angleLines ?? []).isEmpty)) || ($0.kind == .satin && ($0.settings.secondUnderlay != nil || $0.settings.underlay == .auto || $0.settings.pullPercent != nil)) } }

@@ -484,7 +484,11 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         guard design.objects.contains(where: { selection.contains($0.id) && ($0.entry != nil || $0.exit != nil) }) else {
             status = "The selection has no start or end points to clear."; return
         }
-        editSelected("Clear Start & End") { $0.entry = nil; $0.exit = nil }
+        let words = Set(design.objects.filter { selection.contains($0.id) }.compactMap { $0.lettering?.id })
+        edit("Clear Start & End") { design in
+            for i in design.objects.indices where self.selection.contains(design.objects[i].id) && !design.objects[i].locked { design.objects[i].entry = nil; design.objects[i].exit = nil }
+            for id in words { design.setLetteringStart(id, nil); design.setLetteringEnd(id, nil) }   // and lettering's recipe
+        }
         status = "Start and end points cleared. The selection sews in its default order again."
     }
     /// Puts the selected objects (two or more) into one new group, as one undoable edit.
@@ -514,6 +518,12 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         }
         status = "Ungrouped. Objects keep their place in the sewing order." + (hadMonogram ? " The monogram's parts are now plain shapes; it can't be edited as a monogram any more." : "")
             + (letteringGroups.isEmpty ? "" : " Lettering stays one object; use \(breakApart) to split it.")
+    }
+    /// The lettering, when the selection is exactly one piece of lettering (all its letters).
+    var selectedLettering: LetteringSpec? {
+        let chosen = design.objects.filter { selection.contains($0.id) }
+        guard let spec = chosen.first?.lettering, chosen.allSatisfy({ $0.lettering?.id == spec.id }) else { return nil }
+        return spec
     }
     /// True when `id` is a letter of a piece of lettering.
     func isLettering(_ id: UUID) -> Bool { design.objects.first { $0.id == id }?.lettering != nil }

@@ -568,6 +568,11 @@ public enum StitchEngine {
             // Where did sewing stand just before this object? (The last stitch of the objects before it.)
             var before=result;before.objects=Array(result.objects[..<index])
             guard let end=try compile(before).commands.last(where:{$0.op == .stitch})?.point else{continue}
+            // Lettering is one object: only its first letter gets a start point (the whole word's start).
+            if let id=object.lettering?.id {
+                if result.objects.firstIndex(where:{$0.lettering?.id == id})==index {result.setLetteringStart(id,end)}
+                continue
+            }
             result.objects[index].entry=end
         }
         return result
