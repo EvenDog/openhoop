@@ -1,21 +1,10 @@
-// Guide lines dragged out of the rulers, the grid's color, and the pointer over the floating Next Shape bar.
+// Guide lines dragged out of the rulers, and the grid's color.
 import XCTest
 import AppKit
 import EmbroideryCore
 @testable import EmbroideryApp
 
 final class GuideAndGridTests: XCTestCase {
-    /// The canvas's pointer areas go around the Next Shape bar without overlapping it or each other, and together
-    /// with the bar cover the whole canvas.
-    func testPointerAreasGoAroundTheBar() {
-        let canvas = CGRect(x: 0, y: 0, width: 600, height: 400), bar = CGRect(x: 150, y: 330, width: 300, height: 40)
-        let parts = DesignCanvas.rects(canvas, around: bar)
-        XCTAssertFalse(parts.contains { $0.intersects(bar) })
-        for (i, a) in parts.enumerated() { for b in parts[(i + 1)...] { XCTAssertFalse(a.intersects(b)) } }
-        XCTAssertEqual(parts.reduce(0) { $0 + $1.width * $1.height } + bar.width * bar.height, canvas.width * canvas.height, accuracy: 0.001)
-        XCTAssertEqual(DesignCanvas.rects(canvas, around: .zero), [canvas], "no bar (no shape tool): the whole canvas")
-    }
-
     /// Automatic grid lines are light on dark cloth and dark on light cloth; a custom color wins.
     func testGridColorSuitsTheCloth() throws {
         func brightness(_ color: NSColor) -> CGFloat { let c = color.usingColorSpace(.sRGB)!; return 0.299 * c.redComponent + 0.587 * c.greenComponent + 0.114 * c.blueComponent }

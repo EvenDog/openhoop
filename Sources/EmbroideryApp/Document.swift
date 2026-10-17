@@ -76,7 +76,14 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     @Published var tool: Tool = .select {
         // Angle lines only show with Edit Nodes or the angle tools; on any other, none can stay chosen (or Delete
         // would remove a line you can't see).
-        didSet { if ![.node, .addAngles, .removeAngles].contains(tool) { selectedAngle = nil }; canvas?.toolDidChange() }
+        didSet {
+            if ![.node, .addAngles, .removeAngles].contains(tool) { selectedAngle = nil }; canvas?.toolDidChange()
+            // A tool with choices in Properties (the next shape's, a point's type) opens the panel if it's closed.
+            if tool != oldValue, ToolOptions.applies(to: tool), !Preferences.shared.panels.isVisible(.properties) {
+                let home = Preferences.shared.homeLayout
+                Preferences.shared.updatePanels { $0.show(.properties, home: home) }
+            }
+        }
     }
     /// While the Zoom Box tool is on: the tool to go back to once the box is drawn.
     var toolBeforeZoom: Tool = .select

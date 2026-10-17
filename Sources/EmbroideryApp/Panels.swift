@@ -69,8 +69,12 @@ struct ToolStrip: View {
                 Theme.edge.frame(height: 1)
             }
         } else {
-            // ViewThatFits shows the first layout that fits the window's width: full labels, else icons and keys only.
-            ViewThatFits(in: .horizontal) { strip(compact: false); strip(compact: true) }
+            // ViewThatFits shows the first layout that fits the room the player leaves: full labels, else icons and keys only.
+            HStack(alignment: .bottom, spacing: 12) {
+                ViewThatFits(in: .horizontal) { strip(compact: false); strip(compact: true) }
+                Spacer(minLength: 0)
+                StripPlayer(state: state).fixedSize()
+            }
                 .padding(.horizontal, 14).padding(.top, 6).padding(.bottom, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Theme.card)
@@ -95,7 +99,7 @@ struct ToolStrip: View {
                 .fixedSize()
             }
             Spacer(minLength: 12)
-            let hint = toolHint
+            let hint = Self.hint(for: state)
             // Two short lines fit beside the tools where one long one wouldn't. In a narrow window, only the tool's
             // name shows, or nothing (the status bar and the hover help still give the whole hint).
             ViewThatFits(in: .horizontal) {
@@ -108,32 +112,39 @@ struct ToolStrip: View {
             }
             .lineLimit(1)
             .help(hint.tool + ": " + hint.how)
+            Theme.toolBandDivider.frame(width: 1, height: 62).padding(.horizontal, 9)
+            StripPlayer(state: state, onBand: true).fixedSize()
         }
     }
-    /// The Pro rail down the left side (picked in Settings): the same tools, three across, groups split by lines.
-    /// It scrolls if the window is too short to show them all.
+    /// The Pro rail down the left side (picked in Settings): the same tools, three across, groups split by lines,
+    /// with the stitch player at the bottom. The tools scroll if the window is too short to show them all.
     private var proRail: some View {
-        ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(Self.railGroups.enumerated()), id: \.offset) { index, group in
-                    if index > 0 { Theme.toolBandDivider.frame(height: 1) }
-                    VStack(alignment: .leading, spacing: 2) {
-                        ForEach(Array(stride(from: 0, to: group.count, by: 3)), id: \.self) { first in
-                            HStack(spacing: 2) { ForEach(group[first..<min(first + 3, group.count)], id: \.self) { proButton($0) } }
+        VStack(spacing: 0) {
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(Self.railGroups.enumerated()), id: \.offset) { index, group in
+                        if index > 0 { Theme.toolBandDivider.frame(height: 1) }
+                        VStack(alignment: .leading, spacing: 2) {
+                            ForEach(Array(stride(from: 0, to: group.count, by: 3)), id: \.self) { first in
+                                HStack(spacing: 2) { ForEach(group[first..<min(first + 3, group.count)], id: \.self) { proButton($0) } }
+                            }
                         }
                     }
                 }
+                .padding(10)
             }
-            .padding(10)
+            .scrollIndicators(.never)
+            Theme.toolBandDivider.frame(height: 1)
+            StripPlayer(state: state, stacked: true, onBand: true).padding(10)
         }
-        .scrollIndicators(.never)
         .frame(width: 112)
         .background(Theme.toolBand)
         .overlay(alignment: .trailing) { Theme.toolBandEdge.frame(width: 1) }
     }
-    /// What the current tool is and, briefly, how to use it, for the right end of the Pro strip (the status bar
-    /// gives the longer version). Keys that can be rebound are read from the current shortcuts.
-    private var toolHint: (tool: String, how: String) {
+    /// What the current tool is and, briefly, how to use it, for the Pro strip and the tool's choices in Properties.
+    /// Keys that can be rebound are read from the current shortcuts.
+    static func hint(for state: EditorState) -> (tool: String, how: String) {
+        let preferences = Preferences.shared
         /// " · ↩ finishes", or nothing if the command has no key.
         func key(_ command: CommandID, _ verb: String) -> String {
             let keys = preferences.keys(command).first?.display ?? ""; return keys.isEmpty ? "" : " · \(keys) \(verb)"
@@ -374,113 +385,6 @@ struct ToolStrip: View {
         case .zoomActual: return "Real size"
         default: return command.title
         }
-    }
-}
-
-/// A small bar floating at the top of the canvas: the Next Shape choices while a shape tool is on, the selected
-/// point's type (corner or smooth) in Edit Nodes, or, in Edit Stitches, which mode it is and how to leave it (its
-/// needle-point squares otherwise look like a view setting).
-/// Being outside the tool strip, it never pushes the strip into its compact form.
-struct CanvasShapeBar: View {
-    @ObservedObject var state: EditorState
-    var body: some View {
-        if ShapeOptionsBar.shows(state.tool) {
-            chrome {
-                Text("NEXT SHAPE").font(Theme.caption).tracking(0.8).foregroundStyle(Theme.accent).lineLimit(1)
-                ShapeOptionsBar(tool: state.tool)
-            }
-        } else if state.tool == .node, let node = state.selectedPathNode {
-            // The selected point's type, so it can be seen and switched without knowing the right-click or the key.
-            chrome {
-                Text("POINT").font(Theme.caption).tracking(0.8).foregroundStyle(Theme.accent).lineLimit(1)
-                Picker("Point", selection: Binding(get: { node.smooth }, set: { state.setSelectedNode(smooth: $0) })) {
-                    Text("Corner").tag(false)
-                    Text("Smooth").tag(true)
-                }
-                .pickerStyle(.segmented).labelsHidden().fixedSize()
-                .help("A corner turns sharply; a smooth point curves through. \(Preferences.shared.key(.play)) or a right-click switches it too.")
-                Text("\(Preferences.shared.key(.play)) switches").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).lineLimit(1)
-            }
-        } else if state.tool == .stitchEdit {
-            let key = Preferences.shared.key
-            chrome {
-                Text("EDIT STITCHES").font(Theme.caption).tracking(0.8).foregroundStyle(Theme.accent).lineLimit(1)
-                Text("Drag needle points to move them · ⌥-click a stitch adds one · \(key(.delete)) removes").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).lineLimit(1)
-                Button("Done") { AppDelegate.shared.perform(.done) }.controlSize(.small).help("Leave Edit Stitches (\(key(.done)))")
-            }
-        }
-    }
-    /// The bar's card: rounded, with an accent edge so it's noticed, and a shadow.
-    private func chrome<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        HStack(spacing: 10) { content() }
-            .padding(.horizontal, 12).frame(height: 34)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 9))
-            .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Theme.accent, lineWidth: 1.5))   // accent edge, so it's noticed
-            .shadow(color: .black.opacity(0.15), radius: 6, y: 2)
-            .padding(8)   // room for the shadow
-    }
-}
-
-/// The choices for the next shape (shown in CanvasShapeBar while a shape tool is on): the stitch it gets (for closed
-/// shapes, a fill and an outline), the satin width, plus the rectangle's corners or the basic shape and its sides or points.
-/// Changes are saved straight away and shared by every design window.
-struct ShapeOptionsBar: View {
-    let tool: Tool
-    @ObservedObject var preferences = Preferences.shared
-    /// True for the tools this bar has choices for.
-    static func shows(_ tool: Tool) -> Bool { tool.isShapeTool || tool.dragsShape }
-    var body: some View {
-        let shapes = preferences.shapes
-        HStack(spacing: 8) {
-            if tool.makesOpenShape {
-                Picker("Stitch", selection: setting(\.openStitch)) { ForEach(OpenShapeStitch.allCases, id: \.self) { Text($0.title).tag($0) } }.labelsHidden()
-                    .help("The stitch the next open shape gets. Change it later in Properties.")
-            } else {
-                // The settings are optional (nil is "None"), so each tag is too: `Optional($0)` wraps a choice to match.
-                // (EmbroideryCore.FillStyle is spelled out because SwiftUI has a FillStyle of its own.)
-                Picker("Fill", selection: setting(\.closedFill)) {
-                    Text("None").tag(nil as EmbroideryCore.FillStyle?)
-                    ForEach(FillStyle.forNewShapes, id: \.self) { Text($0.title).tag(Optional($0)) }
-                }
-                .help("The fill the next shape gets, or None for just an outline. Change it later in Properties.")
-                Picker("Outline", selection: setting(\.closedOutline)) {
-                    Text("None").tag(nil as OpenShapeStitch?)
-                    ForEach(OpenShapeStitch.allCases, id: \.self) { Text($0.title).tag(Optional($0)) }
-                }
-                .help("The stitch sewn along the next shape's edge, after its fill. With a fill, the two are grouped.")
-            }
-            if (tool.makesOpenShape ? shapes.openStitch : shapes.closedOutline) == .satin {
-                let width = preferences.data.satinLineWidth ?? SatinLine.defaultWidth
-                Stepper("Width \(width.formatted()) mm", value: Binding(get: { width }, set: { preferences.data.satinLineWidth = $0; preferences.save() }), in: SatinLine.widths, step: 0.5)
-                    .help("How wide the satin is, centered on the line")
-            }
-            if tool == .rectangle {
-                Stepper("Corners \(preferences.unit.short(shapes.cornerRadius))", value: setting(\.cornerRadius), in: ShapeSettings.cornerRadiusRange, step: 0.5)
-                    .help("How round the corners are (0 is square)")
-            }
-            if tool == .basicShape {
-                Picker("Shape", selection: setting(\.basicShape)) { ForEach(BasicShape.basicChoices, id: \.self) { Text($0.title).tag($0) } }.labelsHidden()
-                    .help("The shape you'll drag out next")
-                if shapes.basicShape == .polygon {
-                    Stepper("\(shapes.polygonSides) sides", value: setting(\.polygonSides), in: ShapeSettings.polygonSideRange)
-                        .help("How many sides the polygon has")
-                }
-                if shapes.basicShape == .star {
-                    Stepper("\(shapes.starPoints) points", value: setting(\.starPoints), in: ShapeSettings.starPointRange)
-                        .help("How many points the star has")
-                    Picker("Depth", selection: setting(\.starInner)) {
-                        Text("Shallow points").tag(0.65); Text("Medium points").tag(0.5); Text("Deep points").tag(0.35)
-                    }.labelsHidden()
-                    .help("How far in the star's inner corners go")
-                }
-            }
-        }
-        .pickerStyle(.menu).controlSize(.small).fixedSize()
-        .font(Theme.body(12))
-    }
-    /// A two-way link between a control and one of the saved shape settings.
-    private func setting<Value>(_ key: WritableKeyPath<ShapeSettings, Value>) -> Binding<Value> {
-        Binding(get: { preferences.shapes[keyPath: key] }, set: { value in preferences.updateShapes { $0[keyPath: key] = value } })
     }
 }
 
@@ -760,6 +664,7 @@ struct InspectorPanel: View {
     /// True in the Pro view: every setting shown at once, compact, with explanations as tooltips instead of text.
     var pro: Bool { preferences.isPro }
     @ViewBuilder private var propertiesSection: some View {
+        ToolOptions(state: state)   // the current tool's choices, such as the next shape's (ToolOptions.swift)
         if pro, let object = state.selected {
             proProperties(object)   // the compact Pro layout (ProViews.swift)
         } else if let object = state.selected {
@@ -872,7 +777,7 @@ struct InspectorPanel: View {
                 number("Nudge distance", value: preferences.nudge, range: Preferences.nudgeRange, length: true, help: "How far the arrow keys move the selection.") { value in preferences.data.nudgeDistance = value; preferences.save() }
             }
             explain(object.kind == .raw ? "V moves stitch blocks. Use the thread palette to recolor the selection." : "V moves objects. N edits nodes: drag a node's handles to shape its curve, Option-drag to move one side of a smooth node. Secondary-click switches corner and smooth. \(preferences.label(.insertNode)) inserts near the pointer; Shift-Delete removes a node (a pair for satin).")
-        } else {
+        } else if !NextShapeOptions.shows(state.tool) {
             Text("Nothing selected").font(Theme.heading(16))
             explain("Click an object on the canvas or in the sewing order to edit its stitches here.")
         }

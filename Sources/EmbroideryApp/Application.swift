@@ -14,8 +14,6 @@ import EmbroideryCore
     /// The design on screen.
     var state: EditorState { selectedPane?.state ?? EditorState() }
     let tabModel = TabStripModel()
-    /// The title-bar stitch player, which follows the design on screen.
-    let playerModel = StitchPlayerModel()
     private let container = NSViewController()
     private var floating: FloatingPanels?
     /// The floating panel layout last shown, so unchanged preferences don't rebuild the floating windows.
@@ -58,7 +56,6 @@ import EmbroideryCore
         DispatchQueue.main.async { [weak self] in
             self?.addViewModeSwitchOnce(toolbar)
             self?.addDesignTabsOnce(toolbar)
-            self?.addStitchPlayerOnce(toolbar)
         }
     }
     required init?(coder: NSCoder) { fatalError("Not used") }
@@ -163,7 +160,6 @@ import EmbroideryCore
         if tabModel.tabs != tabs { tabModel.tabs = tabs }
         let selected = selectedPane.map(ObjectIdentifier.init)
         if tabModel.selected != selected { tabModel.selected = selected }
-        if playerModel.state !== selectedPane?.state { playerModel.state = selectedPane?.state }
     }
 
     /// Shows the saved panel layout: the chosen design's docks, and the floating panel windows.
@@ -181,11 +177,11 @@ import EmbroideryCore
         return workspace
     }
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.designTabs, .stitchPlayer, .flexibleSpace, .space, .viewMode] + CommandID.allCases.filter { ![.finishPath, .cancelPath, .removePoint].contains($0) }.map { .init($0.rawValue) }
+        [.designTabs, .flexibleSpace, .space, .viewMode] + CommandID.allCases.filter { ![.finishPath, .cancelPath, .removePoint].contains($0) }.map { .init($0.rawValue) }
     }
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         // The design tabs take the free width; tools live in the docked tool strip, so the rest are document actions.
-        [.designTabs, .stitchPlayer, .space, .init(CommandID.importImage.rawValue), .space, .init(CommandID.undo.rawValue), .init(CommandID.redo.rawValue), .space, .viewMode, .init(CommandID.exportPES.rawValue)]
+        [.designTabs, .init(CommandID.importImage.rawValue), .space, .init(CommandID.undo.rawValue), .init(CommandID.redo.rawValue), .space, .viewMode, .init(CommandID.exportPES.rawValue)]
     }
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
         if identifier == .designTabs {
@@ -196,17 +192,6 @@ import EmbroideryCore
             NSLayoutConstraint.activate([host.widthAnchor.constraint(greaterThanOrEqualToConstant: 200), wide, host.heightAnchor.constraint(equalToConstant: 30)])
             let item = NSToolbarItem(itemIdentifier: identifier); item.view = host
             item.label = "Designs"; item.paletteLabel = "Design Tabs"; item.visibilityPriority = .high
-            return item
-        }
-        if identifier == .stitchPlayer {
-            // The player keeps the width SwiftUI gives it; the tabs beside it take whatever room is left.
-            let host = NSHostingView(rootView: ToolbarPlayer(model: playerModel))
-            host.translatesAutoresizingMaskIntoConstraints = false
-            host.setContentHuggingPriority(.required, for: .horizontal)
-            host.setContentCompressionResistancePriority(.required, for: .horizontal)
-            host.heightAnchor.constraint(equalToConstant: 30).isActive = true
-            let item = NSToolbarItem(itemIdentifier: identifier); item.view = host
-            item.label = "Stitch Player"; item.paletteLabel = "Stitch Player"; item.visibilityPriority = .high
             return item
         }
         if identifier == .viewMode {
@@ -248,17 +233,6 @@ import EmbroideryCore
         guard !toolbar.items.contains(where: { $0.itemIdentifier == .designTabs }) else { return }
         if let spacer = toolbar.items.firstIndex(where: { $0.itemIdentifier == .flexibleSpace }) { toolbar.removeItem(at: spacer) }
         toolbar.insertItem(withItemIdentifier: .designTabs, at: 0)
-    }
-    /// The same for the stitch player: toolbars saved before it get it once, just after the design tabs, in place of
-    /// the Play button that used to be there.
-    private func addStitchPlayerOnce(_ toolbar: NSToolbar) {
-        let key = "AddedStitchPlayerToolbarItem"
-        guard !UserDefaults.standard.bool(forKey: key) else { return }
-        UserDefaults.standard.set(true, forKey: key)
-        guard !toolbar.items.contains(where: { $0.itemIdentifier == .stitchPlayer }) else { return }
-        if let play = toolbar.items.firstIndex(where: { $0.itemIdentifier.rawValue == CommandID.play.rawValue }) { toolbar.removeItem(at: play) }
-        let tabs = toolbar.items.firstIndex { $0.itemIdentifier == .designTabs }
-        toolbar.insertItem(withItemIdentifier: .stitchPlayer, at: tabs.map { $0 + 1 } ?? 0)
     }
     func windowWillClose(_ notification: Notification) {
         observers.forEach(NotificationCenter.default.removeObserver)
@@ -495,8 +469,8 @@ import EmbroideryCore
             case .rectangle,.basicShape:state.status="Drag to draw the shape · Hold ⌘ to keep it even · Hold ⇧ to draw it from the center"
             default:state.status="Select and drag objects. Shift-click to select more than one."
             }
-            // Closed shapes say what stitches they'll get, so the Next Shape bar isn't missed.
-            if state.tool == .closedShape || state.tool == .freehandClosed || state.tool.dragsShape {state.status+=" · Next shape: \(Preferences.shared.shapes.closedSummary) (change it in the bar above)"}
+            // Closed shapes say what stitches they'll get, so the Next Shape choices in Properties aren't missed.
+            if state.tool == .closedShape || state.tool == .freehandClosed || state.tool.dragsShape {state.status+=" · Next shape: \(Preferences.shared.shapes.closedSummary) (change it in Properties)"}
             state.focusCanvas(); state.canvas?.window?.invalidateCursorRects(for: state.canvas!)
         case .finishPath: if state.tool != .zoomBox { state.finishPath() }
         case .done where state.tool == .zoomBox, .cancelPath where state.tool == .zoomBox:

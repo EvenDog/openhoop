@@ -66,8 +66,6 @@ final class DesignCanvas: NSView {
     private var guideDrag: (index: Int, vertical: Bool, isNew: Bool, pointer: CGPoint)?
     /// The guide the pointer is over with Select (its place in the design's guides), shown by a ↔ or ↕ pointer.
     private(set) var hoveredGuide: Int?
-    /// The Next Shape bar floating over the canvas (DesignTabs.swift). The pointer keeps its normal arrow over it.
-    weak var floatingBar: NSView?
     /// A measurement as the Measure tool shows it: the distance in `unit`, and the angle from the start, counterclockwise
     /// from pointing right (the same way Rotate counts), e.g. "12.5 mm · 37°" or "0.49 in · 37°".
     static func measurementText(from start: Point, to end: Point, unit: LengthUnit = .millimeters) -> String {
@@ -306,25 +304,7 @@ final class DesignCanvas: NSView {
         hoveredGuide = over
         if let over { guideCursor(vertical: state.design.guides![over].vertical).set() } else { toolCursor.set() }
     }
-    override func resetCursorRects() {
-        let cursor = toolCursor
-        // The tool's pointer goes around the floating Next Shape bar, which keeps the normal arrow. (Cursor areas
-        // mustn't overlap, so the canvas is split into the parts around the bar.)
-        let bar = floatingBar.map { convert($0.bounds, from: $0) }.map { $0.intersection(bounds) } ?? .null
-        for part in Self.rects(bounds, around: bar) { addCursorRect(part, cursor: cursor) }
-        if !bar.isNull && !bar.isEmpty { addCursorRect(bar, cursor: .arrow) }
-    }
-    /// The parts of `area` around `hole` (up to four rectangles: below, above, left and right of it), or all of
-    /// `area` when the hole is empty.
-    static func rects(_ area: CGRect, around hole: CGRect) -> [CGRect] {
-        let hole = hole.intersection(area)
-        guard !hole.isNull, !hole.isEmpty else { return [area] }
-        return [CGRect(x: area.minX, y: area.minY, width: area.width, height: hole.minY - area.minY),
-                CGRect(x: area.minX, y: hole.maxY, width: area.width, height: area.maxY - hole.maxY),
-                CGRect(x: area.minX, y: hole.minY, width: hole.minX - area.minX, height: hole.height),
-                CGRect(x: hole.maxX, y: hole.minY, width: area.maxX - hole.maxX, height: hole.height)]
-            .filter { $0.width > 0 && $0.height > 0 }
-    }
+    override func resetCursorRects() { addCursorRect(bounds, cursor: toolCursor) }
     /// The grid lines' color: the custom one from Settings, or automatically light lines on dark cloth and dark lines
     /// on light cloth. The default linen (no fabric color) follows light or dark mode, as it always has.
     static func gridColor(fabric: Int?, custom: Int?, opacity: Double?) -> NSColor {
