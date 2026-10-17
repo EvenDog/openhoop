@@ -89,6 +89,9 @@ struct PreferenceData: Codable {
     var lengthUnit: LengthUnit?
     /// Whether the canvas shows its rulers and guide lines; nil means yes.
     var showRulers: Bool?
+    /// What the Show list and the grid were last switched to, so new and opened designs start the same way; nil
+    /// until one is switched.
+    var shown: ShownItems?
     /// Light, dark, or following the Mac's setting; nil means following the Mac.
     var appearance: AppAppearance?
     /// How far apart the grid's lines are, and how far Snap moves; nil means normal (10 mm and 1 mm, or ½ in and 0.05 in).
@@ -104,6 +107,19 @@ struct PreferenceData: Codable {
     var fillStitchLength: Double?
     var fillAngle: Double?
     var satinPullPercent: Double?
+}
+
+/// The canvas's view choices, remembered across designs and launches. Each is nil until it's first switched, which
+/// keeps its built-in default (grid, needle points, stitches and underlay on; outlines and density off; connectors
+/// following the view).
+struct ShownItems: Codable, Equatable {
+    var grid: Bool?
+    var needles: Bool?
+    var stitches: Bool?
+    var outlines: Bool?
+    var connectors: Bool?
+    var underlay: Bool?
+    var density: Bool?
 }
 
 @MainActor final class Preferences: ObservableObject {
@@ -182,6 +198,14 @@ struct PreferenceData: Codable {
     var threadView: Bool { data.threadView ?? true }
     /// Switches Thread View on or off for every design window and saves the choice.
     func setThreadView(_ on: Bool) { data.threadView = on; save(announce: false) }   // the menus show its check mark as they open, so needn't rebuild
+    /// The Show list and grid choices new and opened designs start with.
+    var shown: ShownItems { data.shown ?? ShownItems() }
+    /// Saves a Show list or grid choice when it's switched.
+    func updateShown(_ change: (inout ShownItems) -> Void) {
+        var items = shown; change(&items)
+        guard items != shown else { return }
+        data.shown = items; save(announce: false)   // each design window already shows its own choice, so nothing needs rebuilding
+    }
     /// Switches between the Guided and Pro views; every window updates, each view with its own panel arrangement.
     func setPro(_ on: Bool) { guard on != isPro else { return }; data.proView = on; save() }
     /// The current view's panel arrangement (shared by every design window).

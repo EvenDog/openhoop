@@ -126,11 +126,15 @@ struct ImportReportView: View {
 struct StitchThumbnail: View {
     let objects: [RunObject]
     var label = "Preview of the imported design"
+    /// The space left around the drawing, in points.
+    var padding = 14.0
+    /// False draws the stitches straight onto whatever is behind, without the cream fabric patch.
+    var onFabric = true
     var body: some View {
         Canvas { context, size in
             let points = objects.flatMap { $0.outlinePaths.flatMap { $0 } }
             guard let minX = points.map(\.x).min(), let maxX = points.map(\.x).max(), let minY = points.map(\.y).min(), let maxY = points.map(\.y).max() else { return }
-            let pad = 14.0
+            let pad = padding
             let scale = min((size.width - 2 * pad) / max(maxX - minX, 0.1), (size.height - 2 * pad) / max(maxY - minY, 0.1))
             let left = (size.width - (maxX - minX) * scale) / 2, bottom = (size.height - (maxY - minY) * scale) / 2
             // Design coordinates point up; screen coordinates point down, so y is flipped here.
@@ -163,7 +167,7 @@ struct StitchThumbnail: View {
                 }
             }
         }
-        .background(Theme.ground, in: RoundedRectangle(cornerRadius: 14))
+        .background(onFabric ? Theme.ground : Color.clear, in: RoundedRectangle(cornerRadius: 14))
         .accessibilityLabel(label)
     }
 
@@ -305,300 +309,10 @@ struct ExportCheckView: View {
     }
 }
 
-/// The choices in the lettering dialog. The last ones used are kept until the app quits, so the next
-/// lettering starts from the same font and size.
-struct LetteringChoices {
-    enum Source { case embroidery, mac }   // a hand-digitized embroidery font, or a system font installed on this Mac
-    var text = "Your Text"
-    var source = Source.embroidery
-    var embroideryFont = "small_font"  // the font's folder name in the app's EmbroideryFonts resources
-    var family = "Avenir Next"
-    var fontName = "AvenirNext-Bold"   // the PostScript name: one exact style within the family
-    var height = 8.0
-    var stitch = LetteringStitch.fill
-    var shape = LetteringShape.straight
-    var radius = 40.0   // mm; only used for arched lettering
-    var alignment = LetteringAlignment.center   // only used for several lines
-    var lineSpacing = LetteringSpec.defaultLineSpacing
-
-    /// The lettering recipe for these choices. When editing, `base` is the existing lettering's recipe, whose
-    /// identity and placement are kept.
-    func spec(base: LetteringSpec?) -> LetteringSpec {
-        var spec = base ?? LetteringSpec(text: text, fontKind: .system, font: fontName, height: height)
-        spec.text = text; spec.height = height; spec.stitch = stitch; spec.shape = shape; spec.radius = radius
-        spec.alignment = alignment; spec.lineSpacing = lineSpacing
-        spec.fontKind = source == .embroidery ? .embroidery : .system
-        spec.font = source == .embroidery ? embroideryFont : fontName
-        return spec
-    }
-
-    /// The choices showing existing lettering's recipe, keeping `fallback`'s choices for the other kind of font.
-    static func editing(_ spec: LetteringSpec, fallback: LetteringChoices) -> LetteringChoices {
-        var choices = fallback
-        choices.text = spec.text; choices.height = spec.currentHeight; choices.stitch = spec.stitch; choices.shape = spec.shape; choices.radius = spec.radius
-        choices.alignment = spec.alignment ?? .center; choices.lineSpacing = spec.lineSpacing ?? LetteringSpec.defaultLineSpacing
-        switch spec.fontKind {
-        case .embroidery: choices.source = .embroidery; choices.embroideryFont = spec.font
-        case .system:
-            choices.source = .mac; choices.fontName = spec.font
-            choices.family = NSFont(name: spec.font, size: 12)?.familyName ?? choices.family
-        }
-        return choices
-    }
-}
-
 /// The embroidery fonts that ship inside the app (Resources/EmbroideryFonts), read once.
 enum EmbroideryFontLibrary {
     static let fonts: [EmbroideryFont] = Bundle.main.resourceURL.map { EmbroideryFont.all(in: $0.appendingPathComponent("EmbroideryFonts")) } ?? []
     static func font(_ folder: String) -> EmbroideryFont? { fonts.first { $0.folder.lastPathComponent == folder } }
-}
-
-extension GuidedDialog {
-    static var lastLettering = LetteringChoices()
-    /// The lettering dialog, for new lettering or (with `editing`, its current recipe) to change existing lettering.
-    /// `handEdited` adds a note that updating undoes changes made by hand. Returns the recipe to build, or nil if
-    /// the person cancelled.
-    static func lettering(color: ThreadColor, hoop: Hoop, editing: LetteringSpec? = nil, handEdited: Bool = false) -> LetteringSpec? {
-        var made: LetteringSpec?   // the dialog's closure writes the recipe here before it closes
-        if NSFont(name: lastLettering.fontName, size: 12) == nil { lastLettering.family = "Helvetica"; lastLettering.fontName = "Helvetica-Bold" }
-        if EmbroideryFontLibrary.fonts.isEmpty { lastLettering.source = .mac }
-        else if EmbroideryFontLibrary.font(lastLettering.embroideryFont) == nil { lastLettering.embroideryFont = EmbroideryFontLibrary.fonts[0].folder.lastPathComponent }
-        let confirmed = run(width: 780) { finish in
-            LetteringView(choices: editing.map { LetteringChoices.editing($0, fallback: lastLettering) } ?? lastLettering,
-                          color: color, hoop: hoop, editing: editing, handEdited: handEdited) { choices, spec in
-                lastLettering = choices; made = spec; finish(spec != nil)
-            }
-        }
-        return confirmed ? made : nil
-    }
-}
-
-/// Type a line of text, pick a font, style, height and stitch, and see the letters update as you go.
-struct LetteringView: View {
-    @State var choices: LetteringChoices
-    // The height as typed. A number-formatted field only updates when you press Return or leave it, so clicking
-    // Add Lettering straight after typing could use the old height; this text is read on every keystroke instead.
-    @State private var heightText = ""
-    @State private var radiusText = ""   // typed the same way as the height
-    @FocusState private var textFocused: Bool
-    @State private var showCredits = false
-    let color: ThreadColor
-    let hoop: Hoop
-    /// The recipe of the lettering being edited, or nil when adding new lettering.
-    let editing: LetteringSpec?
-    let handEdited: Bool
-    /// Called with the choices and the recipe to build (nil for Cancel).
-    let done: (LetteringChoices, LetteringSpec?) -> Void
-    // Font families installed on this Mac; names starting with "." are hidden system fonts.
-    private let families = NSFontManager.shared.availableFontFamilies.filter { !$0.hasPrefix(".") }
-
-    var body: some View {
-        // The preview is built upright and centered; the finished lettering goes where the old one was.
-        let preview = Result { try choices.spec(base: nil).build(color: color, embroideryFonts: EmbroideryFontLibrary.fonts) }
-        DialogFrame(eyebrow: "Lettering", title: editing == nil ? "Add lettering" : "Edit lettering",
-                    subtitle: editing == nil
-                        ? "Type your text (Return starts a new line) and pick a font. Embroidery fonts are hand-digitized satin lettering; system fonts (any font on this Mac) become fill or outline shapes. The letters are grouped so they move together, and stay editable: double-click them later to change the text."
-                        : "Change the text, font, size or shape. The letters are rebuilt in the same place, turned the same way.",
-                    primary: editing == nil ? "Add Lettering" : "Update Lettering",
-                    finish: { add in
-                        if !add { done(choices, nil) } else if case .success = preview { done(choices, choices.spec(base: editing)) }
-                    }) {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .top, spacing: 22) {
-                    controls.frame(width: 300)
-                    VStack(alignment: .leading, spacing: 8) {
-                        switch preview {
-                        case .success(let letters):
-                            StitchThumbnail(objects: letters.objects, label: "Preview of the lettering").frame(height: 200)
-                            sizeLine(letters)
-                        case .failure(let error):
-                            Theme.ground.clipShape(RoundedRectangle(cornerRadius: 14)).frame(height: 200)
-                                .overlay { Text(error.localizedDescription).font(Theme.body(13)).foregroundStyle(Theme.inkSecondary).multilineTextAlignment(.center).padding() }
-                        }
-                    }
-                }
-                let notes = (handEdited ? ["Some of these letters were reshaped, reordered or given different stitch settings. Updating rebuilds every letter from the font, so those changes will be lost (Undo brings them back)."] : [])
-                    + ((try? preview.get())?.warnings ?? [])
-                if !notes.isEmpty { NotesList(title: "Notes", notes: notes) }
-            }
-        }
-        // A new embroidery font keeps the height if the font was digitized for it, else uses the font's own size.
-        .onChange(of: choices.embroideryFont) { fitHeightToFont() }
-        .onChange(of: choices.source) { fitHeightToFont() }
-        // Switching family picks that family's bold style when it has one.
-        .onChange(of: choices.family) { choices.fontName = Self.preferredStyle(in: styles(of: choices.family)) ?? choices.fontName }
-        // Keep the typed height and the stepper in step with each other.
-        // Lengths are typed in the chosen unit (mm or inches); only text that differs from the shown value changes the
-        // length, so the rounding of a shown inch value never moves a stepped one (50 mm shows as 1.97 in, not 50.04 mm).
-        .onAppear { heightText = format(choices.height) }
-        .onChange(of: heightText) { if heightText != format(choices.height) { choices.height = millimeters(heightText) } }
-        .onChange(of: choices.height) { if millimeters(heightText) != choices.height { heightText = format(choices.height) } }
-        .onAppear { radiusText = format(choices.radius) }
-        // Start in the text box with its text selected, so typing replaces it. (SwiftUI's text box has no way to
-        // select text on macOS 14, so this sends the standard Select All to whatever has the keyboard focus.)
-        .onAppear {
-            textFocused = true
-            DispatchQueue.main.async { NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil) }
-        }
-        .onChange(of: radiusText) { if radiusText != format(choices.radius) { choices.radius = millimeters(radiusText) } }
-        .onChange(of: choices.radius) { if millimeters(radiusText) != choices.radius { radiusText = format(choices.radius) } }
-    }
-
-    private var controls: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            field("Text") {
-                // A small multi-line box: Return starts a new line.
-                TextEditor(text: $choices.text)
-                    .font(Theme.body(13)).scrollContentBackground(.hidden).padding(.horizontal, 3).padding(.vertical, 4)
-                    .frame(height: 62).focused($textFocused)
-                    .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
-                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.divider))
-            }
-            if lineCount > 1 {
-                field("Lines") {
-                    Picker("Alignment", selection: $choices.alignment) { ForEach(LetteringAlignment.allCases, id: \.self) { Text($0.title).tag($0) } }.pickerStyle(.segmented).labelsHidden()
-                    HStack(spacing: 6) {
-                        Text("Line spacing").foregroundStyle(Theme.inkSecondary)
-                        TextField("Line spacing", value: $choices.lineSpacing, format: .number.precision(.fractionLength(0...2))).textFieldStyle(.roundedBorder).frame(width: 56)
-                        Text("× letter height").foregroundStyle(Theme.inkSecondary)
-                        Stepper("Line spacing", value: $choices.lineSpacing, in: LetteringSpec.lineSpacings, step: 0.1).labelsHidden()
-                    }
-                }
-            }
-            field("Font") {
-                // One list in two labeled sections, each font marked with its kind: embroidery fonts (hand-digitized
-                // satin) first, then the system fonts installed on this Mac (converted to fill or outline).
-                Picker("Font", selection: fontChoice) {
-                    if !EmbroideryFontLibrary.fonts.isEmpty {
-                        Section("Embroidery fonts · hand-digitized satin") {
-                            ForEach(EmbroideryFontLibrary.fonts, id: \.folder) { font in
-                                Label("\(font.name)   \(range(font))", systemImage: FontKind.embroidery.symbol).tag(FontChoice.embroidery(font.folder.lastPathComponent))
-                            }
-                        }
-                    }
-                    Section("System fonts · converted to fill or outline") {
-                        ForEach(families, id: \.self) { family in Label(family, systemImage: FontKind.system.symbol).tag(FontChoice.system(family)) }
-                    }
-                }.labelsHidden()
-                FontKindBadge(kind: choices.source == .embroidery ? .embroidery : .system)
-            }
-            if choices.source == .embroidery, let font = embroideryFont {
-                // The font's own preview: its name, embroidered.
-                if let image = NSImage(contentsOf: font.folder.appendingPathComponent("preview.png")) {
-                    Image(nsImage: image).resizable().scaledToFit().frame(height: 22, alignment: .leading)   // fixed, so a tall dialog can't squeeze it away
-                }
-                heightField(range: font.heights, step: 0.5)
-                Text("Hand-digitized satin lettering, digitized for letters \(range(font)) tall. \(font.license).")
-                    .font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
-                Button("Font credits…") { showCredits = true }.buttonStyle(ThemedButtonStyle())
-                    .popover(isPresented: $showCredits, arrowEdge: .trailing) { FontCreditsView() }
-            } else {
-                field("Style") {
-                    Picker("Style", selection: $choices.fontName) { ForEach(styles(of: choices.family), id: \.name) { Text($0.title).tag($0.name) } }.labelsHidden()
-                }
-                heightField(range: Lettering.heights, step: 1)
-                field("Stitch") {
-                    Picker("Stitch", selection: $choices.stitch) { ForEach(LetteringStitch.allCases, id: \.self) { Text($0.title).tag($0) } }.pickerStyle(.segmented).labelsHidden()
-                }
-                Text(choices.stitch == .fill
-                     ? "Solid tatami fill inside each letter. Best for bold letters \(unit == .inches ? "0.4 in" : "10 mm") or taller."
-                     : "A running stitch around each letter's edges, including the inside of letters like O and A.")
-                    .font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
-            }
-            field("Shape") {
-                // On a line shows only for lettering already on one (Put Lettering on Line puts it there).
-                Picker("Shape", selection: $choices.shape) { ForEach(LetteringShape.pickable + (choices.shape == .onLine ? [.onLine] : []), id: \.self) { Text($0.title).tag($0) } }.pickerStyle(.segmented).labelsHidden()
-            }
-            if choices.shape.isArch {
-                field("Arc radius") {
-                    HStack(spacing: 6) {
-                        TextField("Radius", text: $radiusText).textFieldStyle(.roundedBorder).frame(width: 70)
-                        Text(unit.symbol).foregroundStyle(Theme.inkSecondary)
-                        Stepper("Arc radius", value: $choices.radius, in: Lettering.radii, step: 5).labelsHidden()
-                        Spacer()
-                    }
-                }
-                Text(choices.shape == .archUp
-                     ? "Letters follow the top of a circle this size, like text across the top of a round badge. Smaller is more curved."
-                     : "Letters follow the bottom of a circle this size, like text along the bottom of a round badge. Smaller is more curved.")
-                    .font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
-            }
-            HStack(spacing: 6) {
-                Circle().fill(Color(nsColor: color.nsColor)).frame(width: 12, height: 12)
-                Text(editing == nil ? "Sews in \(color.name), the current thread." : "Sews in \(color.name), as before.").foregroundStyle(Theme.inkSecondary)
-            }.font(Theme.body(12))
-        }
-        .font(Theme.body(13))
-    }
-
-    private var embroideryFont: EmbroideryFont? { EmbroideryFontLibrary.font(choices.embroideryFont) }
-    /// How many lines the typed text has (ignoring blank lines at the start and end).
-    private var lineCount: Int { choices.spec(base: nil).lines.count }
-
-    /// One value for the combined font list: which embroidery font (by folder) or system font family is chosen.
-    enum FontChoice: Hashable { case embroidery(String), system(String) }
-    private var fontChoice: Binding<FontChoice> {
-        Binding(get: { choices.source == .embroidery ? .embroidery(choices.embroideryFont) : .system(choices.family) },
-                set: { choice in
-                    switch choice {
-                    case .embroidery(let folder): choices.source = .embroidery; choices.embroideryFont = folder
-                    case .system(let family): choices.source = .mac; choices.family = family
-                    }
-                })
-    }
-
-    /// The letter height: typed, or stepped within `range`.
-    private func heightField(range: ClosedRange<Double>, step: Double) -> some View {
-        field("Letter height") {
-            HStack(spacing: 6) {
-                TextField("Height", text: $heightText).textFieldStyle(.roundedBorder).frame(width: 70)
-                Text(unit.symbol).foregroundStyle(Theme.inkSecondary)
-                Stepper("Letter height", value: $choices.height, in: range, step: step).labelsHidden()
-                Spacer()
-            }
-        }
-    }
-
-    /// After switching to an embroidery font that wasn't digitized for the current height, use the font's own size.
-    private func fitHeightToFont() {
-        guard choices.source == .embroidery, let font = embroideryFont, !font.heights.contains(choices.height) else { return }
-        choices.height = (min(max(font.size, font.heights.lowerBound), font.heights.upperBound) * 10).rounded() / 10
-    }
-    private func range(_ font: EmbroideryFont) -> String {
-        "\(format(font.heights.lowerBound))–\(format(font.heights.upperBound)) \(unit.symbol)"
-    }
-
-    /// A small caption above one control.
-    private func field<Control: View>(_ title: String, @ViewBuilder _ control: () -> Control) -> some View {
-        VStack(alignment: .leading, spacing: 5) { Text(title).font(Theme.body(12, weight: .bold)); control() }
-    }
-
-    private func sizeLine(_ letters: LetteringResult) -> some View {
-        let fits = letters.objects.allSatisfy { $0.outlinePaths.allSatisfy { $0.allSatisfy { hoop.contains($0) } } }
-        return HStack(spacing: 10) {
-            Text(unit.size(letters.width, letters.height)).fontWeight(.semibold)
-            Label(fits ? "Fits the sewing area" : "Larger than the sewing area", systemImage: fits ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                .foregroundStyle(fits ? Theme.success : Color.orange)
-        }.font(Theme.body(12))
-    }
-
-    /// The styles in a font family as (PostScript name, style name) pairs, such as ("AvenirNext-Bold", "Bold").
-    private func styles(of family: String) -> [(name: String, title: String)] {
-        // Each member is an array: [PostScript name, style name, weight, traits].
-        (NSFontManager.shared.availableMembers(ofFontFamily: family) ?? []).compactMap { member in
-            guard member.count > 1, let name = member[0] as? String, let title = member[1] as? String else { return nil }
-            return (name, title)
-        }
-    }
-    /// The unit lengths are typed in here (set in Settings; it doesn't change while the dialog is open).
-    private var unit: LengthUnit { Preferences.shared.unit }
-    /// A length (mm) as the text box shows it: in mm to 0.1, or in inches to 0.01.
-    private func format(_ length: Double) -> String { unit.shown(length).formatted(.number.precision(.fractionLength(0...(unit == .inches ? 2 : 1)))) }
-    /// Typed text as a length in mm. Text that isn't a number becomes 0, which the preview explains is out of range.
-    private func millimeters(_ text: String) -> Double { Double(text.replacingOccurrences(of: ",", with: ".")).map(unit.millimeters) ?? 0 }
-    private static func preferredStyle(in styles: [(name: String, title: String)]) -> String? {
-        (styles.first { $0.title == "Bold" } ?? styles.first)?.name
-    }
 }
 
 extension GuidedDialog {
@@ -801,32 +515,6 @@ struct FontCreditsView: View {
     }
 }
 
-
-/// The two kinds of lettering font, with the icon and words used to tell them apart.
-enum FontKind {
-    case embroidery, system
-    var symbol: String { self == .embroidery ? "scribble.variable" : "textformat" }
-    var title: String { self == .embroidery ? "Embroidery font" : "System font" }
-    var detail: String { self == .embroidery ? "Hand-digitized satin, made for sewing" : "Any font on this Mac, converted to fill or outline" }
-}
-
-/// A small label under the font list saying which kind of font is chosen: embroidery fonts in the accent color,
-/// system fonts in plain gray.
-struct FontKindBadge: View {
-    let kind: FontKind
-    var body: some View {
-        HStack(spacing: 6) {
-            Label(kind.title, systemImage: kind.symbol)
-                .font(Theme.body(11, weight: .bold))
-                .padding(.horizontal, 8).padding(.vertical, 3)
-                .foregroundStyle(kind == .embroidery ? Theme.onAccent : Theme.ink)
-                .background(kind == .embroidery ? Theme.accent : Theme.ground, in: Capsule())
-                .overlay(Capsule().strokeBorder(kind == .embroidery ? Color.clear : Theme.controlBorder))
-            Text(kind.detail).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
-        }
-        .accessibilityElement(children: .combine)
-    }
-}
 
 extension GuidedDialog {
     /// The satin edge width and tack-down last used, so the next appliqué starts the same way.

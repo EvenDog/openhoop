@@ -156,6 +156,7 @@ struct ToolStrip: View {
         case .rectangle, .basicShape: return ("Shape", "drag · ⌘ keeps it even · ⇧ from the center")
         case .zoomBox: return ("Zoom box", "drag a box to zoom into · click zooms in 2×")
         case .measure: return ("Measure", "drag between two points")
+        case .text: return ("Lettering", "click where it goes, then type in Properties")
         case .knife: return ("Knife", "click points across shapes" + key(.finishPath, "cuts"))
         case .stitchEdit: return ("Edit stitches", "click or box-select points · drag moves" + key(.delete, "deletes") + " · ⌥-click adds")
         case .addAngles: return ("Stitch angles", state.angleStart == nil ? "click two points across the fill" : "click the other side")
@@ -690,6 +691,8 @@ struct InspectorPanel: View {
     var section: InspectorSection = .properties
     /// A fabric just picked while the design has shapes it would change: the alert asks whether to update them.
     @State private var pendingFabric: (fabric: FabricType, shapes: Int)?
+    /// True while the lettering section's Font credits popover is open.
+    @State var showFontCredits = false
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: pro ? 7 : 12) {
