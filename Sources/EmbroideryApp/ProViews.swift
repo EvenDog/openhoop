@@ -128,7 +128,8 @@ struct ProSewingOrder: View {
             if let group = object.groupID { while end < objects.count && objects[end].groupID == group { end += 1 } }
             if let group = object.groupID, end - index >= 2 {
                 lines.append(.group(id: group, first: index, members: Array(objects[index..<end])))
-                if opened.contains(group) { for i in index..<end { lines.append(.object(index: i, objects[i], indented: true)) } }
+                // Lettering is one object: its line never opens into letter parts.
+                if opened.contains(group) && object.lettering == nil { for i in index..<end { lines.append(.object(index: i, objects[i], indented: true)) } }
             } else {
                 for i in index..<end { lines.append(.object(index: i, objects[i], indented: false)) }
             }
@@ -223,14 +224,17 @@ struct ProSewingOrder: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help("\(lettering == nil ? "Group" : "Lettering") of \(members.count) objects, sewing \(first + 1)–\(first + members.count)")
+        .help(lettering == nil ? "Group of \(members.count) objects, sewing \(first + 1)–\(first + members.count)" : "Lettering, sewing \(first + 1)–\(first + members.count). Edit it in Properties; Break Apart Lettering splits it into shapes.")
         .overlay(alignment: .leading) {
-            // Drawn over the row's empty icon column: 4 (padding) + 20 (number) + 4 + 10 (swatch) + 4.
-            Button { if open { opened.remove(id) } else { opened.insert(id) } } label: {
-                Image(systemName: open ? "chevron.down" : "chevron.right").font(.system(size: 8, weight: .bold)).frame(width: 14, height: 22).contentShape(Rectangle())
+            // Drawn over the row's empty icon column: 4 (padding) + 20 (number) + 4 + 10 (swatch) + 4. Lettering has
+            // none: it's one object.
+            if lettering == nil {
+                Button { if open { opened.remove(id) } else { opened.insert(id) } } label: {
+                    Image(systemName: open ? "chevron.down" : "chevron.right").font(.system(size: 8, weight: .bold)).frame(width: 14, height: 22).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain).padding(.leading, 42)
+                .accessibilityLabel(open ? "Close \(label ?? "group")" : "Open \(label ?? "group")")
             }
-            .buttonStyle(.plain).padding(.leading, 42)
-            .accessibilityLabel(open ? "Close \(label ?? "group")" : "Open \(label ?? "group")")
         }
     }
 
@@ -334,10 +338,10 @@ struct ProStats: View {
 /// Explanations show as tooltips instead of text under each setting.
 extension InspectorPanel {
     @ViewBuilder func proProperties(_ object: RunObject) -> some View {
-        if state.selection.count > 1 { selectionSummary }
+        if state.selection.count > 1 && !selectionIsOneLettering { selectionSummary }
         proHeader(object)
         if object.stitchEdits != nil { stitchEditNotice(object) }
-        if let lettering = object.lettering { proLettering(lettering) }
+        if let lettering = object.lettering { letteringEditor(lettering) }
         if let monogram = object.monogram { monogramSummary(monogram) }
         switch object.kind {
         case .fill: proFill(object)
@@ -362,8 +366,11 @@ extension InspectorPanel {
 
     /// A small close-up of the stitches beside the object's name, stitch type, thread and stitch count.
     private func proHeader(_ object: RunObject) -> some View {
-        let count = state.stitchCounts[object.id].map { " · \($0.formatted()) st" } ?? ""
-        let detail = object.kind == .raw ? object.kind.title : "\(object.stitchTitle) · \(object.color.name)"
+        // Lettering counts all its letters' stitches.
+        let parts = object.lettering.map { state.design.letteringObjects($0.id).map(\.id) } ?? [object.id]
+        let counts = parts.compactMap { state.stitchCounts[$0] }
+        let count = counts.isEmpty ? "" : " · \(counts.reduce(0, +).formatted()) st"
+        let detail = object.kind == .raw ? object.kind.title : "\(self.detail(object)) · \(object.color.name)"
         return HStack(spacing: 10) {
             if object.kind == .run || object.kind == .satin || object.kind == .fill {
                 StitchPreview(kind: object.kind, color: Color(nsColor: object.color.nsColor), spacing: object.settings.spacing, stitchLength: object.stitchLength, angle: object.settings.angle,
@@ -376,24 +383,13 @@ extension InspectorPanel {
                     .accessibilityHidden(true)
             }
             VStack(alignment: .leading, spacing: 1) {
-                Text(object.name).font(Theme.heading(15)).lineLimit(1)
+                Text(heading(object)).font(Theme.heading(15)).lineLimit(1)
                 Text(detail + count).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).lineLimit(1)
             }
         }
         .help(object.kind == .raw ? "Existing stitches: move, rotate, mirror or recolor this thread block. Scaling changes density and stitch lengths; it does not regenerate stitches." : "")
     }
 
-    /// One line for lettering: its text and an Edit button; the font, height and shape show on hover.
-    private func proLettering(_ lettering: LetteringSpec) -> some View {
-        let font = lettering.fontKind == .embroidery ? EmbroideryFontLibrary.font(lettering.font)?.name ?? lettering.font
-                                                     : NSFont(name: lettering.font, size: 12)?.displayName ?? lettering.font
-        return HStack(spacing: 6) {
-            Label("“\(lettering.lines.joined(separator: " / "))”", systemImage: CommandID.editLettering.symbol).font(Theme.body(11, weight: .semibold)).lineLimit(1)
-            Spacer(minLength: 4)
-            Button("Edit…") { AppDelegate.shared.perform(.editLettering) }.buttonStyle(ThemedButtonStyle())
-        }
-        .help("\(font) · \(preferences.unit.short(lettering.currentHeight)) · \(lettering.shape.title)\(lettering.shape == .straight ? "" : ", \(preferences.unit.short(lettering.radius)) radius")")
-    }
 
     private func proFill(_ object: RunObject) -> some View {
         let style = object.settings.fillStyle ?? .tatami, holes = object.holes?.count ?? 0

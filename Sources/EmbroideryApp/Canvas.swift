@@ -42,6 +42,8 @@ final class DesignCanvas: NSView {
     /// A resize handle being dragged (Select tool): which sides it moves (-1 left/bottom, 1 right/top, 0 neither), and
     /// the selection's box (mm) when the drag began.
     private var resizeDrag: (dx: Int, dy: Int, low: Point, high: Point)?
+    /// A letter being moved with Edit Nodes: its lettering, its letter key, and its parts.
+    private var letterDrag: (lettering: UUID, key: Int, parts: Set<UUID>)?
     private var artworkDrag: Int?   // adjusting the artwork: -1 moves it, 0…3 resizes from that corner
     private var zoomBox: (start: CGPoint, end: CGPoint)?   // the box being dragged with the Zoom Box tool, in canvas points
     var measurement: (start: Point, end: Point)?   // the Measure tool's line, in mm; shown until the tool changes
@@ -459,13 +461,13 @@ final class DesignCanvas: NSView {
             }
             // Where it starts and ends sewing (drawn before its nodes, so a node on the same spot stays on top).
             if selected {
-                let ends = markerPoints(object, sewn: sewn, few: design.objects.filter { state.selection.contains($0.id) }.count <= Self.fewForMarkers)
+                let ends = markerPoints(object, sewn: sewn, few: fewSelected(in: design))
                 drawStartMarker(ends.start, label: object.entry != nil ? "Start" : nil)
                 drawEndMarker(ends.end, label: object.exit != nil ? "End" : nil)
                 drawMarker(radialCenter(object), label: "Center", color: Theme.Canvas.handle)
             }
             // Nodes show only with Edit Nodes, the one tool that can move them.
-            if selected && state.tool == .node && !object.locked && object.kind != .raw {
+            if selected && state.tool == .node && !object.locked && object.kind != .raw && object.lettering == nil {
                 for (ring,nodes) in ([object.nodes]+(object.holes ?? [])).enumerated() {
                     for (index,node) in nodes.enumerated() {
                         let p=screen(node.point),rect=CGRect(x:p.x-3.5,y:p.y-3.5,width:7,height:7)
@@ -484,7 +486,7 @@ final class DesignCanvas: NSView {
                 }
             }
             // A fill's stitch angle shows as a line across it with Edit Nodes; dragging an end turns the stitches.
-            if selected && state.tool == .node && !object.locked, let ends = StitchAngleLine.ends(of: object) {
+            if selected && state.tool == .node && !object.locked && object.lettering == nil, let ends = StitchAngleLine.ends(of: object) {
                 drawAngleLine(ends.0, ends.1, selected: fillAngleDrag?.object == object.id)
             }
             // Stitch angle lines show while they can be changed: with Edit Nodes and the stitch angle tools.
@@ -527,6 +529,7 @@ final class DesignCanvas: NSView {
         if let drag = fillAngleDrag, drag.slideFrom == nil, let object = (preview ?? state.design).objects.first(where: { $0.id == drag.object }),
            let ends = StitchAngleLine.ends(of: object) { drawAngleReading(ends.0, ends.1, at: drag.pointer) }
         if state.tool == .select && !state.hasVersionMismatch, let box = selectionBox(in: design) { drawResizeHandles(box) }
+        if state.tool == .node { for letter in letterHandles(in: design) { drawLetterHandle(letter.point, active: letterDrag?.key == letter.key && letterDrag?.lettering == letter.lettering) } }
         if state.tool == .branch, let start = state.branchPoints.first { drawMarker(start, label: "Branch start", color: Theme.Canvas.entry) }
         if let box = zoomBox {
             let rect = NSBezierPath(rect: CGRect(x: min(box.start.x, box.end.x), y: min(box.start.y, box.end.y), width: abs(box.end.x - box.start.x), height: abs(box.end.y - box.start.y)))
@@ -681,8 +684,20 @@ final class DesignCanvas: NSView {
     private func markerPoints(_ object: RunObject, sewn: [UUID: (first: Point, last: Point)], few: Bool) -> (start: Point?, end: Point?) {
         let dragging = draggedMarker?.object == object.id ? draggedMarker?.kind : nil
         let set = (start: object.entry, end: object.exit.map { object.sewnEnd ?? $0 })
-        guard dragging == nil, let real = sewn[object.id] else { return set }
-        return (object.entry != nil || few ? real.first : nil, object.exit != nil || few ? real.last : nil)
+        var ends = set
+        if dragging == nil, let real = sewn[object.id] { ends = (object.entry != nil || few ? real.first : nil, object.exit != nil || few ? real.last : nil) }
+        // Lettering is one object: it shows where its first letter starts and its last letter ends.
+        if let id = object.lettering?.id {
+            let parts = state.design.letteringObjects(id)
+            return (object.id == parts.first?.id ? ends.start : nil, object.id == parts.last?.id ? ends.end : nil)
+        }
+        return ends
+    }
+    /// True when few enough objects are selected for every one to show where it starts and ends (lettering counts
+    /// as one).
+    private func fewSelected(in design: Design) -> Bool {
+        let chosen = design.objects.filter { state.selection.contains($0.id) }
+        return chosen.filter { $0.lettering == nil }.count + Set(chosen.compactMap { $0.lettering?.id }).count <= Self.fewForMarkers
     }
     /// The start marker: a small ring, dark with a white edge so it shows on any thread (labelled when the point was set).
     private func drawStartMarker(_ point: Point?, label: String?) {
@@ -728,6 +743,42 @@ final class DesignCanvas: NSView {
             handles.append((CGPoint(x: x, y: y), dx, dy))
         } }
         return handles
+    }
+    /// The handle of each letter of the selected, unlocked lettering (on screen, below the middle of the letter), with
+    /// the lettering, the letter key and the letter's parts. Lettering saved before letters had keys (one line only)
+    /// is split into letters by its parts' names: a part named "… (part 2)" or later belongs to the letter before.
+    /// Keys then count letters the way the fonts do: embroidery fonts count each letter placed, Mac fonts every
+    /// character, spaces included.
+    private func letterHandles(in design: Design) -> [(point: CGPoint, lettering: UUID, key: Int, parts: Set<UUID>)] {
+        var handles: [(point: CGPoint, lettering: UUID, key: Int, parts: Set<UUID>)] = []
+        let chosen = design.objects.filter { state.selection.contains($0.id) && !$0.locked && $0.visible && $0.lettering != nil }
+        for id in Set(chosen.compactMap { $0.lettering?.id }) {
+            let parts = design.letteringObjects(id)
+            guard let spec = parts.first?.lettering, parts.allSatisfy({ $0.letterKey != nil }) || spec.lines.count == 1 else { continue }
+            // For older lettering: where each letter that has stitches sits in the text, for Mac fonts' keys.
+            let places = Array(spec.lines.first ?? "").enumerated().filter { !$0.element.isWhitespace }.map(\.offset)
+            var letters: [(key: Int, objects: [RunObject])] = [], counted = -1
+            for object in parts {
+                let continues = object.name.contains(" (part ") && !object.name.contains(" (part 1)")
+                if object.letterKey == nil && !continues { counted += 1 }
+                let key = object.letterKey ?? (spec.fontKind == .system ? (places.indices.contains(counted) ? places[counted] : counted) : counted)
+                if let index = letters.firstIndex(where: { $0.key == key }) { letters[index].objects.append(object) } else { letters.append((key, [object])) }
+            }
+            for letter in letters {
+                let points = letter.objects.flatMap { $0.outlinePaths.flatMap { $0 } }
+                guard let x0 = points.map(\.x).min(), let x1 = points.map(\.x).max(), let y0 = points.map(\.y).min() else { continue }
+                let p = screen(Point((x0 + x1) / 2, y0))
+                handles.append((CGPoint(x: p.x, y: p.y - 8), id, letter.key, Set(letter.objects.map(\.id))))
+            }
+        }
+        return handles
+    }
+    /// A letter's handle: a small diamond in the accent color (filled while it's being dragged).
+    private func drawLetterHandle(_ p: CGPoint, active: Bool) {
+        let diamond = NSBezierPath()
+        diamond.move(to: CGPoint(x: p.x, y: p.y + 5)); diamond.line(to: CGPoint(x: p.x + 5, y: p.y)); diamond.line(to: CGPoint(x: p.x, y: p.y - 5)); diamond.line(to: CGPoint(x: p.x - 5, y: p.y)); diamond.close()
+        (active ? Theme.Canvas.selection : NSColor.white).setFill(); diamond.fill()
+        Theme.Canvas.selection.setStroke(); diamond.lineWidth = 1.5; diamond.stroke()
     }
     /// The resize handles: small dark squares with a white edge, so they show on any thread or fabric.
     private func drawResizeHandles(_ box: CGRect) {
@@ -881,6 +932,11 @@ final class DesignCanvas: NSView {
         }
         if state.tool == .entryExit { setEntryOrExit(at: point, exit: event.modifierFlags.contains(.option)); return }
         pointer=point
+        // With Edit Nodes, a letter's handle moves just that letter (lettering has no nodes to drag).
+        if state.tool == .node, !state.hasVersionMismatch, let letter = letterHandles(in: state.design).first(where: { hypot($0.point.x - location.x, $0.point.y - location.y) <= 7 }) {
+            letterDrag = (letter.lettering, letter.key, letter.parts); dragStart = point; dragSnapshot = state.design
+            state.status = "Drag to move this letter · it stays put when you change the lettering's text, font or size"; return
+        }
         // Handles sit on top of nodes, so they are checked first. Both are picked where the pointer really is: the
         // snapped point can sit nearer a neighbouring node, which would grab the wrong one.
         if state.tool == .node, let handle=nearestHandle(model(location)) {
@@ -1025,6 +1081,11 @@ final class DesignCanvas: NSView {
             next.artwork = artwork.adjusted(corner: corner, from: start, to: snapped(model(location)), free: event.modifierFlags.contains(.shift))
             preview = next; needsDisplay = true; return
         }
+        if let letter = letterDrag {
+            let delta = snapped(model(location)) - start
+            for index in next.objects.indices where letter.parts.contains(next.objects[index].id) { next.objects[index].transform { $0 + delta } }
+            preview = next; needsDisplay = true; return
+        }
         if let marker = draggedMarker, let index = next.objects.firstIndex(where: { $0.id == marker.object }) {
             let target = snapped(model(location))
             switch marker.kind {
@@ -1067,6 +1128,22 @@ final class DesignCanvas: NSView {
     override func mouseUp(with event: NSEvent) {
         if measuring { measuring = false; return }
         if dropDragIfDesignChanged() { return }
+        if let letter = letterDrag {
+            // The move becomes the letter's nudge, measured along the lettering's baseline and up, as a share of its
+            // height; rebuilding puts it there (and keeps it there through later changes).
+            if let start = dragStart, var spec = dragSnapshot?.objects.first(where: { $0.lettering?.id == letter.lettering })?.lettering {
+                let delta = snapped(model(convert(event.locationInWindow, from: nil))) - start
+                let along = (spec.alongMarker - spec.anchor) * 0.1, up = (spec.upMarker - spec.anchor) * 0.1
+                let nudge = Point(delta.x * along.x + delta.y * along.y, delta.x * up.x + delta.y * up.y) * (1 / max(0.1, spec.height))
+                if hypot(delta.x, delta.y) > 0.01 {
+                    var offsets = spec.letterOffsets ?? [:]
+                    offsets[letter.key] = (offsets[letter.key] ?? Point(0, 0)) + nudge
+                    spec.letterOffsets = offsets
+                    state.rebuildLettering(spec, action: "Move Letter")
+                }
+            }
+            letterDrag = nil; preview = nil; dragStart = nil; dragSnapshot = nil; needsDisplay = true; return
+        }
         if resizeDrag != nil {
             if let preview { state.document?.replace(preview, action: "Resize Objects") }
             resizeDrag = nil; preview = nil; dragStart = nil; dragSnapshot = nil; needsDisplay = true; return
@@ -1139,7 +1216,7 @@ final class DesignCanvas: NSView {
     private func dropDragIfDesignChanged() -> Bool {
         guard state.revision != dragRevision, stitchDrag != nil || dragSnapshot != nil else { return false }
         stitchDrag = nil; stitchPreview = nil; preview = nil; dragSnapshot = nil; dragStart = nil; angleDrag = nil; fillAngleDrag = nil; guideDrag = nil
-        draggedNode = nil; draggedHandle = nil; draggedMarker = nil; artworkDrag = nil; nodeJustAdded = false; dragProblem = nil; resizeDrag = nil; needsDisplay = true
+        draggedNode = nil; draggedHandle = nil; draggedMarker = nil; artworkDrag = nil; nodeJustAdded = false; dragProblem = nil; resizeDrag = nil; letterDrag = nil; needsDisplay = true
         state.status = "The design changed during the drag, so the drag was cancelled."
         return true
     }
@@ -1192,7 +1269,7 @@ final class DesignCanvas: NSView {
     /// The Start, End or Center marker of a selected, unlocked object under the pointer, if any.
     private func nearestMarker(_ p: Point) -> (object: UUID, kind: Marker)? {
         let reach = 9 / state.zoom
-        let sewn = sewnEnds(), few = state.selection.count <= Self.fewForMarkers
+        let sewn = sewnEnds(), few = fewSelected(in: state.design)
         for object in state.design.objects.reversed() where state.selection.contains(object.id) && !object.locked && object.visible {
             let ends = markerPoints(object, sewn: sewn, few: few)
             if let start = ends.start, start.distance(to: p) < reach { return (object.id, .start) }
@@ -1223,14 +1300,14 @@ final class DesignCanvas: NSView {
     /// The selected, unlocked fill whose stitch angle line has an end within reach of `p` (model mm), if any.
     private func fillAngleEnd(near p: Point) -> UUID? {
         state.design.objects.first { object in
-            guard state.selection.contains(object.id), !object.locked, let ends = StitchAngleLine.ends(of: object) else { return false }
+            guard state.selection.contains(object.id), !object.locked, object.lettering == nil, let ends = StitchAngleLine.ends(of: object) else { return false }
             return min(ends.0.distance(to: p), ends.1.distance(to: p)) <= 6 / state.zoom
         }?.id
     }
     /// The selected, unlocked fill whose stitch angle line passes within reach of `p` (model mm), if any.
     private func fillAngleLine(near p: Point) -> UUID? {
         state.design.objects.first { object in
-            guard state.selection.contains(object.id), !object.locked, let ends = StitchAngleLine.ends(of: object) else { return false }
+            guard state.selection.contains(object.id), !object.locked, object.lettering == nil, let ends = StitchAngleLine.ends(of: object) else { return false }
             return p.distance(to: AreaGeometry.projection(p, ends.0, ends.1)) <= 5 / state.zoom
         }?.id
     }
@@ -1239,7 +1316,8 @@ final class DesignCanvas: NSView {
     private func nearestNode(_ p:Point)->NodeLocation? {
         func nearest(selected: Bool) -> NodeLocation? {
             var best:NodeLocation?,distance=9/state.zoom
-            for object in state.design.objects.reversed() where object.visible && !object.locked && object.kind != .raw && state.selection.contains(object.id) == selected {
+            // Lettering has letter handles instead of nodes (see letterHandles).
+            for object in state.design.objects.reversed() where object.visible && !object.locked && object.kind != .raw && object.lettering == nil && state.selection.contains(object.id) == selected {
                 for (ring,nodes) in ([object.nodes]+(object.holes ?? [])).enumerated(){for (i,node) in nodes.enumerated(){let d=node.point.distance(to:p);if d<distance{distance=d;best=NodeLocation(object:object.id,ring:ring-1,index:i)}}}
             }
             return best
@@ -1263,7 +1341,7 @@ final class DesignCanvas: NSView {
     /// 0… a hole), the segment and the nearest point on it. For a satin, the centerline between two rungs.
     private func edge(near p: Point, reach: Double) -> (id: UUID, ring: Int, index: Int, point: Point)? {
         var candidate: (id: UUID, ring: Int, index: Int, point: Point)?, distance = reach
-        for object in state.design.objects where state.selection.contains(object.id) && !object.locked && object.kind != .raw {
+        for object in state.design.objects where state.selection.contains(object.id) && !object.locked && object.kind != .raw && object.lettering == nil {
             if object.kind == .satin {
                 for i in stride(from:0,to:object.nodes.count-2,by:2) {
                     let a=(object.nodes[i].point+object.nodes[i+1].point)*0.5,b=(object.nodes[i+2].point+object.nodes[i+3].point)*0.5

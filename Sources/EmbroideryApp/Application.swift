@@ -473,6 +473,7 @@ import EmbroideryCore
         case .autoStartPoints: state.autoStartPoints()
         case .lettering: addLettering(state)
         case .editLettering: editLettering(state)
+        case .breakApartLettering: state.breakApartLettering()
         case .autoDigitize: autoDigitize(state)
         case .satinBorder: addSatinBorder(state)
         case .applique: makeApplique(state)
@@ -963,7 +964,7 @@ import EmbroideryCore
                     .convertRun, .convertSatin, .convertFill, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool,
                    .finishPath, .removePoint, .cancelPath]),
-        ("Add", [.lettering, .editLettering, .addMonogram, .editMonogram, .satinBorder, .applique, .autoDigitize, .laydown])
+        ("Add", [.lettering, .editLettering, .breakApartLettering, .addMonogram, .editMonogram, .satinBorder, .applique, .autoDigitize, .laydown])
     ]
     private func makeMenu() {
         let menu = NSMenu()

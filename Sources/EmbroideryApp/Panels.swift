@@ -522,15 +522,17 @@ struct ObjectPanel: View {
             HStack(alignment: .firstTextBaseline) {
                 Text("The machine sews from step 1 down.").font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
                 Spacer()
-                Text("\(state.design.objects.count)").font(Theme.body(11, weight: .semibold)).foregroundStyle(Theme.inkSecondary)
+                Text("\(sewingSteps.count)").font(Theme.body(11, weight: .semibold)).foregroundStyle(Theme.inkSecondary)
             }
             ScrollView {
                 LazyVStack(spacing: 0) {
                     let labels = state.design.groupLabels
                     let pictureAt = state.design.artwork == nil ? nil : Optional(state.design.artworkLayer)
-                    ForEach(Array(state.design.objects.enumerated()), id: \.element.id) { index, object in
-                        if index == pictureAt { PictureRow(state: state).padding(.leading, 36).padding(.bottom, 8) }
-                        stepRow(number: index + 1, object: object, isLast: index == state.design.objects.count - 1, groupLabel: object.groupID.flatMap { labels[$0] })
+                    let entries = sewingSteps
+                    ForEach(Array(entries.enumerated()), id: \.element.first.id) { number, step in
+                        // The picture shows before the first step at or after its place (never inside lettering).
+                        if pictureAt.map({ $0 <= step.index && (number == 0 || $0 > entries[number - 1].index) }) == true { PictureRow(state: state).padding(.leading, 36).padding(.bottom, 8) }
+                        stepRow(number: number + 1, object: step.first, isLast: number == entries.count - 1, groupLabel: step.first.groupID.flatMap { labels[$0] }, lettering: step.lettering)
                     }
                     if pictureAt == state.design.objects.count { PictureRow(state: state).padding(.leading, 36).padding(.top, state.design.objects.isEmpty ? 0 : 8) }
                     if state.design.objects.isEmpty { Text("Your paths will appear here in sewing order.").font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).padding(.vertical, 28) }
@@ -543,13 +545,25 @@ struct ObjectPanel: View {
         }
         .foregroundStyle(Theme.ink)
     }
+    /// The steps the list shows, in sewing order: each object on its own, except lettering, which is one step
+    /// (its consecutive letters together). `index` is the first object's place in the sewing order.
+    private var sewingSteps: [(index: Int, first: RunObject, lettering: LetteringSpec?)] {
+        var steps: [(index: Int, first: RunObject, lettering: LetteringSpec?)] = []
+        for (index, object) in state.design.objects.enumerated() {
+            if let spec = object.lettering, let last = steps.last, last.lettering?.id == spec.id, index > 0, state.design.objects[index - 1].lettering?.id == spec.id { continue }
+            steps.append((index, object, object.lettering))
+        }
+        return steps
+    }
     /// One sewing step: a numbered dot in the object's thread color, a dashed "thread" leading to the next step,
-    /// and a card with the object's name and details. Clicking selects it (Shift-click selects a range, ⌘-click adds one).
-    private func stepRow(number: Int, object: RunObject, isLast: Bool, groupLabel: String?) -> some View {
+    /// and a card with the object's name and details (for lettering, its text and font). Clicking selects it
+    /// (Shift-click selects a range, ⌘-click adds one).
+    private func stepRow(number: Int, object: RunObject, isLast: Bool, groupLabel: String?, lettering: LetteringSpec?) -> some View {
         let selected = state.selection.contains(object.id)
+        let font = lettering.map { $0.fontKind == .embroidery ? EmbroideryFontLibrary.font($0.font)?.name ?? $0.font : NSFont(name: $0.font, size: 12)?.displayName ?? $0.font }
         let details = object.kind == .raw
             ? "Imported · \(object.rawStitches?.commands.filter { $0.op == .stitch }.count ?? 0) stitches"
-            : "\(object.stitchTitle) · \(object.color.name) · \(object.nodes.count) nodes"
+            : font.map { "Lettering · \($0) · \(object.color.name)" } ?? "\(object.stitchTitle) · \(object.color.name) · \(object.nodes.count) nodes"
         return HStack(alignment: .top, spacing: 10) {
             VStack(spacing: 0) {
                 Text("\(number)").font(Theme.body(11, weight: .bold))
@@ -564,8 +578,8 @@ struct ObjectPanel: View {
                 HStack(spacing: 6) {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 4) {
-                            Text(object.name).font(Theme.body(12, weight: .semibold)).lineLimit(1)
-                            if let groupLabel {
+                            Text(lettering.map { "“\($0.lines.joined(separator: " / "))”" } ?? object.name).font(Theme.body(12, weight: .semibold)).lineLimit(1)
+                            if let groupLabel, lettering == nil {
                                 Text(groupLabel).font(Theme.body(9, weight: .bold)).lineLimit(1).fixedSize()
                                     .padding(.horizontal, 5).padding(.vertical, 1)
                                     .background(Theme.accentSoft, in: Capsule()).foregroundStyle(Theme.accent)
@@ -717,16 +731,6 @@ struct InspectorPanel: View {
         state.status = "Fabric: \(fabric.title)." + (updateShapes ? " Updated \(changed) shape\(changed == 1 ? "" : "s")." : " New shapes will use its settings.")
         pendingFabric = nil
     }
-    /// What the selected letter's lettering says and how it's made, with a button to change it.
-    private func letteringSummary(_ lettering: LetteringSpec) -> some View {
-        let font = lettering.fontKind == .embroidery ? EmbroideryFontLibrary.font(lettering.font)?.name ?? lettering.font
-                                                     : NSFont(name: lettering.font, size: 12)?.displayName ?? lettering.font
-        return VStack(alignment: .leading, spacing: 6) {
-            Label("“\(lettering.lines.joined(separator: " / "))”", systemImage: CommandID.editLettering.symbol).font(Theme.body(13, weight: .semibold)).lineLimit(1)
-            explain("\(font) · \(preferences.unit.short(lettering.currentHeight)) · \(lettering.shape.title)\(lettering.shape == .straight ? "" : ", \(preferences.unit.short(lettering.radius)) radius"). Double-click the letters on the canvas to change the text.")
-            Button("Edit lettering…") { AppDelegate.shared.perform(.editLettering) }.buttonStyle(ThemedButtonStyle()).help(preferences.hint(.editLettering))
-        }
-    }
     /// For a monogram's parts: what it is, and a button to change it.
     func monogramSummary(_ monogram: MonogramSpec) -> some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -735,19 +739,34 @@ struct InspectorPanel: View {
             Button("Edit monogram…") { AppDelegate.shared.perform(.editMonogram) }.buttonStyle(ThemedButtonStyle()).help(preferences.hint(.editMonogram))
         }
     }
+    /// True when the selection is exactly one piece of lettering (all its letters): Properties then shows it as one
+    /// object, not as a group of shapes.
+    var selectionIsOneLettering: Bool {
+        let chosen = state.design.objects.filter { state.selection.contains($0.id) }
+        guard let id = chosen.first?.lettering?.id else { return false }
+        return chosen.allSatisfy { $0.lettering?.id == id }
+    }
+    /// The heading Properties gives `object`: lettering's text, otherwise the object's name.
+    func heading(_ object: RunObject) -> String { object.lettering.map { "“\($0.lines.joined(separator: " / "))”" } ?? object.name }
+    /// What `object` is, under its heading: "Lettering · Helvetica Bold" for lettering, otherwise its stitch type.
+    func detail(_ object: RunObject) -> String {
+        guard let spec = object.lettering else { return object.stitchTitle }
+        let font = spec.fontKind == .embroidery ? EmbroideryFontLibrary.font(spec.font)?.name ?? spec.font : NSFont(name: spec.font, size: 12)?.displayName ?? spec.font
+        return "Lettering · \(font)"
+    }
     /// True in the Pro view: every setting shown at once, compact, with explanations as tooltips instead of text.
-    private var pro: Bool { preferences.isPro }
+    var pro: Bool { preferences.isPro }
     @ViewBuilder private var propertiesSection: some View {
         if pro, let object = state.selected {
             proProperties(object)   // the compact Pro layout (ProViews.swift)
         } else if let object = state.selected {
-            if state.selection.count > 1 { selectionSummary }
+            if state.selection.count > 1 && !selectionIsOneLettering { selectionSummary }
             VStack(alignment: .leading, spacing: 2) {
-                Text(object.name).font(Theme.heading(18)).lineLimit(2)
-                Text(object.kind == .raw ? object.kind.title : "\(object.stitchTitle) · \(object.color.name) thread").font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
+                Text(heading(object)).font(Theme.heading(18)).lineLimit(2)
+                Text(object.kind == .raw ? object.kind.title : "\(detail(object)) · \(object.color.name) thread").font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
             }
             if object.stitchEdits != nil { stitchEditNotice(object) }
-            if let lettering = object.lettering { letteringSummary(lettering) }
+            if let lettering = object.lettering { letteringEditor(lettering) }
             if let monogram = object.monogram { monogramSummary(monogram) }
             if object.kind == .run || object.kind == .satin || object.kind == .fill { closeUp(object) }
             if object.kind == .fill {
@@ -1126,7 +1145,7 @@ struct InspectorPanel: View {
         .help("\(title) point, from the hoop's center")
     }
     /// One line of plain-English help under a setting. The Pro view leaves these out (the settings show them as tooltips).
-    @ViewBuilder private func explain(_ text: String) -> some View {
+    @ViewBuilder func explain(_ text: String) -> some View {
         if !pro { Text(text).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true) }
     }
     /// Fills: the "Cut out shapes sewn on top" checkbox (OverlapCutout.swift). Off unless switched on. Shared with Pro.
@@ -1218,7 +1237,7 @@ struct InspectorPanel: View {
         HStack {
             Text(title).font(Theme.body(pro ? 11 : 12, weight: pro ? .regular : .semibold)); Spacer()
             NumberField(value: value, identifier: id, range: range, unit: length ? preferences.unit : nil, commit: commit, focusCanvas: state.focusCanvas).frame(width: pro ? 84 : 74, height: pro ? 21 : 24)
-            if length { Text(preferences.unit.symbol).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).frame(width: 16, alignment: .leading) }
+            if length { Text(preferences.unit.symbol).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).fixedSize().frame(width: 18, alignment: .leading) }
         }
         .help(hover ?? help ?? "")
         if let help { explain(help) }

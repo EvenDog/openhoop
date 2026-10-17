@@ -107,7 +107,8 @@ public final class EmbroideryFont: @unchecked Sendable {   // the glyph cache be
     /// Lettering in this font: one grouped object per stitched part of each letter, `height` mm tall (the font's
     /// reference letter), set along `shape` (with the arc's `radius` in mm), centered on the hoop, in `color`.
     /// With `centered` false, straight lettering keeps its baseline at y = 0 instead (used to stack lines of text).
-    public func shapes(text: String, height: Double, color: ThreadColor, shape: LetteringShape = .straight, radius: Double = 40, centered: Bool = true) throws -> LetteringResult {
+    public func shapes(text: String, height: Double, color: ThreadColor, shape: LetteringShape = .straight, radius: Double = 40, centered: Bool = true,
+                       spacing: Double = 0, nudges: [Int: Point] = [:]) throws -> LetteringResult {
         guard !text.trimmingCharacters(in: .whitespaces).isEmpty else { throw DesignError.invalid("Type some text first.") }
         guard text.count <= Lettering.maximumCharacters, !text.contains(where: \.isNewline) else { throw DesignError.invalid("Lettering is one line of up to \(Lettering.maximumCharacters) characters.") }
         let low = heights.lowerBound, high = heights.upperBound
@@ -154,7 +155,7 @@ public final class EmbroideryFont: @unchecked Sendable {   // the glyph cache be
         }
         guard !objects.isEmpty else { throw DesignError.invalid("These letters couldn't be converted from \(name).") }
         // Curve and center the letters, moving each part's first and last stitch along with it.
-        let (moves, size) = try Lettering.arrange(&objects, letters: letters, height: height, shape: shape, radius: radius, centered: centered)
+        let (moves, size) = try Lettering.arrange(&objects, letters: letters, height: height, shape: shape, radius: radius, centered: centered, spacing: spacing, nudges: nudges)
         for i in ends.indices { ends[i] = (moves[i](ends[i].first), moves[i](ends[i].last)) }
         // Trim only where the next part starts more than 2 mm away (and after the last one); shorter moves between
         // the parts of a letter are left as plain jumps, which embroidery software normally doesn't cut.
