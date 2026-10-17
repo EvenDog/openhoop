@@ -81,7 +81,7 @@ final class ShapeTests: XCTestCase {
     /// outline on its edge, grouped. Each one sews.
     func testClosedShapeGetsThePickedFillAndOutline() throws {
         let nodes = ShapeGeometry.nodes(.ellipse, in: box)
-        for fill in [nil] + FillStyle.allCases {
+        for fill in [nil] + FillStyle.forNewShapes {
             for outline in [nil] + OpenShapeStitch.allCases where fill != nil || outline != nil {
                 let label = "\(fill?.title ?? "no") fill, \(outline?.title ?? "no") outline"
                 let made = try ShapeStitching.closedShape(nodes, fill: fill, outline: outline, satinWidth: 3, name: "Shape", color: .palette[0])

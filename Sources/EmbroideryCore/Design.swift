@@ -100,6 +100,8 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
     public var stitchEdits: StitchEdits?
     /// For the parts of a monogram (Monogram.swift): the recipe to rebuild it.
     public var monogram: MonogramSpec?
+    /// Set on an unstitched line that guides a fill: the fill's id. A guided fill's rows follow it (GuidedFill.swift).
+    public var guideFor: UUID?
     public var kind: StitchKind { rawStitches != nil ? .raw : digitizing?.kind ?? .run }
     public var settings: DigitizingSettings { digitizing ?? DigitizingSettings(kind: .run) }
     /// What the stitches are called in lists: the stitch kind, naming the fill style for fills (such as "Contour Fill").
@@ -117,6 +119,7 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
         lettering?.transform(body); monogram?.transform(body)
         if let center = digitizing?.radialCenter { digitizing?.radialCenter = body(center) }
         if let lines = digitizing?.angleLines { digitizing?.angleLines = lines.map { $0.map(body) } }
+        if let guide = digitizing?.guideLine { digitizing?.guideLine = guide.map(body) }
         if let center = digitizing?.angleLineCenter { digitizing?.angleLineCenter = body(center) }
         // Edited stitches move with the object, and still count as made from it.
         if stitchEdits != nil { for s in stitchEdits!.sections.indices { stitchEdits!.sections[s].points = stitchEdits!.sections[s].points.map(body) } }
@@ -252,9 +255,11 @@ public enum UnderlayStyle: String, Codable, CaseIterable, Sendable {case none, c
 /// a small pattern tiled across the shape (motif), a grid of X's (cross stitch), or rows that open up across the shape
 /// (gradient).
 public enum FillStyle: String, Codable, CaseIterable, Sendable {
-    case tatami, contour, radial, wave, stipple, motif, crossStitch, gradient
+    case tatami, contour, radial, wave, stipple, motif, crossStitch, gradient, guided
+    /// The styles a newly drawn shape can start with: all but Guided, which needs a guide line drawn afterwards.
+    public static let forNewShapes = allCases.filter { $0 != .guided }
     public var title: String {
-        switch self { case .tatami: return "Tatami"; case .contour: return "Contour"; case .radial: return "Radial"; case .wave: return "Wave"; case .stipple: return "Stipple"; case .motif: return "Motif"; case .crossStitch: return "Cross stitch"; case .gradient: return "Gradient" }
+        switch self { case .tatami: return "Tatami"; case .contour: return "Contour"; case .radial: return "Radial"; case .wave: return "Wave"; case .stipple: return "Stipple"; case .motif: return "Motif"; case .crossStitch: return "Cross stitch"; case .gradient: return "Gradient"; case .guided: return "Guided" }
     }
     public var summary: String {
         switch self {
@@ -266,6 +271,7 @@ public enum FillStyle: String, Codable, CaseIterable, Sendable {
         case .motif: return "A small pattern (hearts, leaves, stars…) repeated in rows across the shape: a decorative, open fill."
         case .crossStitch: return "Little X's on a square grid, like hand cross-stitch. Only whole squares inside the shape get one, so the edge steps like a real cross-stitch."
         case .gradient: return "Tatami rows that start close together and open up across the shape, from solid to sheer: for shading, or for blending one thread color into another."
+        case .guided: return "Rows that bend to follow a guide line drawn over the shape, evenly spaced: for hair, feathers, petals and anything that flows."
         }
     }
 }
@@ -393,6 +399,10 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     /// Fills only: leave out the area that shapes sewn after this one cover (OverlapCutout.swift). nil (the default)
     /// means off: the whole fill sews.
     public var cutOutOverlaps:Bool?
+    /// Guided fills: the path of the guide line the rows follow, in mm. It's copied from the fill's guide line (an
+    /// unstitched line whose `guideFor` is this fill) after every edit (Design.syncGuides), and kept if that line is
+    /// deleted, so the fill still sews the same way.
+    public var guideLine:[Point]?
     public init(kind:StitchKind) {
         self.kind=kind;underlay=kind == .vector ? .none : kind == .fill ? .edgeAndSparse : kind == .satin ? .auto : .center
         if kind == .satin {shortStitches=true;autoSplit=true;pullPercent=Self.defaultPullPercent}
@@ -502,13 +512,14 @@ public struct Design: Codable, Equatable, Sendable {
     /// Closed satins (borders) count too: an older version would sew them with their last span missing.
     /// So do contour, radial and wave fills: an older version would sew them as straight rows. And satins with a
     /// second underlay, Auto underlay or compensation by width, which an older version would leave out.
-    /// True when a design uses something added in file version 6 (line stitch styles; stipple, motif, cross stitch and
-    /// gradient fills; raised satin), so it's saved
+    /// True when a design uses something added in file version 6 (line stitch styles; stipple, motif, cross stitch,
+    /// gradient and guided fills, and guide lines; raised satin), so it's saved
     /// as version 6 and older versions of the app, which would sew those as plain stitches, refuse it instead.
     public var needsSchemaSix: Bool {
         objects.contains { ($0.kind == .run && ($0.settings.runStyle ?? .running) != .running)
             || $0.lettering.map { $0.letterSpacing != nil || !($0.letterOffsets ?? [:]).isEmpty || $0.entry != nil || $0.exit != nil } == true
-            || ($0.kind == .fill && [.stipple, .motif, .crossStitch, .gradient].contains($0.settings.fillStyle ?? .tatami)) || ($0.kind == .satin && $0.settings.raised == true) }
+            || ($0.kind == .fill && [.stipple, .motif, .crossStitch, .gradient, .guided].contains($0.settings.fillStyle ?? .tatami)) || ($0.kind == .satin && $0.settings.raised == true)
+            || $0.guideFor != nil }
     }
     public var needsSchemaFive: Bool { usesHandles || basting != nil || objects.contains { $0.branchID != nil || $0.stitchEdits != nil || $0.entry != nil || $0.exit != nil || ($0.kind == .satin && ($0.closed || $0.settings.relaxedChecks == true)) || ($0.kind == .fill && ($0.settings.fillStyle ?? .tatami) != .tatami) || ($0.kind == .run && ($0.settings.runPasses ?? 1) > 1) || ($0.kind == .satin && ($0.settings.shortStitches == true || $0.settings.autoSplit == true)) || ($0.kind == .fill && ($0.settings.cutOutOverlaps == true || !($0.settings.angleLines ?? []).isEmpty)) || ($0.kind == .satin && ($0.settings.secondUnderlay != nil || $0.settings.underlay == .auto || $0.settings.pullPercent != nil)) } }
     public static func sample() -> Self {
@@ -581,6 +592,7 @@ public struct Design: Codable, Equatable, Sendable {
                 guard s.radialCenter.map({ $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 }) ?? true,
                       s.angleLineCenter.map({ $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 }) ?? true,
                       s.angleLines.map({ lines in lines.count <= 100 && lines.allSatisfy { $0.count == 2 && $0.allSatisfy { $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 } } }) ?? true,
+                      s.guideLine.map({ line in line.count <= 20_000 && line.allSatisfy { $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 } }) ?? true,
                       s.waveHeight.map(DigitizingSettings.waveHeightRange.contains) ?? true,
                       s.waveLength.map(DigitizingSettings.waveLengthRange.contains) ?? true else {throw DesignError.invalid("Invalid fill style settings in \(object.name).")}
             }

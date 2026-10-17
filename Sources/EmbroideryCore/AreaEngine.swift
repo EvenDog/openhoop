@@ -61,6 +61,9 @@ public enum AreaEngine {
         case .motif:parts=[try Motifs.fill(in:expanded,motif:s.motif ?? .heart,size:s.patternSize ?? DigitizingSettings.defaultPatternSize(.motif),gap:s.patternGap ?? DigitizingSettings.defaultPatternGap,angle:s.angle,length:object.stitchLength)]
         case .crossStitch:parts=[try Motifs.crossStitch(in:expanded,size:s.patternSize ?? DigitizingSettings.defaultPatternSize(.crossStitch))]
         case .stipple:parts=[try FillStyles.stipple(in:expanded,spacing:s.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing,length:object.stitchLength,start:start)]
+        case .guided:
+            guard let guide=s.guideLine else{throw DesignError.invalid("This guided fill has no guide line. Draw a line over it, select both and choose Use Line as Fill Guide.")}
+            parts=[try GuidedFill.rows(in:expanded,guide:guide,spacing:s.spacing,length:object.stitchLength)]
         case .radial:parts=[try FillStyles.radial(in:expanded,center:s.radialCenter ?? AreaGeometry.centroid(original[0]),spacing:s.spacing,length:object.stitchLength,start:start)]
         }
         parts=parts.map{$0.filter(isLongEnough)}.filter{!$0.isEmpty}
@@ -72,12 +75,14 @@ public enum AreaEngine {
         // row angle), and their rows already come in sewing order.
         let rowStyle=(style == .tatami && (s.angleLines ?? []).isEmpty) || style == .wave || style == .gradient
         let router=TravelRouter(edges:edges,bounds:bounds,rowAngle:rowStyle ? s.angle:nil)
+        // Guided rows bend, so travel across them is priced like satin too, but they're put in sewing order like straight rows.
+        let reorders=rowStyle || style == .guided
         // Sew each part's sections in the order (and from the ends) that keep travel shortest. Its first section stays
         // first (it honors the start point); with an end point, the last part's last stays last. Contour and radial
         // sections already come in sewing order.
         for (index,part) in parts.enumerated() {
             let sections=part.map{StitchSection($0)}
-            result.sections += rowStyle ? router?.ordered(sections,keepingLast:exit != nil && index==parts.count-1) ?? sections : sections
+            result.sections += reorders ? router?.ordered(sections,keepingLast:exit != nil && index==parts.count-1) ?? sections : sections
         }
         result.sections=router?.join(result.sections) ?? result.sections
         // The needle goes in exactly at the start point and runs inside the shape to where the stitching begins (under
@@ -654,7 +659,8 @@ public enum StitchEngine {
                 previous=object;continue
             }
             let generated:ObjectStitches
-            if object.kind == .vector {plan.warnings.append("\(object.name): vector outline is unstitched and excluded from export.");continue}
+            // A guide line steers a guided fill and sews nothing itself.
+            if object.kind == .vector {if object.guideFor == nil {plan.warnings.append("\(object.name): vector outline is unstitched and excluded from export.")};continue}
             do {
                 // Stitches edited by hand sew instead, while they still match the object.
                 if let edits=object.stitchEdits,object.hasCurrentStitchEdits {generated=edits.stitches}

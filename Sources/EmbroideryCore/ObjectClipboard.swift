@@ -23,9 +23,9 @@ extension Design {
     /// as a new group (or new lettering or branch), separate from the originals. Pasted objects are unlocked.
     @discardableResult
     public mutating func paste(_ clipboard: ObjectClipboard, offset: Point = Point(0, 0)) -> [UUID] {
-        var ids: [UUID] = [], newGroups: [UUID: UUID] = [:], newLettering: [UUID: UUID] = [:]
+        var ids: [UUID] = [], newGroups: [UUID: UUID] = [:], newLettering: [UUID: UUID] = [:], copies: [UUID: UUID] = [:]
         for object in clipboard.objects {
-            var copy = object; copy.id = UUID(); copy.locked = false
+            var copy = object; copy.id = UUID(); copy.locked = false; copies[object.id] = copy.id
             if offset != Point(0, 0) { copy.transform { $0 + offset } }
             if let old = copy.groupID { if newGroups[old] == nil { newGroups[old] = UUID() }; copy.groupID = newGroups[old] }
             if let old = copy.branchID { if newGroups[old] == nil { newGroups[old] = UUID() }; copy.branchID = newGroups[old] }   // a separate branch too
@@ -33,6 +33,7 @@ extension Design {
             if let old = copy.monogram?.id { if newLettering[old] == nil { newLettering[old] = UUID() }; copy.monogram?.id = newLettering[old]! }   // a separate monogram too
             ids.append(copy.id); objects.append(copy)
         }
+        relinkCopiedGuides(copies)   // a copied guide line guides the copied fill
         return ids
     }
 }
