@@ -28,7 +28,6 @@ struct PanelContent: View {
         case .design: InspectorPanel(state: state, section: .design)
         case .reference: InspectorPanel(state: state, section: .reference)
         case .threads: ThreadsPanel(state: state)
-        case .player: PlayerPanel(state: state)
         }
     }
 }
@@ -253,15 +252,13 @@ extension PanelID {
     var shortTitle: String {
         switch self {
         case .reference: return "Reference"
-        case .player: return "Player"
         default: return title
         }
     }
-    /// The natural height of panels that need only a little room (the stitch player and threads); nil for panels
-    /// that take whatever room the dock has.
+    /// The natural height of panels that need only a little room (threads); nil for panels that take whatever room
+    /// the dock has.
     var compact: Double? {
         switch self {
-        case .player: return 165   // play row, stitch slider and speed row
         case .threads: return 170
         default: return nil
         }
@@ -274,7 +271,6 @@ extension PanelID {
         case .design: return .panelDesign
         case .reference: return .panelReference
         case .threads: return .palette
-        case .player: return .panelPlayer
         }
     }
     init?(command: CommandID) {

@@ -39,7 +39,7 @@ struct Workspace: Codable, Equatable, Identifiable {
         var layout = PanelLayout.standard
         if inspectorOnLeft { swap(&layout.left, &layout.right) }
         if !inspectorVisible { layout.hide(.properties) }
-        if !paletteVisible { layout.hide(.threads); layout.hide(.player) }
+        if !paletteVisible { layout.hide(.threads) }
         layout.leftWidth = inspectorOnLeft ? inspectorWidth : objectsWidth
         layout.rightWidth = inspectorOnLeft ? objectsWidth : inspectorWidth
         return layout.normalized()
@@ -107,6 +107,8 @@ struct PreferenceData: Codable {
     var fillStitchLength: Double?
     var fillAngle: Double?
     var satinPullPercent: Double?
+    /// The stitch player's four speed buttons, in stitches per second (Settings › General); nil means the built-in ones.
+    var speedPresets: [Double]?
 }
 
 /// The canvas's view choices, remembered across designs and launches. Each is nil until it's first switched, which
@@ -127,9 +129,32 @@ struct ShownItems: Codable, Equatable {
     @Published var data = PreferenceData()
     @Published var error: String?
     /// How fast the stitch player sews, in stitches per second (a machine sews about 12). It sits outside `data`,
-    /// so it isn't saved: every launch starts at 120 again.
+    /// so it isn't saved: every launch starts at the second speed button again.
     @Published var playbackSpeed = 120.0
     static let playbackSpeeds = 1.0...5000.0
+    /// The built-in speed buttons: about machine speed, the usual preview speed, fast, and very fast.
+    static let builtInSpeedPresets: [Double] = [12, 120, 500, 2000]
+    /// The stitch player's four speed buttons, in stitches per second.
+    var speedPresets: [Double] {
+        guard let saved = data.speedPresets, saved.count == Self.builtInSpeedPresets.count else { return Self.builtInSpeedPresets }
+        return saved
+    }
+    /// Changes one speed button (kept within 1–5,000) and saves it. Changing the button the player is on changes
+    /// the speed too, so the button stays lit.
+    func setSpeedPreset(_ index: Int, to speed: Double) {
+        var presets = speedPresets
+        guard presets.indices.contains(index) else { return }
+        let speed = min(max(speed.rounded(), Self.playbackSpeeds.lowerBound), Self.playbackSpeeds.upperBound)
+        if playbackSpeed == presets[index] { playbackSpeed = speed }
+        presets[index] = speed
+        data.speedPresets = presets == Self.builtInSpeedPresets ? nil : presets
+        save(announce: false)   // the player buttons watch these preferences, so nothing needs rebuilding
+    }
+    /// Puts the speed buttons back to the built-in ones; the player moves to the same button's new speed.
+    func resetSpeedPresets() {
+        if let index = speedPresets.firstIndex(of: playbackSpeed) { playbackSpeed = Self.builtInSpeedPresets[index] }
+        data.speedPresets = nil; save(announce: false)
+    }
     var isRecording = false
     var recordHandler: ((KeyBinding) -> Void)?
     /// True when the Pro view is on. It's app-wide: every design window shows the same view.
@@ -236,6 +261,7 @@ struct ShownItems: Codable, Equatable {
                 if movedKeys { save() }
             }
         } catch { self.error = "Preferences could not be loaded: \(error.localizedDescription)" }
+        playbackSpeed = speedPresets[1]
     }
     var profile: ShortcutProfile { data.profiles[data.activeProfile] }
     func keys(_ command: CommandID) -> [KeyBinding] { profile.bindings[command.rawValue] ?? [] }

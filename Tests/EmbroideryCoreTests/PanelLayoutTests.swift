@@ -16,12 +16,12 @@ final class PanelLayoutTests: XCTestCase {
     func testPanelsReturnToTheirProHome() {
         // In the Pro view, the design panel's home is a tab beside the sewing order on the left.
         var pro = PanelLayout.pro
-        pro.hide(.design); pro.hide(.player)
+        pro.hide(.design); pro.hide(.properties)
         XCTAssertEqual(pro.left.map(\.panels), [[.sewingOrder, .reference], [.threads]])
         pro.show(.design, home: .pro)
         XCTAssertEqual(pro.left.map(\.panels), [[.sewingOrder, .reference, .design], [.threads]])
-        pro.show(.player, home: .pro)
-        XCTAssertEqual(pro.right.map(\.panels), [[.properties], [.player]])
+        pro.show(.properties, home: .pro)
+        XCTAssertEqual(pro.right.map(\.panels), [[.properties]])
     }
 
     func testDockingAsTabAndAsNewGroup() {
@@ -31,44 +31,44 @@ final class PanelLayoutTests: XCTestCase {
         // Properties moves to the top of the left dock as its own group; the right dock closes up.
         layout.move(.properties, to: .newGroup(.left, at: 0))
         XCTAssertEqual(layout.left.map(\.panels), [[.properties], [.sewingOrder, .threads]])
-        XCTAssertEqual(layout.right.map(\.panels), [[.design, .reference], [.player]])
+        XCTAssertEqual(layout.right.map(\.panels), [[.design, .reference]])
         // Moving a tab out of a group leaves the rest with a valid selection.
-        layout.move(.reference, to: .newGroup(.right, at: 2))
-        XCTAssertEqual(layout.right.map(\.panels), [[.design], [.player], [.reference]])
+        layout.move(.reference, to: .newGroup(.right, at: 1))
+        XCTAssertEqual(layout.right.map(\.panels), [[.design], [.reference]])
         XCTAssertEqual(layout.right[0].selected, .design)
     }
 
     func testMovingWithinTheSameDock() {
-        // The stitch player (third on the right) moves above properties (first): positions are "before the move".
-        layout.move(.player, to: .newGroup(.right, at: 0))
-        XCTAssertEqual(layout.right.map(\.panels), [[.player], [.properties], [.design, .reference]])
+        // Threads (second on the left) moves above the sewing order (first): positions are "before the move".
+        layout.move(.threads, to: .newGroup(.left, at: 0))
+        XCTAssertEqual(layout.left.map(\.panels), [[.threads], [.sewingOrder]])
         // Dropping a lone panel just below itself changes nothing.
         let before = layout
-        layout.move(.player, to: .newGroup(.right, at: 1))
+        layout.move(.threads, to: .newGroup(.left, at: 1))
         XCTAssertEqual(layout, before)
         // Dropping a panel onto its own group's tabs just selects it.
-        layout.move(.reference, to: .tab(.right, group: 2))
-        XCTAssertEqual(layout.right[2], PanelGroup([.design, .reference], selected: .reference))
+        layout.move(.reference, to: .tab(.right, group: 1))
+        XCTAssertEqual(layout.right[1], PanelGroup([.design, .reference], selected: .reference))
     }
 
     func testFloatingAndBack() {
-        layout.move(.player, to: .float(x: 300, y: 200, width: 280, height: 160))
-        XCTAssertEqual(layout.floating, [FloatingGroup(group: PanelGroup([.player]), x: 300, y: 200, width: 280, height: 160)])
-        XCTAssertFalse(layout.right.contains { $0.panels.contains(.player) })
+        layout.move(.properties, to: .float(x: 300, y: 200, width: 280, height: 160))
+        XCTAssertEqual(layout.floating, [FloatingGroup(group: PanelGroup([.properties]), x: 300, y: 200, width: 280, height: 160)])
+        XCTAssertFalse(layout.right.contains { $0.panels.contains(.properties) })
         layout.move(.threads, to: .floatingTab(0))
-        XCTAssertEqual(layout.floating[0].group, PanelGroup([.player, .threads], selected: .threads))
+        XCTAssertEqual(layout.floating[0].group, PanelGroup([.properties, .threads], selected: .threads))
         XCTAssertEqual(layout.left.map(\.panels), [[.sewingOrder]])
         // Docking both back removes the floating window.
-        layout.move(.player, to: .newGroup(.left, at: 1)); layout.move(.threads, to: .tab(.left, group: 1))
+        layout.move(.properties, to: .newGroup(.left, at: 1)); layout.move(.threads, to: .tab(.left, group: 1))
         XCTAssertTrue(layout.floating.isEmpty)
-        XCTAssertEqual(layout.left.map(\.panels), [[.sewingOrder], [.player, .threads]])
+        XCTAssertEqual(layout.left.map(\.panels), [[.sewingOrder], [.properties, .threads]])
     }
 
     func testHideAndShowReturnPanelsToTheirHome() {
         layout.hide(.reference); layout.hide(.properties)
-        XCTAssertFalse(layout.isVisible(.reference)); XCTAssertEqual(layout.right.map(\.panels), [[.design], [.player]])
+        XCTAssertFalse(layout.isVisible(.reference)); XCTAssertEqual(layout.right.map(\.panels), [[.design]])
         layout.show(.reference)   // its standard neighbor (design) is showing, so it becomes a tab there
-        XCTAssertEqual(layout.right.map(\.panels), [[.design, .reference], [.player]])
+        XCTAssertEqual(layout.right.map(\.panels), [[.design, .reference]])
         layout.show(.properties)  // no neighbors: a new group at the bottom of its dock
         XCTAssertEqual(layout.right.last?.panels, [.properties])
         layout.hide(.sewingOrder); layout.hide(.threads)
@@ -76,10 +76,20 @@ final class PanelLayoutTests: XCTestCase {
     }
 
     func testRepairingASavedLayout() throws {
-        let broken = PanelLayout(left: [PanelGroup([.threads, .threads, .design], selected: .player), PanelGroup([.design])], right: [], floating: [])
+        let broken = PanelLayout(left: [PanelGroup([.threads, .threads, .design], selected: .properties), PanelGroup([.design])], right: [], floating: [])
         let fixed = broken.normalized()
         XCTAssertEqual(fixed.left, [PanelGroup([.threads, .design])])
         let data = try JSONEncoder().encode(PanelLayout.standard)
         XCTAssertEqual(try JSONDecoder().decode(PanelLayout.self, from: data), .standard)
+    }
+
+    func testASavedStitchPlayerPanelIsLeftOut() throws {
+        // Layouts saved before the stitch player moved to the title bar still list its panel. Loading leaves it out,
+        // and groups that held only the player disappear, docked or floating.
+        let saved = #"{"left":[{"panels":["sewingOrder"],"selected":"sewingOrder"}],"right":[{"panels":["properties"],"selected":"properties"},{"panels":["player"],"selected":"player","height":165},{"panels":["player","design"],"selected":"player"}],"floating":[{"group":{"panels":["player"],"selected":"player"},"x":0,"y":0,"width":200,"height":160}],"leftWidth":230,"rightWidth":280}"#
+        let layout = try JSONDecoder().decode(PanelLayout.self, from: Data(saved.utf8)).normalized()
+        XCTAssertEqual(layout.right, [PanelGroup([.properties]), PanelGroup([.design])])
+        XCTAssertEqual(layout.left, [PanelGroup([.sewingOrder])])
+        XCTAssertTrue(layout.floating.isEmpty)
     }
 }
