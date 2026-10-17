@@ -324,7 +324,7 @@ struct ToolStrip: View {
         case .smoothShapes: return !state.editableSelection.isEmpty
         case .editStitches: return state.selection.count == 1 && state.selected?.locked == false && [.run, .satin, .fill].contains(state.selected?.kind)
         case .branching: return state.design.objects.filter { state.selection.contains($0.id) && !$0.locked && [.run, .satin, .fill].contains($0.kind) }.count >= 2
-        default: return true
+        default: return !command.needsSelection || !state.selection.isEmpty
         }
     }
     /// True when this button's tool is the current tool, or its view option (the grid) is switched on.
@@ -775,7 +775,9 @@ struct InspectorPanel: View {
                     ForEach(FillStyle.allCases,id:\.self){Text($0.title).tag($0)}
                 }.font(Theme.body(12, weight: .semibold)).help(style.summary)
                 explain(style.summary)
-                if [.tatami, .wave, .gradient, .motif].contains(style) {
+                // Only where the rows follow it (with stitch angle lines, or for contour, radial and guided fills, it
+                // turns just the underlay: see Underlay angle below).
+                if StitchAngleLine.applies(to: object) {
                     number("Fill angle °",value:object.settings.angle,id:"fillAngle",range:-180...180,help:"The direction the fill rows run."){value in settings(.fill,"Fill Angle"){$0.angle=value}}
                 }
                 if style == .tatami { stitchAngles(object) }
@@ -836,6 +838,9 @@ struct InspectorPanel: View {
                 Picker("Underlay",selection:Binding(get:{object.settings.underlay},set:{value in settings(object.kind,"Underlay"){$0.underlay=value}})){
                     ForEach(object.kind == .fill ? [UnderlayStyle.none,.edge,.edgeAndSparse]:[.auto,.none,.center,.edge,.zigzag],id:\.self){style in Text(style.title).tag(style)}
                 }.font(Theme.body(12, weight: .semibold)).help("A quick first layer under the stitches. It holds the fabric still so the top stitches lie smooth.")
+                if StitchAngleLine.steersOnlyUnderlay(object) {
+                    number("Underlay angle °",value:object.settings.angle,id:"fillAngle",range:-180...180,help:"The direction of the sparse underlay rows. This fill's own stitches don't follow an angle, so it only turns the underlay."){value in settings(.fill,"Underlay Angle"){$0.angle=value}}
+                }
                 explain(object.settings.underlay == .auto ? "Auto picks from the satin's average width: a center run under 2 mm, an edge run up to 4 mm, an edge run then a zigzag above that (from 2 mm on knit and towel). It updates as you reshape the satin." : "A quick first layer under the stitches. It holds the fabric still so the top stitches lie smooth.")
                 }
             }

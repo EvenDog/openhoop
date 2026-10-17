@@ -121,6 +121,8 @@ While dragging a shape, hold **⌘** to keep it even (a square, circle or regula
 
 **Underlay** is a quick first layer that holds the fabric still. Satins: **Auto** (the default for new satins, borders and appliqué edges), center run, inset edge or inset zigzag. Auto picks from the satin's average width each time it sews, so it follows reshaping: a center run under 2 mm, an inset edge run up to 4 mm, and an edge run then a zigzag above that (from 2 mm on knit and towel). These steps are starting values to tune after a sew-out. Fills: inset edge, or edge plus a sparse fill. **U** turns it on or off; **⇧U** shows it on the canvas.
 
+Fills with **Edge + sparse** underlay lay their sparse rows at the fill angle. For contour, radial and guided fills (and tatami steered by stitch angle lines), whose own rows don't follow that angle, it shows as **Underlay angle** instead, and turns only the underlay. **Underlay spacing** shows only where there are underlay rows to space: not for an edge run on its own.
+
 Satins with a chosen (not Auto) underlay can have a **second underlay** (More settings in Guided, the Underlay section in Pro). It sews after the first, back along the column, so the top stitches start where it ends. Common pairs are center run then zigzag, or edge run then zigzag for wide satins. Both layers use the same inset and spacing. Turning underlay off (or picking the same style for the first) clears the second.
 
 **Finishing:** **Tie in** and **Tie off** add tiny locking stitches, **Trim after** cuts the thread before the next part, and **Stop after** pauses the machine.
