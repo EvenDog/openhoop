@@ -18,35 +18,18 @@ import EmbroideryCore
     private var shownLayout: PanelLayout?
     /// False until the pane has been on screen once; the first showing fits the hoop in the window.
     var hasBeenShown = false
-    /// Watches the Next Shape bar's size (see init).
-    private var barObserver: NSObjectProtocol?
 
     init(document: DesignDocument) {
         self.document = document
         let state = document.state
-        // The canvas fills its area; the Next Shape bar floats over its top edge, just under the ruler, and takes
-        // clicks only where it's drawn (it has no size at all while no shape tool is on).
-        let canvas = DesignCanvas(state: state), canvasArea = NSView(), shapeBar = NSHostingView(rootView: CanvasShapeBar(state: state))
-        for part in [canvas, shapeBar] { part.translatesAutoresizingMaskIntoConstraints = false; canvasArea.addSubview(part) }
-        NSLayoutConstraint.activate([
-            canvas.topAnchor.constraint(equalTo: canvasArea.topAnchor), canvas.bottomAnchor.constraint(equalTo: canvasArea.bottomAnchor),
-            canvas.leadingAnchor.constraint(equalTo: canvasArea.leadingAnchor), canvas.trailingAnchor.constraint(equalTo: canvasArea.trailingAnchor),
-            shapeBar.topAnchor.constraint(equalTo: canvasArea.topAnchor, constant: 23), shapeBar.centerXAnchor.constraint(equalTo: canvasArea.centerXAnchor)
-        ])
-        // The pointer keeps its normal arrow over the bar; its size changes with the tool and choices, so the canvas
-        // redoes its pointer areas whenever it does.
-        canvas.floatingBar = shapeBar; shapeBar.postsFrameChangedNotifications = true
-        barObserver = NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: shapeBar, queue: .main) { [weak canvas] _ in
-            MainActor.assumeIsolated { if let canvas { canvas.window?.invalidateCursorRects(for: canvas) } }
-        }
-        let canvasVC = NSViewController(); canvasVC.view = canvasArea
+        // The canvas fills its area. (The tool's choices, such as the next shape's, are in the Properties panel.)
+        let canvasVC = NSViewController(); canvasVC.view = DesignCanvas(state: state)
         leftDock = NSSplitViewItem(viewController: NSHostingController(rootView: DockColumn(side: .left, state: state)))
         rightDock = NSSplitViewItem(viewController: NSHostingController(rootView: DockColumn(side: .right, state: state)))
         canvasItem = NSSplitViewItem(viewController: canvasVC)
         super.init(nibName: nil, bundle: nil)
     }
     required init?(coder: NSCoder) { fatalError("Not used") }
-    deinit { if let barObserver { NotificationCenter.default.removeObserver(barObserver) } }
 
     override func loadView() {
         view = NSView()

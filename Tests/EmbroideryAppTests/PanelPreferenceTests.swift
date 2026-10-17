@@ -49,6 +49,19 @@ final class PanelPreferenceTests: XCTestCase {
     }
 
     /// A tool's tooltip names it, shows its key, and says what it does.
+    @MainActor func testPickingAToolWithChoicesOpensProperties() {
+        // The next shape's choices are in Properties, so a shape tool opens the panel if it was closed.
+        let preferences = Preferences.shared, before = preferences.data.workspace
+        defer { preferences.data.workspace = before; preferences.save(announce: false) }
+        preferences.updatePanels { $0.hide(.properties) }
+        let state = EditorState()
+        state.tool = .run
+        XCTAssertFalse(preferences.panels.isVisible(.properties), "a tool without choices leaves the panel closed")
+        state.tool = .basicShape
+        XCTAssertTrue(preferences.panels.isVisible(.properties))
+        XCTAssertTrue(ToolOptions.applies(to: .node)); XCTAssertTrue(ToolOptions.applies(to: .stitchEdit)); XCTAssertFalse(ToolOptions.applies(to: .select))
+    }
+
     @MainActor func testToolTooltipNamesTheToolItsKeyAndWhatItDoes() {
         let hint = Preferences.shared.hint(.knifeTool)
         XCTAssertTrue(hint.hasPrefix("Knife"), hint)
