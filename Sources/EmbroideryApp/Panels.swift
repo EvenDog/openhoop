@@ -752,6 +752,7 @@ struct InspectorPanel: View {
             let ownSpacing = object.kind == .fill && [.stipple, .motif, .crossStitch, .gradient].contains(object.settings.fillStyle ?? .tatami)
             let noUnderlay = object.kind == .fill && [.stipple, .motif, .crossStitch].contains(object.settings.fillStyle ?? .tatami)
             if object.kind == .satin || object.kind == .fill {
+                if object.kind == .satin { satinWidth(object) }
                 if !ownSpacing { number("Row spacing",value:object.settings.spacing,id:"rowSpacing",range:0.15...5,help:"Gap between each pass of thread. Smaller gaps give fuller coverage and use more stitches."){value in settings(object.kind,"Row Spacing"){$0.spacing=value}} }
                 if object.kind == .fill {
                     HStack{Button("Add hole"){AppDelegate.shared.perform(.holeTool)}.buttonStyle(ThemedButtonStyle()).help(preferences.hint(.holeTool));Text(ProStats.count(object.holes?.count ?? 0, "hole")).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)}
@@ -1195,6 +1196,14 @@ struct InspectorPanel: View {
         }
         .help(hover ?? help ?? "")
         if let help { explain(help) }
+    }
+    /// Width, for even-width satins (satin borders and satins made from a line): typing a new one rebuilds the satin
+    /// around its middle line. Hand-drawn columns, whose width varies, don't show it. Shared with the Pro layout.
+    @ViewBuilder func satinWidth(_ object: RunObject) -> some View {
+        if let width = SatinLine.evenWidth(of: object) {
+            number("Width", value: (width * 100).rounded() / 100, range: SatinLine.widths, length: true,
+                   help: "How wide the satin is. Type a new width and press Return; it stays centered where it is.") { state.setSatinWidth($0) }
+        }
     }
     func toggle(_ title: String, value: Bool, action: @escaping (Bool) -> Void) -> some View {
         Toggle(title, isOn: Binding(get: { value }, set: action)).font(Theme.body(pro ? 11 : 12)).toggleStyle(.checkbox)

@@ -204,7 +204,7 @@ Add **ornaments** either side (swirls in bean stitch, leaves or dots, drawn for 
 
 ## Patches: borders and appliqué
 
-**Satin border (⇧⌘O).** Select a fill or closed outline to add a satin column around its outside edge (1–8 mm, default 3), like the edge of a patch. Corners are rounded just enough for the satin to turn, and shapes too thin for the width are explained.
+**Satin border (⇧⌘O).** Select a fill or closed outline to add a satin column around its outside edge (1–8 mm, default 3), like the edge of a patch. Corners are rounded just enough for the satin to turn, and shapes too thin for the width are explained. To change a border's width later, select it and type a new **Width** in Properties (satin columns made from a line have it too). The satin is rebuilt around the same middle line; a satin line's sharp turns can't be widened past the width they were made at, and Properties says so.
 
 **Appliqué (F7 or ⌥Q).** Sews a piece of fabric on instead of filling the shape with stitches. The shape becomes three grouped parts, in its own thread:
 1. **Placement line**, then the machine stops: lay your fabric over the line.

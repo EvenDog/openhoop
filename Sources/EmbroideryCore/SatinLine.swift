@@ -127,3 +127,34 @@ public enum SatinLine {
         return result
     }
 }
+
+extension SatinLine {
+    /// The width of an even-width satin, such as a satin border or a satin made from a line: the narrowest distance
+    /// across it (its edge pairs are a little wider where it bends). nil for satins whose width varies, like most
+    /// hand-drawn columns, and for lettering, which keep their own shape.
+    public static func evenWidth(of object: RunObject) -> Double? {
+        guard object.kind == .satin, object.rawStitches == nil, object.lettering == nil, object.monogram == nil,
+              object.nodes.count >= 4, object.nodes.count % 2 == 0 else { return nil }
+        let across = stride(from: 0, to: object.nodes.count, by: 2).map { object.nodes[$0].point.distance(to: object.nodes[$0 + 1].point) }
+        // Within 8% (plus a hair for rounding) counts as even: borders and satin lines stay well inside that.
+        guard let narrowest = across.min(), let widest = across.max(), narrowest > 0.1, widest <= narrowest * 1.08 + 0.05 else { return nil }
+        return narrowest
+    }
+
+    /// `object`, an even-width satin, rebuilt `width` mm wide around the same center line (the middle of each edge
+    /// pair), the way a border or a satin line is first made, so corners are rounded to suit the new width. Everything
+    /// else about it stays. Throws, with a reason, if it isn't an even-width satin or can't sew that wide.
+    public static func rewidth(_ object: RunObject, to width: Double) throws -> RunObject {
+        guard evenWidth(of: object) != nil else { throw DesignError.invalid("‘\(object.name)’ isn't an even-width satin, so it has no single width to change.") }
+        guard widths.contains(width) else { throw DesignError.invalid("Satin width must be between 0.8 and 10 mm.") }
+        let center = stride(from: 0, to: object.nodes.count, by: 2).map { (object.nodes[$0].point + object.nodes[$0 + 1].point) * 0.5 }
+        var satin = object
+        satin.nodes = object.closed
+            ? try SatinBorder.edgePairs(around: center, width: width, name: object.name)
+            : try openPairs(along: center, width: width, name: object.name)
+        do { _ = try AreaEngine.satin(satin) } catch {
+            throw DesignError.invalid("A \(width.formatted()) mm satin doesn't fit along ‘\(object.name)’: \(error.localizedDescription) Try a narrower width.")
+        }
+        return satin
+    }
+}

@@ -456,6 +456,7 @@ extension InspectorPanel {
 
     private func proSatin(_ object: RunObject) -> some View {
         proSection("Satin") {
+            satinWidth(object)
             number("Row spacing", value: object.settings.spacing, id: "rowSpacing", range: 0.15...5, help: "Gap between each pass of thread. Smaller gaps give fuller coverage and use more stitches.") { value in settings(.satin, "Row Spacing") { $0.spacing = value } }
             number("Compensation / side", value: object.settings.expansion, range: 0...2, help: "Thread pulls fabric inward as it sews. A little extra width on each side keeps the column the size you drew.") { value in settings(.satin, "Compensation") { $0.expansion = value } }
             number("% of width", value: object.settings.pullPercent ?? 0, range: DigitizingSettings.pullPercentRange, help: "Extra compensation for each stitch, as a share of its width, on top of the amount above, so wide parts of the satin get more. 3% is a starting value to tune after a test sew-out.") { value in settings(.satin, "Compensation % of Width") { $0.pullPercent = value } }

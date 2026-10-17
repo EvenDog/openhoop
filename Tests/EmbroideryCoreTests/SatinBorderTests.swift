@@ -76,4 +76,39 @@ final class SatinBorderTests: XCTestCase {
         XCTAssertEqual(loops.count, 2, "Converting to running stitch gives the outside and inside rails")
         XCTAssertTrue(loops.allSatisfy(\.closed))
     }
+
+    /// A border's width can be changed afterwards (Properties › Width): it's read back from the satin, and the satin is
+    /// rebuilt around the same middle line at the new width.
+    func testBorderWidthCanBeChangedAfterwards() throws {
+        let border = try SatinBorder.around(fill(square), width: 3, color: thread).object
+        XCTAssertEqual(try XCTUnwrap(SatinLine.evenWidth(of: border)), 3, accuracy: 0.05)
+        let wider = try SatinLine.rewidth(border, to: 5)
+        XCTAssertEqual(try XCTUnwrap(SatinLine.evenWidth(of: wider)), 5, accuracy: 0.05)
+        XCTAssertEqual(wider.id, border.id); XCTAssertEqual(wider.name, border.name); XCTAssertTrue(wider.closed)
+        for i in stride(from: 0, to: wider.nodes.count, by: 2) {
+            let middle = (wider.nodes[i].point + wider.nodes[i + 1].point) * 0.5
+            XCTAssertLessThan(max(abs(middle.x), abs(middle.y)), 20.01, "Still centered on the square's edge")
+        }
+        XCTAssertNoThrow(try AreaEngine.satin(wider))
+        XCTAssertEqual(try XCTUnwrap(SatinLine.evenWidth(of: SatinLine.rewidth(wider, to: 3))), 3, accuracy: 0.05, "and back again")
+        XCTAssertThrowsError(try SatinLine.rewidth(border, to: 20), "outside 0.8–10 mm")
+    }
+
+    /// Open satin lines change width too. Their sharp turns were rounded for the width they were made at, so a turn
+    /// can't be widened past that (it explains why); narrower always works. Hand-drawn columns of varying width have
+    /// no single width.
+    func testSatinLineWidthChangesAndUnevenColumnsAreLeftAlone() throws {
+        func line(_ points: [Point]) -> RunObject {
+            var o = RunObject(name: "Line", nodes: points.map { PathNode($0) }); o.digitizing = DigitizingSettings(kind: .run); return o
+        }
+        let straight = try SatinLine.column(from: line([Point(-20, 0), Point(20, 0)]), width: 3)
+        XCTAssertEqual(try XCTUnwrap(SatinLine.evenWidth(of: straight)), 3, accuracy: 0.05)
+        XCTAssertEqual(try XCTUnwrap(SatinLine.evenWidth(of: SatinLine.rewidth(straight, to: 6))), 6, accuracy: 0.05)
+        let corner = try SatinLine.column(from: line([Point(-20, 0), Point(0, 0), Point(0, 20)]), width: 4)
+        XCTAssertEqual(try XCTUnwrap(SatinLine.evenWidth(of: SatinLine.rewidth(corner, to: 2))), 2, accuracy: 0.05)
+        XCTAssertThrowsError(try SatinLine.rewidth(corner, to: 8)) { XCTAssertTrue("\($0)".contains("Try a narrower width")) }
+        var drawn = RunObject(name: "Drawn", nodes: [Point(0, 1), Point(0, -1), Point(10, 2.5), Point(10, -2.5)].map { PathNode($0) })
+        drawn.digitizing = DigitizingSettings(kind: .satin)
+        XCTAssertNil(SatinLine.evenWidth(of: drawn), "2 mm at one end, 5 mm at the other")
+    }
 }

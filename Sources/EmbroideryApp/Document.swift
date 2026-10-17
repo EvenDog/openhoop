@@ -173,6 +173,18 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         guard !name.isEmpty, let object = design.objects.first(where: { $0.id == id }), object.name != name else { return }
         edit("Rename Object") { next in if let index = next.objects.firstIndex(where: { $0.id == id }) { next.objects[index].name = name } }
     }
+    /// Sets the width of the selected even-width satins (satin borders and satins made from a line), rebuilding each
+    /// around its middle line, as one Undo step. If one can't sew that wide, nothing changes and the status line says why.
+    func setSatinWidth(_ width: Double) {
+        var rebuilt: [UUID: RunObject] = [:]
+        do {
+            for object in design.objects where selection.contains(object.id) && !object.locked && SatinLine.evenWidth(of: object) != nil {
+                rebuilt[object.id] = try SatinLine.rewidth(object, to: width)
+            }
+        } catch { status = error.localizedDescription; return }
+        guard !rebuilt.isEmpty else { return }
+        edit("Satin Width") { next in for index in next.objects.indices { if let new = rebuilt[next.objects[index].id] { next.objects[index] = new } } }
+    }
     /// The selected point (Edit Nodes), if it still exists.
     var selectedPathNode: PathNode? {
         guard let location = selectedNode, let object = design.objects.first(where: { $0.id == location.object }) else { return nil }
