@@ -790,11 +790,12 @@ struct InspectorPanel: View {
                     if object.settings.radialCenter != nil {Button("Center in the shape"){settings(.fill,"Reset Radial Center"){$0.radialCenter=nil}}.buttonStyle(ThemedButtonStyle()).help("Move the radial center back to the middle of the shape")}
                 }
             }
-            // Not for zigzag lines: Width and Spacing set their stitches.
-            if object.kind == .fill || (object.kind == .run && (object.settings.runStyle ?? .running).usesStitchLength) {
-                number("Stitch length", value: object.stitchLength, id: "stitchLength", range: 0.3...10, help: object.kind == .fill ? "Length of each stitch along a fill row." : "How far the needle moves per stitch. Shorter stitches follow curves more closely.") { value in state.editSelected("Stitch Length") { $0.stitchLength = value } }
+            // Not for zigzag lines or cross stitch fills: their own sizes set their stitches.
+            if (object.kind == .fill && (object.settings.fillStyle ?? .tatami).usesStitchLength) || (object.kind == .run && (object.settings.runStyle ?? .running).usesStitchLength) {
+                number("Stitch length", value: object.stitchLength, id: "stitchLength", range: 0.3...10, help: object.kind == .fill ? fillStitchLengthHelp(object) : "How far the needle moves per stitch. Shorter stitches follow curves more closely.") { value in state.editSelected("Stitch Length") { $0.stitchLength = value } }
             }
-            if SatinLine.canConvert(object) { satinLine(object) }
+            // A guide line only steers its fill or lettering: no satin column, closing or border for it.
+            if SatinLine.canConvert(object) && object.guideFor == nil { satinLine(object) }
             if object.kind == .run {
                 runStyle(object)
                 if (object.settings.runStyle ?? .running) == .running {
@@ -802,7 +803,7 @@ struct InspectorPanel: View {
                     explain("Bean stitch sews each stitch forward, back and forward again for a bold outline. Stitch lengths of 2.5–3.5 mm suit it.")
                 }
             }
-            if object.kind == .run || object.kind == .vector {toggle("Closed path", value: object.closed) { _ in AppDelegate.shared.perform(.closePath) }.help(preferences.hint(.closePath))}
+            if (object.kind == .run || object.kind == .vector) && object.guideFor == nil {toggle("Closed path", value: object.closed) { _ in AppDelegate.shared.perform(.closePath) }.help(preferences.hint(.closePath))}
             if SatinBorder.canBorder(object) {
                 Button("Add satin border…") { AppDelegate.shared.perform(.satinBorder) }.buttonStyle(ThemedButtonStyle())
                     .help("A satin column around this shape's outside edge, like the finished edge of a patch")
@@ -899,7 +900,8 @@ struct InspectorPanel: View {
                         explain("Sewn after the first underlay, back along the column. Common pairs: center run then zigzag, or edge run then zigzag for wide satins.")
                     }
                     if object.settings.usesUnderlayInset {number("Underlay inset",value:object.settings.inset,range:0...3,help:"How far inside the edge the underlay runs."){value in settings(object.kind,"Underlay Inset"){$0.inset=value}}}
-                    number("Underlay spacing",value:object.settings.underlaySpacing,range:0.5...5,help:"Gap between the underlay's rows."){value in settings(object.kind,"Underlay Spacing"){$0.underlaySpacing=value}}
+                    // Only underlay with rows to space (not an edge run alone).
+                    if object.settings.usesUnderlaySpacing(object.kind) {number("Underlay spacing",value:object.settings.underlaySpacing,range:0.5...5,help:"Gap between the underlay's rows."){value in settings(object.kind,"Underlay Spacing"){$0.underlaySpacing=value}}}
                 }
                 number(object.kind == .fill ? "Fill expansion":"Compensation / side",value:object.settings.expansion,range:0...2,help:object.kind == .fill ? "Grows the fill past its outline by this much, because thread pulls fabric inward as it sews." : "Thread pulls fabric inward as it sews. A little extra width on each side keeps the column the size you drew."){value in settings(object.kind,"Compensation"){$0.expansion=value}}
                 if object.kind == .satin {
@@ -1151,6 +1153,10 @@ struct InspectorPanel: View {
     /// One line of plain-English help under a setting. The Pro view leaves these out (the settings show them as tooltips).
     @ViewBuilder func explain(_ text: String) -> some View {
         if !pro { Text(text).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true) }
+    }
+    /// What a fill's Stitch length does, for its help: stipple stitches stop at 2 mm, so longer lengths sew the same.
+    func fillStitchLengthHelp(_ object: RunObject) -> String {
+        object.settings.fillStyle == .stipple ? "Length of each stitch along the wandering line. Stipple stitches are 2 mm at most, so lengths over 2 mm sew the same." : "Length of each stitch along a fill row."
     }
     /// Fills: the "Cut out shapes sewn on top" checkbox (OverlapCutout.swift). Off unless switched on. Shared with Pro.
     func cutOutToggle(_ object: RunObject) -> some View {

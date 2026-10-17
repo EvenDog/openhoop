@@ -290,8 +290,11 @@ import EmbroideryCore
     /// Make Test Swatches: the dialog picks a setting of the selected object and the values to try; the swatches
     /// open as a new design in the same hoop and fabric, ready to export and sew.
     private func makeTestSwatches(_ state: EditorState) {
-        guard state.selection.count == 1, let object = state.selected, !SwatchSetting.available(for: object.kind).isEmpty else {
+        guard state.selection.count == 1, let object = state.selected, [.run, .satin, .fill].contains(object.kind) else {
             state.status = "Select one line, fill or satin first; the swatches are copies of it."; return
+        }
+        guard !SwatchSetting.available(for: object).isEmpty else {
+            state.status = "\(object.stitchTitle) has no setting test swatches can step: its own sizes in Properties set its stitches."; return
         }
         guard var design = GuidedDialog.testSwatches(object, hoop: state.design.hoop) else { state.status = "Test swatches cancelled."; return }
         design.fabricType = state.design.fabricType; design.fabricColor = state.design.fabricColor

@@ -256,6 +256,8 @@ public enum UnderlayStyle: String, Codable, CaseIterable, Sendable {case none, c
 /// (gradient).
 public enum FillStyle: String, Codable, CaseIterable, Sendable {
     case tatami, contour, radial, wave, stipple, motif, crossStitch, gradient, guided
+    /// False for cross stitch, whose stitches are its squares' diagonals, set by the square size alone.
+    public var usesStitchLength: Bool { self != .crossStitch }
     /// The styles a newly drawn shape can start with: all but Guided, which needs a guide line drawn afterwards.
     public static let forNewShapes = allCases.filter { $0 != .guided }
     public var title: String {
@@ -339,6 +341,12 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
         if width<2 {return (.center,nil)}
         if width<4 && !stretchy {return (.edge,nil)}
         return (.edge,.zigzag)
+    }
+    /// True when the underlay spacing changes something: a fill's sparse rows (Edge + sparse), or a satin's center
+    /// run or zigzag (as first or second underlay, or picked by Auto). An edge run alone has no rows to space.
+    public func usesUnderlaySpacing(_ kind: StitchKind) -> Bool {
+        if kind == .fill { return underlay == .edgeAndSparse }
+        return [underlay, secondUnderlay ?? UnderlayStyle.none].contains { [.center, .zigzag, .auto].contains($0) }
     }
     /// True when an underlay layer runs inside the edge, so the underlay inset applies (a center run ignores it).
     public var usesUnderlayInset:Bool {[underlay,secondUnderlay ?? UnderlayStyle.none].contains{$0 != .none && $0 != .center}}

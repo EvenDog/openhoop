@@ -80,7 +80,7 @@ Trace a closed outline and press Return. Settings: **Row spacing**, **Stitch len
 | **Wave** | Rows that ripple, with a wave height and length |
 | **Stipple** | One wandering line that loops through the whole shape and never crosses itself: the quilting look, or a light background. **Stipple spacing** (4 mm) sets how far apart its passes are; it sews without underlay, in stitches of 2 mm at most so its curves stay round |
 | **Motif** | Rows of whole motifs (hearts, leaves, stars…) across the shape at the fill angle, every other row shifted half a motif. **Motif**, **Motif size** (5 mm) and **Gap** (1.5 mm); no underlay |
-| **Cross stitch** | X's on a square grid, like hand cross-stitch, in every square entirely inside the shape, so the edge steps. Each diagonal is sewn three times for the weight of floss. **Square size** (3 mm); no underlay |
+| **Cross stitch** | X's on a square grid, like hand cross-stitch, in every square entirely inside the shape, so the edge steps. Each diagonal is sewn three times for the weight of floss. **Square size** (3 mm) sets the stitches, so there's no Stitch length; no underlay |
 | **Gradient** | Tatami rows that open up across the shape, from **Spacing at start** (0.4 mm, solid) to **Spacing at end** (2.5 mm, sheer), for shading or blending two colors. Turning the angle by 180° swaps the solid and sheer sides |
 | **Guided** | Rows that bend to follow a guide line you draw over the shape, always one row spacing apart: for hair, feathers, petals and anything that flows. See **Guided fills** below |
 
@@ -260,7 +260,7 @@ Hoops are listed upright; **Turn sideways** swaps width and height. You can also
 - The status line gives the total area of each.
 
 **Test swatches.** Not sure which row spacing or compensation suits your fabric? Select one line, fill or satin and choose **Digitize → Make Test Swatches…**.
-- Pick the setting to step (row spacing, stitch length, compensation, compensation %, fill angle or underlay spacing), the value to start at, the step and how many (2–25).
+- Pick the setting to step (row spacing, stitch length, compensation, compensation %, fill angle or underlay spacing; only the ones that change this object's stitches are offered), the value to start at, the step and how many (2–25).
 - The preview shows them laid out in your hoop. **Make Swatches** opens them as a new design.
 - Each copy is named after its value ("Row spacing 0.35 mm") and they sew in order, top left first, so you can tell them apart on the fabric.
 - If they don't fit the hoop, make fewer or shrink the shape first.
