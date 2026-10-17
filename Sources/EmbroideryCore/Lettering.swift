@@ -13,10 +13,15 @@ public enum LetteringStitch: String, Codable, CaseIterable, Sendable {
 /// The line lettering sits on: straight, or curved along part of a circle. "Arch up" bows upward like the top
 /// of a round badge; "arch down" curves the other way like the bottom of one, still reading left to right.
 public enum LetteringShape: String, Codable, CaseIterable, Sendable {
-    case straight, archUp, archDown
+    case straight, archUp, archDown, onLine
     public var title: String {
-        switch self { case .straight: return "Straight"; case .archUp: return "Arch up"; case .archDown: return "Arch down" }
+        switch self { case .straight: return "Straight"; case .archUp: return "Arch up"; case .archDown: return "Arch down"; case .onLine: return "On a line" }
     }
+    /// The shapes offered when making or editing lettering. On a line isn't one of them: lettering goes on a line with
+    /// Put Lettering on Line, which picks the line.
+    public static let pickable: [LetteringShape] = [.straight, .archUp, .archDown]
+    /// True for the arches, which have a radius.
+    public var isArch: Bool { self == .archUp || self == .archDown }
 }
 
 public struct LetteringResult: Sendable {
@@ -126,7 +131,7 @@ public enum Lettering {
             if spacing != 0 { let shift = Point(Double(letters[i]) * spacing, 0); objects[i].transform { $0 + shift }; moves[i] = { $0 + shift } }
             objects[i].letterKey = letters[i]
         }
-        if shape != .straight {
+        if shape.isArch {
             guard radii.contains(radius) else { throw DesignError.invalid("The arc radius must be between \(Int(radii.lowerBound)) and \(Int(radii.upperBound)) mm.") }
             guard radius >= height * 1.5 else { throw DesignError.invalid("The arc is too tight for letters this tall. Use a radius of at least \(Int((height * 1.5).rounded(.up))) mm.") }
             let all = bounds(objects), middle = (all.min.x + all.max.x) / 2
@@ -165,6 +170,41 @@ public enum Lettering {
             let move = moves[i]; moves[i] = { move($0) + shift }
         }
         return (moves, (box.max.x - box.min.x, box.max.y - box.min.y))
+    }
+
+    /// Sets one line of straight lettering (baseline at y = 0, as `arrange` leaves it uncentered) along `path`: each
+    /// letter's baseline middle sits on the path, turned to run along it, and its nudge (mm along and up) moves it in
+    /// that turned frame. The word sits at the start, middle or end of the path by `alignment` (nil is the middle);
+    /// past the path's ends, letters carry straight on. Fill rows turn with their letters.
+    static func onPath(_ objects: inout [RunObject], path: [Point], alignment: LetteringAlignment?, nudges: [Int: Point]) {
+        let lengths = zip(path, path.dropFirst()).map { $0.distance(to: $1) }, total = lengths.reduce(0, +)
+        /// The point `s` mm along the path (before its start or past its end, along its first or last piece).
+        func point(_ s: Double) -> Point {
+            if s <= 0 { return path[0] + (path[1] - path[0]) * (s / lengths[0]) }
+            var walked = 0.0
+            for (i, d) in lengths.enumerated() where d > 0 {
+                if s <= walked + d || i == lengths.count - 1 { return path[i] + (path[i + 1] - path[i]) * ((s - walked) / d) }
+                walked += d
+            }
+            return path[path.count - 1]
+        }
+        let letters = Dictionary(grouping: objects.indices, by: { objects[$0].letterKey ?? 0 })
+        func xs(_ indices: [Int]) -> [Double] { indices.flatMap { objects[$0].outlinePaths.flatMap { $0.map(\.x) } } }
+        let all = xs(Array(objects.indices)), low = all.min() ?? 0, high = all.max() ?? 0
+        for (letter, members) in letters {
+            let own = xs(members), left = own.min() ?? 0, right = own.max() ?? 0, center = (left + right) / 2
+            let s = alignment == .left ? center - low : alignment == .right ? total - (high - center) : total / 2 + center - (low + high) / 2
+            // The letter turns to the line between the path's points under its two sides, so on a curve it sits
+            // like a chord across its own width.
+            let half = max(0.5, (right - left) / 2), chord = point(s + half) - point(s - half)
+            let size = chord.distance(to: Point(0, 0)), along = size > 1e-9 ? chord * (1 / size) : Point(1, 0)
+            let up = Point(-along.y, along.x), base = point(s) + (nudges[letter].map { along * $0.x + up * $0.y } ?? Point(0, 0))
+            let turn = atan2(along.y, along.x) * 180 / .pi
+            for i in members {
+                objects[i].transform { p in base + along * (p.x - center) + up * p.y }
+                if objects[i].kind == .fill { let angle = objects[i].settings.angle; objects[i].digitizing?.angle = turned(angle, by: turn) }
+            }
+        }
     }
 
     /// A fill row angle (degrees, -180…180) turned by `degrees`.

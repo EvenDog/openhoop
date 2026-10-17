@@ -589,6 +589,7 @@ import EmbroideryCore
             }
         case .testSwatches: makeTestSwatches(state)
         case .useAsFillGuide: state.useSelectedLineAsFillGuide()
+        case .putLetteringOnLine: state.putSelectedLetteringOnLine()
         case .tieIn: state.editSelected(command.title) { if $0.kind != .raw {$0.tieIn.toggle()} }
         case .tieOut: state.editSelected(command.title) { if $0.kind != .raw {$0.tieOut.toggle()} }
         case .trimAfter: state.editSelected(command.title) { $0.trimAfter.toggle() }
@@ -985,7 +986,7 @@ import EmbroideryCore
                     .convertRun, .convertSatin, .convertFill, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool,
                    .finishPath, .removePoint, .cancelPath]),
-        ("Add", [.lettering, .editLettering, .breakApartLettering, .addMonogram, .editMonogram, .satinBorder, .applique, .autoDigitize, .laydown, .testSwatches])
+        ("Add", [.lettering, .editLettering, .breakApartLettering, .putLetteringOnLine, .addMonogram, .editMonogram, .satinBorder, .applique, .autoDigitize, .laydown, .testSwatches])
     ]
     private func makeMenu() {
         let menu = NSMenu()

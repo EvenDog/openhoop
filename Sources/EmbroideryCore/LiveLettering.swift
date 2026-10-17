@@ -38,6 +38,9 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
     /// order, so the start goes on its first letter and the end on its last; kept here so rebuilding keeps them.
     public var entry: Point?
     public var exit: Point?
+    /// Lettering on a line: the path (mm) of its guide line, which the baseline follows. It's copied from the guide
+    /// (an unstitched line whose `guideFor` is this lettering's id) whenever that's reshaped (Design.syncGuides).
+    public var path: [Point]?
     public static let defaultLineSpacing = 1.4, lineSpacings = 0.8...4.0, maximumLines = 10
     /// Placement markers, in mm. Freshly made lettering is centered on `anchor` = (0, 0), with `alongMarker`
     /// 10 mm to the right (the reading direction) and `upMarker` 10 mm up. They move, turn and mirror with the
@@ -60,13 +63,14 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
     /// Moves the markers with the letters (called from RunObject.transform).
     public mutating func transform(_ body: (Point) -> Point) {
         anchor = body(anchor); alongMarker = body(alongMarker); upMarker = body(upMarker)
-        entry = entry.map(body); exit = exit.map(body)
+        entry = entry.map(body); exit = exit.map(body); path = path.map { $0.map(body) }
     }
 
     /// Builds the lettering and puts it where the markers say: centered on `anchor`, turned and mirrored like
     /// the markers (any stretching is left out; the letters are `height` tall). Every object gets a copy of this
     /// spec and a new group. Embroidery fonts are looked up by folder name in `embroideryFonts`.
     public func build(color: ThreadColor, embroideryFonts: [EmbroideryFont]) throws -> LetteringResult {
+        if shape == .onLine { return try builtOnLine(color: color, embroideryFonts: embroideryFonts) }
         var result = try stackedLines(color: color, embroideryFonts: embroideryFonts)
         // The placement: `along` is the reading direction; `up` is a quarter turn to its left, or to its right
         // when the markers have been mirrored. A point (x, y) of the centered lettering lands at anchor + x·along + y·up.
@@ -90,6 +94,46 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
         return result
     }
 
+    /// Lettering on a line: one line of text set along `path` (Lettering.onPath), where the path is; the markers are
+    /// moved to the middle of the word, facing from the path's start to its end, so choosing Straight later puts
+    /// the word back there.
+    private func builtOnLine(color: ThreadColor, embroideryFonts: [EmbroideryFont]) throws -> LetteringResult {
+        guard let path, path.count >= 2, AreaGeometry.pathLength(path) >= 1 else {
+            throw DesignError.invalid("This lettering has no line to follow. Select it and a line, then choose Put Lettering on Line.")
+        }
+        let lines = self.lines
+        guard lines.count == 1 else { throw DesignError.invalid("Lettering on a line is one line of text. Remove the line breaks, or choose Straight.") }
+        var straight = self; straight.shape = .straight
+        var result = try straight.line(lines[0], number: 0, centered: false, color: color, embroideryFonts: embroideryFonts)
+        let nudges = Dictionary(uniqueKeysWithValues: (letterOffsets ?? [:]).filter { $0.key / 1000 == 0 }.map { ($0.key, $0.value * height) })
+        Lettering.onPath(&result.objects, path: path, alignment: alignment, nudges: nudges)
+        let points = result.objects.flatMap { $0.outlinePaths.flatMap { $0 } }
+        let middle = Point((points.map(\.x).min()! + points.map(\.x).max()!) / 2, (points.map(\.y).min()! + points.map(\.y).max()!) / 2)
+        let along = unit(path[path.count - 1] - path[0]) ?? Point(1, 0)
+        var spec = self
+        spec.anchor = middle; spec.alongMarker = middle + along * 10; spec.upMarker = middle + Point(-along.y, along.x) * 10
+        for i in result.objects.indices { result.objects[i].lettering = spec }
+        if !result.objects.isEmpty { result.objects[0].entry = entry; result.objects[result.objects.count - 1].exit = exit }
+        return result
+    }
+
+    /// One line of lettering, its letters spaced (and, when `centered`, nudged), each part knowing its letter (line
+    /// × 1000 + place).
+    private func line(_ text: String, number: Int, centered: Bool, color: ThreadColor, embroideryFonts: [EmbroideryFont]) throws -> LetteringResult {
+        let spacing = letterSpacing ?? 0
+        let nudges = centered ? Dictionary(uniqueKeysWithValues: (letterOffsets ?? [:]).filter { $0.key / 1000 == number }.map { ($0.key % 1000, $0.value * height) }) : [:]
+        var result: LetteringResult
+        switch fontKind {
+        case .embroidery:
+            guard let embroideryFont = embroideryFonts.first(where: { $0.folder.lastPathComponent == font }) else { throw DesignError.invalid("The embroidery font ‘\(font)’ isn't available.") }
+            result = try embroideryFont.shapes(text: text, height: height, color: color, shape: shape, radius: radius, centered: centered, spacing: spacing, nudges: nudges)
+        case .system:
+            result = try Lettering.shapes(text: text, fontName: font, height: height, stitch: stitch, color: color, shape: shape, radius: radius, centered: centered, spacing: spacing, nudges: nudges)
+        }
+        for i in result.objects.indices { result.objects[i].letterKey = number * 1000 + (result.objects[i].letterKey ?? 0) }
+        return result
+    }
+
     /// The text's lines, without blank lines at the start or end.
     public var lines: [String] {
         var lines = text.replacingOccurrences(of: "\r\n", with: "\n").split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
@@ -104,21 +148,8 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
     /// lined up by `alignment`, and joined into one group sewn line by line.
     private func stackedLines(color: ThreadColor, embroideryFonts: [EmbroideryFont]) throws -> LetteringResult {
         let lines = self.lines
-        /// One line of lettering, its letters spaced (and, for a single line, nudged), each part knowing its letter
-        /// (line × 1000 + place).
         func line(_ text: String, number: Int, centered: Bool) throws -> LetteringResult {
-            let spacing = letterSpacing ?? 0
-            let nudges = centered ? Dictionary(uniqueKeysWithValues: (letterOffsets ?? [:]).filter { $0.key / 1000 == number }.map { ($0.key % 1000, $0.value * height) }) : [:]
-            var result: LetteringResult
-            switch fontKind {
-            case .embroidery:
-                guard let embroideryFont = embroideryFonts.first(where: { $0.folder.lastPathComponent == font }) else { throw DesignError.invalid("The embroidery font ‘\(font)’ isn't available.") }
-                result = try embroideryFont.shapes(text: text, height: height, color: color, shape: shape, radius: radius, centered: centered, spacing: spacing, nudges: nudges)
-            case .system:
-                result = try Lettering.shapes(text: text, fontName: font, height: height, stitch: stitch, color: color, shape: shape, radius: radius, centered: centered, spacing: spacing, nudges: nudges)
-            }
-            for i in result.objects.indices { result.objects[i].letterKey = number * 1000 + (result.objects[i].letterKey ?? 0) }
-            return result
+            try self.line(text, number: number, centered: centered, color: color, embroideryFonts: embroideryFonts)
         }
         guard lines.count > 1 else { return try line(lines.first ?? text, number: 0, centered: true) }
         guard lines.count <= Self.maximumLines else { throw DesignError.invalid("Lettering can have up to \(Self.maximumLines) lines.") }
