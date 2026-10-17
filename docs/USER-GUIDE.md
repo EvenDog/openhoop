@@ -157,7 +157,7 @@ Satins with a chosen (not Auto) underlay can have a **second underlay** (More se
 - **Zoom to selected (⇧0):** frames the selection.
 - **Fit hoop (⌥0), zoom in (Z), zoom out (⇧Z).**
 
-**Show** (the list next to the zoom slot, and the View menu) switches parts of the view on and off. These only change what you see: everything still sews.
+**Show** (the list next to the zoom slot, and the View menu) switches parts of the view on and off. These only change what you see: everything still sews. OpenHoop remembers your choices (and the grid), so new and opened designs start the way you left them; only **Hide unselected objects** starts off each time.
 - **Stitches (S)** and **Outlines of every object (L)**: hide the stitches and show the outlines to check shapes against the artwork.
 - **Connectors (⇧C):** the dashed travel moves between parts. They show in the stitch view and are hidden in Thread View until you switch them.
 - **Needle points (.)** and **Underlay (⇧U).** Needle points show as small dots once you zoom in (300% or more), in Thread View too.
@@ -174,11 +174,12 @@ Satins with a chosen (not Auto) underlay can have a **second underlay** (More se
 
 ## Lettering
 
-Press **A** (or **Add → Text**) to add lettering.
+Press **A** (or **Add → Text**), then click on the design where the lettering should go. The word appears there in the last font and size you used, selected, and **Lettering** in Properties is ready for you to type over it.
 
-- **Embroidery fonts** (recommended): 18 hand-digitized satin fonts, from 2.8 mm tiny text to 140 mm monograms. Each shows its stitched preview and the size range it was made for. **Font credits…** lists each font's license.
+- **Trying fonts:** the **Font** list in Properties shows your own words in every font. Click one, then press **↑** or **↓** to move to the next: the lettering on the hoop changes as you go, at its real size, so you can see what fits. Fonts tried one after another are one step to undo, so **⌘Z** goes back to the font you started with.
+- **Embroidery fonts** (recommended): 18 hand-digitized satin fonts, from 2.8 mm tiny text to 140 mm monograms. Each shows the size range it was made for; switching to one keeps the height if the font was made for it, or moves to the nearest size it was. **Font credits…** lists each font's license.
 - **System fonts:** any font on your Mac, as fills or outlines, 3–200 mm tall. Below about 10 mm, use an embroidery font instead.
-- **Several lines:** up to 10, aligned left, center or right, with adjustable line spacing.
+- **Several lines:** up to 10 (Option-Return starts a new line), aligned left, center or right, with adjustable line spacing.
 - **Shape:** **Straight**, **Arch up** or **Arch down**, with the arc's radius, or **On a line** (below).
 - **Lettering on a line:** draw a line with the line tool, select the lettering and the line (Shift-click), and choose **Digitize → Add → Put Lettering on Line**.
   - Each letter stands on the line, turned to follow it. The word is centered on the line, and past the line's ends it carries straight on.
@@ -186,7 +187,7 @@ Press **A** (or **Add → Text**) to add lettering.
   - Reshape the line with **Edit Nodes (H)** and the letters follow.
   - It works with one line of text. Choosing **Straight** or an arch in Properties takes the word off the line; the line stays, unstitched, for you to delete or reuse.
 - **One object:** lettering is one step in the sewing order and moves, resizes and recolors as one. Clicking any letter (even Option-clicking) selects the whole word, and Ungroup leaves it whole.
-- **Edit it in Properties:** with the lettering selected, **Lettering** in Properties changes the text (the letters update when you pause typing), the font, height, **Letter spacing** (extra space between letters in mm; negative pulls them closer) and the **Baseline** (straight or arched, with its radius). Each change is one step to undo. **More options…** (or double-click, or **⌥L**) opens the full dialog for several lines and alignment. If you had changed any letters by hand, Properties says that these settings rebuild them.
+- **Edit it in Properties:** with the lettering selected, **Lettering** in Properties changes the text (the letters update when you pause typing), the font, height, **Letter spacing** (extra space between letters in mm; negative pulls them closer) and the **Baseline** (straight or arched, with its radius). With several lines, **Lines** aligns them and **Line spacing** sets the gap. Each change is one step to undo. Double-click lettering (or press **⌥L**) to jump to its text. If you had changed any letters by hand, Properties says that these settings rebuild them.
 - **Move one letter:** with **Edit Nodes (H)**, each letter has a small diamond handle below it. Drag it to move just that letter, sideways or up and down. It stays where you put it when you change the text, font, size or spacing (moves are kept by the letter's place in the word: 1st letter, 2nd letter…). **Reset letter positions** in Properties puts them back.
 - **Break apart:** **Digitize → Add → Break Apart Lettering** (or **Break apart** in Properties) turns the lettering into separate shapes, still grouped, so you can reshape each letter's points. Its text can't be edited after that.
 

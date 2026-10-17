@@ -293,7 +293,7 @@ final class DesignCanvas: NSView {
     }
     /// The pointer the current tool uses on the canvas.
     private var toolCursor: NSCursor {
-        state.tool == .pan || state.tool == .artwork ? .openHand : state.tool.draws || state.tool.dragsShape || state.tool.freehand || state.tool == .entryExit || state.tool == .zoomBox || state.tool == .measure || state.tool == .branch || state.tool == .addAngles || state.tool == .removeAngles || state.tool == .stitchEdit ? .crosshair : .arrow
+        state.tool == .pan || state.tool == .artwork ? .openHand : state.tool == .text ? .iBeam : state.tool.draws || state.tool.dragsShape || state.tool.freehand || state.tool == .entryExit || state.tool == .zoomBox || state.tool == .measure || state.tool == .branch || state.tool == .addAngles || state.tool == .removeAngles || state.tool == .stitchEdit ? .crosshair : .arrow
     }
     /// ↔ for an up-and-down guide, ↕ for a side-to-side one.
     private func guideCursor(vertical: Bool) -> NSCursor { vertical ? .resizeLeftRight : .resizeUpDown }
@@ -899,6 +899,7 @@ final class DesignCanvas: NSView {
             guideCursor(vertical: inLeftRuler).set(); return
         }
         if state.tool == .measure { let point = snapped(model(location)); measurement = (point, point); measuring = true; needsDisplay = true; return }
+        if state.tool == .text { state.addLettering(at: snapped(model(location))); return }
         if state.tool == .branch { state.addBranchPoint(snapped(model(location))); return }
         if state.tool == .stitchEdit { stitchEditDown(location, event: event); return }
         // Clicking a stitch angle line (with Edit nodes or the angle tools) selects it, so Delete removes it. While a

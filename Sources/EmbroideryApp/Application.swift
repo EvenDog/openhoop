@@ -366,7 +366,7 @@ import EmbroideryCore
         return true
     }
     /// Commands that open a dialog and wait for it to close.
-    private static let opensDialog: Set<CommandID> = [.laydown, .testSwatches, .addMonogram, .editMonogram, .lettering, .editLettering, .autoDigitize, .satinBorder, .applique, .threadChart, .renameObject, .importImage]
+    private static let opensDialog: Set<CommandID> = [.laydown, .testSwatches, .addMonogram, .editMonogram, .autoDigitize, .satinBorder, .applique, .threadChart, .renameObject, .importImage]
     /// `now` is false unless the command was already put off by one beat (see below).
     func perform(_ command: CommandID, now: Bool = false) {
         // A dialog opened inside a SwiftUI button's action never updates (no typing, no setup), because SwiftUI
@@ -431,7 +431,7 @@ import EmbroideryCore
             if state.tool != .zoomBox { state.toolBeforeZoom = state.tool }
             state.tool = .zoomBox; state.status = "Drag a box around the part to zoom into · Click to zoom in 2× · Esc cancels"
             state.focusCanvas(); state.canvas?.window?.invalidateCursorRects(for: state.canvas!)
-        case .selectTool, .runTool, .satinTool, .fillTool, .holeTool, .nodeTool, .panTool, .entryExitTool, .artworkTool, .openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool, .measureTool, .knifeTool, .addStitchAngles, .removeStitchAngles:
+        case .selectTool, .runTool, .satinTool, .fillTool, .holeTool, .nodeTool, .panTool, .entryExitTool, .artworkTool, .openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool, .measureTool, .knifeTool, .addStitchAngles, .removeStitchAngles, .lettering:
             if !state.draft.isEmpty { state.status = "Finish the current path with Enter, or cancel with Escape, before changing tools."; return }
             if command == .artworkTool {
                 guard let artwork = state.design.artwork else { state.status = "Import a reference image first (⌘I), then move and size it."; return }
@@ -461,6 +461,7 @@ import EmbroideryCore
             case .addAngles:state.status="Add Stitch Angles · Click two points across the fill for each line; the stitches run along it · Esc when done"
             case .removeAngles:state.status="Remove Stitch Angles · Click a line to remove it · Esc when done"
             case .measure:state.status="Drag from one point to another to measure the distance and angle · Esc when done"
+            case .text:state.status="Add Lettering · Click where the lettering should go; then type it and pick a font in Properties · Esc cancels"
             case .closedShape:state.status="Closed shape · Click corners · Drag or secondary-click for curves · Enter to finish"
             case .freehandOpen:state.status="Freehand open shape · Press and drag; the line follows the pointer · Let go to finish · Esc cancels"
             case .freehandClosed:state.status="Freehand closed shape · Press and drag; the outline follows the pointer · Let go to finish, it closes itself · Esc cancels"
@@ -493,7 +494,6 @@ import EmbroideryCore
         case .duplicate: state.duplicateSelection()
         case .group: state.groupSelection()
         case .autoStartPoints: state.autoStartPoints()
-        case .lettering: addLettering(state)
         case .editLettering: editLettering(state)
         case .breakApartLettering: state.breakApartLettering()
         case .autoDigitize: autoDigitize(state)
@@ -714,39 +714,17 @@ import EmbroideryCore
             } catch{showError(error);state.status="SVG import failed; design unchanged."}
         }
     }
-    /// Add Lettering: the dialog makes the letter shapes, then they're added as one step you can undo.
-    private func addLettering(_ state: EditorState) {
-        guard !state.hasVersionMismatch, state.draft.isEmpty else { state.status = "Finish the current path and regenerate older projects before adding lettering."; return }
-        guard let spec = GuidedDialog.lettering(color: state.currentColor, hoop: state.design.hoop) else { state.status = "Lettering cancelled."; return }
-        do {
-            let letters = try spec.build(color: state.currentColor, embroideryFonts: EmbroideryFontLibrary.fonts)
-            var candidate = state.design; candidate.objects += letters.objects; try candidate.validate()
-            state.edit("Add Lettering") { $0 = candidate }
-            state.selection = Set(letters.objects.map(\.id)); state.selectedNode = nil; state.tool = .select; state.focusCanvas()
-            state.status = "Added \(letters.objects.count) letter shapes as one group. Drag to move them; double-click them to change the text."
-        } catch { showError(error) }
-    }
-    /// Edit Lettering: reopens the lettering dialog with the selected lettering's text, font, size and shape, then
-    /// rebuilds its letters in the same place and sewing-order position, as one step you can undo.
+    /// Edit Lettering: selects the whole lettering and puts the keyboard in its text box in Properties, where its
+    /// text, font, size and shape are changed.
     private func editLettering(_ state: EditorState) {
-        guard !state.hasVersionMismatch, state.draft.isEmpty else { state.status = "Finish the current path and regenerate older projects before editing lettering."; return }
         let selected = state.design.objects.filter { state.selection.contains($0.id) }
         guard let spec = (state.selected?.lettering ?? selected.lazy.compactMap(\.lettering).first) else {
             state.status = "Select lettering made with Add Lettering (\(Preferences.shared.key(.lettering))) first, then edit it. Ungrouped letters are plain shapes."; return
         }
-        let old = state.design.letteringObjects(spec.id)
-        guard !old.contains(where: \.locked) else { state.status = "Unlock the letters before editing the lettering."; return }
-        let color = old.first?.color ?? state.currentColor
-        let handEdited = !spec.matchesFreshBuild(old, embroideryFonts: EmbroideryFontLibrary.fonts)
-        guard let edited = GuidedDialog.lettering(color: color, hoop: state.design.hoop, editing: spec, handEdited: handEdited) else { state.status = "Lettering unchanged."; return }
-        do {
-            let letters = try edited.build(color: color, embroideryFonts: EmbroideryFontLibrary.fonts)
-            var candidate = state.design
-            let ids = candidate.replaceLettering(spec.id, with: letters); try candidate.validate()
-            state.edit("Edit Lettering") { $0 = candidate }
-            state.selection = Set(ids); state.selectedNode = nil; state.tool = .select; state.focusCanvas()
-            state.status = "Updated the lettering: \(letters.objects.count) letter shapes."
-        } catch { showError(error) }
+        guard !state.design.letteringObjects(spec.id).contains(where: \.locked) else { state.status = "Unlock the letters before editing the lettering."; return }
+        state.selection = Set(state.design.letteringObjects(spec.id).map(\.id)); state.selectedNode = nil; state.tool = .select
+        state.focusLetteringText()
+        state.status = "Type the new text. In Properties, click a font and press ↑ ↓ to try others."
     }
     /// Auto-Digitize Artwork: the dialog traces the reference image, then the fills are added as one step you can undo.
     private func autoDigitize(_ state: EditorState) {

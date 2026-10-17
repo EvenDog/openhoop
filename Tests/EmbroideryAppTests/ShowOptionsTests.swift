@@ -1,5 +1,6 @@
 // Checks the Show list's choices: Hide Unselected keeps only the selection in view (everything when nothing is
-// selected), hidden objects stay hidden, and connectors follow the view until switched.
+// selected), hidden objects stay hidden, connectors follow the view until switched, and choices carry over to the
+// next design.
 import XCTest
 import AppKit
 import EmbroideryCore
@@ -29,5 +30,19 @@ final class ShowOptionsTests: XCTestCase {
         XCTAssertTrue(state.showsConnectors)
         state.connectors = false
         XCTAssertFalse(state.showsConnectors)
+    }
+
+    @MainActor func testShowChoicesCarryOverToTheNextDesign() {
+        let before = Preferences.shared.data.shown
+        defer { Preferences.shared.data.shown = before; Preferences.shared.save(announce: false) }
+        let first = EditorState()
+        first.needles = false; first.showOutlines = true; first.grid = false
+        let next = EditorState()
+        XCTAssertFalse(next.needles, "needle points stay off in the next design")
+        XCTAssertTrue(next.showOutlines)
+        XCTAssertFalse(next.grid)
+        XCTAssertFalse(next.hideOthers, "Hide unselected always starts off: it needs a selection")
+        next.needles = true
+        XCTAssertTrue(EditorState().needles, "switching back on is remembered too")
     }
 }

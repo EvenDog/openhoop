@@ -15,7 +15,8 @@ enum Tool: String, Codable { case select, run, satin, fill, hole, node, pan, ent
     addAngles, removeAngles,   // add stitch angle lines to a fill (two clicks each), or click one to remove it
     branch,    // Branching: click where the branch starts, then where it ends (Return lets OpenHoop choose)
     zoomBox,   // drag a box to zoom into it, then go back to the tool before
-    measure    // drag to measure a distance and angle
+    measure,   // drag to measure a distance and angle
+    text       // Add Lettering: click where the new lettering goes
     /// The tools that place points one click at a time.
     var draws:Bool {[.run,.satin,.fill,.hole,.openShape,.closedShape,.knife].contains(self)}
     /// The tools that drag out a whole shape at once.
@@ -35,7 +36,7 @@ enum Tool: String, Codable { case select, run, satin, fill, hole, node, pan, ent
     }
     /// The tool each tool command turns on.
     static let forCommand:[CommandID:Tool]=[.selectTool:.select,.runTool:.run,.satinTool:.satin,.fillTool:.fill,.holeTool:.hole,.nodeTool:.node,.panTool:.pan,
-        .entryExitTool:.entryExit,.artworkTool:.artwork,.openShapeTool:.openShape,.closedShapeTool:.closedShape,.freehandOpenTool:.freehandOpen,.freehandClosedTool:.freehandClosed,.rectangleTool:.rectangle,.ellipseTool:.ellipse,.basicShapeTool:.basicShape,.zoomBoxTool:.zoomBox,.measureTool:.measure,.knifeTool:.knife,.branching:.branch,.addStitchAngles:.addAngles,.removeStitchAngles:.removeAngles,.editStitches:.stitchEdit]
+        .entryExitTool:.entryExit,.artworkTool:.artwork,.openShapeTool:.openShape,.closedShapeTool:.closedShape,.freehandOpenTool:.freehandOpen,.freehandClosedTool:.freehandClosed,.rectangleTool:.rectangle,.ellipseTool:.ellipse,.basicShapeTool:.basicShape,.zoomBoxTool:.zoomBox,.measureTool:.measure,.knifeTool:.knife,.branching:.branch,.addStitchAngles:.addAngles,.removeStitchAngles:.removeAngles,.editStitches:.stitchEdit,.lettering:.text]
 }
 struct NodeLocation:Equatable {var object:UUID;var ring:Int;var index:Int}
 /// One needle point of an object's stitches, for Edit Stitch: which section (run of stitches) and which point in it.
@@ -87,22 +88,26 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     @Published var angleStart:Point?
     /// The stitch angle line clicked (a fill and which of its lines), which Delete removes; nil when none is.
     @Published var selectedAngle:(object:UUID,index:Int)?
-    @Published var showUnderlay=true
+    @Published var showUnderlay = Preferences.shared.shown.underlay ?? true { didSet { Preferences.shared.updateShown { $0.underlay = showUnderlay } } }
     /// The density map: heavy (yellow) and too dense (red) 1 mm squares drawn over the stitches.
-    @Published var showDensity=false
+    @Published var showDensity = Preferences.shared.shown.density ?? false { didSet { Preferences.shared.updateShown { $0.density = showDensity } } }
     @Published var draft: [PathNode] = [] {
         didSet { if draft != oldValue { document?.draftDidChange() } }
     }
     @Published var currentColor = ThreadColor.palette[0]
-    @Published var grid = true
+    /// Set when the lettering's text box in Properties should take the keyboard; the box clears it once it has.
+    @Published var letteringTextFocusRequested = false
+    // What the canvas shows (the grid and the Show list). They're view choices, so they aren't saved in the design
+    // or undone; each one switched is remembered in Preferences, and new and opened designs start with it.
+    @Published var grid = Preferences.shared.shown.grid ?? true { didSet { Preferences.shared.updateShown { $0.grid = grid } } }
     @Published var snap = false
-    @Published var needles = true
-    // What the canvas shows (the Show list). They're view choices, so they aren't saved or undone.
-    @Published var showStitches = true
-    @Published var showOutlines = false   // every object's outline, not just the selection's
+    @Published var needles = Preferences.shared.shown.needles ?? true { didSet { Preferences.shared.updateShown { $0.needles = needles } } }
+    @Published var showStitches = Preferences.shared.shown.stitches ?? true { didSet { Preferences.shared.updateShown { $0.stitches = showStitches } } }
+    /// Every object's outline, not just the selection's.
+    @Published var showOutlines = Preferences.shared.shown.outlines ?? false { didSet { Preferences.shared.updateShown { $0.outlines = showOutlines } } }
     /// Travel moves between parts: nil until switched with ⇧C, and until then shown in the stitch view and hidden
     /// in Thread View. Once switched, the choice holds in both views.
-    @Published var connectors: Bool?
+    @Published var connectors: Bool? = Preferences.shared.shown.connectors { didSet { Preferences.shared.updateShown { $0.connectors = connectors } } }
     @Published var hideOthers = false   // show only the selection
     var showsConnectors: Bool { connectors ?? !Preferences.shared.threadView }
     /// True if the canvas shows the object: it isn't hidden, and if Hide Unselected is on, it's selected (with
@@ -144,9 +149,10 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     }
     /// Changes the design as one step you can undo. Returns false (and says why) in an older project, which must be
     /// regenerated before it can be edited, so callers don't report a change that didn't happen.
-    @discardableResult func edit(_ name: String, _ block: (inout Design) -> Void) -> Bool {
+    /// Edits sharing a `run` name in a row (such as fonts tried one after another on one lettering) undo as one step.
+    @discardableResult func edit(_ name: String, run: String? = nil, _ block: (inout Design) -> Void) -> Bool {
         guard !hasVersionMismatch else { status = "Regenerate this older project before editing."; return false }
-        var next = design; block(&next); document?.replace(next, action: name)
+        var next = design; block(&next); document?.replace(next, action: name, run: run)
         if !playing { playback = 1 }   // after an edit, show the whole design rather than a paused part of it
         return true
     }
@@ -581,10 +587,32 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         }
         status = "The lettering is now \(ids.count) separate shapes, grouped. Edit Nodes reshapes each letter; Ungroup separates them."
     }
+    /// Add Lettering's click: new lettering in the last font and size used, centered on `point`, as one step you can
+    /// undo. It's selected and its text box in Properties is ready to type over.
+    func addLettering(at point: Point) {
+        guard !hasVersionMismatch, draft.isEmpty else { status = "Finish the current path and regenerate older projects before adding lettering."; return }
+        var spec = LetteringDefaults.next()
+        spec.anchor = point; spec.alongMarker = point + Point(10, 0); spec.upMarker = point + Point(0, 10)
+        do {
+            let letters = try spec.build(color: currentColor, embroideryFonts: EmbroideryFontLibrary.fonts)
+            var candidate = design; candidate.objects += letters.objects; try candidate.validate()
+            guard edit("Add Lettering", { $0 = candidate }) else { return }
+            selection = Set(letters.objects.map(\.id)); selectedNode = nil; tool = .select
+            focusLetteringText()
+            status = "Type your text. In Properties, click a font and press ↑ ↓ to try others; drag the letters to move them."
+        } catch { status = error.localizedDescription }
+    }
+    /// Asks Properties (shown if it was hidden) to put the keyboard in the selected lettering's text box, with the
+    /// text selected so typing replaces it.
+    func focusLetteringText() {
+        Preferences.shared.updatePanels { $0.show(.properties, home: Preferences.shared.homeLayout) }
+        letteringTextFocusRequested = true
+    }
     /// Rebuilds the lettering with `spec.id` from `spec` (new text, font, size, spacing, baseline or letter nudges),
     /// in the same place and thread, as one undoable step, and selects it. Says why in the status line and returns
     /// false if it can't be built.
-    @discardableResult func rebuildLettering(_ spec: LetteringSpec, action: String = "Edit Lettering") -> Bool {
+    /// Changes with the same `run` in a row undo as one step.
+    @discardableResult func rebuildLettering(_ spec: LetteringSpec, action: String = "Edit Lettering", run: String? = nil) -> Bool {
         let old = design.letteringObjects(spec.id)
         guard let color = old.first?.color else { return false }
         guard !old.contains(where: \.locked) else { status = "Unlock the letters before editing the lettering."; return false }
@@ -593,8 +621,9 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             var candidate = design
             let ids = candidate.replaceLettering(spec.id, with: letters)
             try candidate.validate()
-            edit(action) { $0 = candidate }
+            edit(action, run: run) { $0 = candidate }
             selection = Set(ids); selectedNode = nil
+            LetteringDefaults.remember(spec)
             if let warning = letters.warnings.first { status = warning }
             return true
         } catch { status = error.localizedDescription; return false }
@@ -655,12 +684,20 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         NotificationCenter.default.post(name: .designTabsChanged, object: self)
     }
     override var fileURL: URL? { didSet { NotificationCenter.default.post(name: .designTabsChanged, object: self) } }
+    /// The `run` of the last change, when it had one. A change in the same run straight after it adds no undo step
+    /// of its own, so Undo goes back to before the whole run.
+    private var lastRun: String?
     /// Replace a snapshot once per gesture, so dragging creates one useful undo step.
-    func replace(_ next: Design, action: String) {
+    func replace(_ next: Design, action: String, run: String? = nil) {
         guard next != state.design else { return }
         let previous = state.design
-        undoManager?.registerUndo(withTarget: self) { doc in doc.replace(previous, action: action) }
-        undoManager?.setActionName(action)
+        if run != nil && run == lastRun && undoManager?.canUndo == true {
+            if !isDocumentEdited { updateChangeCount(.changeDone) }   // saved during the run: it's edited again
+        } else {
+            undoManager?.registerUndo(withTarget: self) { doc in doc.replace(previous, action: action) }
+            undoManager?.setActionName(action)
+        }
+        lastRun = run
         // Schema 5 marks projects using Bézier handles or start/end points, so older versions refuse them instead of losing them.
         var updated=next
         // Stitches edited by hand last only while their object stays as it was; a new shape or setting means fresh
