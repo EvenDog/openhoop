@@ -595,7 +595,8 @@ public enum StitchEngine {
             // stitch, its repeated form) along the line's stitches.
             let path=RunningEngine.flatten(ordered.nodes,closed:ordered.closed).flatMap{$0}
             let styled=RunningStyles.stitches(style,along:path,closed:ordered.closed,width:s.runWidth ?? DigitizingSettings.defaultRunWidth(style),
-                                              spacing:s.runSpacing ?? DigitizingSettings.defaultRunSpacing(style),length:object.stitchLength,motif:s.motif ?? .heart)
+                                              spacing:s.runSpacing ?? DigitizingSettings.defaultRunSpacing(style),length:object.stitchLength,motif:s.motif ?? .heart,
+                                              target:s.radialCenter,lines:s.rippleLines ?? DigitizingSettings.defaultRippleLines)
             let line=try styled ?? RunningEngine.stitches(for:ordered)
             let sewn=styled != nil ? line : try RunningEngine.repeated(line,passes:s.runPasses ?? 1)
             var points=sewn

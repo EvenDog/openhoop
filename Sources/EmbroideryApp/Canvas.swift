@@ -470,7 +470,7 @@ final class DesignCanvas: NSView {
                 let ends = markerPoints(object, sewn: sewn, few: fewSelected(in: design))
                 drawStartMarker(ends.start, label: object.entry != nil ? "Start" : nil)
                 drawEndMarker(ends.end, label: object.exit != nil ? "End" : nil)
-                drawMarker(radialCenter(object), label: "Center", color: Theme.Canvas.handle)
+                drawMarker(radialCenter(object), label: object.kind == .run ? "Target" : "Center", color: Theme.Canvas.handle)
             }
             // Nodes show only with Edit Nodes, the one tool that can move them.
             if selected && state.tool == .node && !object.locked && object.kind != .raw && object.lettering == nil {
@@ -1302,8 +1302,12 @@ final class DesignCanvas: NSView {
         }
         return nil
     }
-    /// Where a radial fill's rays fan out from (the middle of the shape unless moved); nil for other objects.
+    /// Where a radial fill's rays fan out from, or a ripple line's copies shrink toward (the middle of the shape
+    /// unless moved); nil for other objects.
     private func radialCenter(_ object: RunObject) -> Point? {
+        if object.kind == .run, object.settings.runStyle == .ripple, let path = object.outlinePaths.first, path.count >= 2 {
+            return object.settings.radialCenter ?? RunningStyles.rippleTarget(path, closed: object.closed)
+        }
         guard object.kind == .fill, object.settings.fillStyle == .radial, object.nodes.count >= 3 else { return nil }
         return object.settings.radialCenter ?? AreaGeometry.centroid(AreaGeometry.ring(object.nodes))
     }

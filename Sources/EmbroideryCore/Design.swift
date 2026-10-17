@@ -278,9 +278,9 @@ public enum FillStyle: String, Codable, CaseIterable, Sendable {
 /// How a running line is sewn: plain running stitch, or one of the decorative line stitches built along it
 /// (RunningStyles.swift).
 public enum RunStyle: String, Codable, CaseIterable, Sendable {
-    case running, zigzag, blanket, backStitch, stemStitch, motif
+    case running, zigzag, blanket, backStitch, stemStitch, motif, ripple
     public var title: String {
-        switch self { case .running: return "Running"; case .zigzag: return "Zigzag"; case .blanket: return "Blanket"; case .backStitch: return "Back stitch"; case .stemStitch: return "Stem stitch"; case .motif: return "Motif" }
+        switch self { case .running: return "Running"; case .zigzag: return "Zigzag"; case .blanket: return "Blanket"; case .backStitch: return "Back stitch"; case .stemStitch: return "Stem stitch"; case .motif: return "Motif"; case .ripple: return "Ripple" }
     }
     public var summary: String {
         switch self {
@@ -290,6 +290,7 @@ public enum RunStyle: String, Codable, CaseIterable, Sendable {
         case .backStitch: return "Each stitch goes forward two lengths and back one, for a solid line that looks hand-sewn."
         case .stemStitch: return "Like back stitch, but each stitch slants across the line, for a twisted rope look."
         case .motif: return "A small pattern (hearts, leaves, stars…) repeated along the line, joined by short runs."
+        case .ripple: return "The line sewn again and again, each copy smaller and closer to a target point, like ripples on water: a closed shape spirals in, an open line fans out back and forth. Drag the Target dot to move where they shrink to."
         }
     }
     /// True for styles with a width across the line (and, for zigzag, blanket and motif, a spacing along it). For a
@@ -350,8 +351,12 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     public static let defaultWaveHeight=2.0, defaultWaveLength=12.0
     /// The wave sizes Properties offers and project files may hold, in mm.
     public static let waveHeightRange=0.5...10.0, waveLengthRange=3.0...50.0
-    /// Radial fills: the point the stitches fan out from, in mm. nil uses the middle of the shape.
+    /// Radial fills: the point the stitches fan out from, in mm; ripple lines: the point the copies shrink toward.
+    /// nil uses the middle of the shape (RunningStyles.rippleTarget for a ripple).
     public var radialCenter:Point?
+    /// Ripple lines: how many times the line is sewn, each copy smaller. nil uses the default.
+    public var rippleLines:Int?
+    public static let defaultRippleLines=10, rippleLineRange=2...50
     /// Tatami fills: stitch angle lines (each two points, in mm) across the shape. Where there are any, the stitches
     /// run along them and turn gradually from one to the next (TurningFill.swift) instead of all at `angle`.
     public var angleLines:[[Point]]?
@@ -567,6 +572,8 @@ public struct Design: Codable, Equatable, Sendable {
             guard DigitizingSettings.runPassChoices.contains(object.settings.runPasses ?? 1) else { throw DesignError.invalid("Invalid number of running stitch passes in \(object.name).") }
             guard object.settings.runWidth.map(DigitizingSettings.runWidthRange.contains) ?? true, object.settings.runSpacing.map(DigitizingSettings.runSpacingRange.contains) ?? true,
                   object.settings.stippleSpacing.map(DigitizingSettings.stippleSpacingRange.contains) ?? true,
+                  object.settings.rippleLines.map(DigitizingSettings.rippleLineRange.contains) ?? true,
+                  object.settings.radialCenter.map({ $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 }) ?? true,
                   object.settings.patternSize.map(DigitizingSettings.patternSizeRange.contains) ?? true, object.settings.patternGap.map(DigitizingSettings.patternGapRange.contains) ?? true,
                   [object.settings.gradientStart, object.settings.gradientEnd].allSatisfy({ $0.map(DigitizingSettings.gradientSpacingRange.contains) ?? true }) else { throw DesignError.invalid("Invalid line stitch or pattern size in \(object.name).") }
             guard (0...0xffffff).contains(object.color.hex),object.color.name.count<=256,(object.color.brand?.count ?? 0)<=100,(object.color.code?.count ?? 0)<=100 else{throw DesignError.invalid("Invalid thread color.")}
