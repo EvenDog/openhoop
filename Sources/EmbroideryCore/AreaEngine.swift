@@ -30,7 +30,9 @@ public enum AreaEngine {
             return edges.flatMap{ring in ring.indices.map{AreaGeometry.projection(point,ring[$0],ring[($0+1)%ring.count])}}.min{$0.distance(to:point)<$1.distance(to:point)}
         }
         let entry=reachable(object.entry),exit=reachable(object.exit)
-        if s.underlay != .none {
+        let style=s.fillStyle ?? .tatami
+        // Stipple is a loose, quilting-style line, sewn without underlay.
+        if s.underlay != .none && style != .stipple {
             // Underlay is inset from the source, never expanded a second time.
             let inset=try AreaGeometry.offset(original,by:-s.inset)
             if inset.isEmpty {result.warnings.append("Underlay collapsed at the chosen inset; no underlay was generated.")}
@@ -46,7 +48,6 @@ public enum AreaEngine {
                 }
             }
         }
-        let style=s.fillStyle ?? .tatami
         // The top rows, in parts sewn one after another (tatami and wave fills with an end point come in two).
         var parts:[[[Point]]]
         // Without a start point, contour and radial fills begin where the underlay finished, so no long travel is needed.
@@ -57,6 +58,7 @@ public enum AreaEngine {
             guard !parts[0].isEmpty else{throw DesignError.invalid("The stitch angle lines don't cross this fill. Draw them across it, or remove them.")}
         case .tatami,.wave:parts=try topRows(in:expanded,object,entry:entry,exit:exit)
         case .contour:parts=[try FillStyles.contour(in:expanded,spacing:s.spacing,length:object.stitchLength,start:start)]
+        case .stipple:parts=[try FillStyles.stipple(in:expanded,spacing:s.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing,length:object.stitchLength,start:start)]
         case .radial:parts=[try FillStyles.radial(in:expanded,center:s.radialCenter ?? AreaGeometry.centroid(original[0]),spacing:s.spacing,length:object.stitchLength,start:start)]
         }
         parts=parts.map{$0.filter(isLongEnough)}.filter{!$0.isEmpty}
@@ -535,8 +537,14 @@ public enum StitchEngine {
         case .vector:return ObjectStitches()
         // sewingOrder() reorders nodes to honor a chosen start point; without one it returns the object unchanged.
         case .run:
-            let ordered=object.sewingOrder(),line=try RunningEngine.stitches(for:ordered)
-            let sewn=try RunningEngine.repeated(line,passes:object.settings.runPasses ?? 1)
+            let ordered=object.sewingOrder(),s=object.settings,style=s.runStyle ?? .running
+            // A line stitch style (zigzag, blanket…) is built along the line's path; plain running stitch (and bean
+            // stitch, its repeated form) along the line's stitches.
+            let path=RunningEngine.flatten(ordered.nodes,closed:ordered.closed).flatMap{$0}
+            let styled=RunningStyles.stitches(style,along:path,closed:ordered.closed,width:s.runWidth ?? DigitizingSettings.defaultRunWidth(style),
+                                              spacing:s.runSpacing ?? DigitizingSettings.defaultRunSpacing(style),length:object.stitchLength)
+            let line=try styled ?? RunningEngine.stitches(for:ordered)
+            let sewn=styled != nil ? line : try RunningEngine.repeated(line,passes:s.runPasses ?? 1)
             var points=sewn
             // A start point part way along an open line: start there and run back along the line to its first end.
             if !object.closed,let entry=object.entry,let lead=RunningEngine.leadIn(along:line,from:entry) {points=lead+points.dropFirst()}
