@@ -400,7 +400,8 @@ extension InspectorPanel {
                 }
                 .labelsHidden().frame(width: 120)
             }
-            if [.tatami, .wave, .gradient, .motif].contains(style) {
+            // Only where the rows follow it; otherwise the Underlay section shows it as the underlay's angle.
+            if StitchAngleLine.applies(to: object) {
                 number("Angle °", value: object.settings.angle, id: "fillAngle", range: -180...180, help: "The direction the fill rows run.") { value in settings(.fill, "Fill Angle") { $0.angle = value } }
             }
             if style == .tatami { stitchAngles(object) }
@@ -510,6 +511,9 @@ extension InspectorPanel {
                     }
                     .labelsHidden().frame(width: 120)
                 }
+            }
+            if StitchAngleLine.steersOnlyUnderlay(object) {
+                number("Angle °", value: object.settings.angle, id: "fillAngle", range: -180...180, help: "The direction of the sparse underlay rows. This fill's own stitches don't follow an angle, so it only turns the underlay.") { value in settings(.fill, "Underlay Angle") { $0.angle = value } }
             }
             if object.settings.usesUnderlayInset {
                 number("Inset", value: object.settings.inset, range: 0...3, help: "How far inside the edge the underlay runs.") { value in settings(object.kind, "Underlay Inset") { $0.inset = value } }

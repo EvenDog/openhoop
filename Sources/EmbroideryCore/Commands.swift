@@ -244,6 +244,16 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         default: return "Edit"
         }
     }
+    /// True for commands that act on the selected objects (or a point of one), so menus grey them out while nothing
+    /// is selected. Finer cases (the wrong kind of object, say) stay clickable and explain in the status line.
+    public var needsSelection: Bool {
+        [.holeTool, .removeHoles, .clearStartEnd, .editLettering, .breakApartLettering, .testSwatches, .useAsFillGuide, .putLetteringOnLine,
+         .renameObject, .convertFill, .convertRun, .convertSatin, .toggleUnderlay, .focusSpacing, .focusAngle, .focusLength, .satinBorder, .applique,
+         .insertNode, .deleteNode, .toggleNodeType, .weldObjects, .smoothShapes, .branching, .addStitchAngles, .removeStitchAngles, .editStitches, .editMonogram,
+         .delete, .sequenceBySelection, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters,
+         .spaceAcross, .spaceDown, .duplicate, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .closePath, .lockObject, .hideObject,
+         .tieIn, .tieOut, .trimAfter, .stopAfter, .group, .ungroup, .cutObjects, .copyObjects, .zoomSelected, .nudgeLeft, .nudgeRight, .nudgeUp, .nudgeDown].contains(self)
+    }
     public var appWide: Bool { [.new, .open, .save, .saveAs, .close, .settings].contains(self) }
     public var contexts: Set<CommandContext> {
         if appWide { return [.canvas, .drawing, .list, .text] }

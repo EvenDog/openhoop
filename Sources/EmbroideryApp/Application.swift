@@ -356,6 +356,9 @@ import EmbroideryCore
         if let on = shown[command] { menuItem.state = on ? .on : .off; return true }
         if command == .cutObjects || command == .copyObjects { return !state.selection.isEmpty }
         if command == .pasteObjects { return NSPasteboard.general.data(forType: .init(ObjectClipboard.pasteboardType)) != nil }
+        // Commands that act on the selection are greyed out while nothing is selected (Delete still works on a
+        // selected stitch or stitch angle line).
+        if command.needsSelection && state.selection.isEmpty && !(command == .delete && (state.tool == .stitchEdit || state.selectedAngle != nil)) { return false }
         if command.isExport || command == .productionWorksheet { return !state.busy && !state.exporting && !state.hasVersionMismatch && state.generationError == nil && state.compiledRevision == state.revision && state.draft.isEmpty && state.plan.stitchCount > 0 }
         return true
     }

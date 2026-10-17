@@ -1,6 +1,7 @@
 // Checks that the settings Properties offers really change the stitches, and the ones it hides really don't: stitch
-// length for each fill and line style, and underlay spacing for each fill and satin underlay. (Properties shows
-// Stitch length only where `usesStitchLength`, and Underlay spacing only where `usesUnderlaySpacing`.)
+// length for each fill and line style, underlay spacing for each fill and satin underlay, and a fill's angle.
+// (Properties shows Stitch length only where `usesStitchLength`, Underlay spacing only where `usesUnderlaySpacing`,
+// and the angle as Fill angle where the rows follow it or Underlay angle where only the underlay does.)
 import XCTest
 @testable import EmbroideryCore
 
@@ -28,6 +29,20 @@ final class SettingsMatterTests: XCTestCase {
             var line = RunObject(name: "Line", nodes: stride(from: 0.0, through: 40, by: 8).map { PathNode(Point($0, 5 * sin($0 / 7))) })
             line.digitizing = DigitizingSettings(kind: .run); line.digitizing?.runStyle = style
             XCTAssertEqual(try matters(line) { $0.stitchLength = 0.8 }, style.usesStitchLength, "\(style) line")
+        }
+    }
+
+    func testTheAngleIsOfferedWhereItMatters() throws {
+        for style in FillStyle.allCases {
+            for underlay in [UnderlayStyle.none, .edge, .edgeAndSparse] {
+                var objects = [fill(style, underlay: underlay)]
+                if style == .tatami { var lined = objects[0]; lined.digitizing?.angleLines = [[Point(-5, -15), Point(-5, 15)], [Point(8, -15), Point(10, 15)]]; objects.append(lined) }
+                for object in objects {
+                    let shown = StitchAngleLine.applies(to: object) || StitchAngleLine.steersOnlyUnderlay(object)
+                    XCTAssertFalse(StitchAngleLine.applies(to: object) && StitchAngleLine.steersOnlyUnderlay(object), "shown once, as one or the other")
+                    XCTAssertEqual(try matters(object) { $0.digitizing?.angle = 35 }, shown, "\(style) fill, \(underlay) underlay\(object.settings.angleLines == nil ? "" : ", angle lines")")
+                }
+            }
         }
     }
 
