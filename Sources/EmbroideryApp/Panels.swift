@@ -790,7 +790,8 @@ struct InspectorPanel: View {
                     if object.settings.radialCenter != nil {Button("Center in the shape"){settings(.fill,"Reset Radial Center"){$0.radialCenter=nil}}.buttonStyle(ThemedButtonStyle()).help("Move the radial center back to the middle of the shape")}
                 }
             }
-            if object.kind == .run || object.kind == .fill {
+            // Not for zigzag lines: Width and Spacing set their stitches.
+            if object.kind == .fill || (object.kind == .run && (object.settings.runStyle ?? .running).usesStitchLength) {
                 number("Stitch length", value: object.stitchLength, id: "stitchLength", range: 0.3...10, help: object.kind == .fill ? "Length of each stitch along a fill row." : "How far the needle moves per stitch. Shorter stitches follow curves more closely.") { value in state.editSelected("Stitch Length") { $0.stitchLength = value } }
             }
             if SatinLine.canConvert(object) { satinLine(object) }
@@ -1224,6 +1225,7 @@ struct InspectorPanel: View {
             number(style == .blanket ? "Prong spacing" : style == .motif ? "Gap" : "Spacing", value: object.settings.runSpacing ?? DigitizingSettings.defaultRunSpacing(style), range: DigitizingSettings.runSpacingRange,
                    help: style == .blanket ? "How far apart the prongs are along the line (mm)." : style == .motif ? "The running stitch between motifs (mm)." : "How far the needle moves along the line with each swing (mm). Smaller is denser.") { value in settings(.run, "Line Spacing") { $0.runSpacing = value } }
         }
+        if style == .zigzag { explain("Each zigzag stitch runs from one side of the line to the other: Width sets how far across, Spacing how far along.") }
         if style == .ripple {
             let range = DigitizingSettings.rippleLineRange
             number("Lines", value: Double(object.settings.rippleLines ?? DigitizingSettings.defaultRippleLines), range: Double(range.lowerBound)...Double(range.upperBound),

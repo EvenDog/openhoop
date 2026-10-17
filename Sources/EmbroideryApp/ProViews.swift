@@ -447,7 +447,10 @@ extension InspectorPanel {
 
     private func proRunning(_ object: RunObject) -> some View {
         proSection("Running") {
-            number("Stitch length", value: object.stitchLength, id: "stitchLength", range: 0.3...10, help: "How far the needle moves per stitch. Shorter stitches follow curves more closely.") { value in state.editSelected("Stitch Length") { $0.stitchLength = value } }
+            // Not for zigzag lines: Width and Spacing set their stitches.
+            if (object.settings.runStyle ?? .running).usesStitchLength {
+                number("Stitch length", value: object.stitchLength, id: "stitchLength", range: 0.3...10, help: "How far the needle moves per stitch. Shorter stitches follow curves more closely.") { value in state.editSelected("Stitch Length") { $0.stitchLength = value } }
+            }
             runStyle(object)
             if (object.settings.runStyle ?? .running) == .running { runPasses(object) }
             toggle("Closed path", value: object.closed) { _ in AppDelegate.shared.perform(.closePath) }.help(preferences.hint(.closePath))
