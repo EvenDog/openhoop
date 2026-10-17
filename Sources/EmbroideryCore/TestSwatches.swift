@@ -14,12 +14,19 @@ public enum SwatchSetting: String, CaseIterable, Sendable {
     }
     /// The unit after a value: "mm", "%" or "°".
     public var unit: String { self == .compensationPercent ? "%" : self == .angle ? "°" : "mm" }
-    /// The settings an object of this kind has.
-    public static func available(for kind: StitchKind) -> [SwatchSetting] {
-        switch kind {
-        case .fill: return [.rowSpacing, .stitchLength, .compensation, .angle, .underlaySpacing]
-        case .satin: return [.rowSpacing, .compensation, .compensationPercent, .underlaySpacing]
-        case .run: return [.stitchLength]
+    /// The settings of `object` worth stepping: the ones that change its stitches (the same ones Properties shows),
+    /// so no swatch run comes out as identical copies.
+    public static func available(for object: RunObject) -> [SwatchSetting] {
+        let s = object.settings
+        switch object.kind {
+        case .fill:
+            let style = s.fillStyle ?? .tatami
+            // Stipple, motif, cross stitch and gradient fills have spacings of their own, and the first three no underlay.
+            let ownSpacing = [.stipple, .motif, .crossStitch, .gradient].contains(style), underlay = ![.stipple, .motif, .crossStitch].contains(style)
+            return [ownSpacing ? nil : .rowSpacing, style.usesStitchLength ? .stitchLength : nil, .compensation,
+                    StitchAngleLine.applies(to: object) ? .angle : nil, underlay && s.usesUnderlaySpacing(.fill) ? .underlaySpacing : nil].compactMap { $0 }
+        case .satin: return [.rowSpacing, .compensation, .compensationPercent, s.usesUnderlaySpacing(.satin) ? .underlaySpacing : nil].compactMap { $0 }
+        case .run: return (s.runStyle ?? .running).usesStitchLength ? [.stitchLength] : []
         default: return []
         }
     }

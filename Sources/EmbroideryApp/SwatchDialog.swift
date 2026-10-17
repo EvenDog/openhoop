@@ -26,7 +26,7 @@ struct SwatchView: View {
 
     init(object: RunObject, hoop: Hoop, done: @escaping (Design?) -> Void) {
         self.object = object; self.hoop = hoop; self.done = done
-        let setting = SwatchSetting.available(for: object.kind).first ?? .stitchLength
+        let setting = SwatchSetting.available(for: object).first ?? .stitchLength
         _setting = State(initialValue: setting)
         _start = State(initialValue: setting.value(of: object))
         _step = State(initialValue: setting.step)
@@ -45,7 +45,7 @@ struct SwatchView: View {
             HStack(alignment: .top, spacing: 20) {
                 VStack(alignment: .leading, spacing: 12) {
                     Picker("Setting", selection: $setting) {
-                        ForEach(SwatchSetting.available(for: object.kind), id: \.self) { Text($0.title).tag($0) }
+                        ForEach(SwatchSetting.available(for: object), id: \.self) { Text($0.title).tag($0) }
                     }.font(Theme.body(13, weight: .semibold))
                     .onChange(of: setting) { _, new in start = new.value(of: object); step = new.step }
                     numberRow("Start at", value: $start)

@@ -26,7 +26,16 @@ final class SwatchAndDensityTests: XCTestCase {
 
         XCTAssertThrowsError(try TestSwatches.design(square(40), setting: .rowSpacing, values: values, hoop: Hoop(width: 100, height: 100)), "five 40 mm swatches don't fit")
         XCTAssertThrowsError(try TestSwatches.design(square(10), setting: .rowSpacing, values: [0.05], hoop: Hoop(width: 100, height: 100)), "out of range")
-        XCTAssertEqual(SwatchSetting.available(for: .satin), [.rowSpacing, .compensation, .compensationPercent, .underlaySpacing])
+        // Only settings that change the stitches are offered.
+        var satin = RunObject(name: "Satin", nodes: []); satin.digitizing = DigitizingSettings(kind: .satin)
+        XCTAssertEqual(SwatchSetting.available(for: satin), [.rowSpacing, .compensation, .compensationPercent, .underlaySpacing])
+        satin.digitizing?.underlay = .edge
+        XCTAssertEqual(SwatchSetting.available(for: satin), [.rowSpacing, .compensation, .compensationPercent], "an edge run alone has no rows to space")
+        var cross = square(10); cross.digitizing?.fillStyle = .crossStitch
+        XCTAssertEqual(SwatchSetting.available(for: cross), [.compensation])
+        XCTAssertEqual(SwatchSetting.available(for: square(10)), [.rowSpacing, .stitchLength, .compensation, .angle, .underlaySpacing])
+        var zigzag = RunObject(name: "Zigzag", nodes: []); zigzag.digitizing = DigitizingSettings(kind: .run); zigzag.digitizing?.runStyle = .zigzag
+        XCTAssertTrue(SwatchSetting.available(for: zigzag).isEmpty)
     }
 
     func testDensityMapFlagsStackedSatinsButNotAPlainFill() throws {

@@ -422,7 +422,10 @@ extension InspectorPanel {
             if ![.stipple, .motif, .crossStitch, .gradient].contains(style) {
                 number("Row spacing", value: object.settings.spacing, id: "rowSpacing", range: 0.15...5, help: "Gap between each pass of thread. Smaller gaps give fuller coverage and use more stitches.") { value in settings(.fill, "Row Spacing") { $0.spacing = value } }
             }
-            number("Stitch length", value: object.stitchLength, id: "stitchLength", range: 0.3...10, help: "Length of each stitch along a fill row.") { value in state.editSelected("Stitch Length") { $0.stitchLength = value } }
+            // Not for cross stitch: its square size sets its stitches.
+            if style.usesStitchLength {
+                number("Stitch length", value: object.stitchLength, id: "stitchLength", range: 0.3...10, help: fillStitchLengthHelp(object)) { value in state.editSelected("Stitch Length") { $0.stitchLength = value } }
+            }
             number("Expansion", value: object.settings.expansion, range: 0...2, help: "Grows the fill past its outline by this much, because thread pulls fabric inward as it sews.") { value in settings(.fill, "Compensation") { $0.expansion = value } }
             proRow("Holes", help: "Holes are areas inside the fill left unstitched. + traces a new one; − removes them all.") {
                 Text(ProStats.count(holes, "hole")).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
@@ -461,14 +464,21 @@ extension InspectorPanel {
 
     /// An outline that doesn't sew yet: buttons to give it stitches.
     private func proOutline(_ object: RunObject) -> some View {
-        proSection("Outline") {
-            proRow("Sew as", help: "This outline does not sew until you assign stitches. Satin requires manually drawn edge pairs.") {
-                Button("Running") { AppDelegate.shared.perform(.convertRun) }.buttonStyle(ThemedButtonStyle())
-                Button("Fill") { AppDelegate.shared.perform(.convertFill) }.buttonStyle(ThemedButtonStyle())
+        // A guide line only steers its fill or lettering: it can go back to being a sewn line, nothing else.
+        proSection(object.guideFor == nil ? "Outline" : "Guide line") {
+            if object.guideFor != nil {
+                proRow("Sew as", help: "This dashed line guides a fill or lettering and doesn't sew. Reshape it with Edit Nodes and they follow. Running turns it back into a line that sews.") {
+                    Button("Running") { AppDelegate.shared.perform(.convertRun) }.buttonStyle(ThemedButtonStyle())
+                }
+            } else {
+                proRow("Sew as", help: "This outline does not sew until you assign stitches. Satin requires manually drawn edge pairs.") {
+                    Button("Running") { AppDelegate.shared.perform(.convertRun) }.buttonStyle(ThemedButtonStyle())
+                    Button("Fill") { AppDelegate.shared.perform(.convertFill) }.buttonStyle(ThemedButtonStyle())
+                }
+                satinLine(object)
+                toggle("Closed path", value: object.closed) { _ in AppDelegate.shared.perform(.closePath) }.help(preferences.hint(.closePath))
+                border(object)
             }
-            satinLine(object)
-            toggle("Closed path", value: object.closed) { _ in AppDelegate.shared.perform(.closePath) }.help(preferences.hint(.closePath))
-            border(object)
         }
     }
 
@@ -504,7 +514,8 @@ extension InspectorPanel {
             if object.settings.usesUnderlayInset {
                 number("Inset", value: object.settings.inset, range: 0...3, help: "How far inside the edge the underlay runs.") { value in settings(object.kind, "Underlay Inset") { $0.inset = value } }
             }
-            if underlay != .none {
+            // Only underlay with rows to space (not an edge run alone).
+            if object.settings.usesUnderlaySpacing(object.kind) {
                 number("Spacing", value: object.settings.underlaySpacing, range: 0.5...5, help: "Gap between the underlay's rows.") { value in settings(object.kind, "Underlay Spacing") { $0.underlaySpacing = value } }
             }
         }
