@@ -1,4 +1,4 @@
-// The unit lengths are shown and typed in: millimeters or inches (Settings › General, or View › Use Inches).
+// The unit lengths are shown and typed in: millimeters or inches (Settings › Measuring, or View › Use Inches).
 // Designs always store millimeters; this converts only at the edges, where a length is shown or typed, so switching
 // units never changes a design. Stitch settings (stitch length, spacing, satin widths…) always stay in millimeters.
 import Foundation
@@ -67,7 +67,7 @@ extension LengthUnit {
     }
 }
 
-/// A size for the grid's lines or Snap's steps (Settings › General › Grid & snap). Each is a round number in either
+/// A size for the grid's lines or Snap's steps (Settings › Measuring › Grid & snap). Each is a round number in either
 /// unit, so the same choice suits millimeters and inches.
 enum GridSize: String, Codable, CaseIterable, Sendable {
     case fine, normal, coarse

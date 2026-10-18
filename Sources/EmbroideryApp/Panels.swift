@@ -1422,147 +1422,6 @@ struct FooterPanel: View {
     }
 }
 
-/// The Settings window: General (the surface around the hoop) and Keyboard Shortcuts, as tabs.
-struct SettingsView: View {
-    var body: some View {
-        TabView {
-            GeneralSettings().tabItem { Label("General", systemImage: "gearshape") }
-            DesignsSettings().tabItem { Label("Designs", systemImage: "square.on.square") }
-            ShortcutSettings().tabItem { Label("Keyboard Shortcuts", systemImage: "keyboard") }
-        }
-        .frame(minWidth: 1000, minHeight: 680)
-    }
-}
-
-/// App-wide look settings. Fabric color is per design (in Properties); this is the surface around every hoop.
-struct GeneralSettings: View {
-    @ObservedObject var preferences = Preferences.shared
-    var body: some View {
-        // Scrolls, since the cards are taller than the Settings window at its smallest.
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("General").font(Theme.heading(28))
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Appearance").font(Theme.body(14, weight: .bold))
-                    Text("Light or dark for every OpenHoop window. Match system follows the Mac's own setting, including when it changes through the day.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
-                    Picker("Appearance", selection: Binding(get: { preferences.appearance }, set: { preferences.setAppearance($0) })) {
-                        Text("Match system").tag(AppAppearance.system)
-                        Text("Light").tag(AppAppearance.light)
-                        Text("Dark").tag(AppAppearance.dark)
-                    }
-                    .pickerStyle(.radioGroup).labelsHidden().font(Theme.body(13))
-                }
-                .padding(16).frame(maxWidth: 520, alignment: .leading)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Units").font(Theme.body(14, weight: .bold))
-                    Text("How sizes and positions are shown and typed: design and hoop sizes, rulers, the grid, Measure and nudge. Stitch settings such as stitch length and row spacing always stay in millimeters. View › Use Inches switches too.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
-                    Picker("Units", selection: Binding(get: { preferences.unit }, set: { preferences.setUnit($0) })) {
-                        Text("Millimeters").tag(LengthUnit.millimeters)
-                        Text("Inches").tag(LengthUnit.inches)
-                    }
-                    .pickerStyle(.radioGroup).labelsHidden().font(Theme.body(13))
-                }
-                .padding(16).frame(maxWidth: 520, alignment: .leading)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Around the hoop").font(Theme.body(14, weight: .bold))
-                    Text("The work surface behind the hoop on every design's canvas.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary)
-                    Picker("Around the hoop", selection: Binding(get: { preferences.data.pasteboardColor == nil },
-                                                                 set: { follow in preferences.data.pasteboardColor = follow ? nil : 0xE8DCC8; preferences.save() })) {
-                        Text("Match light or dark mode").tag(true)
-                        Text("Custom color").tag(false)
-                    }
-                    .pickerStyle(.radioGroup).labelsHidden().font(Theme.body(13))
-                    if let hex = preferences.data.pasteboardColor {
-                        ColorPicker("Color", selection: Binding(get: { Color(nsColor: Theme.fixed(hex)) },
-                                                                set: { preferences.data.pasteboardColor = Theme.hex(of: $0); preferences.save() }), supportsOpacity: false)
-                            .font(Theme.body(13))
-                    }
-                }
-                .padding(16).frame(maxWidth: 520, alignment: .leading)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Grid lines").font(Theme.body(14, weight: .bold))
-                    Text("The grid inside the hoop. Automatic draws light lines on dark cloth and dark lines on light cloth.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
-                    Picker("Grid lines", selection: Binding(get: { preferences.data.gridColor == nil },
-                                                            set: { automatic in preferences.data.gridColor = automatic ? nil : 0xFFFFFF; preferences.data.gridOpacity = automatic ? nil : 0.4; preferences.save() })) {
-                        Text("Automatic").tag(true)
-                        Text("Custom color").tag(false)
-                    }
-                    .pickerStyle(.radioGroup).labelsHidden().font(Theme.body(13))
-                    if let hex = preferences.data.gridColor {
-                        // The picker's opacity slider sets how strong the lines are.
-                        ColorPicker("Color", selection: Binding(get: { Color(nsColor: Theme.fixed(hex).withAlphaComponent(preferences.data.gridOpacity ?? 0.4)) },
-                                                                set: { color in
-                                                                    preferences.data.gridColor = Theme.hex(of: color)
-                                                                    preferences.data.gridOpacity = Double(NSColor(color).alphaComponent)
-                                                                    preferences.save()
-                                                                }), supportsOpacity: true)
-                            .font(Theme.body(13))
-                    }
-                }
-                .padding(16).frame(maxWidth: 520, alignment: .leading)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Grid & snap").font(Theme.body(14, weight: .bold))
-                    Text("How far apart the grid's lines are, and the steps Snap moves points to. Zoomed in, the grid shows lines half as far apart.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
-                    HStack {
-                        Text("Grid lines every").font(Theme.body(13)).frame(width: 120, alignment: .leading)
-                        Picker("Grid lines every", selection: Binding(get: { preferences.gridSize }, set: { preferences.data.gridSize = $0; preferences.save() })) {
-                            ForEach(GridSize.allCases, id: \.self) { size in Text(preferences.unit.gridLabel(size)).tag(size) }
-                        }
-                        .pickerStyle(.segmented).labelsHidden().frame(width: 260)
-                    }
-                    HStack {
-                        Text("Snap to").font(Theme.body(13)).frame(width: 120, alignment: .leading)
-                        Picker("Snap to", selection: Binding(get: { preferences.snapSize }, set: { preferences.data.snapSize = $0; preferences.save() })) {
-                            ForEach(GridSize.allCases, id: \.self) { size in Text(preferences.unit.snapLabel(size)).tag(size) }
-                        }
-                        .pickerStyle(.segmented).labelsHidden().frame(width: 260)
-                    }
-                }
-                .padding(16).frame(maxWidth: 520, alignment: .leading)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Stitch player speeds").font(Theme.body(14, weight: .bold))
-                    Text("The speed buttons in the stitch player at the top of the window, in stitches per second (1–5,000). A machine sews about 12. Right-click the buttons for a one-off speed.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
-                    HStack(alignment: .bottom, spacing: 12) {
-                        ForEach(0..<preferences.speedPresets.count, id: \.self) { index in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Button \(index + 1)").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary)
-                                TextField("Button \(index + 1)", value: Binding(get: { preferences.speedPresets[index] }, set: { preferences.setSpeedPreset(index, to: $0) }),
-                                          format: .number.precision(.fractionLength(0)))
-                                    .textFieldStyle(.roundedBorder).multilineTextAlignment(.trailing).frame(width: 70)
-                            }
-                        }
-                        Button("Reset") { preferences.resetSpeedPresets() }.buttonStyle(ThemedButtonStyle())
-                            .disabled(preferences.data.speedPresets == nil).help("Back to 12, 120, 500 and 2,000")
-                    }
-                }
-                .padding(16).frame(maxWidth: 520, alignment: .leading)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Pro view tools").font(Theme.body(14, weight: .bold))
-                    Text("Where the Pro view puts its tools. Every tool is one click away either way.").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary)
-                    Picker("Pro view tools", selection: Binding(get: { preferences.proToolsOnLeft },
-                                                                set: { onLeft in preferences.data.proToolsOnLeft = onLeft ? true : nil; preferences.save() })) {
-                        Text("Across the top, in two rows").tag(false)
-                        Text("Down the left side").tag(true)
-                    }
-                    .pickerStyle(.radioGroup).labelsHidden().font(Theme.body(13))
-                }
-                .padding(16).frame(maxWidth: 520, alignment: .leading)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.cardBorder))
-                Text("Fabric color is chosen per design: click empty canvas so nothing is selected, then look under Fabric in Properties.")
-                    .font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).frame(maxWidth: 520, alignment: .leading)
-            }
-            .padding(24).frame(maxWidth: .infinity, alignment: .topLeading)
-        }
-        .foregroundStyle(Theme.ink).background(Theme.ground)
-    }
-}
-
 struct ShortcutSettings: View {
     @ObservedObject var preferences = Preferences.shared
     @State private var search = ""
@@ -1574,12 +1433,12 @@ struct ShortcutSettings: View {
     private let categories = ["Digitizing", "Edit", "File", "View", "Workspace"]
     var body: some View {
         HStack(alignment: .top, spacing: 20) {
-            sidebar.frame(width: 300)
+            // The categories, key map and help scroll if the window is short; the command list scrolls on its own.
+            ScrollView { sidebar }.scrollIndicators(.never).frame(width: 300)
             commandsColumn
         }
-        .padding(24).frame(minWidth: 960, minHeight: 640)
+        .padding(.horizontal, 28).padding(.bottom, 24).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .foregroundStyle(Theme.ink)
-        .background(Theme.ground)
             .alert("Shortcut already assigned", isPresented: $showConflict) { Button("Replace Assignment") { if let (command, key) = pending { preferences.assign(key, to: command, replacing: true) }; pending = nil }; Button("Cancel", role: .cancel) { pending = nil } } message: { Text(conflictText) }
             .onDisappear { stopRecording() }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in stopRecording() }
@@ -1593,10 +1452,6 @@ struct ShortcutSettings: View {
     }
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Make it yours.").font(Theme.heading(30))
-                Text("Assign a key to any command. Your shortcuts stay with you.").font(Theme.body(13)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
-            }
             VStack(spacing: 2) {
                 categoryButton(nil, title: "All commands")
                 ForEach(categories, id: \.self) { categoryButton($0, title: $0) }

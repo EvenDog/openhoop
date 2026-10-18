@@ -107,7 +107,7 @@ struct PreferenceData: Codable {
     var fillStitchLength: Double?
     var fillAngle: Double?
     var satinPullPercent: Double?
-    /// The stitch player's four speed buttons, in stitches per second (Settings › General); nil means the built-in ones.
+    /// The stitch player's four speed buttons, in stitches per second (Settings › Tools & player); nil means the built-in ones.
     var speedPresets: [Double]?
 }
 
@@ -165,7 +165,7 @@ struct ShownItems: Codable, Equatable {
     var nudge: Double { data.nudgeDistance ?? 1 }
     /// The unit sizes and positions are shown and typed in (designs themselves always stay in millimeters).
     var unit: LengthUnit { data.lengthUnit ?? .millimeters }
-    /// Light, dark, or following the Mac's setting (Settings › General › Appearance).
+    /// Light, dark, or following the Mac's setting (Settings › Look › Appearance).
     var appearance: AppAppearance { data.appearance ?? .system }
     /// Switches every window to light, dark or the Mac's setting at once, and remembers it.
     func setAppearance(_ appearance: AppAppearance) {
@@ -178,10 +178,10 @@ struct ShownItems: Codable, Equatable {
     func setShowRulers(_ on: Bool) { data.showRulers = on; save(announce: false) }   // the menus show its check mark as they open
     /// Switches between millimeters and inches for every window, and remembers it.
     func setUnit(_ unit: LengthUnit) { guard unit != self.unit else { return }; data.lengthUnit = unit; save() }
-    /// The grid's line spacing and Snap's step (Settings › General › Grid & snap).
+    /// The grid's line spacing and Snap's step (Settings › Measuring › Grid & snap).
     var gridSize: GridSize { data.gridSize ?? .normal }
     var snapSize: GridSize { data.snapSize ?? .normal }
-    /// Gives a blank new design the hoop and fabric for new designs (Settings › Designs): the hoop used last, or the one
+    /// Gives a blank new design the hoop and fabric for new designs (Settings › New designs): the hoop used last, or the one
     /// picked there, and the fabric picked there (woven if none).
     func startNewDesign(_ design: inout Design) {
         if let hoop = data.newDesignHoop { design.hoop = hoop }
@@ -195,7 +195,7 @@ struct ShownItems: Codable, Equatable {
     }
     /// The built-in starting values for drawn objects, shown in Settings until they're changed.
     static let builtInLineStitchLength = 2.5, builtInFillStitchLength = 3.0, builtInFillAngle = 45.0
-    /// A newly drawn object with the starting values from Settings › Designs › New objects: its stitch length, and a
+    /// A newly drawn object with the starting values from Settings › New designs › New objects: its stitch length, and a
     /// fill's angle or a satin's compensation. Only values changed in Settings are set, so the defaults the tools
     /// already use stay otherwise.
     func withNewObjectDefaults(_ object: RunObject) -> RunObject {
