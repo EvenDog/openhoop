@@ -467,7 +467,7 @@ import EmbroideryCore
             case .freehandClosed:state.status="Freehand closed shape · Press and drag; the outline follows the pointer · Let go to finish, it closes itself · Esc cancels"
             case .ellipse:state.status="Drag out from the center · Hold ⌘ for a circle"
             case .rectangle,.basicShape:state.status="Drag to draw the shape · Hold ⌘ to keep it even · Hold ⇧ to draw it from the center"
-            default:state.status="Select and drag objects. Shift-click to select more than one."
+            default:state.status="Select and drag objects. Shift-click to select more than one, or drag a box round them."
             }
             // Closed shapes say what stitches they'll get, so the Next Shape choices in Properties aren't missed.
             if state.tool == .closedShape || state.tool == .freehandClosed || state.tool.dragsShape {state.status+=" · Next shape: \(Preferences.shared.shapes.closedSummary) (change it in Properties)"}
