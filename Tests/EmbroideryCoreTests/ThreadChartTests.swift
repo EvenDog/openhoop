@@ -27,14 +27,20 @@ final class ThreadChartTests: XCTestCase {
         XCTAssertThrowsError(try ThreadChart.parse("GIMP Palette\n256 0 0 Too Red\n", fallbackName: "x"))
     }
 
-    func testBundledMachineChartsLoad() throws {
+    func testBundledChartsLoad() throws {
         let folder = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("Resources/ThreadCharts")
         let charts = ThreadChart.all(in: folder)
-        XCTAssertEqual(charts.map(\.name), ["Brother (machine palette)", "Husqvarna Viking (machine palette)", "Janome (machine palette)"])
-        let brother = try XCTUnwrap(charts.first)
+        // The three machine palettes plus 21 brand charts from Ink/Stitch, every one readable, with its own name.
+        XCTAssertEqual(charts.count, 24)
+        XCTAssertEqual(Set(charts.map(\.name)).count, charts.count, "names are unique")
+        XCTAssertTrue(charts.allSatisfy { $0.threads.count >= 20 }, "\(charts.map { "\($0.name): \($0.threads.count)" })")
+        let brother = try XCTUnwrap(charts.first { $0.name == "Brother (machine palette)" })
         XCTAssertEqual(brother.threads.count, 64)
         XCTAssertEqual(brother.threads[4], ThreadColor("Red", 0xED171F, brand: "Brother (machine palette)", code: "5"))
+        let polyneon = try XCTUnwrap(charts.first { $0.name == "Madeira Polyneon" }, "“Ink/Stitch: ” is left off the name")
+        XCTAssertEqual(polyneon.threads.first, ThreadColor("Celestial Blue", 0xB7C3C5, brand: "Madeira Polyneon", code: "1610"))
+        XCTAssertTrue(charts.contains { $0.name == "Isacord Polyester" } && charts.contains { $0.name == "Brother Embroidery" })
     }
 
     func testNearestPutsExactMatchFirst() {

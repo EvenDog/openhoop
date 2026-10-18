@@ -222,8 +222,10 @@ Add **ornaments** either side (swirls in bean stitch, leaves or dots, drawn for 
 **Real threads (⌥T).** **Choose Thread from Chart** picks threads by brand and color number:
 - **Current thread and selection:** the closest matches are listed first, or search by name or number.
 - **Every thread in the design:** previews each thread beside its closest chart thread before **Match All** changes them. A muted color may match a gray if the chart has nothing closer.
-- Built-in charts: **Brother**, **Janome** and **Husqvarna Viking** machine palettes. Their numbers are each machine's own color numbers, which may differ from the number on the spool.
-- For real spool numbers, **Import Chart…** adds any GIMP palette (`.gpl`) file, such as the Madeira, Isacord, Robison-Anton and other brand charts Ink/Stitch publishes (github.com/inkstitch/inkstitch, `palettes` folder).
+- Built-in charts, in two sections of the chart menu:
+  - **Machine palettes:** Brother, Janome and Husqvarna Viking. Their numbers are each machine's own color numbers, which may differ from the number on the spool.
+  - **Thread brands**, with real spool numbers: Brother Embroidery and Country, Madeira Polyneon and Rayon, Isacord, Robison-Anton Polyester and Rayon, Sulky Polyester and Rayon, Floriani, Gunold, Marathon Polyester and Rayon, Mettler Poly Sheen, Hemingworth, Fil-Tec Glide, Simthread (and its 63 Brother colors), Janome, DMC and Coats Alcazar, from Ink/Stitch. Their colors are screen approximations of the real spools.
+- **Import Chart…** adds any other GIMP palette (`.gpl`) file, such as Ink/Stitch's other brand charts (github.com/inkstitch/inkstitch, `palettes` folder). Imported charts get their own section, and one with a built-in chart's name replaces it.
 - A chart thread's brand and number appear in the Threads panel, on the worksheet, in the thread list and in PES files.
 
 **Fabric type** (Design panel): **Woven**, **Knit**, **Towel / fleece**, **Denim / canvas** or **Felt / patch twill**. It sets starting density, compensation and underlay for new fills and satins, and names the stabilizer to use. If the design already has shapes, you're asked whether to update them. These are rules of thumb; adjust them after a test sew-out.

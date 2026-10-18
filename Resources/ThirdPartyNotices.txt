@@ -5,6 +5,7 @@ OpenHoop bundles these parts by other people, each under its own license:
 - Clipper2 (Boost Software License 1.0, in Clipper2-LICENSE.txt), for polygon offsetting and clipping.
 - Hand-digitized embroidery fonts from the Ink/Stitch font collection (see EMBROIDERY FONTS at the end).
 - Thread charts made from pyembroidery's machine palettes (MIT License, below).
+- Brand thread charts from Ink/Stitch (GNU GPL v3; see THREAD CHARTS at the end).
 
 LICENSE — pyembroidery-1.5.1.dist-info
 MIT License
@@ -688,3 +689,16 @@ The app bundles 18 hand-digitized embroidery fonts from the Ink/Stitch embroider
 Each font folder contains its own LICENSE file with the font's copyright notice and full license text.
 Seventeen are licensed under the SIL Open Font License, Version 1.1; Excalibur small is public domain.
 The fonts are read by this app's own code; no Ink/Stitch program code is included.
+
+
+
+THREAD CHARTS — Contents/Resources/ThreadCharts/InkStitch *.gpl
+The app bundles 21 brand thread charts from Ink/Stitch's palettes folder
+(https://github.com/inkstitch/inkstitch/tree/main/palettes, commit 9a5b98381e6db818acdb301edf7c7ccb7f2f0013),
+unmodified: Brother Embroidery, Brother Country, Madeira Polyneon, Madeira Rayon, Isacord Polyester,
+Robison-Anton Polyester and Rayon, Sulky Polyester and Rayon, Floriani Polyester, Gunold Polyester,
+Marathon Polyester and Rayon, Mettler Poly Sheen, Hemingworth, Fil-Tec Glide, Simthread Polyester,
+Simthread Polyester 63 Brother Colors, Janome, DMC and Coats Alcazar. Copyright the Ink/Stitch authors,
+licensed under the GNU General Public License, version 3, the same license as OpenHoop (see LICENSE).
+The colors are screen approximations of each maker's threads; brand names belong to their owners and are
+used only to say which threads a chart lists. Fetched by scripts/fetch-thread-charts.sh.
