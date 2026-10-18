@@ -99,4 +99,25 @@ final class TurningFillTests: XCTestCase {
         let plan = try RunningEngine.compile(design)
         XCTAssertFalse(plan.warnings.contains { $0.contains("couldn't be cut out") }, "\(plan.warnings)")
     }
+
+    /// A shape with a notch between an upright arm and a triangle (drawn in the app, 2026-10-17), with two angle
+    /// lines. Many in-between lines cross the notch, so each gives a row on both sides of it. The rows used to be
+    /// sewn in line order, one on each side in turn, so the needle travelled round the notch after every row; now
+    /// each side is finished before the other, so the needle seldom jumps far between rows.
+    func testRowsSplitByANotchAreSewnOneSideAtATime() throws {
+        let points = [(-26.51, 28.28), (-23.33, 39.93), (-9.1, 24.42), (-19.1, 11.36), (-37.69, 15.71), (-39.45, 29.28),
+                      (-30.44, 26.92), (-30.91, 37.79), (-28.02, 39.76), (-26.37, 36.73), (-27.08, 35.16)]
+        let smooth = [false, false, false, false, false, true, false, false, true, true, false]
+        var object = RunObject(name: "Notch", nodes: zip(points, smooth).map { PathNode(Point($0.0.0, $0.0.1), smooth: $0.1) }, color: ThreadColor.palette[0])
+        object.closed = true; object.digitizing = DigitizingSettings(kind: .fill)
+        let lines = [[Point(-35.0, 36.08), Point(-34.81, 10.28)], [Point(-26.15, 33.91), Point(-14.37, 34.18)]]
+        let region = try AreaGeometry.offset([AreaGeometry.ring(object.nodes)], by: 0.2)
+        let rows = try TurningFill.rows(in: region, angleLines: lines, spacing: 0.4, length: 3, start: nil)
+        // How far the needle moves from the end of each row to the start of the next.
+        let gaps = zip(rows, rows.dropFirst()).map { $0.last!.distance(to: $1.first!) }
+        let long = gaps.filter { $0 > 3 }
+        // Before: 44 moves longer than 3 mm, 592 mm in all (a trip round the notch after almost every row).
+        XCTAssertLessThanOrEqual(long.count, 10, "a few moves between areas, not one after every row")
+        XCTAssertLessThan(long.reduce(0, +), 100)
+    }
 }
