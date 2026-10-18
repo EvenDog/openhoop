@@ -795,7 +795,7 @@ struct InspectorPanel: View {
             if preferences.data.guidedMoreOpen ?? false {
                 number("Nudge distance", value: preferences.nudge, range: Preferences.nudgeRange, length: true, help: "How far the arrow keys move the selection.") { value in preferences.data.nudgeDistance = value; preferences.save() }
             }
-            explain(object.kind == .raw ? "V moves stitch blocks. Use the thread palette to recolor the selection." : "V moves objects. N edits nodes: drag a node's handles to shape its curve, Option-drag to move one side of a smooth node. Secondary-click switches corner and smooth. \(preferences.label(.insertNode)) inserts near the pointer; Shift-Delete removes a node (a pair for satin).")
+            explain(object.kind == .raw ? "V moves stitch blocks. Use the thread palette to recolor the selection." : "V moves objects. N edits nodes: drag a node's handles to shape its curve, Option-drag to move one side of a smooth node. Secondary-click switches corner and smooth. \(preferences.label(.insertNode)) inserts near the pointer; Delete removes the selected node (a pair for satin).")
         } else if !NextShapeOptions.shows(state.tool) {
             Text("Nothing selected").font(Theme.heading(16))
             explain("Click an object on the canvas or in the sewing order to edit its stitches here.")
