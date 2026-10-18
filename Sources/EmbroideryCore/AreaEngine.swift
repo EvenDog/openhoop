@@ -76,8 +76,8 @@ public enum AreaEngine {
         let rowStyle=(style == .tatami && (s.angleLines ?? []).isEmpty) || style == .wave || style == .gradient
         let router=TravelRouter(edges:edges,bounds:bounds,rowAngle:rowStyle ? s.angle:nil)
         // Guided rows bend, so travel across them is priced like satin too, but they're put in sewing order like straight rows.
-        // Turning fills come as streams (each an area sewn back and forth in one go), which are put in order too.
-        let reorders=rowStyle || style == .guided || (style == .tatami && !(s.angleLines ?? []).isEmpty)
+        // Turning fills come already in sewing order: each branch of the shape is sewn so its travel is covered.
+        let reorders=rowStyle || style == .guided
         // Sew each part's sections in the order (and from the ends) that keep travel shortest. Its first section stays
         // first (it honors the start point); with an end point, the last part's last stays last. Contour and radial
         // sections already come in sewing order.
