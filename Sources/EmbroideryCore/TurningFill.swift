@@ -146,44 +146,65 @@ enum TurningFill {
         }
         if !looped { guides.append(ordered[ordered.count - 1]) }   // round a ring, the first line already began it
         guard guides.count <= 20000 else { throw DesignError.invalid("Fill would produce too many stitches. Reduce its size or increase spacing.") }
-        // The rows, each cut short where it crowds the last few rows sewn: one group per in-between line, which has a
-        // row on each side wherever the line crosses a notch or gap in the shape.
-        var groups: [[[Point]]] = [], recent: [[Point]] = [], sewn: [[Point]] = []
+        // The rows, one group per in-between line (a line crossing a notch or gap in the shape has a row on each
+        // side), leaving out every part that would land on thread already laid: the inside of a bend, where rows
+        // crowd together (like short stitches on a satin), and any part of the shape earlier rows already filled,
+        // such as the far side of a notch, which the in-between lines can sweep across twice. Every row laid so far
+        // is kept as points in a grid of squares half a row spacing wide, so a point is checked only against the
+        // points in the squares around it.
+        let near = spacing * 0.5
+        var groups: [[[Point]]] = [], grid: [SIMD2<Int>: [Point]] = [:]
+        func square(_ p: Point) -> SIMD2<Int> { SIMD2(Int((p.x / near).rounded(.down)), Int((p.y / near).rounded(.down))) }
+        func covered(_ p: Point) -> Bool {
+            let s = square(p)
+            for dx in -1...1 { for dy in -1...1 where grid[s &+ SIMD2(dx, dy)]?.contains(where: { $0.distance(to: p) < near }) == true { return true } }
+            return false
+        }
         for guide in guides {
             try Task.checkCancellation()
-            var group: [[Point]] = []
+            var group: [[Point]] = [], laid: [Point] = []
             for piece in clipped(guide) {
-                var row = AreaGeometry.sampled([piece.0, piece.1], length: 0.25)
-                func crowded(_ p: Point) -> Bool { recent.contains { other in other.contains { $0.distance(to: p) < spacing * 0.5 } } }
-                while let first = row.first, crowded(first) { row.removeFirst() }
-                while let last = row.last, crowded(last) { row.removeLast() }
-                // A short leftover (the inside of a tight bend) is checked against every row so far, not just the last
-                // few: where it would only sew over thread already there, it's left out, saving a trip to it and back.
-                if let a = row.first, let b = row.last, a.distance(to: b) < 3 {
-                    func covered(_ p: Point) -> Bool { sewn.contains { other in other.contains { $0.distance(to: p) < spacing * 0.5 } } }
-                    while let first = row.first, covered(first) { row.removeFirst() }
-                    while let last = row.last, covered(last) { row.removeLast() }
+                // Covered ends are left off. In between, a short covered stretch (where rows pinch together for a
+                // moment) is sewn through rather than cut, which would mean an extra trip; a long one (an area that's
+                // already filled) splits the row. Each remaining stretch at least 1 mm long is a row.
+                let points = AreaGeometry.sampled([piece.0, piece.1], length: 0.25)
+                var keep = points.map { !covered($0) }
+                var k = 0
+                while k < points.count {
+                    guard !keep[k] else { k += 1; continue }
+                    var end = k
+                    while end + 1 < points.count, !keep[end + 1] { end += 1 }
+                    let inside = k > 0 && end < points.count - 1
+                    if inside, points[k].distance(to: points[end]) < 3 { for m in k...end { keep[m] = true } }
+                    k = end + 1
                 }
-                guard let a = row.first, let b = row.last, a.distance(to: b) >= StitchEngine.smallestStitch else { continue }
-                let samples = AreaGeometry.sampled([a, b], length: max(0.2, spacing * 0.25))
-                recent.append(samples); sewn.append(samples)
-                if recent.count > 8 { recent.removeFirst() }
-                group.append([a, b])
+                var start: Int?
+                for m in points.indices + [points.count] {
+                    if m < points.count, keep[m] { if start == nil { start = m }; continue }
+                    if let first = start, points[first].distance(to: points[m - 1]) >= 1 {
+                        group.append([points[first], points[m - 1]]); laid += AreaGeometry.sampled([points[first], points[m - 1]], length: max(0.2, spacing * 0.25))
+                    }
+                    start = nil
+                }
             }
+            for p in laid { grid[square(p), default: []].append(p) }   // after the whole line, so its own pieces don't cut each other
             if !group.isEmpty { groups.append(group) }
         }
-        // Sewing order: the rows beyond the first line, the turning rows, then those beyond the last line (a ring has
-        // no parts beyond its lines). Each side of a notch is finished before the other, back and forth, each stream
-        // starting where the one before ended.
+        // The streams: the rows beyond the first line, the turning rows, then those beyond the last line (a ring has
+        // no parts beyond its lines), each stream sewn back and forth in one go. The turning rows (only their ends
+        // so far) are split into stitches staggered by quarters of a stitch length from row to row; the rows beyond
+        // the lines already are. Each stream comes back as one line of stitches, so the fill's travel planner can put
+        // the streams in the order that needs least travel.
         let before = looped ? [] : try beyond(ordered[0], others: Array(ordered.dropFirst()), towards: true)
         let after = looped ? [] : try beyond(ordered[ordered.count - 1], others: Array(ordered.dropLast()), towards: false)
         let turning = streams(groups, near: spacing * 3)
-        let sewing = backAndForth(before + turning + after)
-        // The turning rows (only their ends so far) are split into stitches staggered by quarters of a stitch length
-        // from row to row; the rows beyond the lines already are.
-        let first = before.reduce(0) { $0 + $1.count }, count = turning.reduce(0) { $0 + $1.count }
-        return sewing.enumerated().map { index, row in
-            (first..<first + count).contains(index) ? stitches(row[0], row[1], length: length, offset: Double((index - first) % 4) / 4) : row
+        var index = 0
+        return backAndForth(before + turning + after).enumerated().map { number, stream in
+            let isTurning = number >= before.count && number < before.count + turning.count
+            return stream.flatMap { row -> [Point] in
+                defer { index += 1 }
+                return isTurning ? stitches(row[0], row[1], length: length, offset: Double(index % 4) / 4) : row
+            }
         }
     }
     /// Rows sorted into streams, each an area the rows sweep across without a break. `groups` are the rows in order,
@@ -210,13 +231,14 @@ enum TurningFill {
         return streams
     }
 
-    /// The streams' rows in sewing order, back and forth within each stream; each stream starts from the end of its
-    /// first row nearer where the needle finished the one before.
-    static func backAndForth(_ streams: [[[Point]]]) -> [[Point]] {
-        var result: [[Point]] = []
+    /// Each stream's rows back and forth; each stream starts from the end of its first row nearer where the needle
+    /// finished the one before.
+    static func backAndForth(_ streams: [[[Point]]]) -> [[[Point]]] {
+        var result: [[[Point]]] = []
         for stream in streams {
-            var forward = result.last.map { $0.last!.distance(to: stream[0].first!) <= $0.last!.distance(to: stream[0].last!) } ?? true
-            for row in stream { result.append(forward ? row : row.reversed()); forward.toggle() }
+            let end = result.last?.last?.last
+            var forward = end.map { $0.distance(to: stream[0].first!) <= $0.distance(to: stream[0].last!) } ?? true
+            result.append(stream.map { row in defer { forward.toggle() }; return forward ? row : row.reversed() })
         }
         return result
     }
