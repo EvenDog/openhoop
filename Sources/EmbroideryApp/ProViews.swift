@@ -198,7 +198,7 @@ struct ProSewingOrder: View {
         let selected = state.selection.contains(object.id)
         let flags = [object.trimAfter ? "T" : "", object.stopAfter ? "S" : "", object.locked ? "L" : "", object.visible ? "" : "H"].joined()
         let type = object.kind == .raw ? "Imported stitches" : object.stitchTitle
-        let notes = [object.trimAfter ? ", trims after" : "", object.stopAfter ? ", stops after" : "", object.locked ? ", locked" : "", object.visible ? "" : ", hidden (still sews)"].joined()
+        let notes = [object.trimAfter ? (object.trimRule == .always ? ", trims after" : ", trims after when far") : "", object.stopAfter ? ", stops after" : "", object.locked ? ", locked" : "", object.visible ? "" : ", hidden (still sews)"].joined()
         return Button { state.listClick(object.id, single: indented) } label: {
             row(number: "\(index + 1)", swatch: Color(nsColor: object.color.nsColor), symbol: Self.symbol(object), name: Text(object.name),
                 stitches: count.map { $0.formatted() } ?? "–", flags: flags, indent: indented)
@@ -551,10 +551,10 @@ extension InspectorPanel {
                     toggle("Tie in", value: object.tieIn) { _ in AppDelegate.shared.perform(.tieIn) }
                     toggle("Tie off", value: object.tieOut) { _ in AppDelegate.shared.perform(.tieOut) }
                 }
-                toggle("Trim after", value: object.trimAfter) { _ in AppDelegate.shared.perform(.trimAfter) }
                 toggle("Stop after", value: object.stopAfter) { _ in AppDelegate.shared.perform(.stopAfter) }
             }
             .help(help)
+            trimMenu(object).help(help)
         }
     }
 

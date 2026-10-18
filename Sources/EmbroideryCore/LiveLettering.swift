@@ -197,7 +197,7 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
             oldSettings?.angle = 0; newSettings?.angle = 0
             return same(old.nodes, new.nodes) && (old.holes ?? []).count == (new.holes ?? []).count && zip(old.holes ?? [], new.holes ?? []).allSatisfy(same)
                 && old.closed == new.closed && oldSettings == newSettings && anglesMatch && old.stitchLength == new.stitchLength
-                && old.tieIn == new.tieIn && old.tieOut == new.tieOut && old.trimAfter == new.trimAfter && old.stopAfter == new.stopAfter
+                && old.tieIn == new.tieIn && old.tieOut == new.tieOut && old.trimAfter == new.trimAfter && old.trimAlways == new.trimAlways && old.stopAfter == new.stopAfter
                 && near(old.entry, new.entry) && near(old.exit, new.exit)
         }
     }
