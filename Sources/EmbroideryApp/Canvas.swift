@@ -46,6 +46,7 @@ final class DesignCanvas: NSView {
     private var letterDrag: (lettering: UUID, key: Int, parts: Set<UUID>)?
     private var artworkDrag: Int?   // adjusting the artwork: -1 moves it, 0…3 resizes from that corner
     private var zoomBox: (start: CGPoint, end: CGPoint)?   // the box being dragged with the Zoom Box tool, in canvas points
+    private var selectBox: (start: CGPoint, end: CGPoint)?   // a box dragged from empty canvas with Select, in canvas points
     var measurement: (start: Point, end: Point)?   // the Measure tool's line, in mm; shown until the tool changes
     private var measuring = false   // true while that line is being dragged
     // Edit Stitch: needle points being dragged (where the drag began, and the stitches before it), the stitches
@@ -517,7 +518,7 @@ final class DesignCanvas: NSView {
         if state.tool == .select && !state.hasVersionMismatch, let box = selectionBox(in: design) { drawResizeHandles(box) }
         if state.tool == .node { for letter in letterHandles(in: design) { drawLetterHandle(letter.point, active: letterDrag?.key == letter.key && letterDrag?.lettering == letter.lettering) } }
         if state.tool == .branch, let start = state.branchPoints.first { drawMarker(start, label: "Branch start", color: Theme.Canvas.entry) }
-        if let box = zoomBox {
+        if let box = zoomBox ?? selectBox {
             let rect = NSBezierPath(rect: CGRect(x: min(box.start.x, box.end.x), y: min(box.start.y, box.end.y), width: abs(box.end.x - box.start.x), height: abs(box.end.y - box.start.y)))
             Theme.Canvas.handle.setStroke(); rect.lineWidth = 1; rect.setLineDash([4, 3], count: 2, phase: 0); rect.stroke()
         }
@@ -982,6 +983,10 @@ final class DesignCanvas: NSView {
             if event.modifierFlags.contains(.shift) { state.select(object.id, extend: true, single: single) }
             else if !state.selection.contains(object.id) || single { state.select(object.id, single: single) }
             dragStart = point; dragSnapshot = state.design
+        } else if state.tool == .select {
+            // Empty canvas: start a selection box. Shift keeps what's already selected.
+            if !event.modifierFlags.contains(.shift) { state.selection = [] }
+            selectBox = (location, location)
         } else { state.selection = [] }
     }
     override func rightMouseDown(with event: NSEvent) {
@@ -1008,6 +1013,7 @@ final class DesignCanvas: NSView {
         state.pointer.position = model(location); moveRulerMarks(to: location)
         if let start = screenStart { pan = CGPoint(x: panStart.x + location.x - start.x, y: panStart.y + location.y - start.y); needsDisplay = true; return }
         if let box = zoomBox { zoomBox = (box.start, location); needsDisplay = true; return }
+        if let box = selectBox { selectBox = (box.start, location); needsDisplay = true; return }
         if dropDragIfDesignChanged() { return }
         if let drag = guideDrag, var next = dragSnapshot {
             let p = model(location), raw = drag.vertical ? p.x : p.y
@@ -1180,6 +1186,12 @@ final class DesignCanvas: NSView {
             for (s, section) in state.stitchSections.enumerated() { for (i, p) in section.points.enumerated() where p.x >= lo.x && p.x <= hi.x && p.y >= lo.y && p.y <= hi.y { state.selectedStitches.insert(StitchRef(section: s, index: i)) } }
             stitchBox = nil; needsDisplay = true
             if !state.selectedStitches.isEmpty { state.status = "\(state.selectedStitches.count) needle point\(state.selectedStitches.count == 1 ? "" : "s") selected · Drag to move · \(Preferences.shared.key(.delete)) deletes" }
+            return
+        }
+        if let box = selectBox {
+            selectBox = nil; needsDisplay = true
+            // A click (a box under 4 points) on empty canvas only clears the selection, already done on mouse down.
+            if abs(box.end.x - box.start.x) >= 4 || abs(box.end.y - box.start.y) >= 4 { selectObjects(inside: box) }
             return
         }
         if let box = zoomBox {
@@ -1391,6 +1403,20 @@ final class DesignCanvas: NSView {
         state.edit("Insert Node"){$0=added.design}
     }
     /// The topmost shown object under `p` (model mm), only looking at the objects in `ids` when given.
+    /// Adds every shown, unlocked object lying wholly inside `box` (on screen) to the selection. A group counts only
+    /// when all of its members are inside, so a box picks whole groups, as a click does.
+    private func selectObjects(inside box: (start: CGPoint, end: CGPoint)) {
+        let a = model(box.start), b = model(box.end)
+        let (low, high) = (Point(min(a.x, b.x), min(a.y, b.y)), Point(max(a.x, b.x), max(a.y, b.y)))
+        let inside = Set(state.design.objects.filter { object in
+            let points = object.outlinePaths.flatMap { $0 }
+            return state.isShown(object) && !object.locked && !points.isEmpty
+                && points.allSatisfy { $0.x >= low.x && $0.x <= high.x && $0.y >= low.y && $0.y <= high.y }
+        }.map(\.id))
+        let picked = inside.filter { state.design.groupMembers(of: $0).isSubset(of: inside) }
+        state.selection.formUnion(picked); state.selectedNode = nil
+        state.status = state.selection.isEmpty ? "Nothing lies wholly inside the box." : "\(state.selection.count) object\(state.selection.count == 1 ? "" : "s") selected"
+    }
     private func hit(_ p: Point, among ids: Set<UUID>? = nil) -> RunObject? {
         state.design.objects.reversed().first { object in
             guard state.isShown(object), ids?.contains(object.id) ?? true else { return false }   // what can't be seen can't be clicked
