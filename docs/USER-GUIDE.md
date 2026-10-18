@@ -83,6 +83,7 @@ Trace a closed outline and press Return. Settings: **Row spacing**, **Stitch len
 | **Cross stitch** | X's on a square grid, like hand cross-stitch, in every square entirely inside the shape, so the edge steps. Each diagonal is sewn three times for the weight of floss. **Square size** (3 mm) sets the stitches, so there's no Stitch length; no underlay |
 | **Gradient** | Tatami rows that open up across the shape, from **Spacing at start** (0.4 mm, solid) to **Spacing at end** (2.5 mm, sheer), for shading or blending two colors. Turning the angle by 180° swaps the solid and sheer sides |
 | **Guided** | Rows that bend to follow a guide line you draw over the shape, always one row spacing apart: for hair, feathers, petals and anything that flows. See **Guided fills** below |
+| **Satin** | Smooth satin stitches straight across the shape from edge to edge, at the fill angle (drag the angle line to turn them), each one coming back beside the last: for leaves, petals and small shapes. **Row spacing** is the satin density (try 0.36 mm). With **Auto split** (on), stitches longer than the **Split length** (7 mm) are broken every 5.5 mm measured from the shape's left edge, so the breaks form bands that follow its edge rather than a straight groove. With Auto split off, a shape wider than the split length is refused. No Stitch length |
 
 **Holes:** select a fill and press **⌥H** to trace a hole (or use **+** and **−** next to Holes).
 
