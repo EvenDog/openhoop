@@ -844,12 +844,12 @@ struct InspectorPanel: View {
             }
             sectionDivider
             SectionLabel(title: "Finishing")
-            let finishingHelp = (object.kind == .raw ? "" : "Ties are tiny locking stitches so the thread can't unravel. ") + "Trim cuts the thread before the next part; Stop pauses the machine."
+            let finishingHelp = (object.kind == .raw ? "" : "Ties are tiny locking stitches so the thread can't unravel. ") + "Trim cuts the thread before the next part (When far: only if it starts \(preferences.unit.short(state.design.trimDistance ?? Design.defaultTrimDistance)) or more away); Stop pauses the machine."
             if object.kind != .raw {
                 toggle("Tie in", value: object.tieIn) { _ in AppDelegate.shared.perform(.tieIn) }.help(finishingHelp)
                 toggle("Tie off", value: object.tieOut) { _ in AppDelegate.shared.perform(.tieOut) }.help(finishingHelp)
             }
-            toggle("Trim after", value: object.trimAfter) { _ in AppDelegate.shared.perform(.trimAfter) }.help(finishingHelp)
+            trimMenu(object).help(finishingHelp)
             toggle("Stop after", value: object.stopAfter) { _ in AppDelegate.shared.perform(.stopAfter) }.help(finishingHelp)
             explain(finishingHelp)
             explain("PES encodes travel moves after the first as trim/jumps. Separate trim requests may be omitted; your machine decides whether to cut.")
@@ -899,6 +899,13 @@ struct InspectorPanel: View {
         Button { AppDelegate.shared.perform(.laydown) } label: { Label("Add laydown…", systemImage: CommandID.laydown.symbol) }
             .buttonStyle(ThemedButtonStyle()).help(preferences.hint(.laydown))
         explain("A light, open fill under the design (or the selection) that flattens the pile of towels, fleece and velvet.")
+        sectionDivider
+        SectionLabel(title: "Trims")
+        number("Trim jumps of at least", value: state.design.trimDistance ?? Design.defaultTrimDistance, range: Design.trimDistances, length: true,
+               help: "Objects whose Trim after is When far cut the thread only when the next part starts this far away or more.") { value in
+            state.edit("Trim Distance") { $0.trimDistance = value == Design.defaultTrimDistance ? nil : value }
+        }
+        explain("For objects whose Trim after is When far. Closer than this, one plain stitch carries the thread across instead of a tie-off and trim.")
         if state.hasVersionMismatch {
             Text("This project uses an older stitch engine. Its saved preview is preserved.").font(Theme.body(11)).foregroundStyle(.orange)
             Button("Regenerate with current engine") { var next = state.design; next.engineVersion = Design.engineVersion; state.document?.replace(next, action: "Regenerate Project") }.buttonStyle(ThemedButtonStyle(prominent: true))
@@ -906,6 +913,13 @@ struct InspectorPanel: View {
         }
         if let error = state.generationError { Text(error).font(Theme.body(11)).foregroundStyle(.red) }
         ForEach(state.plan.warnings, id: \.self) { warning in Label(warning, systemImage: "exclamationmark.circle").font(Theme.body(11)).foregroundStyle(.orange) }
+    }
+    /// The Trim after menu: Off, Always, or When far (showing the design's trim distance), for every selected object.
+    func trimMenu(_ object: RunObject) -> some View {
+        let distance = preferences.unit.short(state.design.trimDistance ?? Design.defaultTrimDistance)
+        return Picker("Trim after", selection: Binding(get: { object.trimRule }, set: { rule in state.editSelected("Trim After") { $0.trimRule = rule } })) {
+            ForEach(TrimRule.allCases, id: \.self) { rule in Text(rule == .whenFar ? "When far (\(distance))" : rule.title).tag(rule) }
+        }.font(Theme.body(12, weight: .semibold))
     }
     /// The hoop menu: the common hoops grouped by brand. Its button shows the current hoop, e.g. "Brother 5 × 7 in · 130 × 180 mm".
     private var hoopMenu: some View {

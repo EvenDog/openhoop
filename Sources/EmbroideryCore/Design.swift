@@ -77,6 +77,9 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
     public var tieIn = true
     public var tieOut = true
     public var trimAfter = true
+    /// With trimAfter on: true cuts the thread however close the next object starts; nil (older files too) cuts it
+    /// only when the next object starts at least the design's trim distance away. `trimRule` reads both as one choice.
+    public var trimAlways: Bool?
     public var stopAfter = false
     // Optional additions allow v0.1 running projects to decode without rewriting them.
     public var digitizing: DigitizingSettings?
@@ -499,6 +502,11 @@ public struct Design: Codable, Equatable, Sendable {
     /// The basting box's margin in mm, or nil when it's off (FabricHolding.swift). It changes the stitches, so a
     /// design using it is saved as schema 5.
     public var basting: Double?
+    /// How far (mm) the next object must start from the end of one whose trim is "When far" for the thread to be cut
+    /// there; nil means `defaultTrimDistance`.
+    public var trimDistance: Double?
+    public static let defaultTrimDistance = 3.0
+    public static let trimDistances = 0.5...20.0
     /// Guide lines dragged out of the rulers (Guide.swift), or nil for none. Like the fabric color they never change
     /// the stitches, so older versions can safely ignore them.
     public var guides: [Guide]?
@@ -563,6 +571,7 @@ public struct Design: Codable, Equatable, Sendable {
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }
+        guard trimDistance.map(Self.trimDistances.contains) ?? true else { throw DesignError.invalid("The trim distance must be between 0.5 and 20 mm.") }
         guard (guides ?? []).count <= Guide.limit, (guides ?? []).allSatisfy({ $0.position.isFinite && abs($0.position) <= 10_000 }) else { throw DesignError.invalid("The guide lines are invalid or too many.") }
         guard objects.reduce(0, { $0 + $1.allNodes.count }) <= 100_000 else { throw DesignError.invalid("This design exceeds the 100,000-node limit.") }
         for object in objects {
@@ -654,4 +663,21 @@ public struct StitchPlan: Codable, Equatable, Sendable {
     public init() {}
     public var stitchCount: Int { commands.lazy.filter { $0.op == .stitch }.count }
     public var outsidePoints: [Point] { commands.filter { $0.op == .stitch || $0.op == .jump }.map(\.point) }
+}
+
+/// When an object cuts its thread after sewing: never, always, or only when the next object starts far enough away
+/// (the design's trim distance) that a plain stitch across would show.
+public enum TrimRule: String, CaseIterable, Sendable {
+    case off, always, whenFar
+    public var title: String {
+        switch self { case .off: return "Off"; case .always: return "Always"; case .whenFar: return "When far" }
+    }
+}
+
+extension RunObject {
+    /// `trimAfter` and `trimAlways` as one three-way choice.
+    public var trimRule: TrimRule {
+        get { !trimAfter ? .off : trimAlways == true ? .always : .whenFar }
+        set { trimAfter = newValue != .off; trimAlways = newValue == .always ? true : nil }
+    }
 }
