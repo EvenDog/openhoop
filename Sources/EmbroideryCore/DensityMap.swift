@@ -5,15 +5,17 @@ import Foundation
 public enum DensityMap {
     /// How crowded a 1 mm square is.
     public enum Level: Sendable { case heavy, tooDense }
-    /// One "layer" is the thread a normal fill lays: rows 0.4 mm apart, so 2.5 mm of thread per mm². A satin is about
-    /// 2 layers; two satins overlapping where a letter's strokes join, about 4.
-    static let layerThread = 1 / 0.4
-    /// Over this many layers a square is heavy (shown yellow)…
-    public static let heavyLayers = 4.0
+    /// One "layer" is the thread a normal fill lays: rows 0.2 mm apart (Row spacing 0.40, measured across two rows), so
+    /// 5 mm of thread per mm². A satin is about 1 layer; two satins overlapping where a letter's strokes join, about 2.
+    static let layerThread = 1 / 0.2
+    /// Over this many layers a square is heavy (shown yellow): a little over two, so the corner of an ordinary fill,
+    /// where its rows, underlay and ties meet, isn't flagged…
+    public static let heavyLayers = 2.2
     /// …and over this many, too dense: a stiff, "bulletproof" patch (shown red).
-    public static let tooDenseLayers = 6.0
+    public static let tooDenseLayers = 3.0
     /// Needle holes are counted in squares this size (mm); this many in one is a pile-up that can cut the fabric (red).
-    static let holeCell = 0.25, holePileUp = 5
+    /// (Along a fill's edge each square already has a row end or two, and its starting corner a tie as well.)
+    static let holeCell = 0.25, holePileUp = 6
 
     /// The crowded 1 mm squares of `plan`, by their lower left corner (in mm), and how crowded each is. Squares
     /// with normal density aren't listed.

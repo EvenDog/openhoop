@@ -70,7 +70,7 @@ Settings: **Row spacing**, **Compensation** per side (extra width because thread
 
 ### Fills (F3)
 
-Trace a closed outline and press Return. Settings: **Row spacing**, **Stitch length**, **Angle** and **Expansion**. **Fill style** sets how the rows are laid:
+Trace a closed outline and press Return. Settings: **Row spacing**, **Stitch length**, **Angle** and **Expansion**. For tatami, wave and guided fills, Row spacing is measured across two rows (from a row to the next one sewn the same way), as embroidery software usually measures it: the default 0.40 mm lays the rows 0.20 mm apart. Designs saved by earlier versions have these spacings doubled when they open, so they sew exactly as before. **Fill style** sets how the rows are laid:
 
 | Style | What it looks like |
 | --- | --- |
@@ -216,7 +216,7 @@ Add **ornaments** either side (swirls in bean stitch, leaves or dots, drawn for 
 
 **Holding the fabric** (in the Design panel):
 - **Basting box:** long running stitches around the design, sewn before everything else in the design's first thread (so the machine doesn't stop), that hold the fabric to the stabilizer. Pull them out after sewing. Set how far outside the design it runs with **Margin** (5 mm to start). It stays inside the hoop: on a rectangular hoop it's cut back to the edge, and on an oval one the margin shrinks until the corners fit.
-- **Laydown (⌥⇧L, or Add laydown…):** a light, open fill under the whole design (or the selection) that flattens the pile of towels, fleece and velvet so stitches don't sink in. The dialog sets how far it reaches past the edge, row spacing, stitch length, angle, one layer or two crossed ones, and its thread (one matching the fabric hides best), with a preview. Shapes close together share one laydown, which also covers the gaps between them. It's added as a group that sews before what it lies under; change its spacing or angle in Properties afterwards like any fill.
+- **Laydown (⌥⇧L, or Add laydown…):** a light, open fill under the whole design (or the selection) that flattens the pile of towels, fleece and velvet so stitches don't sink in. The dialog sets how far it reaches past the edge, row spacing (measured across two rows, like tatami: 4 mm lays rows 2 mm apart), stitch length, angle, one layer or two crossed ones, and its thread (one matching the fabric hides best), with a preview. Shapes close together share one laydown, which also covers the gaps between them. It's added as a group that sews before what it lies under; change its spacing or angle in Properties afterwards like any fill.
 
 **Thread colors.** Click a color in the Threads panel to set the current thread; anything selected changes to it too.
 
@@ -262,8 +262,8 @@ Hoops are listed upright; **Turn sideways** swaps width and height. You can also
 **Stitch player.** The player sits at the right end of the tool strip, under the caption **Player** (at the bottom of the tool rail when Pro's tools are down the left side). Press **Space** or **⇧R** (or ▶) to watch the design sew, and **Home** (or ⏮) to go back to the start; drag the slider to step through it. **.** (period) shows the needle points. The speed buttons set how many stitches it sews per second (12, 120, 500 and 2,000 to start; a machine sews about 12), and you can switch between them while it plays. Change the four speeds in **Settings › Tools & player**. For a one-off speed, right-click the buttons and choose **Custom Speed…** (1–5,000). Each time the app opens, the player starts on the second button.
 
 **Density map.** Turn on **View → Density Map** (or **Density** in the Show list) to color the spots that lay too much thread, in 1 mm squares. They show in both views and update as you edit.
-- **Yellow** is heavy: more than about 4 layers of fill (for example, two satins crossing).
-- **Red** is too dense: more than about 6 layers, or 5 or more needle holes inside a quarter of a millimetre. Expect stiff patches there, broken thread, or holes cut in the fabric.
+- **Yellow** is heavy: more than about 2 layers of fill (for example, two satins crossing). One layer is an ordinary tatami fill at 0.40 mm.
+- **Red** is too dense: more than about 3 layers, or 6 or more needle holes inside a quarter of a millimetre. Expect stiff patches there, broken thread, or holes cut in the fabric.
 - The status line gives the total area of each.
 
 **Test swatches.** Not sure which row spacing or compensation suits your fabric? Select one line, fill or satin and choose **Digitize → Make Test Swatches…**.

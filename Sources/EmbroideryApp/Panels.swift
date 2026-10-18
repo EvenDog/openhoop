@@ -753,7 +753,7 @@ struct InspectorPanel: View {
             let noUnderlay = object.kind == .fill && [.stipple, .motif, .crossStitch].contains(object.settings.fillStyle ?? .tatami)
             if object.kind == .satin || object.kind == .fill {
                 if object.kind == .satin { satinWidth(object) }
-                if !ownSpacing { number("Row spacing",value:object.settings.spacing,id:"rowSpacing",range:0.15...5,help:"Gap between each pass of thread. Smaller gaps give fuller coverage and use more stitches."){value in settings(object.kind,"Row Spacing"){$0.spacing=value}} }
+                if !ownSpacing { number("Row spacing",value:object.settings.spacing,id:"rowSpacing",range:object.kind == .fill ? 0.15...10:0.15...5,help:object.settings.rowSpacingHelp){value in settings(object.kind,"Row Spacing"){$0.spacing=value}} }
                 if object.kind == .fill {
                     HStack{Button("Add hole"){AppDelegate.shared.perform(.holeTool)}.buttonStyle(ThemedButtonStyle()).help(preferences.hint(.holeTool));Text(ProStats.count(object.holes?.count ?? 0, "hole")).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)}
                     if !(object.holes ?? []).isEmpty {Button("Remove all holes"){AppDelegate.shared.perform(.removeHoles)}.buttonStyle(ThemedButtonStyle()).help(preferences.hint(.removeHoles))}
@@ -972,7 +972,7 @@ struct InspectorPanel: View {
     private func closeUp(_ object: RunObject) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             SectionLabel(title: "Close-up")
-            StitchPreview(kind: object.kind, color: Color(nsColor: object.color.nsColor), spacing: object.settings.spacing, stitchLength: object.stitchLength, angle: object.settings.angle,
+            StitchPreview(kind: object.kind, color: Color(nsColor: object.color.nsColor), spacing: object.settings.rowGap, stitchLength: object.stitchLength, angle: object.settings.angle,
                           fillStyle: object.settings.fillStyle ?? .tatami, waveHeight: object.settings.waveHeight ?? DigitizingSettings.defaultWaveHeight, waveLength: object.settings.waveLength ?? DigitizingSettings.defaultWaveLength, settings: object.settings)
                 .frame(height: 44)
         }

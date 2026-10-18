@@ -384,7 +384,7 @@ extension InspectorPanel {
         let detail = object.kind == .raw ? object.kind.title : "\(self.detail(object)) · \(object.color.name)"
         return HStack(spacing: 10) {
             if object.kind == .run || object.kind == .satin || object.kind == .fill {
-                StitchPreview(kind: object.kind, color: Color(nsColor: object.color.nsColor), spacing: object.settings.spacing, stitchLength: object.stitchLength, angle: object.settings.angle,
+                StitchPreview(kind: object.kind, color: Color(nsColor: object.color.nsColor), spacing: object.settings.rowGap, stitchLength: object.stitchLength, angle: object.settings.angle,
                               fillStyle: object.settings.fillStyle ?? .tatami, waveHeight: object.settings.waveHeight ?? DigitizingSettings.defaultWaveHeight, waveLength: object.settings.waveLength ?? DigitizingSettings.defaultWaveLength, settings: object.settings)
                     .frame(width: 40, height: 40)
                     .background(Theme.ground)
@@ -437,7 +437,7 @@ extension InspectorPanel {
             }
             patternSettings(object)
             if ![.stipple, .motif, .crossStitch, .gradient].contains(style) {
-                number("Row spacing", value: object.settings.spacing, id: "rowSpacing", range: 0.15...5, help: "Gap between each pass of thread. Smaller gaps give fuller coverage and use more stitches.") { value in settings(.fill, "Row Spacing") { $0.spacing = value } }
+                number("Row spacing", value: object.settings.spacing, id: "rowSpacing", range: 0.15...10, help: object.settings.rowSpacingHelp) { value in settings(.fill, "Row Spacing") { $0.spacing = value } }
             }
             // Not for cross stitch: its square size sets its stitches.
             if style.usesStitchLength {

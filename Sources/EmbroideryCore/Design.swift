@@ -420,6 +420,10 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     /// Satin fills: the longest stitch before it's split (with Auto split, which for fills is on unless set false).
     /// nil means `defaultSatinSplit`. Satin columns use `maximumSatin` instead.
     public var satinSplit:Double?
+    /// True when `spacing` for tatami, wave and guided fills is measured across two rows (from a row to the next one
+    /// sewn the same way, as embroidery software usually measures it), so the rows lie half of it apart. nil (older
+    /// files) measures it from one row to the next; opening such a file converts it (Design.measureSpacingAcrossTwoRows).
+    public var spacingAcrossTwoRows:Bool?
     public static let defaultSatinSplit=7.0
     public static let satinSplitRange=3.0...10.0
     /// Fills only: leave out the area that shapes sewn after this one cover (OverlapCutout.swift). nil (the default)
@@ -430,7 +434,7 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     /// deleted, so the fill still sews the same way.
     public var guideLine:[Point]?
     public init(kind:StitchKind) {
-        self.kind=kind;underlay=kind == .vector ? .none : kind == .fill ? .edgeAndSparse : kind == .satin ? .auto : .center
+        self.kind=kind;spacingAcrossTwoRows=true;underlay=kind == .vector ? .none : kind == .fill ? .edgeAndSparse : kind == .satin ? .auto : .center
         if kind == .satin {shortStitches=true;autoSplit=true;pullPercent=Self.defaultPullPercent}
     }
 }
@@ -620,7 +624,7 @@ public struct Design: Codable, Equatable, Sendable {
             if object.kind == .satin || object.kind == .fill {
                 let s=object.settings
                 guard object.allNodes.count<=2000,(object.holes?.count ?? 0)<=100,
-                      (0.15...5).contains(s.spacing),(0...2).contains(s.expansion),(-180...180).contains(s.angle),
+                      (0.15...10).contains(s.spacing),(0...2).contains(s.expansion),(-180...180).contains(s.angle),
                       (1...10).contains(s.maximumSatin),s.satinSplit.map(DigitizingSettings.satinSplitRange.contains) ?? true,(0...3).contains(s.inset),(0.5...5).contains(s.underlaySpacing),
                       object.kind == .fill ? [.none,.edge,.edgeAndSparse].contains(s.underlay) : [.none,.center,.edge,.zigzag,.auto].contains(s.underlay),
                       s.secondUnderlay.map({object.kind == .satin && s.underlay != .none && s.underlay != .auto && $0 != s.underlay && [.center,.edge,.zigzag].contains($0)}) ?? true,
@@ -686,5 +690,33 @@ extension RunObject {
     public var trimRule: TrimRule {
         get { !trimAfter ? .off : trimAlways == true ? .always : .whenFar }
         set { trimAfter = newValue != .off; trimAlways = newValue == .always ? true : nil }
+    }
+}
+
+extension DigitizingSettings {
+    /// The fill styles whose Row spacing is measured across two rows.
+    public static let pairedRowStyles:[FillStyle]=[.tatami,.wave,.guided]
+    /// The gap between neighbouring rows or passes, in mm: half the spacing for fills of those styles (when it's
+    /// measured across two rows), otherwise the spacing itself.
+    public var rowGap:Double { kind == .fill && spacingAcrossTwoRows == true && Self.pairedRowStyles.contains(fillStyle ?? .tatami) ? spacing/2 : spacing }
+    /// What Row spacing means for these settings, for its help text.
+    public var rowSpacingHelp:String {
+        rowGap < spacing ? "Measured across two rows, from a row to the next one sewn the same way: 0.40 mm lays rows 0.20 mm apart. Smaller is denser and uses more stitches."
+                         : "Gap between each pass of thread. Smaller gaps give fuller coverage and use more stitches."
+    }
+}
+
+extension Design {
+    /// Brings a design saved before Row spacing was measured across two rows up to date: those fills' spacing is
+    /// doubled, so they sew exactly as before. Hand-edited stitches that matched their object still do.
+    public mutating func measureSpacingAcrossTwoRows() {
+        for i in objects.indices where objects[i].digitizing != nil && objects[i].digitizing!.spacingAcrossTwoRows != true {
+            let edited = objects[i].hasCurrentStitchEdits
+            if objects[i].kind == .fill && DigitizingSettings.pairedRowStyles.contains(objects[i].settings.fillStyle ?? .tatami) {
+                objects[i].digitizing!.spacing = min(10, objects[i].digitizing!.spacing * 2)
+            }
+            objects[i].digitizing!.spacingAcrossTwoRows = true
+            if edited { objects[i].refreshStitchEdits() }
+        }
     }
 }
