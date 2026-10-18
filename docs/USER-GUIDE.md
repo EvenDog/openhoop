@@ -16,7 +16,7 @@ Open `dist/OpenHoop.app` after building it. To look around first, choose **File 
 - **Panels:** Sewing order, Properties, Design (fabric and hoop), Reference image and Threads. The stitch player sits at the right end of the tool strip.
 - **Status bar:** messages, and a **Ready to save** check that turns orange with a short reason when something needs fixing before export.
 
-**Guided and Pro views.** Same features, two layouts; switch with **⌥⌘P** or the **Guided | Pro** toggle in the toolbar. Pro shows every tool as its own button on a walnut band, two rows across the top; **Settings › General › Pro view tools** moves them to a rail down the left side instead.
+**Guided and Pro views.** Same features, two layouts; switch with **⌥⌘P** or the **Guided | Pro** toggle in the toolbar. Pro shows every tool as its own button on a walnut band, two rows across the top; **Settings › Tools & player › Tools** moves them to a rail down the left side instead.
 - **Guided** (the default) shows the everyday settings with a plain-English line under each and folds the rest under **More settings**.
 - **Pro** shows everything at once: every tool in one row, a precision bar for exact position, size and rotation, compact Properties, a sewing-order table with stitch counts, and live stats in the status bar. Explanations become tooltips.
 
@@ -171,7 +171,7 @@ Satins with a chosen (not Auto) underlay can have a **second underlay** (More se
 
 **Guides:** drag down from the top ruler for a side-to-side guide line, or right from the left ruler for an up-and-down one; the position shows beside the pointer while you drag. With Select, drag a guide (where no object is under the pointer, the pointer turns ↔ or ↕) to move it, or back onto its ruler to remove it. **View → Clear Guides** removes them all. With **Snap to grid** on, points and drags close to a guide land on it. Guides are saved with the design but never sewn.
 
-**Grid color:** the grid draws light lines on dark cloth and dark lines on light cloth. To pick your own color and strength, open **Settings → General → Grid lines** and choose **Custom color** (the color picker's opacity slider sets how strong the lines are).
+**Grid color:** the grid draws light lines on dark cloth and dark lines on light cloth. To pick your own color and strength, open **Settings → Look → Grid lines** and choose **Custom** (the color picker's opacity slider sets how strong the lines are).
 
 ## Lettering
 
@@ -256,7 +256,7 @@ Hoops are listed upright; **Turn sideways** swaps width and height. You can also
 
 **Thread View.** Press **T** (or the Thread View button under View) to switch between Thread View and the stitch view. Thread View draws each stitch as its own strand of thread, 0.45 mm wide, dark where it dives into the cloth and bright in the middle, so you see roughly how the design will sew out; travel moves between pieces and needle points are hidden. The stitch view draws thin lines and shows travel moves dashed, which is handier for checking the sewing path. The app remembers which one you used last.
 
-**Stitch player.** The player sits at the right end of the tool strip, under the caption **Player** (at the bottom of the tool rail when Pro's tools are down the left side). Press **Space** or **⇧R** (or ▶) to watch the design sew, and **Home** (or ⏮) to go back to the start; drag the slider to step through it. **.** (period) shows the needle points. The speed buttons set how many stitches it sews per second (12, 120, 500 and 2,000 to start; a machine sews about 12), and you can switch between them while it plays. Change the four speeds in **Settings › General › Stitch player speeds**. For a one-off speed, right-click the buttons and choose **Custom Speed…** (1–5,000). Each time the app opens, the player starts on the second button.
+**Stitch player.** The player sits at the right end of the tool strip, under the caption **Player** (at the bottom of the tool rail when Pro's tools are down the left side). Press **Space** or **⇧R** (or ▶) to watch the design sew, and **Home** (or ⏮) to go back to the start; drag the slider to step through it. **.** (period) shows the needle points. The speed buttons set how many stitches it sews per second (12, 120, 500 and 2,000 to start; a machine sews about 12), and you can switch between them while it plays. Change the four speeds in **Settings › Tools & player**. For a one-off speed, right-click the buttons and choose **Custom Speed…** (1–5,000). Each time the app opens, the player starts on the second button.
 
 **Density map.** Turn on **View → Density Map** (or **Density** in the Show list) to color the spots that lay too much thread, in 1 mm squares. They show in both views and update as you edit.
 - **Yellow** is heavy: more than about 4 layers of fill (for example, two satins crossing).
@@ -299,18 +299,18 @@ Print it, or choose **PDF** in the print dialog to save it.
 
 **Tabs:** designs open as tabs in the window's title bar; **⌘N** or **+** starts a new one. An orange dot marks unsaved changes. **⌘W** or the tab's **×** closes a design (asking to save first); **⌃⇥** and **⌃⇧⇥** (or **⇧⌘]** and **⇧⌘[**) move between tabs. Closing the window closes each design in turn.
 
-**Light or dark:** **Settings → General → Appearance** keeps OpenHoop light or dark, or **Match system** follows the Mac's own setting (the default).
+**Light or dark:** **Settings → Look → Appearance** keeps OpenHoop light or dark, or **Match Mac** follows the Mac's own setting (the default).
 
-**Around the hoop:** **Settings → General** sets the color behind the hoop, or follows light and dark mode.
+**Around the hoop:** **Settings → Look** sets the color behind the hoop, or follows light and dark mode.
 
-**Grid & snap:** **Settings → General → Grid & snap** sets how far apart the grid's lines are (5, 10 or 20 mm, or ¼, ½ or 1 in; half that when zoomed in) and the steps Snap moves points to (0.5, 1 or 2 mm, or 0.025, 0.05 or 0.1 in).
+**Grid & snap:** **Settings → Measuring** sets how far apart the grid's lines are (5, 10 or 20 mm, or ¼, ½ or 1 in; half that when zoomed in) and the steps Snap moves points to (0.5, 1 or 2 mm, or 0.025, 0.05 or 0.1 in).
 
-**New designs and objects:** **Settings → Designs** sets what things start with:
+**New designs and objects:** **Settings → New designs** sets what things start with:
 - **New designs:** the fabric type, and the hoop: the one you used last, or one you pick there (then choosing another hoop for one design doesn't change it).
 - **New objects:** the stitch length of lines and fills, the fill angle, and satin compensation, for shapes you draw. Row spacing, pull compensation and underlay come from the design's fabric type; lettering, monograms and imports keep their own settings.
 - **Machine:** how many stitches a minute your machine sews, for the time estimate in the status bar and on worksheets.
 
-**Millimeters or inches:** **Settings → General → Units**, or **View → Use Inches**, switches how sizes and positions are shown and typed: object, design and hoop sizes, positions, start and end points, the rulers, guides, Measure, nudge, lettering and monogram height, and the worksheet. In inches the grid draws a line every ½ in (¼ in zoomed in) and Snap rounds to 0.05 in, unless Grid & snap is set finer or coarser. Stitch settings (stitch length, row spacing, satin and border widths, underlay, compensation) always stay in millimeters, as digitizers usually give them. Designs are saved the same either way, so switching never changes a design.
+**Millimeters or inches:** **Settings → Measuring**, or **View → Use Inches**, switches how sizes and positions are shown and typed: object, design and hoop sizes, positions, start and end points, the rulers, guides, Measure, nudge, lettering and monogram height, and the worksheet. In inches the grid draws a line every ½ in (¼ in zoomed in) and Snap rounds to 0.05 in, unless Grid & snap is set finer or coarser. Stitch settings (stitch length, row spacing, satin and border widths, underlay, compensation) always stay in millimeters, as digitizers usually give them. Designs are saved the same either way, so switching never changes a design.
 
 **Toolbar:** secondary-click it to customize.
 

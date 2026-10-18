@@ -653,7 +653,12 @@ import EmbroideryCore
         }
     }
     func showSettings() {
-        if settings == nil { let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1060, height: 820), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false); window.title = "Settings"; window.contentView = NSHostingView(rootView: SettingsView()); window.center(); settings = NSWindowController(window: window) }
+        if settings == nil {
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1180, height: 720), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+            // The app's own cream title bar, like the design window's, rather than the system's grey one.
+            window.title = "Settings"; window.titlebarAppearsTransparent = true; window.backgroundColor = NSColor(Theme.card)
+            window.contentView = NSHostingView(rootView: SettingsView()); window.center(); settings = NSWindowController(window: window)
+        }
         settings?.showWindow(nil); settings?.window?.makeKeyAndOrderFront(nil)
     }
     func askName(_ title: String, value: String) -> String? {

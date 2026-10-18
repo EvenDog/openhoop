@@ -1,5 +1,5 @@
 // The stitch player at the right end of the tool strip: rewind, play or pause, a bar to scrub through the stitches,
-// the stitch count, and speed buttons (set in Settings › General). Pro's tool rail down the left shows it stacked at
+// the stitch count, and speed buttons (set in Settings › Tools & player). Pro's tool rail down the left shows it stacked at
 // the bottom instead.
 import SwiftUI
 import EmbroideryCore
@@ -92,7 +92,7 @@ private struct SpeedButtons: View {
         }
         .contextMenu {
             Button("Custom Speed…") { choosingCustomSpeed = true }
-            Button("Change Speed Buttons…") { AppDelegate.shared.perform(.settings) }
+            Button("Change Speed Buttons…") { SettingsNavigation.shared.page = .tools; AppDelegate.shared.perform(.settings) }
         }
         .popover(isPresented: $choosingCustomSpeed, arrowEdge: .bottom) {
             HStack(spacing: 6) {
