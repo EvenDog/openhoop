@@ -255,16 +255,17 @@ public enum UnderlayStyle: String, Codable, CaseIterable, Sendable {case none, c
 }
 /// How a fill lays down its thread: straight rows (tatami), rings that follow the outline inward (contour), rays
 /// fanning out from a center (radial), rows that ripple (wave), one wandering line that never crosses itself (stipple),
-/// a small pattern tiled across the shape (motif), a grid of X's (cross stitch), or rows that open up across the shape
-/// (gradient).
+/// a small pattern tiled across the shape (motif), a grid of X's (cross stitch), rows that open up across the shape
+/// (gradient), or satin stitches straight across it from edge to edge (satin).
 public enum FillStyle: String, Codable, CaseIterable, Sendable {
-    case tatami, contour, radial, wave, stipple, motif, crossStitch, gradient, guided
-    /// False for cross stitch, whose stitches are its squares' diagonals, set by the square size alone.
-    public var usesStitchLength: Bool { self != .crossStitch }
+    case tatami, contour, radial, wave, stipple, motif, crossStitch, gradient, guided, satin
+    /// False for cross stitch, whose stitches are its squares' diagonals, set by the square size alone, and satin,
+    /// whose stitches reach from edge to edge.
+    public var usesStitchLength: Bool { self != .crossStitch && self != .satin }
     /// The styles a newly drawn shape can start with: all but Guided, which needs a guide line drawn afterwards.
     public static let forNewShapes = allCases.filter { $0 != .guided }
     public var title: String {
-        switch self { case .tatami: return "Tatami"; case .contour: return "Contour"; case .radial: return "Radial"; case .wave: return "Wave"; case .stipple: return "Stipple"; case .motif: return "Motif"; case .crossStitch: return "Cross stitch"; case .gradient: return "Gradient"; case .guided: return "Guided" }
+        switch self { case .tatami: return "Tatami"; case .contour: return "Contour"; case .radial: return "Radial"; case .wave: return "Wave"; case .stipple: return "Stipple"; case .motif: return "Motif"; case .crossStitch: return "Cross stitch"; case .gradient: return "Gradient"; case .guided: return "Guided"; case .satin: return "Satin" }
     }
     public var summary: String {
         switch self {
@@ -277,6 +278,7 @@ public enum FillStyle: String, Codable, CaseIterable, Sendable {
         case .crossStitch: return "Little X's on a square grid, like hand cross-stitch. Only whole squares inside the shape get one, so the edge steps like a real cross-stitch."
         case .gradient: return "Tatami rows that start close together and open up across the shape, from solid to sheer: for shading, or for blending one thread color into another."
         case .guided: return "Rows that bend to follow a guide line drawn over the shape, evenly spaced: for hair, feathers, petals and anything that flows."
+        case .satin: return "Smooth, shiny satin stitches straight across the shape from edge to edge, at the fill angle: for leaves, petals and small shapes. Wide parts are split so no stitch is too long."
         }
     }
 }
@@ -415,6 +417,11 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     /// Satin only: stitches longer than the maximum stitch are split into shorter ones, staggered like bricks,
     /// instead of the column being refused. nil (older files) means off; new satins start with it on.
     public var autoSplit:Bool?
+    /// Satin fills: the longest stitch before it's split (with Auto split, which for fills is on unless set false).
+    /// nil means `defaultSatinSplit`. Satin columns use `maximumSatin` instead.
+    public var satinSplit:Double?
+    public static let defaultSatinSplit=7.0
+    public static let satinSplitRange=3.0...10.0
     /// Fills only: leave out the area that shapes sewn after this one cover (OverlapCutout.swift). nil (the default)
     /// means off: the whole fill sews.
     public var cutOutOverlaps:Bool?
@@ -542,7 +549,7 @@ public struct Design: Codable, Equatable, Sendable {
     public var needsSchemaSix: Bool {
         objects.contains { ($0.kind == .run && ($0.settings.runStyle ?? .running) != .running)
             || $0.lettering.map { $0.letterSpacing != nil || !($0.letterOffsets ?? [:]).isEmpty || $0.entry != nil || $0.exit != nil || $0.shape == .onLine } == true
-            || ($0.kind == .fill && [.stipple, .motif, .crossStitch, .gradient, .guided].contains($0.settings.fillStyle ?? .tatami)) || ($0.kind == .satin && $0.settings.raised == true)
+            || ($0.kind == .fill && [.stipple, .motif, .crossStitch, .gradient, .guided, .satin].contains($0.settings.fillStyle ?? .tatami)) || ($0.kind == .satin && $0.settings.raised == true)
             || $0.guideFor != nil }
     }
     public var needsSchemaFive: Bool { usesHandles || basting != nil || objects.contains { $0.branchID != nil || $0.stitchEdits != nil || $0.entry != nil || $0.exit != nil || ($0.kind == .satin && ($0.closed || $0.settings.relaxedChecks == true)) || ($0.kind == .fill && ($0.settings.fillStyle ?? .tatami) != .tatami) || ($0.kind == .run && ($0.settings.runPasses ?? 1) > 1) || ($0.kind == .satin && ($0.settings.shortStitches == true || $0.settings.autoSplit == true)) || ($0.kind == .fill && ($0.settings.cutOutOverlaps == true || !($0.settings.angleLines ?? []).isEmpty)) || ($0.kind == .satin && ($0.settings.secondUnderlay != nil || $0.settings.underlay == .auto || $0.settings.pullPercent != nil)) } }
@@ -614,7 +621,7 @@ public struct Design: Codable, Equatable, Sendable {
                 let s=object.settings
                 guard object.allNodes.count<=2000,(object.holes?.count ?? 0)<=100,
                       (0.15...5).contains(s.spacing),(0...2).contains(s.expansion),(-180...180).contains(s.angle),
-                      (1...10).contains(s.maximumSatin),(0...3).contains(s.inset),(0.5...5).contains(s.underlaySpacing),
+                      (1...10).contains(s.maximumSatin),s.satinSplit.map(DigitizingSettings.satinSplitRange.contains) ?? true,(0...3).contains(s.inset),(0.5...5).contains(s.underlaySpacing),
                       object.kind == .fill ? [.none,.edge,.edgeAndSparse].contains(s.underlay) : [.none,.center,.edge,.zigzag,.auto].contains(s.underlay),
                       s.secondUnderlay.map({object.kind == .satin && s.underlay != .none && s.underlay != .auto && $0 != s.underlay && [.center,.edge,.zigzag].contains($0)}) ?? true,
                       s.pullPercent.map({object.kind == .satin && DigitizingSettings.pullPercentRange.contains($0)}) ?? true else {throw DesignError.invalid("Invalid digitizing settings in \(object.name).")}

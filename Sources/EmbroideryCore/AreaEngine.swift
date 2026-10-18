@@ -64,6 +64,7 @@ public enum AreaEngine {
         case .guided:
             guard let guide=s.guideLine else{throw DesignError.invalid("This guided fill has no guide line. Draw a line over it, select both and choose Use Line as Fill Guide.")}
             parts=[try GuidedFill.rows(in:expanded,guide:guide,spacing:s.spacing,length:object.stitchLength)]
+        case .satin:parts=[try SatinFill.stitches(in:expanded,angle:s.angle,spacing:s.spacing,maximum:s.satinSplit ?? DigitizingSettings.defaultSatinSplit,split:s.autoSplit != false)]
         case .radial:parts=[try FillStyles.radial(in:expanded,center:s.radialCenter ?? AreaGeometry.centroid(original[0]),spacing:s.spacing,length:object.stitchLength,start:start)]
         }
         parts=parts.map{$0.filter(isLongEnough)}.filter{!$0.isEmpty}
@@ -73,7 +74,7 @@ public enum AreaEngine {
         let bounds=(try? AreaGeometry.offset(expanded,by:style == .wave ? 0.05:0.01)) ?? expanded
         // Contour, radial and turning stitches run every which way, so travel across them is priced like satin (no
         // row angle); contour and radial rows already come in sewing order.
-        let rowStyle=(style == .tatami && (s.angleLines ?? []).isEmpty) || style == .wave || style == .gradient
+        let rowStyle=(style == .tatami && (s.angleLines ?? []).isEmpty) || style == .wave || style == .gradient || style == .satin
         let router=TravelRouter(edges:edges,bounds:bounds,rowAngle:rowStyle ? s.angle:nil)
         // Guided rows bend, so travel across them is priced like satin too, but they're put in sewing order like straight rows.
         // Turning fills come already in sewing order: each branch of the shape is sewn so its travel is covered.

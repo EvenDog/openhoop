@@ -1125,7 +1125,8 @@ struct InspectorPanel: View {
             .help("Turn this line into a satin column centered on it (\(Preferences.shared.label(.convertSatin).isEmpty ? "Digitize menu" : Preferences.shared.label(.convertSatin)))")
     }
     /// The settings a fill style has of its own: stipple spacing; a motif fill's motif, size and gap; a cross stitch
-    /// fill's square size; a gradient fill's row spacing where it starts and ends. Shared with the Pro layout.
+    /// fill's square size; a gradient fill's row spacing where it starts and ends; a satin fill's splitting. Shared
+    /// with the Pro layout.
     @ViewBuilder func patternSettings(_ object: RunObject) -> some View {
         let s = object.settings
         switch s.fillStyle ?? .tatami {
@@ -1144,6 +1145,11 @@ struct InspectorPanel: View {
         case .guided:
             explain(s.guideLine == nil ? "Draw a line over this fill, select both and choose Digitize → Use Line as Fill Guide. The rows bend to follow it."
                                        : "The rows follow the dashed guide line, keeping the row spacing. Reshape it with Edit Nodes and the rows follow. Keep it gentle: rows far from a tight bend round off on its outside and close into a corner on its inside.")
+        case .satin:
+            // For fills, Auto split is on unless turned off (nil counts as on).
+            toggle("Auto split", value: s.autoSplit != false) { on in settings(.fill, "Auto Split") { $0.autoSplit = on ? nil : false } }
+                .help("Stitches longer than the split length are broken into shorter ones, in bands that follow the shape's edge, so wide parts don't get long, loose stitches.")
+            number("Split length", value: s.satinSplit ?? DigitizingSettings.defaultSatinSplit, range: DigitizingSettings.satinSplitRange, length: true, help: "The longest satin stitch. Longer ones are split with Auto split on; with it off, the shape must be narrower than this.") { value in settings(.fill, "Split Length") { $0.satinSplit = value == DigitizingSettings.defaultSatinSplit ? nil : value } }
         default: EmptyView()
         }
     }
@@ -1266,7 +1272,7 @@ struct StitchPreview: View {
                 }
                 context.clip(to: Path(CGRect(origin: .zero, size: size)))
                 context.stroke(path, with: .color(color), lineWidth: 1.3)
-            case .fill where [.stipple, .motif, .crossStitch, .gradient, .guided].contains(fillStyle):
+            case .fill where [.stipple, .motif, .crossStitch, .gradient, .guided, .satin].contains(fillStyle):
                 // The real fill of a patch the size of the box, drawn smaller (2 points per mm) so a few of its loops,
                 // motifs or squares fit.
                 let small = 2.0, w = size.width / small, h = size.height / small
