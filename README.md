@@ -64,4 +64,4 @@ OpenHoop is free software: you can redistribute it and/or modify it under the te
 
 Copyright © 2026 EvenDog.
 
-Bundled parts keep their own licenses: pyembroidery (MIT), Clipper2 (Boost Software License), the Python runtime (PSF License), and the embroidery fonts in `Resources/EmbroideryFonts` (SIL Open Font License 1.1 or public domain; each font folder has its own `LICENSE`). The thread charts in `Resources/ThreadCharts` are made from pyembroidery's machine palettes (MIT). See `Resources/ThirdPartyNotices.txt`.
+Bundled parts keep their own licenses: pyembroidery (MIT), Clipper2 (Boost Software License), the Python runtime (PSF License), and the embroidery fonts in `Resources/EmbroideryFonts` (SIL Open Font License 1.1 or public domain; each font folder has its own `LICENSE`). The thread charts in `Resources/ThreadCharts` are pyembroidery's machine palettes (MIT) and brand charts from Ink/Stitch (GPL-3, like OpenHoop). See `Resources/ThirdPartyNotices.txt`.

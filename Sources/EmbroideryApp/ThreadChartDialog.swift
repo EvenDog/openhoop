@@ -1,6 +1,7 @@
 // Choose Thread from Chart (C): pick a real thread (brand, color number, name) from a thread chart for the current
 // thread and the selection, or match every thread in the design to its closest chart thread at once.
-// Charts are the machine palettes bundled with the app plus any GIMP palette (.gpl) files you import.
+// Charts are the machine palettes and brand charts (from Ink/Stitch) bundled with the app, plus any GIMP palette
+// (.gpl) files you import.
 import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
@@ -18,6 +19,17 @@ import EmbroideryCore
         let bundled = Bundle.main.resourceURL.map { ThreadChart.all(in: $0.appendingPathComponent("ThreadCharts")) } ?? []
         let imported = ThreadChart.all(in: importedFolder)
         return bundled.filter { chart in !imported.contains { $0.name == chart.name } } + imported
+    }
+    /// The names of the charts you imported.
+    static func importedNames() -> Set<String> { Set(ThreadChart.all(in: importedFolder).map(\.name)) }
+    /// The charts in the groups the chart menu shows: the machine palettes, the brand charts, then the ones you
+    /// imported (`imported` names them), each in name order. Empty groups are left out.
+    static func sections(_ charts: [ThreadChart], imported: Set<String>) -> [(title: String, charts: [ThreadChart])] {
+        let bundled = charts.filter { !imported.contains($0.name) }
+        let isMachine = { (chart: ThreadChart) in chart.name.hasSuffix("(machine palette)") }
+        return [("Machine palettes", bundled.filter(isMachine)),
+                ("Thread brands", bundled.filter { !isMachine($0) }),
+                ("Imported by you", charts.filter { imported.contains($0.name) })].filter { !$0.charts.isEmpty }
     }
     /// Checks that `url` is a readable palette, then keeps a copy so the chart is there next time. Returns the chart.
     static func importChart(from url: URL) throws -> ThreadChart {
@@ -54,6 +66,7 @@ struct ThreadChartView: View {
     let designThreads: [ThreadColor]
     let done: (ThreadChartChoice?) -> Void
     @State private var charts = ThreadChartLibrary.charts()
+    @State private var importedNames = ThreadChartLibrary.importedNames()
     @State private var chartName = Preferences.shared.data.threadChart ?? ""
     @State private var matchAll = false
     @State private var search = ""
@@ -74,10 +87,13 @@ struct ThreadChartView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 10) {
                     Picker("Chart", selection: Binding(get: { chart?.name ?? "" }, set: { chartName = $0; picked = nil })) {
-                        ForEach(charts) { Text("\($0.name) (\($0.threads.count))").tag($0.name) }
+                        // Sections: machine palettes, thread brands, then charts you imported.
+                        ForEach(ThreadChartLibrary.sections(charts, imported: importedNames), id: \.title) { section in
+                            Section(section.title) { ForEach(section.charts) { Text("\($0.name) (\($0.threads.count))").tag($0.name) } }
+                        }
                     }.frame(width: 340)
                     Button("Import Chart…") { importChart() }.buttonStyle(ThemedButtonStyle())
-                        .help("Add a GIMP palette (.gpl) thread chart, such as the brand charts Ink/Stitch publishes")
+                        .help("Add a GIMP palette (.gpl) thread chart, such as another brand chart from Ink/Stitch")
                     Spacer()
                 }.font(Theme.body(13))
                 if let importError { Text(importError).font(Theme.body(12)).foregroundStyle(Color.red).fixedSize(horizontal: false, vertical: true) }
@@ -166,7 +182,8 @@ struct ThreadChartView: View {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             let chart = try ThreadChartLibrary.importChart(from: url)
-            charts = ThreadChartLibrary.charts(); chartName = chart.name; picked = nil; importError = nil
+            charts = ThreadChartLibrary.charts(); importedNames = ThreadChartLibrary.importedNames()
+            chartName = chart.name; picked = nil; importError = nil
         } catch { importError = "Couldn't import that chart: \(error.localizedDescription)" }
     }
 }
