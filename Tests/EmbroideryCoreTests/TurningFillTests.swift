@@ -101,10 +101,12 @@ final class TurningFillTests: XCTestCase {
     }
 
     /// A shape with a notch between an upright arm and a triangle (drawn in the app, 2026-10-17), with two angle
-    /// lines. Many in-between lines cross the notch, so each gives a row on both sides of it. The rows used to be
-    /// sewn in line order, one on each side in turn, so the needle travelled round the notch after every row; now
-    /// each side is finished before the other, so the needle seldom jumps far between rows.
-    func testRowsSplitByANotchAreSewnOneSideAtATime() throws {
+    /// lines. Many in-between lines cross the notch, and the in-between lines sweep back over ground they already
+    /// covered as their ends go up the arm and down the notch. The rows used to be sewn in line order, so the needle
+    /// travelled round the notch after almost every row (44 moves over 3 mm, 592 mm), and later rows were sewn again
+    /// on top of earlier ones at another angle (827 crossing rows). Now only uncovered ground is sewn, in streams
+    /// that are each finished in one go.
+    func testRowsSplitByANotchAreSewnOnceAndOneAreaAtATime() throws {
         let points = [(-26.51, 28.28), (-23.33, 39.93), (-9.1, 24.42), (-19.1, 11.36), (-37.69, 15.71), (-39.45, 29.28),
                       (-30.44, 26.92), (-30.91, 37.79), (-28.02, 39.76), (-26.37, 36.73), (-27.08, 35.16)]
         let smooth = [false, false, false, false, false, true, false, false, true, true, false]
@@ -112,12 +114,23 @@ final class TurningFillTests: XCTestCase {
         object.closed = true; object.digitizing = DigitizingSettings(kind: .fill)
         let lines = [[Point(-35.0, 36.08), Point(-34.81, 10.28)], [Point(-26.15, 33.91), Point(-14.37, 34.18)]]
         let region = try AreaGeometry.offset([AreaGeometry.ring(object.nodes)], by: 0.2)
-        let rows = try TurningFill.rows(in: region, angleLines: lines, spacing: 0.4, length: 3, start: nil)
-        // How far the needle moves from the end of each row to the start of the next.
-        let gaps = zip(rows, rows.dropFirst()).map { $0.last!.distance(to: $1.first!) }
-        let long = gaps.filter { $0 > 3 }
-        // Before: 44 moves longer than 3 mm, 592 mm in all (a trip round the notch after almost every row).
-        XCTAssertLessThanOrEqual(long.count, 10, "a few moves between areas, not one after every row")
-        XCTAssertLessThan(long.reduce(0, +), 100)
+        let streams = try TurningFill.rows(in: region, angleLines: lines, spacing: 0.4, length: 3, start: nil)
+        XCTAssertLessThanOrEqual(streams.count, 12, "a few areas, each sewn in one go")
+        // No stitch crosses another part-way along both (a stitch laid over earlier ones at another angle).
+        let stitches = streams.flatMap { zip($0, $0.dropFirst()).map { ($0, $1) } }.filter { $0.0.distance(to: $0.1) > 0.01 }
+        func crosses(_ a: Point, _ b: Point, _ c: Point, _ d: Point) -> Bool {
+            let d1 = AreaGeometry.cross(b - a, c - a), d2 = AreaGeometry.cross(b - a, d - a)
+            let d3 = AreaGeometry.cross(d - c, a - c), d4 = AreaGeometry.cross(d - c, b - c)
+            return d1 * d2 < -1e-9 && d3 * d4 < -1e-9
+        }
+        var crossings = 0
+        for i in stitches.indices { for j in stitches.indices where j > i && crosses(stitches[i].0, stitches[i].1, stitches[j].0, stitches[j].1) { crossings += 1 } }
+        // The compiled design had over 1,000 crossing pairs before; what is left are grazes where a fan of rows narrows.
+        XCTAssertLessThanOrEqual(crossings, 40, "the odd graze where rows meet, not rows sewn over rows")
+        // Still every part of the shape gets thread: points all over it have a stitch within a row spacing or so.
+        for p in [Point(-36, 20), Point(-29, 38), Point(-28, 20), Point(-15, 20), Point(-12, 25), Point(-22, 36), Point(-20, 14)] {
+            let nearest = stitches.map { AreaGeometry.projection(p, $0.0, $0.1).distance(to: p) }.min()!
+            XCTAssertLessThanOrEqual(nearest, 0.6, "\(p) is covered")
+        }
     }
 }

@@ -72,11 +72,12 @@ public enum AreaEngine {
         // can sit a few thousandths of a millimeter further out (the edge is bent back in short pieces), so they get 0.05 mm.
         let bounds=(try? AreaGeometry.offset(expanded,by:style == .wave ? 0.05:0.01)) ?? expanded
         // Contour, radial and turning stitches run every which way, so travel across them is priced like satin (no
-        // row angle), and their rows already come in sewing order.
+        // row angle); contour and radial rows already come in sewing order.
         let rowStyle=(style == .tatami && (s.angleLines ?? []).isEmpty) || style == .wave || style == .gradient
         let router=TravelRouter(edges:edges,bounds:bounds,rowAngle:rowStyle ? s.angle:nil)
         // Guided rows bend, so travel across them is priced like satin too, but they're put in sewing order like straight rows.
-        let reorders=rowStyle || style == .guided
+        // Turning fills come as streams (each an area sewn back and forth in one go), which are put in order too.
+        let reorders=rowStyle || style == .guided || (style == .tatami && !(s.angleLines ?? []).isEmpty)
         // Sew each part's sections in the order (and from the ends) that keep travel shortest. Its first section stays
         // first (it honors the start point); with an end point, the last part's last stays last. Contour and radial
         // sections already come in sewing order.
