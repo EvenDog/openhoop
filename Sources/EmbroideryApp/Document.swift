@@ -166,6 +166,20 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     func editSelected(_ name: String, _ block: (inout RunObject) -> Void) {
         edit(name) { next in for index in next.objects.indices where selection.contains(next.objects[index].id) && !next.objects[index].locked { block(&next.objects[index]) } }
     }
+    // MARK: Thread palette (ThreadPalette.swift, PaletteRow.swift)
+    /// Makes `color` the current thread, recolors the selection and keeps the thread in the design's palette, all as
+    /// one Undo step.
+    func chooseThread(_ color: ThreadColor) {
+        currentColor = color
+        edit("Thread Color") { next in
+            for index in next.objects.indices where selection.contains(next.objects[index].id) && !next.objects[index].locked { next.objects[index].color = color }
+            next.addToPalette(color)
+        }
+    }
+    func addCurrentThreadToPalette() { edit("Add Thread to Palette") { [currentColor] in $0.addToPalette(currentColor) } }
+    /// Takes `color` out of the palette (nothing happens while an object sews in it).
+    func removeFromPalette(_ color: ThreadColor) { edit("Remove Thread from Palette") { $0.removeFromPalette(color) } }
+    func removeUnusedThreads() { edit("Remove Unused Threads") { $0.removeUnusedFromPalette() } }
     /// Gives one object a name of your own, as one Undo step. Spaces around it are trimmed; an empty or unchanged
     /// name changes nothing.
     func rename(_ id: UUID, to name: String) {

@@ -22,8 +22,17 @@ import EmbroideryCore
     init(document: DesignDocument) {
         self.document = document
         let state = document.state
-        // The canvas fills its area. (The tool's choices, such as the next shape's, are in the Properties panel.)
-        let canvasVC = NSViewController(); canvasVC.view = DesignCanvas(state: state)
+        // The canvas fills its area, above the palette strip (0 tall while the palette is docked in the Threads panel).
+        // Nothing floats over the canvas: the tool's choices, such as the next shape's, are in the Properties panel.
+        let canvas = DesignCanvas(state: state), paletteStrip = NSHostingView(rootView: PaletteStrip(state: state))
+        let canvasArea = NSView()
+        for part in [canvas, paletteStrip] { part.translatesAutoresizingMaskIntoConstraints = false; canvasArea.addSubview(part) }
+        NSLayoutConstraint.activate([
+            canvas.topAnchor.constraint(equalTo: canvasArea.topAnchor), canvas.leadingAnchor.constraint(equalTo: canvasArea.leadingAnchor), canvas.trailingAnchor.constraint(equalTo: canvasArea.trailingAnchor),
+            canvas.bottomAnchor.constraint(equalTo: paletteStrip.topAnchor),
+            paletteStrip.leadingAnchor.constraint(equalTo: canvasArea.leadingAnchor), paletteStrip.trailingAnchor.constraint(equalTo: canvasArea.trailingAnchor), paletteStrip.bottomAnchor.constraint(equalTo: canvasArea.bottomAnchor)
+        ])
+        let canvasVC = NSViewController(); canvasVC.view = canvasArea
         leftDock = NSSplitViewItem(viewController: NSHostingController(rootView: DockColumn(side: .left, state: state)))
         rightDock = NSSplitViewItem(viewController: NSHostingController(rootView: DockColumn(side: .right, state: state)))
         canvasItem = NSSplitViewItem(viewController: canvasVC)

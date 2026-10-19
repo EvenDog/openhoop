@@ -350,6 +350,7 @@ import EmbroideryCore
         if command == .proView { menuItem.state = Preferences.shared.isPro ? .on : .off; return true }
         if command == .threadView { menuItem.state = Preferences.shared.threadView ? .on : .off; return true }
         if command == .showRulers { menuItem.state = Preferences.shared.showsRulers ? .on : .off; return true }
+        if command == .paletteUnderCanvas { menuItem.state = Preferences.shared.paletteUnderCanvas ? .on : .off; return true }
         if command == .useInches { menuItem.state = Preferences.shared.unit == .inches ? .on : .off; return true }
         if [.new, .open, .sample, .stitchSampler, .settings, .restoreWorkspace].contains(command) { return true }
         if command == .close { return NSApp.keyWindow != nil }
@@ -393,6 +394,11 @@ import EmbroideryCore
             Preferences.shared.setPro(pro)
             let key = Preferences.shared.label(.proView)
             active?.state.status = pro ? "Pro view: every tool and setting on screen.\(key.isEmpty ? "" : " \(key) switches back to Guided.")" : "Guided view: the everyday settings, with the rest under More settings."
+            return
+        case .paletteUnderCanvas:
+            let on = !Preferences.shared.paletteUnderCanvas
+            Preferences.shared.setPaletteUnderCanvas(on)
+            active?.state.status = on ? "The thread palette is under the canvas." : "The thread palette is docked at the top of the Threads panel."
             return
         case .showRulers:
             let on = !Preferences.shared.showsRulers
@@ -866,8 +872,7 @@ import EmbroideryCore
         guard let choice = GuidedDialog.threadChart(current: state.currentColor, designThreads: threads) else { state.status = "Thread chart closed without changes."; return }
         switch choice {
         case .use(let thread):
-            state.currentColor = thread
-            state.editSelected("Thread Color") { $0.color = thread }
+            state.chooseThread(thread)
             state.status = "Current thread: \(thread.name) (\(thread.chartLabel ?? "no number")). Anything selected now sews in it."
         case .matchAll(let chart):
             var changed = 0
@@ -999,7 +1004,7 @@ import EmbroideryCore
             ("File", [.new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportPES, .exportMachine, .exportDST, .exportEXP, .exportJEF, .exportVP3, .exportXXX, .exportPEC, .exportThreadList, .productionWorksheet, .sample, .stitchSampler]),
             ("Edit", [.undo, .redo, .cutObjects, .copyObjects, .pasteObjects, .selectAll, .delete, .duplicate, .group, .ungroup, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .sequenceBySelection, .sequenceByColor, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .closePath, .lockObject, .hideObject, .renameObject, .threadChart]),
             ("Digitize", [.done]),
-            ("View", [.proView, .threadView, .useInches, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .showRulers, .clearGuides, .needles, .artwork, .showUnderlay, .densityMap, .play, .rewind]),
+            ("View", [.proView, .threadView, .useInches, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .showRulers, .clearGuides, .needles, .artwork, .paletteUnderCanvas, .showUnderlay, .densityMap, .play, .rewind]),
             ("Window", [.nextTab, .previousTab] + PanelID.allCases.map(\.command) + [.saveWorkspace, .restoreWorkspace])]
         for (name, commands) in groups {
             let item = NSMenuItem(); item.submenu = NSMenu(title: name); item.title = name; menu.addItem(item)
