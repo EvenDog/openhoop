@@ -664,7 +664,7 @@ struct InspectorPanel: View {
     /// For a monogram's parts: what it is, and a button to change it.
     func monogramSummary(_ monogram: MonogramSpec) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label("Monogram “\(monogram.initials)”", systemImage: CommandID.addMonogram.symbol).font(Theme.body(13, weight: .semibold)).lineLimit(1)
+            Label { Text("Monogram “\(monogram.initials)”") } icon: { Image.symbol(CommandID.addMonogram.symbol, size: 13) }.font(Theme.body(13, weight: .semibold)).lineLimit(1)
             if !pro { explain("\(monogram.layout.title) · \(preferences.unit.short(monogram.height)) · border: \(monogram.border.title.lowercased()). Double-click it on the canvas to change it.") }
             Button("Edit monogram…") { AppDelegate.shared.perform(.editMonogram) }.buttonStyle(ThemedButtonStyle()).help(preferences.hint(.editMonogram))
         }
