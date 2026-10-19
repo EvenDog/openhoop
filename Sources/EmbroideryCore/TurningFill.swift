@@ -62,16 +62,28 @@ enum TurningFill {
             var rows: [[Point]]
             switch touching.count {
             case 2:
-                // Between two lines: rows fan from the one it was entered by to the other.
+                // Between two lines: rows fan from the one it was entered by to the other, the first row starting
+                // from whichever end of that line the needle is nearer.
                 let from = entry ?? borders[i][0], to = borders[i].first { cuts[$0].line != cuts[from].line }!
-                rows = try fan(in: rings, between: cuts[from].chord, and: cuts[to].chord, spacing: spacing, length: length)
+                var outward = false
+                if let needle = sections.last?.last, let centre = meeting(cuts[from].chord, cuts[to].chord) {
+                    let (a, b) = cuts[from].chord, near = a.distance(to: centre) < b.distance(to: centre) ? a : b, far = near == a ? b : a
+                    outward = needle.distance(to: near) < needle.distance(to: far)
+                }
+                rows = try fan(in: rings, between: cuts[from].chord, and: cuts[to].chord, spacing: spacing, length: length, outwardFirst: outward)
             case 0, 1:
                 // An end piece: straight rows at its line's angle, sewn so they finish at the line if it's sewn first,
-                // otherwise begin there. (A piece no line borders takes the nearest line's angle.)
+                // otherwise begin there, at the end of the line nearest the needle. (A piece no line borders takes the
+                // nearest line's angle.)
                 let line = cuts[borders[i].first ?? cuts.indices.min { gap(rings[0][0], [$0]) < gap(rings[0][0], [$1]) }!].chord
-                let ways = try [false, true].map { try AreaEngine.rows(in: rings, angle: direction(line), spacing: spacing, length: length, fromTop: $0) }.filter { !$0.isEmpty }
+                let ways = try [false, true].flatMap { top in try [false, true].map { try AreaEngine.rows(in: rings, angle: direction(line), spacing: spacing, length: length, fromTop: top, startReversed: $0) } }.filter { !$0.isEmpty }
                 guard !ways.isEmpty else { continue }
-                rows = ways.min { n == 0 ? offLine($0.last!.last!, line) < offLine($1.last!.last!, line) : offLine($0[0][0], line) < offLine($1[0][0], line) }!
+                if n == 0 {
+                    rows = ways.min { offLine($0.last!.last!, line) < offLine($1.last!.last!, line) }!
+                } else {
+                    let atLine = ways.map { offLine($0[0][0], line) }.min()!, needle = sections.last?.last ?? ways[0][0][0]
+                    rows = ways.filter { offLine($0[0][0], line) <= atLine + 0.5 }.min { needle.distance(to: $0[0][0]) < needle.distance(to: $1[0][0]) }!
+                }
             default:
                 // Where three or more lines meet a piece (the middle of a Y): straight rows at their average angle,
                 // averaged with doubled angles so a line and its reverse count the same.
@@ -79,8 +91,9 @@ enum TurningFill {
                 let mean = atan2(doubled.map(sin).reduce(0, +), doubled.map(cos).reduce(0, +)) / 2 * 180 / .pi
                 rows = try AreaEngine.rows(in: rings, angle: mean, spacing: spacing, length: length)
             }
-            // Start each piece's rows at the end nearest where the last piece finished.
-            if let needle = sections.last?.last, let first = rows.first?.first, let last = rows.last?.last, needle.distance(to: last) < needle.distance(to: first) {
+            // A piece entered across a line already starts at that line, so it's sewn on from there, row after row
+            // beside the last piece's. Any other piece starts at the end nearest where the last one finished.
+            if entry == nil, let needle = sections.last?.last, let first = rows.first?.first, let last = rows.last?.last, needle.distance(to: last) < needle.distance(to: first) {
                 rows = rows.reversed().map { $0.reversed() }
             }
             sections += rows
@@ -109,18 +122,19 @@ enum TurningFill {
     /// short of the narrow edge, more of them the more crowded it gets (`thinning`), so the spacing stays even; both
     /// rows of a pair turn at the same place, so the needle only steps across to the next row. The places pairs turn
     /// keep the same distance from the narrow edge, so they line up along it.
-    static func fan(in piece: [[Point]], between first: (a: Point, b: Point), and second: (a: Point, b: Point), spacing: Double, length: Double) throws -> [[Point]] {
+    /// `outwardFirst`: the first row heads out from the narrow end instead of in toward it (pairs then start one row on).
+    static func fan(in piece: [[Point]], between first: (a: Point, b: Point), and second: (a: Point, b: Point), spacing: Double, length: Double, outwardFirst: Bool = false) throws -> [[Point]] {
         guard let centre = meeting(first, second) else {
             return try AreaEngine.rows(in: piece, angle: direction(first), spacing: spacing, length: length)   // parallel lines
         }
         // The rows' directions, seen from the centre: from the first line's to the second's, the short way round.
         func bearing(_ p: Point) -> Double { atan2(p.y - centre.y, p.x - centre.x) }
         let from = bearing(mid(first))
-        return try fan(in: piece, centre: centre, from: from, turn: remainder(bearing(mid(second)) - from, 2 * .pi), spacing: spacing, length: length)
+        return try fan(in: piece, centre: centre, from: from, turn: remainder(bearing(mid(second)) - from, 2 * .pi), spacing: spacing, length: length, outwardFirst: outwardFirst)
     }
     /// Rows across `piece`, all pointing at `centre`, at directions (radians, seen from the centre) from `from` to
     /// `from + turn`; a whole turn (2π) goes all the way round.
-    static func fan(in piece: [[Point]], centre: Point, from: Double, turn: Double, spacing: Double, length: Double) throws -> [[Point]] {
+    static func fan(in piece: [[Point]], centre: Point, from: Double, turn: Double, spacing: Double, length: Double, outwardFirst: Bool = false) throws -> [[Point]] {
         let full = abs(abs(turn) - 2 * .pi) < 1e-9
         // Rows are `spacing` apart across the wide end on average: measured at the far end of 65 trial rows.
         let trials = (0...64).compactMap { i -> Double? in
@@ -139,6 +153,9 @@ enum TurningFill {
             for i in stride(from: 0, to: ts.count - 1, by: 2) where ts[i + 1] - ts[i] > StitchEngine.smallestStitch { spans.append((k, out, ts[i], ts[i + 1])) }
         }
         let narrowest = spans.map(\.near).min() ?? 0
+        // Rows are counted from the first one there is (a row right along a line can fall on the piece's edge and
+        // be left out), or from one before it, so the first row is a pair's out row, when it should head out.
+        let shift = (outwardFirst ? 1 : 0) - (spans.map(\.k).min() ?? 0)
         let crowded = thinning * spacing / step   // nearer the centre than this, all the rows together are too close
         // Pairs stop short in a repeating pattern of 4 (pairs 1 and 3 of each 4, at two depths), or 8, 16… where
         // the rows converge so far that keeping half of them still crowds them. A few set depths, as other software
@@ -165,7 +182,7 @@ enum TurningFill {
                 // centre than share × crowded, where share runs 0, ½, ¼, ¾ (then ⅛, ⅝… for longer patterns; bits
                 // reversed), so whatever share of the pairs carries on, it's spread evenly. The rows on the two
                 // lines run the whole way.
-                let share = k == count ? 0 : evenShare((k / 2) % pattern), limit = share * crowded
+                let share = k == count ? 0 : evenShare(((k + shift) / 2) % pattern), limit = share * crowded
                 let near = span.near < limit ? min(span.far, span.near + max(0, limit - narrowest)) : span.near
                 guard span.far - near > StitchEngine.smallestStitch else { continue }
                 // Needle holes at set distances from the narrow edge, a quarter stitch further on each row, like
@@ -175,7 +192,7 @@ enum TurningFill {
                 while r < span.far - 0.3 { holes.append(r); r += length }
                 holes.append(span.far)
                 var points = holes.map { centre + span.out * $0 }
-                if k % 2 == 0 { points.reverse() }   // even rows head in, odd rows back out, so pairs turn together
+                if (k + shift) % 2 == 0 { points.reverse() }   // even rows head in, odd rows back out, so pairs turn together
                 // Join the run when the step from where it ended stays inside the piece; otherwise start a new one.
                 let r0 = run!
                 if let end = sections[r0].last {
