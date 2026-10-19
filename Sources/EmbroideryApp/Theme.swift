@@ -79,8 +79,12 @@ enum Theme {
         static let jump = nsAdaptive(light: 0x34507A, dark: 0x9DB7DE, alpha: 0.35)  // travel moves between parts
         static let needle = nsAdaptive(light: 0x2E2520, dark: 0xF2E9DC, alpha: 0.5)
         static let handle = nsAdaptive(light: 0x34507A, dark: 0x9DB7DE)               // Bézier handle arms and knobs
-        static let entry = nsAdaptive(light: 0x2F6B4F, dark: 0x9FD0A8)                // object start marker
-        static let exit = nsAdaptive(light: 0xB0532F, dark: 0xD7774F)                 // object end marker
+        static let entry = nsAdaptive(light: 0x2F6B4F, dark: 0x9FD0A8)                // branch start
+        static let exit = nsAdaptive(light: 0xB0532F, dark: 0xD7774F)                 // branch end, angle line knobs
+        // The start (play) and end (stop) markers sit on thread, not on the app's panels, so they keep the same
+        // strong colors in light and dark mode.
+        static let startMarker = rgb(0x22914A)
+        static let endMarker = rgb(0xD0342C)
         static let selection = nsAdaptive(light: 0x2E2520, dark: 0xF2E9DC)            // dotted outline of selected objects
     }
 }

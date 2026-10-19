@@ -449,8 +449,8 @@ final class DesignCanvas: NSView {
             // Where it starts and ends sewing (drawn before its nodes, so a node on the same spot stays on top).
             if selected {
                 let ends = markerPoints(object, sewn: sewn, few: fewSelected(in: design))
-                drawStartMarker(ends.start, label: object.entry != nil ? "Start" : nil)
-                drawEndMarker(ends.end, label: object.exit != nil ? "End" : nil)
+                drawStartMarker(ends.start)
+                drawEndMarker(ends.end)
                 drawMarker(radialCenter(object), label: object.kind == .run ? "Target" : "Center", color: Theme.Canvas.handle)
             }
             // Nodes show only with Edit Nodes, the one tool that can move them.
@@ -697,29 +697,29 @@ final class DesignCanvas: NSView {
         let chosen = design.objects.filter { state.selection.contains($0.id) }
         return chosen.filter { $0.lettering == nil }.count + Set(chosen.compactMap { $0.lettering?.id }).count <= Self.fewForMarkers
     }
-    /// The start marker: a small ring, dark with a white edge so it shows on any thread (labelled when the point was set).
-    private func drawStartMarker(_ point: Point?, label: String?) {
+    /// The start marker, like a play button: a green circle with a white triangle pointing right. A white edge and a
+    /// thin dark rim keep it clear on any thread, light or dark. It tells itself apart from the end marker by color,
+    /// shape and symbol, so it needs no label.
+    private func drawStartMarker(_ point: Point?) {
         guard let point else { return }
-        let p = screen(point), ring = NSBezierPath(ovalIn: CGRect(x: p.x - 5.5, y: p.y - 5.5, width: 11, height: 11))
-        NSColor.white.setStroke(); ring.lineWidth = 4; ring.stroke()
-        NSColor(white: 0.12, alpha: 1).setStroke(); ring.lineWidth = 1.6; ring.stroke()
-        if let label { drawMarkerLabel(label, beside: p) }
+        let p = screen(point), disc = NSBezierPath(ovalIn: CGRect(x: p.x - 7.5, y: p.y - 7.5, width: 15, height: 15))
+        Theme.Canvas.startMarker.setFill(); disc.fill()
+        NSColor.white.setStroke(); disc.lineWidth = 2; disc.stroke()
+        NSColor(white: 0, alpha: 0.45).setStroke(); NSBezierPath(ovalIn: CGRect(x: p.x - 8.5, y: p.y - 8.5, width: 17, height: 17)).stroke()
+        // The triangle sits a touch right of the middle, so it looks centered.
+        let play = NSBezierPath()
+        play.move(to: CGPoint(x: p.x - 2.2, y: p.y - 3.6)); play.line(to: CGPoint(x: p.x + 3.8, y: p.y)); play.line(to: CGPoint(x: p.x - 2.2, y: p.y + 3.6)); play.close()
+        NSColor.white.setFill(); play.fill()
     }
-    /// The end marker: squares inside squares, dark and white so it shows on any thread (labelled when the point was set).
-    private func drawEndMarker(_ point: Point?, label: String?) {
+    /// The end marker, like a stop button: a red rounded square with a white square inside, with the same white
+    /// edge and dark rim as the start marker.
+    private func drawEndMarker(_ point: Point?) {
         guard let point else { return }
-        let p = screen(point)
-        for (size, color) in [(14.0, NSColor(white: 0.12, alpha: 1)), (10.0, .white), (6.0, NSColor(white: 0.12, alpha: 1)), (2.5, .white)] {
-            color.setFill(); NSBezierPath(rect: CGRect(x: p.x - size / 2, y: p.y - size / 2, width: size, height: size)).fill()
-        }
-        if let label { drawMarkerLabel(label, beside: p) }
-    }
-    /// A marker's small label to its right, on a light backing so it reads on top of dark stitches.
-    private func drawMarkerLabel(_ label: String, beside p: CGPoint) {
-        let width = (label as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 10, weight: .medium)]).width
-        Theme.Canvas.ruler.withAlphaComponent(0.9).setFill()
-        NSBezierPath(roundedRect: CGRect(x: p.x + 9, y: p.y - 8, width: width + 8, height: 15), xRadius: 4, yRadius: 4).fill()
-        drawLabel(label, at: CGPoint(x: p.x + 13, y: p.y - 7), size: 10)
+        let p = screen(point), square = NSBezierPath(roundedRect: CGRect(x: p.x - 7, y: p.y - 7, width: 14, height: 14), xRadius: 2.5, yRadius: 2.5)
+        Theme.Canvas.endMarker.setFill(); square.fill()
+        NSColor.white.setStroke(); square.lineWidth = 2; square.stroke()
+        NSColor(white: 0, alpha: 0.45).setStroke(); NSBezierPath(roundedRect: CGRect(x: p.x - 8, y: p.y - 8, width: 16, height: 16), xRadius: 3, yRadius: 3).stroke()
+        NSColor.white.setFill(); NSBezierPath(rect: CGRect(x: p.x - 2.75, y: p.y - 2.75, width: 5.5, height: 5.5)).fill()
     }
     /// The selection's box on screen: around every selected, shown, unlocked object's outline. Nil when nothing
     /// that can be resized is selected.
@@ -950,6 +950,10 @@ final class DesignCanvas: NSView {
         if state.tool == .node, let location=nearestNode(model(location)) {
             state.selection=[location.object];state.selectedNode=location
             draggedNode=location;dragStart=point;dragSnapshot=state.design;return
+        }
+        // Then a selected object's start, end or center marker, before the press would add a node or move the shape.
+        if state.tool == .node, let marker = nearestMarker(point) {
+            draggedMarker = marker; dragStart = point; dragSnapshot = state.design; return
         }
         // Pressing on a selected object's edge adds a corner node there; keep holding to drag it into place. It's
         // saved, with the drag, when the mouse is let go. (A satin gets a new rung, saved straight away.)
