@@ -440,7 +440,15 @@ import EmbroideryCore
         case .selectTool, .runTool, .satinTool, .fillTool, .holeTool, .nodeTool, .panTool, .entryExitTool, .artworkTool, .openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool, .measureTool, .knifeTool, .addStitchAngles, .removeStitchAngles, .lettering:
             if !state.draft.isEmpty { state.status = "Finish the current path with Enter, or cancel with Escape, before changing tools."; return }
             if command == .artworkTool {
-                guard let artwork = state.design.artwork else { state.status = "Import a reference image first (⌘I), then move and size it."; return }
+                guard let artwork = state.design.artwork else {
+                    // No image yet: import one first, then move and size it. The file dialog waits for the next pass
+                    // of the main loop, as the commands in opensDialog do.
+                    RunLoop.main.perform { MainActor.assumeIsolated {
+                        self.importImage(state)
+                        if state.design.artwork != nil { self.perform(.artworkTool, now: true) }   // nil if cancelled
+                    } }
+                    return
+                }
                 guard artwork.visible else { state.status = "The reference image is hidden. Show it (\(Preferences.shared.key(.artwork))) to move and size it."; return }
             }
             if command == .holeTool {
