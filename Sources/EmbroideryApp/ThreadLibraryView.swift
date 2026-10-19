@@ -21,8 +21,9 @@ enum ThreadLibrary {
 struct ThreadLibraryView: View {
     @ObservedObject var state: EditorState
     @ObservedObject var preferences = Preferences.shared
-    /// How the threads are laid out: a grid of swatches, or a list of rows (swatch, name, number) in this many columns.
-    enum Layout { case grid, list(columns: Int) }
+    /// How the threads are laid out: a grid of swatches, or a list of rows (swatch, name, number) in as many columns
+    /// of at least `minColumnWidth` as fit, so widening the panel adds columns and making it taller adds rows.
+    enum Layout { case grid, list(minColumnWidth: CGFloat) }
     var layout = Layout.grid
     /// The swatches' size, and how tall the scrolling grid must be and may grow (nil: as tall as the panel allows).
     var swatchSize: CGFloat = 24
@@ -67,8 +68,8 @@ struct ThreadLibraryView: View {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: swatchSize + 6), spacing: 6)], alignment: .leading, spacing: 8) {
                         ForEach(shown, id: \.self) { color in swatchButton(color) }
                     }.padding(3)
-                case .list(let columns):
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: columns), alignment: .leading, spacing: 2) {
+                case .list(let minColumnWidth):
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: minColumnWidth), spacing: 10)], alignment: .leading, spacing: 2) {
                         ForEach(shown, id: \.self) { color in rowButton(color) }
                     }.padding(3)
                 }

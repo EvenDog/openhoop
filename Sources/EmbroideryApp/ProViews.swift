@@ -292,7 +292,9 @@ struct ProThreads: View {
     @ObservedObject var state: EditorState
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ThreadLibraryView(state: state, layout: .list(columns: 2), minHeight: 64, maxHeight: 200)   // at least three rows; shrinks before the sewing order list does
+            // At least three rows; every bit of height the sewing order list doesn't need goes to the library, so a
+            // taller panel shows more threads (and a wider one more columns).
+            ThreadLibraryView(state: state, layout: .list(minColumnWidth: 100), minHeight: 64)
             Text("IN SEWING ORDER").font(.system(size: 9, weight: .bold, design: .rounded)).tracking(0.6).foregroundStyle(Theme.inkSecondary)
             ScrollView {
                 VStack(spacing: 0) {
@@ -312,7 +314,9 @@ struct ProThreads: View {
                     }
                 }
             }
-            .frame(minHeight: 44)   // always room for two thread steps, however tall the library above
+            // Room for two thread steps at least, and only as tall as its steps need (up to eight), so the rest of the
+            // panel's height goes to the library above.
+            .frame(minHeight: 44, maxHeight: max(44, min(CGFloat(state.summary.steps.count) * 20 + 4, 164)))
         }
         .foregroundStyle(Theme.ink)
     }
