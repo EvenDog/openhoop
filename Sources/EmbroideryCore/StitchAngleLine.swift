@@ -7,19 +7,19 @@ public enum StitchAngleLine {
     /// How far (mm) the line reaches past the shape's edge, so its ends sit clear of the outline's nodes.
     static let overhang = 2.0
 
-    /// True for fills whose rows follow the Angle setting: tatami (unless stitch angle lines steer it), wave, gradient,
-    /// motif and satin.
+    /// True for fills whose rows follow the Angle setting: tatami and satin (unless stitch angle lines steer them),
+    /// wave, gradient and motif.
     public static func applies(to object: RunObject) -> Bool {
         guard object.kind == .fill else { return false }
         switch object.settings.fillStyle ?? .tatami {
-        case .tatami: return (object.settings.angleLines ?? []).isEmpty
-        case .wave, .gradient, .motif, .satin: return true   // gradient rows, motif rows and satin stitches run at the angle too
+        case .tatami, .satin: return (object.settings.angleLines ?? []).isEmpty
+        case .wave, .gradient, .motif: return true   // gradient rows and motif rows run at the angle too
         case .contour, .radial, .stipple, .crossStitch, .guided: return false
         }
     }
 
     /// True for fills whose Angle steers only their sparse underlay rows (Edge + sparse underlay) because their own
-    /// rows don't follow it: contour, radial and guided fills, and tatami steered by stitch angle lines. Properties
+    /// rows don't follow it: contour, radial and guided fills, and tatami or satin steered by stitch angle lines. Properties
     /// shows it as Underlay angle for them.
     public static func steersOnlyUnderlay(_ object: RunObject) -> Bool {
         object.kind == .fill && !applies(to: object) && object.settings.underlay == .edgeAndSparse

@@ -428,7 +428,7 @@ extension InspectorPanel {
             if StitchAngleLine.applies(to: object) {
                 number("Angle °", value: object.settings.angle, id: "fillAngle", range: -180...180, help: "The direction the fill rows run.") { value in settings(.fill, "Fill Angle") { $0.angle = value } }
             }
-            if style == .tatami { stitchAngles(object) }
+            if style == .tatami || style == .satin { stitchAngles(object) }
             if style == .wave {
                 let waveHelp = "How far each ripple rises and falls (mm, crest to trough), and the distance from one crest to the next. Tall, short waves pack the rows closer on their slopes."
                 number("Wave height", value: object.settings.waveHeight ?? DigitizingSettings.defaultWaveHeight, range: DigitizingSettings.waveHeightRange, help: waveHelp) { value in settings(.fill, "Wave Height") { $0.waveHeight = value } }

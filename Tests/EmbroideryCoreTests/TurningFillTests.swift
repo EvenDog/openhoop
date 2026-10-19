@@ -302,4 +302,47 @@ final class TurningFillTests: XCTestCase {
             XCTAssertLessThanOrEqual(nearest, 0.6, "\(p) is covered")
         }
     }
+
+    /// The elbow as a satin fill with the same two lines, sewn plain (no underlay or pull compensation) so the
+    /// stitches can be checked against the outline.
+    private func satinElbow(split: Double) -> RunObject {
+        var object = elbow()
+        object.digitizing?.fillStyle = .satin; object.digitizing?.underlay = .none; object.digitizing?.expansion = 0
+        object.digitizing?.satinSplit = split
+        return object
+    }
+    /// Each stitch of the fill as sewn, skipping the short steps from one row to the next.
+    private func satinStitches(_ object: RunObject) throws -> (sections: [[Point]], stitches: [(Point, Point)]) {
+        let sections = try AreaEngine.fill(object).sections.map(\.points)
+        return (sections, sections.flatMap { zip($0, $0.dropFirst()).map { ($0, $1) } }.filter { $0.0.distance(to: $0.1) >= 2 })
+    }
+
+    func testASatinFillWithLinesSewsEdgeToEdgeAndTurnsBetweenThem() throws {
+        let satin = satinElbow(split: 12)   // wider than the arms, so nothing is split
+        XCTAssertFalse(StitchAngleLine.applies(to: satin), "the lines steer it, not the Angle setting")
+        let (sections, stitches) = try satinStitches(satin)
+        let ring = AreaGeometry.ring(satin.nodes)
+        func onEdge(_ p: Point) -> Bool { ring.indices.contains { AreaGeometry.projection(p, ring[$0], ring[($0 + 1) % ring.count]).distance(to: p) < 0.15 } }
+        // Beyond each line, every stitch runs right across the arm, from edge to edge, along the line.
+        let up = stitches.filter { ($0.0.y + $0.1.y) / 2 > 31 }, along = stitches.filter { ($0.0.x + $0.1.x) / 2 > 31 }
+        XCTAssertGreaterThan(up.count, 20); XCTAssertGreaterThan(along.count, 20)
+        for (a, b) in up + along {
+            XCTAssertTrue(onEdge(a) && onEdge(b), "\(a) to \(b) reaches from edge to edge")
+            XCTAssertEqual(a.distance(to: b), 10, accuracy: 0.2)
+        }
+        XCTAssertLessThanOrEqual(apart(stitchDirection(near: Point(5, 36), in: sections), 0), 2)
+        XCTAssertLessThanOrEqual(apart(stitchDirection(near: Point(36, 5), in: sections), 90), 2)
+        // In the corner the stitches turn from one line's angle to the other's: halfway, the row joins the outer
+        // corner to the inner one.
+        XCTAssertLessThanOrEqual(apart(stitchDirection(near: Point(3, 3), in: sections), 45), 5)
+    }
+
+    func testATurningSatinSplitsStitchesLongerThanItsSplitLength() throws {
+        let (_, stitches) = try satinStitches(satinElbow(split: 6))   // the arms are 10 mm wide
+        XCTAssertGreaterThan(stitches.count, 100)
+        XCTAssertLessThanOrEqual(stitches.map { $0.0.distance(to: $0.1) }.max()!, 6.01)
+        // Without Auto split, a stitch longer than the split length is refused, as in a straight satin fill.
+        var unsplit = satinElbow(split: 6); unsplit.digitizing?.autoSplit = false
+        XCTAssertThrowsError(try AreaEngine.fill(unsplit)) { XCTAssertTrue("\($0)".contains("longer than 6.0 mm"), "\($0)") }
+    }
 }

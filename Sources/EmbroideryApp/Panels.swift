@@ -326,7 +326,7 @@ struct ToolStrip: View {
     private func isAvailable(_ command: CommandID) -> Bool {
         switch command {
         case .holeTool: return state.selection.count == 1 && state.selected?.kind == .fill && state.selected?.locked == false
-        case .addStitchAngles: return state.selection.count == 1 && state.selected?.kind == .fill && state.selected?.locked == false && (state.selected?.settings.fillStyle ?? .tatami) == .tatami
+        case .addStitchAngles: return state.selection.count == 1 && state.selected?.kind == .fill && state.selected?.locked == false && [.tatami, .satin].contains(state.selected?.settings.fillStyle ?? .tatami)
         case .removeStitchAngles: return state.selection.count == 1 && state.selected?.locked == false && !(state.selected?.settings.angleLines ?? []).isEmpty
         case .useAsFillGuide: return state.fillAndGuideLine != nil
         case .putLetteringOnLine: return state.letteringAndLine != nil
@@ -712,7 +712,7 @@ struct InspectorPanel: View {
                 if StitchAngleLine.applies(to: object) {
                     number("Fill angle °",value:object.settings.angle,id:"fillAngle",range:-180...180,help:"The direction the fill rows run."){value in settings(.fill,"Fill Angle"){$0.angle=value}}
                 }
-                if style == .tatami { stitchAngles(object) }
+                if style == .tatami || style == .satin { stitchAngles(object) }
                 if style == .wave {
                     let waveHelp = "How far each ripple rises and falls (mm, crest to trough), and the distance from one crest to the next. Tall, short waves pack the rows closer on their slopes."
                     number("Wave height",value:object.settings.waveHeight ?? DigitizingSettings.defaultWaveHeight,range:DigitizingSettings.waveHeightRange,hover:waveHelp){value in settings(.fill,"Wave Height"){$0.waveHeight=value}}
@@ -1064,7 +1064,7 @@ struct InspectorPanel: View {
         }
         .padding(10).background(Theme.accentSoft, in: RoundedRectangle(cornerRadius: 12))
     }
-    /// The stitch angle lines of a tatami fill: how many, Add (the Add Stitch Angles tool) and Remove all. Shared by
+    /// The stitch angle lines of a tatami or satin fill: how many, Add (the Add Stitch Angles tool) and Remove all. Shared by
     /// the Guided and Pro Properties.
     func stitchAngles(_ object: RunObject) -> some View {
         let count = object.settings.angleLines?.count ?? 0
@@ -1075,7 +1075,7 @@ struct InspectorPanel: View {
                 Button("Add…") { AppDelegate.shared.perform(.addStitchAngles) }.help(preferences.hint(.addStitchAngles))
                 if count > 0 { Button("Remove all") { settings(.fill, "Remove Stitch Angles") { $0.angleLines = nil } }.help("Take out every stitch angle line, so the fill sews straight rows again.") }
             }.buttonStyle(ThemedButtonStyle())
-            if !pro { explain("Draw lines across the fill and its stitches run along them, turning gradually from one line to the next, so the fill can follow a curved shape like a satin does.") }
+            if !pro { explain("Draw lines across the fill and its stitches run along them, turning gradually from one line to the next, so the fill can follow a curved shape like a satin column does.") }
         }
     }
     /// Plain-English help for start and end points, naming the current shortcut for the Start & End tool.
