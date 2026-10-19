@@ -20,6 +20,9 @@ enum ThreadLibrary {
 struct ThreadLibraryView: View {
     @ObservedObject var state: EditorState
     @ObservedObject var preferences = Preferences.shared
+    /// How the threads are laid out: a grid of swatches, or a list of rows (swatch, name, number) in this many columns.
+    enum Layout { case grid, list(columns: Int) }
+    var layout = Layout.grid
     /// The swatches' size, and how tall the scrolling grid must be and may grow (nil: as tall as the panel allows).
     var swatchSize: CGFloat = 24
     var minHeight: CGFloat? = nil
@@ -51,9 +54,16 @@ struct ThreadLibraryView: View {
                 TextField("Search by name or number", text: $search).textFieldStyle(.roundedBorder).font(Theme.body(12))
             }
             ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: swatchSize + 6), spacing: 6)], alignment: .leading, spacing: 8) {
-                    ForEach(shown, id: \.self) { color in swatchButton(color) }
-                }.padding(3)
+                switch layout {
+                case .grid:
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: swatchSize + 6), spacing: 6)], alignment: .leading, spacing: 8) {
+                        ForEach(shown, id: \.self) { color in swatchButton(color) }
+                    }.padding(3)
+                case .list(let columns):
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: columns), alignment: .leading, spacing: 2) {
+                        ForEach(shown, id: \.self) { color in rowButton(color) }
+                    }.padding(3)
+                }
             }.frame(minHeight: minHeight, maxHeight: maxHeight)
             if shown.isEmpty { Text("No threads in this chart match “\(search)”.").font(Theme.body(11)).foregroundStyle(Theme.inkSecondary) }
         }
@@ -62,15 +72,34 @@ struct ThreadLibraryView: View {
         .onChange(of: preferences.data.threadChart) { _, _ in charts = ThreadChartLibrary.charts(); importedNames = ThreadChartLibrary.importedNames() }
     }
 
-    /// One thread: a colored circle, ringed when it's the current thread; its name and number on hover.
+    /// Makes `color` the current thread and recolors the selection.
+    private func choose(_ color: ThreadColor) {
+        state.currentColor = color; state.editSelected("Thread Color") { $0.color = color }; state.focusCanvas()
+    }
+    private func hint(_ color: ThreadColor) -> String {
+        "\(color.chartLabel.map { "\(color.name) · \($0)" } ?? color.name): set the current thread and recolor the selection"
+    }
+    /// A colored circle, ringed when `color` is the current thread.
+    private func swatch(_ color: ThreadColor, size: CGFloat) -> some View {
+        Circle().fill(Color(nsColor: color.nsColor)).frame(width: size, height: size).overlay(Circle().strokeBorder(Theme.controlBorder))
+            .overlay(Circle().strokeBorder(Theme.ink.opacity(state.currentColor == color ? 0.85 : 0), lineWidth: 2).padding(-3))
+    }
+    /// One thread in the grid: its swatch; its name and number on hover.
     private func swatchButton(_ color: ThreadColor) -> some View {
-        Button {
-            state.currentColor = color; state.editSelected("Thread Color") { $0.color = color }; state.focusCanvas()
-        } label: {
-            Circle().fill(Color(nsColor: color.nsColor)).frame(width: swatchSize, height: swatchSize).overlay(Circle().strokeBorder(Theme.controlBorder))
-                .overlay(Circle().strokeBorder(Theme.ink.opacity(state.currentColor == color ? 0.85 : 0), lineWidth: 2).padding(-3))
-        }
-        .buttonStyle(.plain)
-        .help("\(color.chartLabel.map { "\(color.name) · \($0)" } ?? color.name): set the current thread and recolor the selection")
+        Button { choose(color) } label: { swatch(color, size: swatchSize) }.buttonStyle(.plain).help(hint(color))
+    }
+    /// One thread in the list: its swatch, name and number in a row, the row tinted when it's the current thread.
+    private func rowButton(_ color: ThreadColor) -> some View {
+        Button { choose(color) } label: {
+            HStack(spacing: 6) {
+                swatch(color, size: 11).padding(.leading, 3)
+                Text(color.name).font(Theme.body(11)).lineLimit(1).truncationMode(.tail)
+                Spacer(minLength: 2)
+                if let code = color.code { Text(code).font(.system(size: 9, design: .monospaced)).foregroundStyle(Theme.inkSecondary) }
+            }
+            .frame(height: 20).padding(.trailing, 4)
+            .background(state.currentColor == color ? Theme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 4))
+            .contentShape(Rectangle())
+        }.buttonStyle(.plain).help(hint(color))
     }
 }

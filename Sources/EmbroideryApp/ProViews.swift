@@ -286,13 +286,13 @@ struct ProSewingOrder: View {
     }
 }
 
-/// The Pro view's threads: the thread library as small swatches (click to choose the current thread and recolor
-/// the selection), then the design's thread steps in sewing order with their stitch counts.
+/// The Pro view's threads: the thread library as a two-column list of swatch, name and number (click to choose the
+/// current thread and recolor the selection), then the design's thread steps in sewing order with their stitch counts.
 struct ProThreads: View {
     @ObservedObject var state: EditorState
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ThreadLibraryView(state: state, swatchSize: 18, minHeight: 130, maxHeight: 170)   // at least four rows; the sewing order list gets the rest
+            ThreadLibraryView(state: state, layout: .list(columns: 2), minHeight: 130, maxHeight: 200)   // at least six rows; the sewing order list gets the rest
             Text("IN SEWING ORDER").font(.system(size: 9, weight: .bold, design: .rounded)).tracking(0.6).foregroundStyle(Theme.inkSecondary)
             ScrollView {
                 VStack(spacing: 0) {
