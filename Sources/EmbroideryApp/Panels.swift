@@ -803,8 +803,7 @@ struct InspectorPanel: View {
             }
             explain(object.kind == .raw ? "V moves stitch blocks. Use the thread palette to recolor the selection." : "V moves objects. N edits nodes: drag a node's handles to shape its curve, Option-drag to move one side of a smooth node. Secondary-click switches corner and smooth. \(preferences.label(.insertNode)) inserts near the pointer; Delete removes the selected node (a pair for satin).")
         } else if !NextShapeOptions.shows(state.tool) {
-            Text("Nothing selected").font(Theme.heading(16))
-            explain("Click an object on the canvas or in the sewing order to edit its stitches here.")
+            designOverview   // nothing selected: the whole design's figures and settings (DesignOverview.swift)
         }
     }
     /// The settings most people leave alone: underlay detail, compensation, finishing and start & end. The Guided
@@ -877,7 +876,7 @@ struct InspectorPanel: View {
             }
         }
     }
-    @ViewBuilder private var designSection: some View {
+    @ViewBuilder var designSection: some View {
         SectionLabel(title: "Fabric")
         fabricTypePicker
         fabricPicker
@@ -985,7 +984,7 @@ struct InspectorPanel: View {
         .padding(10)
         .background(Theme.ground, in: RoundedRectangle(cornerRadius: 12))
     }
-    private var sectionDivider: some View { Theme.divider.frame(height: 1) }
+    var sectionDivider: some View { Theme.divider.frame(height: 1) }
     /// Swatches for common garment fabrics plus a custom color; the choice is saved with this design.
     private var fabricPicker: some View {
         let presets: [(name: String, hex: Int?)] = [("Natural linen", nil), ("White", 0xFFFFFF), ("Black", 0x1C1C1E), ("Navy", 0x1F2A44),
