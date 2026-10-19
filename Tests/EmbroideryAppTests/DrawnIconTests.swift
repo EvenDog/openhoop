@@ -19,4 +19,10 @@ final class DrawnIconTests: XCTestCase {
         XCTAssertEqual(icon.size, NSSize(width: 17, height: 17))
         XCTAssertNil(NSImage.drawn("line.3.horizontal", size: 14), "built-in names aren't drawn")
     }
+
+    func testMonogramIconIsDrawnAsATemplate() throws {
+        let icon = try XCTUnwrap(NSImage.drawn(CommandID.addMonogram.symbol, size: 14))
+        XCTAssertTrue(icon.isTemplate)
+        XCTAssertNotNil(icon.cgImage(forProposedRect: nil, context: nil, hints: nil), "it draws")
+    }
 }
