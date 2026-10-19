@@ -179,7 +179,7 @@ struct ToolStrip: View {
     private func proButton(_ command: CommandID) -> some View {
         let active = isActive(command), available = isAvailable(command)
         return Button { AppDelegate.shared.perform(command) } label: {
-            Image(systemName: command.symbol).font(.system(size: 14))
+            Image.symbol(command.symbol, size: 14).font(.system(size: 14))
                 .frame(width: 30, height: 30)
                 .background(active ? Theme.accent : Color.clear, in: RoundedRectangle(cornerRadius: 6))
                 .foregroundStyle(active ? Theme.onAccent : Theme.toolBandInk)
@@ -213,7 +213,7 @@ struct ToolStrip: View {
         return HStack(spacing: 0) {
             Button { AppDelegate.shared.perform(command) } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: command.symbol).font(.system(size: 14))
+                    Image.symbol(command.symbol, size: 14).font(.system(size: 14))
                     if !compact { Text(shortName(command)).font(Theme.body(12, weight: .semibold)) }
                 }
                 .padding(.leading, 10).padding(.trailing, commands.count > 1 ? 4 : 10).frame(height: 32)
@@ -297,7 +297,7 @@ struct ToolStrip: View {
                 let available = isAvailable(command)
                 Button { openSlot = nil; picked[commands[0]] = command; AppDelegate.shared.perform(command) } label: {
                     HStack(spacing: 10) {
-                        Image(systemName: command.symbol).font(.system(size: 14)).frame(width: 20)
+                        Image.symbol(command.symbol, size: 14).font(.system(size: 14)).frame(width: 20)
                         Text(command.title).font(Theme.body(13, weight: .semibold))
                         Spacer(minLength: 16)
                         Text(preferences.label(command)).font(Theme.body(11, weight: .bold)).foregroundStyle(Theme.inkSecondary)
@@ -317,7 +317,7 @@ struct ToolStrip: View {
         ForEach(commands, id: \.self) { command in
             Button { picked[commands[0]] = command; AppDelegate.shared.perform(command) } label: {
                 let keys = preferences.label(command)
-                Label(command.title + (keys.isEmpty ? "" : "   " + keys), systemImage: command.symbol)
+                Label { Text(command.title + (keys.isEmpty ? "" : "   " + keys)) } icon: { Image.symbol(command.symbol, size: 13) }
             }
             .disabled(!isAvailable(command))
         }

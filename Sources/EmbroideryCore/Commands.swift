@@ -336,9 +336,10 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         .zoomIn: [.init("=", 1)], .zoomOut: [.init("-", 1)], .zoomFit: [.init("0", 1)], .grid: [.init("g")], .snap: [.init("g", 2)],
         .needles: [.init("p")], .artwork: [.init("b")], .play: [.init("space")], .rewind: []
     ]
+    /// The icon: a built-in Apple symbol name, or an "openhoop." name for an icon the app draws (DrawnIcons.swift).
     public var symbol: String {
         switch self {
-        case .satinTool:return "line.3.horizontal";case .fillTool:return "square.fill";case .holeTool:return "circle.dashed"
+        case .satinTool:return "openhoop.satin";case .fillTool:return "square.fill";case .holeTool:return "circle.dashed"
         case .selectTool: return "cursorarrow"; case .runTool: return "point.topleft.down.to.point.bottomright.curvepath"
         case .nodeTool: return "point.3.connected.trianglepath.dotted"; case .toggleNodeType: return "circle.square"; case .breakApartLettering: return "burst"; case .densityMap: return "circle.grid.3x3.fill"; case .testSwatches: return "square.grid.2x2"; case .useAsFillGuide: return "scribble.variable"; case .putLetteringOnLine: return "textformat.abc"; case .panTool: return "hand.draw"; case .entryExitTool: return "flag"; case .autoStartPoints: return "wand.and.stars"; case .clearStartEnd: return "flag.slash"; case .lettering: return "textformat"; case .editLettering: return "character.cursor.ibeam"; case .autoDigitize: return "wand.and.rays"; case .satinBorder: return "circle.circle"; case .applique: return "scissors"; case .done: return "checkmark.circle"; case .artworkTool: return "photo"
         case .importImage: return "photo.badge.plus"; case .exportPES: return "square.and.arrow.up"; case .productionWorksheet: return "doc.text"; case .save: return "square.and.arrow.down"

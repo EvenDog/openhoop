@@ -204,7 +204,7 @@ import EmbroideryCore
         }
         guard let command = CommandID(rawValue: identifier.rawValue) else { return nil }
         let item = NSToolbarItem(itemIdentifier: identifier); item.label = command.title; item.paletteLabel = command.title
-        item.image = NSImage(systemSymbolName: command.symbol, accessibilityDescription: command.title)
+        item.image = NSImage.drawn(command.symbol, size: 14) ?? NSImage(systemSymbolName: command.symbol, accessibilityDescription: command.title)
         item.target = AppDelegate.shared; item.action = #selector(AppDelegate.toolbarAction(_:)); item.toolTip = Preferences.shared.hint(command)
         return item
     }

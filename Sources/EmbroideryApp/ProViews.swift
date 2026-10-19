@@ -192,7 +192,7 @@ struct ProSewingOrder: View {
             Text(number).font(.system(size: 10, design: .monospaced)).foregroundStyle(Theme.inkSecondary).lineLimit(1).frame(width: 20, alignment: .leading)
             Group { if let swatch { RoundedRectangle(cornerRadius: 2).fill(swatch).overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(Color.black.opacity(0.25))) } else { Color.clear } }
                 .frame(width: 10, height: 10)
-            Group { if let symbol { Image(systemName: symbol).font(.system(size: 10)).foregroundStyle(Theme.inkSecondary) } else { Color.clear } }
+            Group { if let symbol { Image.symbol(symbol, size: 10).font(.system(size: 10)).foregroundStyle(Theme.inkSecondary) } else { Color.clear } }
                 .frame(width: 14, height: 12)
             name.lineLimit(1).truncationMode(.tail).padding(.leading, indent ? 10 : 0).frame(maxWidth: .infinity, alignment: .leading)
             Text(stitches).font(.system(size: 10, design: .monospaced)).fixedSize().frame(width: 46, alignment: .trailing)   // fixedSize: the "STITCHES" heading may spill left, never truncate
