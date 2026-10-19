@@ -442,7 +442,7 @@ import EmbroideryCore
                 state.holeTarget=object.id
             } else {state.holeTarget=nil}
             if command == .addStitchAngles || command == .removeStitchAngles {
-                guard state.selection.count==1,let object=state.selected,object.kind == .fill,(object.settings.fillStyle ?? .tatami) == .tatami,!object.locked else{state.status="Select one unlocked tatami fill first.";return}
+                guard state.selection.count==1,let object=state.selected,object.kind == .fill,[.tatami,.satin].contains(object.settings.fillStyle ?? .tatami),!object.locked else{state.status="Select one unlocked tatami or satin fill first.";return}
                 if command == .removeStitchAngles && (object.settings.angleLines ?? []).isEmpty {state.status="This fill has no stitch angle lines to remove.";return}
                 state.angleTarget=object.id
             } else {state.angleTarget=nil}

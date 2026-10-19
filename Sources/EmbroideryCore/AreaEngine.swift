@@ -56,6 +56,11 @@ public enum AreaEngine {
         case .tatami where !(s.angleLines ?? []).isEmpty:
             parts=[try TurningFill.rows(in:expanded,angleLines:s.angleLines!,spacing:s.rowGap,length:object.stitchLength,start:start)]
             guard !parts[0].isEmpty else{throw DesignError.invalid("The stitch angle lines don't cross this fill. Draw them across it, or remove them.")}
+        case .satin where !(s.angleLines ?? []).isEmpty:
+            // A turning satin: the same rows, re-stitched so each is one stitch from edge to edge (see `asSatin`).
+            let maximum=s.satinSplit ?? DigitizingSettings.defaultSatinSplit
+            parts=[try asSatin(try TurningFill.rows(in:expanded,angleLines:s.angleLines!,spacing:s.spacing,length:maximum,start:start),maximum:maximum,split:s.autoSplit != false)]
+            guard !parts[0].isEmpty else{throw DesignError.invalid("The stitch angle lines don't cross this fill. Draw them across it, or remove them.")}
         case .tatami,.wave,.gradient:parts=try topRows(in:expanded,object,entry:entry,exit:exit)
         case .contour:parts=[try FillStyles.contour(in:expanded,spacing:s.spacing,length:object.stitchLength,start:start)]
         case .motif:parts=[try Motifs.fill(in:expanded,motif:s.motif ?? .heart,size:s.patternSize ?? DigitizingSettings.defaultPatternSize(.motif),gap:s.patternGap ?? DigitizingSettings.defaultPatternGap,angle:s.angle,length:object.stitchLength)]
@@ -74,7 +79,7 @@ public enum AreaEngine {
         let bounds=(try? AreaGeometry.offset(expanded,by:style == .wave ? 0.05:0.01)) ?? expanded
         // Contour, radial and turning stitches run every which way, so travel across them is priced like satin (no
         // row angle); contour and radial rows already come in sewing order.
-        let rowStyle=(style == .tatami && (s.angleLines ?? []).isEmpty) || style == .wave || style == .gradient || style == .satin
+        let rowStyle=((style == .tatami || style == .satin) && (s.angleLines ?? []).isEmpty) || style == .wave || style == .gradient
         let router=TravelRouter(edges:edges,bounds:bounds,rowAngle:rowStyle ? s.angle:nil)
         // Guided rows bend, so travel across them is priced like satin too, but they're put in sewing order like straight rows.
         // Turning fills come already in sewing order: each branch of the shape is sewn so its travel is covered.
@@ -113,6 +118,31 @@ public enum AreaEngine {
     /// False for a scrap of a row (clipped at a sharp corner) too short to make one stitch: it would sew as a single
     /// stitch under 0.3 mm and hold nothing, so it's left out.
     private static func isLongEnough(_ row:[Point])->Bool {AreaGeometry.pathLength(row)>=StitchEngine.smallestStitch}
+    /// Rows from the turning engine sewn as satin. The engine puts needle holes along each row the way tatami
+    /// does (on a grid, a quarter stitch further on each row), which would break even a short satin stitch; so
+    /// every point lying on the straight line between its neighbours is dropped, leaving each row as one stitch
+    /// from edge to edge. Then a stitch longer than `maximum` is broken as a straight satin fill's is (`split`),
+    /// or refused.
+    private static func asSatin(_ sections:[[Point]],maximum:Double,split:Bool) throws ->[[Point]] {
+        var shifted=false
+        return try sections.map{section in
+            var ends:[Point]=[]
+            for p in section {
+                if ends.count>=2,AreaGeometry.projection(ends[ends.count-1],ends[ends.count-2],p).distance(to:ends[ends.count-1])<0.01 {ends[ends.count-1]=p;continue}
+                ends.append(p)
+            }
+            guard let first=ends.first else{return []}
+            var sewn=[first]
+            for (a,b) in zip(ends,ends.dropFirst()) {
+                if a.distance(to:b)>maximum+0.0001 {
+                    guard split else{throw DesignError.invalid("Satin fill stitches would be longer than \(String(format:"%.1f",maximum)) mm. Turn on Auto split, or make the shape narrower.")}
+                    sewn+=SatinFill.breaks(a,b,maximum:maximum,shifted:shifted);shifted.toggle()
+                }
+                sewn.append(b)
+            }
+            return sewn
+        }
+    }
     /// The top-layer fill rows, in parts sewn one after another. Without start or end points: one part in the default
     /// order. With only a start point: the rows begin at the end nearest it. With an end point, the fill is split along
     /// the line through it that runs the way the rows do, and each side is sewn toward that line, so the last row lies
