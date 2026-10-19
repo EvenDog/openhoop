@@ -1,8 +1,8 @@
 // Turning fill, made with stitch angles: lines drawn across a fill set which way its stitches run. As in other
 // embroidery software, each line is extended right across the shape, like a cut, and lines may not cross inside it.
-// Beyond the first and last line, rows run straight at that line's angle; between two neighbouring lines, rows are
+// In a piece beyond the end line, rows run straight at that line's angle; in a piece between two lines, rows are
 // straight lines fanning out from the point where those two lines meet, so the direction turns evenly from one line
-// to the other. The pieces are sewn one after another across the shape, so each line shows as a seam.
+// to the other. The pieces are sewn one after another, each next to the last, so each line shows as a seam.
 import Foundation
 
 enum TurningFill {
@@ -25,41 +25,59 @@ enum TurningFill {
            chords.allSatisfy({ offLine(centre, $0) < 0.5 }) {
             return try fan(in: region, centre: centre, from: 0, turn: 2 * .pi, spacing: spacing, length: length)
         }
-        // In order across the shape: by where each line's middle lies, measured across the lines' average direction
-        // (averaged with doubled angles, so a line and its reverse count the same). From the end nearest the start.
-        let doubled = chords.map { 2 * direction($0) * .pi / 180 }
-        let mean = atan2(doubled.map(sin).reduce(0, +), doubled.map(cos).reduce(0, +)) / 2, across = Point(-sin(mean), cos(mean))
-        chords.sort { dot(mid($0), across) < dot(mid($1), across) }
-        if let start, start.distance(to: mid(chords[chords.count - 1])) < start.distance(to: mid(chords[0])) { chords.reverse() }
+        // Cut the shape along each line, everywhere the line crosses it but no further, so however the shape bends
+        // each piece is bordered by the lines next to it. `cuts`: those stretches, each with its line's number;
+        // `sides[c]`: the pieces just beside cut c's middle, on its two sides; `borders[i]`: the cuts piece i touches.
+        let cuts = stretches(in: region, angleLines: angleLines).enumerated().flatMap { k, line in line.map { (line: k, chord: $0) } }
+        var pieces = [region]
+        for cut in cuts { pieces = try pieces.flatMap { try AreaGeometry.subtracting([slit(cut.chord)], from: $0) } }
+        guard !pieces.isEmpty else { return [] }
+        let sides = cuts.map { cut -> [Int] in
+            let n = Point(-unit(cut.chord).y, unit(cut.chord).x) * 0.02
+            return [mid(cut.chord) + n, mid(cut.chord) - n].compactMap { p in pieces.firstIndex { AreaGeometry.contains(p, rings: $0) } }
+        }
+        let borders = pieces.indices.map { i in cuts.indices.filter { sides[$0].contains(i) } }
+        /// The different lines piece `i` touches, in order.
+        func lines(_ i: Int) -> [Int] { borders[i].map { cuts[$0].line }.reduce(into: []) { if !$0.contains($1) { $0.append($1) } } }
+        /// How far `p` is from the nearest of the cuts numbered `which`.
+        func gap(_ p: Point, _ which: [Int]) -> Double { which.map { Self.gap(p, (cuts[$0].chord.a, cuts[$0].chord.b)) }.min() ?? .infinity }
 
-        // `later[k]`: the side of line k (+1 left, −1 right) the lines after it lie on.
-        let later = chords.indices.map { k in
-            k + 1 < chords.count ? sideOf(mid(chords[k + 1]), chords[k]) : -sideOf(mid(chords[k - 1]), chords[k])
+        // Sew piece by piece, each next to the last across a line: from the end piece nearest the start, on into
+        // each neighbour in turn (a branch is sewn to its end before the next one). `entry`: the cut crossed into it.
+        let ends = pieces.indices.filter { lines($0).count == 1 }
+        var first = ends.first ?? 0
+        if let start { first = (ends.isEmpty ? Array(pieces.indices) : ends).min { gap(start, borders[$0]) < gap(start, borders[$1]) }! }
+        var order: [(piece: Int, entry: Int?)] = [], seen = Set<Int>()
+        func visit(_ i: Int, _ entry: Int?) {
+            guard seen.insert(i).inserted else { return }
+            order.append((i, entry))
+            for c in borders[i] { for j in sides[c] where j != i { visit(j, c) } }
         }
-        let reach = Self.reach(across: region)
-        /// The part of the plane on `side` of the line through `chord`, as a big square (for cutting the shape).
-        func halfPlane(_ chord: (a: Point, b: Point), _ side: Double) -> [Point] {
-            let u = unit(chord), n = Point(-u.y, u.x) * side, m = mid(chord)
-            let ring = [m - u * reach, m + u * reach, m + u * reach + n * reach, m - u * reach + n * reach]
-            return AreaGeometry.area(ring) < 0 ? ring.reversed() : ring
-        }
+        visit(first, nil)
+        for i in pieces.indices { visit(i, nil) }   // pieces no line borders (cut off from the rest by the fill's shape)
+
         var sections: [[Point]] = []
-        for k in 0...chords.count {
-            // The piece between line k−1 and line k: the shape without what lies before the one or after the other.
-            var piece = [region]
-            if k > 0 { piece = try piece.flatMap { try AreaGeometry.subtracting([halfPlane(chords[k - 1], -later[k - 1])], from: $0) } }
-            if k < chords.count { piece = try piece.flatMap { try AreaGeometry.subtracting([halfPlane(chords[k], later[k])], from: $0) } }
-            let rings = piece.flatMap { $0 }
-            guard !rings.isEmpty else { continue }
+        for (n, (i, entry)) in order.enumerated() {
+            let rings = pieces[i], touching = lines(i)
             var rows: [[Point]]
-            if k == 0 || k == chords.count {
-                // An end piece: straight rows at its line's angle, sewn so they finish (or, the last piece, begin) at the line.
-                let line = chords[k == 0 ? 0 : k - 1]
+            switch touching.count {
+            case 2:
+                // Between two lines: rows fan from the one it was entered by to the other.
+                let from = entry ?? borders[i][0], to = borders[i].first { cuts[$0].line != cuts[from].line }!
+                rows = try fan(in: rings, between: cuts[from].chord, and: cuts[to].chord, spacing: spacing, length: length)
+            case 0, 1:
+                // An end piece: straight rows at its line's angle, sewn so they finish at the line if it's sewn first,
+                // otherwise begin there. (A piece no line borders takes the nearest line's angle.)
+                let line = cuts[borders[i].first ?? cuts.indices.min { gap(rings[0][0], [$0]) < gap(rings[0][0], [$1]) }!].chord
                 let ways = try [false, true].map { try AreaEngine.rows(in: rings, angle: direction(line), spacing: spacing, length: length, fromTop: $0) }.filter { !$0.isEmpty }
                 guard !ways.isEmpty else { continue }
-                rows = ways.min { k == 0 ? offLine($0.last!.last!, line) < offLine($1.last!.last!, line) : offLine($0[0][0], line) < offLine($1[0][0], line) }!
-            } else {
-                rows = try fan(in: rings, between: chords[k - 1], and: chords[k], spacing: spacing, length: length)
+                rows = ways.min { n == 0 ? offLine($0.last!.last!, line) < offLine($1.last!.last!, line) : offLine($0[0][0], line) < offLine($1[0][0], line) }!
+            default:
+                // Where three or more lines meet a piece (the middle of a Y): straight rows at their average angle,
+                // averaged with doubled angles so a line and its reverse count the same.
+                let doubled = touching.map { 2 * direction(chords[$0]) * .pi / 180 }
+                let mean = atan2(doubled.map(sin).reduce(0, +), doubled.map(cos).reduce(0, +)) / 2 * 180 / .pi
+                rows = try AreaEngine.rows(in: rings, angle: mean, spacing: spacing, length: length)
             }
             // Start each piece's rows at the end nearest where the last piece finished.
             if let needle = sections.last?.last, let first = rows.first?.first, let last = rows.last?.last, needle.distance(to: last) < needle.distance(to: first) {
@@ -204,10 +222,7 @@ enum TurningFill {
         }}
         return ts.sorted()
     }
-    /// +1 if `p` is to the left of the line through `chord` (looking from a to b), −1 if to the right.
-    static func sideOf(_ p: Point, _ chord: (a: Point, b: Point)) -> Double { AreaGeometry.cross(chord.b - chord.a, p - chord.a) >= 0 ? 1 : -1 }
     static func unit(_ chord: (a: Point, b: Point)) -> Point { (chord.b - chord.a) * (1 / chord.a.distance(to: chord.b)) }
-    static func dot(_ u: Point, _ v: Point) -> Double { u.x * v.x + u.y * v.y }
     /// How far `p` is from the (endless) line through `chord`.
     static func offLine(_ p: Point, _ chord: (a: Point, b: Point)) -> Double { abs(AreaGeometry.cross(unit(chord), p - chord.a)) }
 
@@ -225,6 +240,12 @@ enum TurningFill {
         }
         return path[path.count - 1]
     }
+    /// A hair-thin strip along `chord`, a little longer than it, for cutting the shape in two along the chord.
+    static func slit(_ chord: (a: Point, b: Point)) -> [Point] {
+        let u = unit(chord) * 0.05, n = Point(-u.y, u.x) * 0.04
+        let ring = [chord.a - u - n, chord.b + u - n, chord.b + u + n, chord.a - u + n]
+        return AreaGeometry.area(ring) < 0 ? ring.reversed() : ring
+    }
     /// How far `p` is from a segment.
     static func gap(_ p: Point, _ segment: (Point, Point)) -> Double { p.distance(to: AreaGeometry.projection(p, segment.0, segment.1)) }
 
@@ -235,17 +256,21 @@ enum TurningFill {
         return hypot(maxX - minX, maxY - minY) + 1
     }
 
-    /// Each angle line stretched across the shape: the piece of its line, through its middle, that lies inside
-    /// `region` (the nearest piece, where the line crosses the shape more than once). Lines that miss the shape
+    /// Each angle line stretched across the shape: every piece of its line that lies inside `region` (a line can cross
+    /// the shape more than once), the one through or nearest the line's middle first. Lines that miss the shape
     /// entirely, or are too short to have a direction, are left out, so an empty result means the fill can't use them.
-    static func chords(in region: [[Point]], angleLines: [[Point]]) -> [(a: Point, b: Point)] {
+    static func stretches(in region: [[Point]], angleLines: [[Point]]) -> [[(a: Point, b: Point)]] {
         let reach = reach(across: region)
         return angleLines.compactMap { line in
             guard line.count >= 2, line[0].distance(to: line[1]) > 0.01 else { return nil }
             let middle = (line[0] + line[1]) * 0.5, u = (line[1] - line[0]) * (1 / line[0].distance(to: line[1]))
             let pieces = AreaGeometry.clippedSegment(middle - u * reach, middle + u * reach, rings: region)
-            return pieces.min { gap(middle, $0) < gap(middle, $1) }.map { (a: $0.0, b: $0.1) }
+            return pieces.isEmpty ? nil : pieces.sorted { gap(middle, $0) < gap(middle, $1) }.map { (a: $0.0, b: $0.1) }
         }
+    }
+    /// Each angle line's piece across the shape through (or nearest) its middle.
+    static func chords(in region: [[Point]], angleLines: [[Point]]) -> [(a: Point, b: Point)] {
+        stretches(in: region, angleLines: angleLines).map { $0[0] }
     }
 }
 

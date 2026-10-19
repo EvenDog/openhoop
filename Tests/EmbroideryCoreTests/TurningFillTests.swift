@@ -117,6 +117,40 @@ final class TurningFillTests: XCTestCase {
         }
     }
 
+    /// A shape bent like a "<", with a line across its upper arm, one across the bend and one across its lower arm:
+    /// the pieces between the lines follow the shape round the bend, so every part is sewn, and only once.
+    func testInABentShapeEveryPieceIsSewnOnce() throws {
+        let bent = [Point(-19, 7.1), Point(-31, 27.5), Point(-12.7, 27.5), Point(7, 0.3), Point(-1.4, -14), Point(-31.2, -11.7), Point(-32.8, 8.7)]
+        let lines = [[Point(-26.5, 9.5), Point(-24.7, -18.5)], [Point(-26.6, 15.7), Point(-0.2, 35.9)], [Point(-24.7, 11.5), Point(17.3, -17.6)]]
+        let rows = try TurningFill.rows(in: [bent], angleLines: lines, spacing: 0.2, length: 3, start: Point(-31, -11))
+        let stitches = rows.flatMap { zip($0, $0.dropFirst()) }
+        // The corner of the upper arm beyond its line, and the lower arm's end, are sewn. Beyond the lower arm's line
+        // the rows keep its angle; that line, stretched right across, also cuts off the upper arm's tip, so the corner
+        // between it and the upper arm's line fans between the two: its rows point at where they meet.
+        for p in [Point(-28, 26), Point(-22, 26), Point(-15, 20), Point(-30, -5), Point(-10, -8), Point(0, -2)] {
+            let nearest = stitches.map { AreaGeometry.projection(p, $0.0, $0.1).distance(to: p) }.min()!
+            XCTAssertLessThanOrEqual(nearest, 0.3, "\(p) is covered")
+        }
+        XCTAssertLessThanOrEqual(apart(stitchDirection(near: Point(-30.5, -3), in: rows), 93.7), 2)
+        let chords = TurningFill.chords(in: [bent], angleLines: lines)
+        let centre = try XCTUnwrap(TurningFill.meeting(chords[0], chords[1]))
+        for p in [Point(-24, 25), Point(-20, 26)] {
+            XCTAssertLessThanOrEqual(apart(stitchDirection(near: p, in: rows), atan2(centre.y - p.y, centre.x - p.x) * 180 / .pi), 3, "at \(p)")
+        }
+        // Rows 0.2 mm apart lay 5 mm of thread on each mm²: about that much in a 2 mm square, not twice as much.
+        for p in [Point(-30.5, -3), Point(-29.5, 4), Point(-12, -6)] {
+            var thread = 0.0
+            for (a, b) in stitches {
+                let steps = max(1, Int(a.distance(to: b) / 0.02))
+                for k in 0..<steps {
+                    let q = a + (b - a) * ((Double(k) + 0.5) / Double(steps))
+                    if abs(q.x - p.x) < 1 && abs(q.y - p.y) < 1 { thread += a.distance(to: b) / Double(steps) }
+                }
+            }
+            XCTAssertEqual(thread / 4, 5, accuracy: 1.5, "thread per mm² around \(p)")
+        }
+    }
+
     /// A ring (a shape with a hole) with three or more lines from its outside edge to the hole's, all through the
     /// hole's middle: between every two lines the rows point at where they meet, the middle, so all the way round
     /// the stitches run straight across the ring.
