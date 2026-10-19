@@ -106,7 +106,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .settings: return "Change OpenHoop's settings: keyboard shortcuts, colors and more."
         // Drawing and digitizing
         case .selectTool: return "Click to pick an object, Shift-click to add more, drag to move them."
-        case .artworkTool: return "Move the reference image, or drag a corner to resize it."
+        case .artworkTool: return "Move the reference image, or drag a corner to resize it. With no image yet, it imports one first."
         case .runTool: return "Draw a line of single stitches: click corners, drag for curves, Return to finish."
         case .satinTool: return "Draw a satin column (smooth, shiny stitches side to side): click a point on each side, all the way along."
         case .fillTool: return "Draw a shape filled with rows of stitches: trace its outline and press Return."
