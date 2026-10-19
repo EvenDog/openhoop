@@ -1221,6 +1221,11 @@ final class DesignCanvas: NSView {
             state.status = "That would leave \(after.name) unable to sew, so it went back. \(problem)"
             preview = nil
         }
+        // A stitch angle line moved so it would cross another inside the fill goes back too.
+        if let drag = angleDrag, let after = preview?.objects.first(where: { $0.id == drag.object }), let problem = after.angleLineProblem {
+            state.status = "That went back. \(problem)"
+            preview = nil
+        }
         // Said before the change is saved, so a message from saving it (such as hand edits being replaced) wins.
         if let drag = fillAngleDrag, drag.slideFrom == nil, let angle = preview?.objects.first(where: { $0.id == drag.object })?.settings.angle { state.status = "Stitch angle \(Int(angle))°" }
         if let preview { state.document?.replace(preview, action: action) }
