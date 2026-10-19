@@ -1,5 +1,6 @@
-// Checks turning fills (stitch angles): stitches run along each angle line, turn between lines, cover the whole
-// shape, and the lines move with the shape.
+// Checks turning fills (stitch angles): each line reaches right across the shape; beyond the first and last, rows
+// run at their angle; between two lines, rows fan out from where the lines meet. Lines that cross inside are
+// refused. The stitches cover the whole shape, and the lines move with the shape.
 import XCTest
 @testable import EmbroideryCore
 
@@ -18,6 +19,54 @@ final class TurningFillTests: XCTestCase {
         let (a, b) = stitches.min { AreaGeometry.projection(p, $0.0, $0.1).distance(to: p) < AreaGeometry.projection(p, $1.0, $1.1).distance(to: p) }!
         let degrees = (atan2(b.y - a.y, b.x - a.x) * 180 / .pi + 360).truncatingRemainder(dividingBy: 180)
         return degrees > 179.5 ? degrees - 180 : degrees   // 180° is the same direction as 0°
+    }
+    /// How far apart two stitch directions are, in degrees (0…90: a direction and its reverse are the same).
+    private func apart(_ a: Double, _ b: Double) -> Double { let d = abs(a - b).truncatingRemainder(dividingBy: 180); return min(d, 180 - d) }
+    /// A 60 × 40.9 mm rectangle with lines leaning at about 61° and 120° across its top corners, as drawn in other
+    /// software for the comparison (2026-10-18).
+    private let rectangle = [Point(0, 0), Point(60, 0), Point(60, 40.9), Point(0, 40.9)]
+    private let cornerLines = [[Point(1.7, 30.6), Point(6.6, 39.3)], [Point(52.7, 34.0), Point(58.6, 23.9)]]
+
+    func testBetweenTwoLinesRowsFanOutFromWhereTheyMeet() throws {
+        let rows = try TurningFill.rows(in: [rectangle], angleLines: cornerLines, spacing: 0.2, length: 4, start: nil)
+        // The two lines, extended, meet about 36 mm above the rectangle; each row between them points there.
+        let chords = TurningFill.chords(in: [rectangle], angleLines: cornerLines)
+        let centre = try XCTUnwrap(TurningFill.meeting(chords[0], chords[1]))
+        XCTAssertGreaterThan(centre.y, 60)
+        for p in [Point(10, 5), Point(30, 5), Point(50, 5), Point(20, 20), Point(40, 30)] {
+            let towards = atan2(centre.y - p.y, centre.x - p.x) * 180 / .pi
+            XCTAssertLessThanOrEqual(apart(stitchDirection(near: p, in: rows), towards), 2, "at \(p) the row points at the meeting point")
+        }
+        // Beyond each line, the rows keep its angle.
+        XCTAssertLessThanOrEqual(apart(stitchDirection(near: Point(1, 39), in: rows), 60.6), 2)
+        XCTAssertLessThanOrEqual(apart(stitchDirection(near: Point(59, 39), in: rows), 120), 3)
+        // Measured against the same shape sewn by other embroidery software at the same spacing (0.40 mm across two
+        // rows) and 4 mm stitches: it laid 4,313 stitches; within 5% here, with every part of the shape covered.
+        var fill = RunObject(name: "Rectangle", nodes: rectangle.map { PathNode($0) }); fill.closed = true; fill.stitchLength = 4
+        fill.digitizing = DigitizingSettings(kind: .fill); fill.digitizing?.angleLines = cornerLines
+        fill.digitizing?.underlay = UnderlayStyle.none; fill.digitizing?.expansion = 0
+        var design = Design(); design.objects = [fill]
+        let plan = try StitchEngine.compile(design)
+        XCTAssertEqual(Double(plan.stitchCount), 4313, accuracy: 4313 * 0.05)
+        XCTAssertEqual(plan.commands.filter { $0.op == .trim }.count, 1, "sewn in one go")
+        for p in [Point(1, 1), Point(30, 40.5), Point(59, 1), Point(30, 20), Point(5, 38), Point(55, 38)] {
+            let nearest = rows.flatMap { zip($0, $0.dropFirst()).map { AreaGeometry.projection(p, $0, $1).distance(to: p) } }.min()!
+            XCTAssertLessThanOrEqual(nearest, 0.3, "\(p) is covered")
+        }
+    }
+
+    func testLinesThatCrossInsideTheFillAreRefused() throws {
+        var square = RunObject(name: "Square", nodes: [Point(0, 0), Point(40, 0), Point(40, 40), Point(0, 40)].map { PathNode($0) })
+        square.closed = true; square.digitizing = DigitizingSettings(kind: .fill)
+        // An upright line on the left and a level one on the right: stretched across, they meet inside.
+        square.digitizing?.angleLines = [[Point(5, 10), Point(5, 30)], [Point(30, 20), Point(38, 20)]]
+        XCTAssertNotNil(square.angleLineProblem)
+        var design = Design(); design.objects = [square]
+        XCTAssertThrowsError(try StitchEngine.compile(design))
+        // Leaning apart near the top, so they'd meet well above the square, they're fine.
+        design.objects[0].digitizing?.angleLines = [[Point(2, 30), Point(6, 38)], [Point(38, 30), Point(34, 38)]]
+        XCTAssertNil(design.objects[0].angleLineProblem)
+        XCTAssertNoThrow(try StitchEngine.compile(design))
     }
 
     func testStitchesFollowEachAngleLineAndTurnBetween() throws {
@@ -68,14 +117,15 @@ final class TurningFillTests: XCTestCase {
         }
     }
 
-    /// A ring (a shape with a hole) with lines from its outside edge to the hole's: the stitches turn all the way
-    /// round, from the last line back to the first, rather than leaving the stretch between them unsewn.
+    /// A ring (a shape with a hole) with three or more lines from its outside edge to the hole's, all through the
+    /// hole's middle: between every two lines the rows point at where they meet, the middle, so all the way round
+    /// the stitches run straight across the ring.
     func testOnARingTheStitchesTurnAllTheWayRound() throws {
         func circle(_ r: Double, clockwise: Bool) -> [Point] {
             (0..<72).map { k in let a = Double(clockwise ? -k : k) / 72 * 2 * .pi; return Point(r * cos(a), r * sin(a)) }
         }
         func radial(_ degrees: Double) -> [Point] { let a = degrees * .pi / 180; return [Point(8 * cos(a), 8 * sin(a)), Point(22 * cos(a), 22 * sin(a))] }
-        for angles in [[0.0, 90, 180, 270], [0, 180], [10, 60, 200]] {
+        for angles in [[0.0, 90, 180, 270], [10, 60, 200]] {
             let rows = try TurningFill.rows(in: [circle(20, clockwise: false), circle(10, clockwise: true)], angleLines: angles.map(radial), spacing: 0.5, length: 3, start: nil)
             for degrees in stride(from: 0.0, to: 360, by: 5) {
                 let a = degrees * .pi / 180
@@ -85,7 +135,7 @@ final class TurningFillTests: XCTestCase {
                     XCTAssertLessThanOrEqual(nearest, 0.6, "lines at \(angles): \(degrees)° is covered")
                 }
                 let p = Point(15 * cos(a), 15 * sin(a))
-                XCTAssertEqual(stitchDirection(near: p, in: rows), degrees.truncatingRemainder(dividingBy: 180), accuracy: 6, "lines at \(angles): stitches run across the ring at \(degrees)°")
+                XCTAssertLessThanOrEqual(apart(stitchDirection(near: p, in: rows), degrees), 6, "lines at \(angles): stitches run across the ring at \(degrees)°")
             }
         }
     }
@@ -109,11 +159,9 @@ final class TurningFillTests: XCTestCase {
         return try AreaGeometry.offset([AreaGeometry.ring(zip(points, smooth).map { PathNode(Point($0.0.0, $0.0.1), smooth: $0.1) })], by: 0.2)
     }
 
-    /// The notch shape with two angle lines. The rows used to be straight lines whose ends slid along the edge, so
-    /// many crossed the notch and swept back over ground they'd already covered as their ends went up the arm and
-    /// down the notch: sewn in line order, the needle travelled round the notch after almost every row (44 moves
-    /// over 3 mm, 592 mm), and later rows were sewn on top of earlier ones at another angle (827 crossing rows). Now
-    /// rows follow a smoothly turning direction, never overlap, and are sewn in a few sections, each in one go.
+    /// The notch shape with two angle lines. An early version swept rows across the notch and back over ground
+    /// already covered (827 crossing rows, and travel round the notch after almost every row). Fan rows split by the
+    /// notch are sewn as separate runs, each in one go, never over each other.
     func testRowsSplitByANotchAreSewnOnceAndOneAreaAtATime() throws {
         let lines = [[Point(-35.0, 36.08), Point(-34.81, 10.28)], [Point(-26.15, 33.91), Point(-14.37, 34.18)]]
         let region = try notchShape()
@@ -137,14 +185,19 @@ final class TurningFillTests: XCTestCase {
         }
     }
 
-    /// The notch shape with its second line moved to run down to the right-hand corner (as drawn, 2026-10-17). With
-    /// straight rows the stitch angle changed abruptly in a band below that line: rows fanning round the corner were
-    /// cut off where they met rows already sewn, a jump of 25° within half a millimetre. Now the angle turns smoothly
-    /// all the way, with no stitch longer than a stitch length and no bare patches.
+    /// The notch shape with its second line moved to run down to the right-hand corner (as drawn, 2026-10-17), so
+    /// the two lines meet right at the bottom of the notch and the rows fan in to it from both sides. The angle
+    /// still turns gradually, with no stitch longer than a stitch length, no bare patches, and no trim inside.
     func testStitchesTurnSmoothlyWithoutASeam() throws {
         let lines = [[Point(-35.0, 36.07), Point(-34.81, 10.27)], [Point(-26.15, 33.91), Point(-7.87, 27.96)]]
         let sections = try TurningFill.rows(in: try notchShape(), angleLines: lines, spacing: 0.4, length: 3, start: nil)
-        XCTAssertLessThanOrEqual(sections.count, 8, "a few areas, each sewn in one go")
+        let points = [(-26.51, 28.28), (-23.33, 39.93), (-9.1, 24.42), (-19.1, 11.36), (-37.69, 15.71), (-39.45, 29.28),
+                      (-30.44, 26.92), (-30.91, 37.79), (-28.02, 39.76), (-26.37, 36.73), (-27.08, 35.16)]
+        var notch = RunObject(name: "Notch", nodes: zip(points, [false, false, false, false, false, true, false, false, true, true, false]).map { PathNode(Point($0.0.0, $0.0.1), smooth: $0.1) })
+        notch.closed = true; notch.digitizing = DigitizingSettings(kind: .fill); notch.digitizing?.angleLines = lines
+        var design = Design(); design.objects = [notch]
+        let plan = try StitchEngine.compile(design)
+        XCTAssertEqual(plan.commands.filter { $0.op == .trim }.count, 1, "only the trim after the fill: \(plan.warnings)")
         let stitches = sections.flatMap { zip($0, $0.dropFirst()).map { ($0, $1) } }
         XCTAssertLessThanOrEqual(stitches.map { $0.0.distance(to: $0.1) }.max()!, 3.35, "no long stitch laid over others")
         // Across where the seam was, the direction changes by only a few degrees every half millimetre.

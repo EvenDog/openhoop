@@ -257,8 +257,10 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         guard let start = angleStart else { angleStart = point; status = "Now click on the other side of the fill · Esc when done"; return }
         angleStart = nil
         guard start.distance(to: point) > 0.5 else { status = "Click two points further apart, across the fill."; return }
+        var candidate = object; candidate.digitizing?.angleLines = lines + [[start, point]]
+        if let problem = candidate.angleLineProblem { status = problem; return }
         guard edit("Add Stitch Angle", { design in if let i = design.objects.firstIndex(where: { $0.id == id }) { design.objects[i].digitizing?.angleLines = lines + [[start, point]] } }) else { return }
-        status = "Stitch angle added: the stitches run along it and turn between lines. Click two more points for another, or press Esc when done."
+        status = "Stitch angle added: it reaches right across the fill, and between two lines the rows fan from one angle to the other. Click two more points for another, or press Esc when done."
     }
     // MARK: Edit Stitch
     /// The object whose stitches Edit Stitch is changing, and the needle points selected in it.
