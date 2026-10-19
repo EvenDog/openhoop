@@ -96,7 +96,8 @@ struct PrecisionBar: View {
 }
 
 /// The Pro view's sewing order: a compact table with each object's number, thread, stitch type (as an icon; the
-/// full name shows on hover), name, stitch count and flags (T = trims after, S = stops after, L = locked, H = hidden but still sews). Objects grouped together in a row of the sewing order
+/// full name shows on hover), name, stitch count, flags (T = trims after, S = stops after, H = hidden but still sews) and a
+/// lock to click (LayerControls.swift; right-click a line to rename, lock or hide). Objects grouped together in a row of the sewing order
 /// fold under one line for the group (lettering shows its text); the chevron opens it to show each object.
 struct ProSewingOrder: View {
     @ObservedObject var state: EditorState
@@ -106,6 +107,8 @@ struct ProSewingOrder: View {
     @State private var renaming: UUID?
     /// Where dragged objects would land (a sewing order index), while a drag is over the table.
     @State private var dropTarget: Int?
+    /// The line the pointer is over (its `Line.id`), which shows its lock faintly.
+    @State private var hovered: String?
 
     /// One line of the table: an object, or a group's heading line.
     private enum Line: Identifiable {
@@ -197,6 +200,7 @@ struct ProSewingOrder: View {
             name.lineLimit(1).truncationMode(.tail).padding(.leading, indent ? 10 : 0).frame(maxWidth: .infinity, alignment: .leading)
             Text(stitches).font(.system(size: 10, design: .monospaced)).fixedSize().frame(width: 46, alignment: .trailing)   // fixedSize: the "STITCHES" heading may spill left, never truncate
             Text(flags).font(.system(size: 9, weight: .semibold, design: .monospaced)).foregroundStyle(Theme.inkSecondary).lineLimit(1).frame(width: 22, alignment: .leading)
+            Color.clear.frame(width: 16)   // the lock (RowLock) sits over this column
         }
         .font(Theme.body(11))
         .padding(.horizontal, 4)
@@ -204,7 +208,7 @@ struct ProSewingOrder: View {
 
     private func objectRow(_ index: Int, _ object: RunObject, indented: Bool, count: Int?) -> some View {
         let selected = state.selection.contains(object.id)
-        let flags = [object.trimAfter ? "T" : "", object.stopAfter ? "S" : "", object.locked ? "L" : "", object.visible ? "" : "H"].joined()
+        let flags = [object.trimAfter ? "T" : "", object.stopAfter ? "S" : "", object.visible ? "" : "H"].joined()
         let type = object.kind == .raw ? "Imported stitches" : object.stitchTitle
         let notes = [object.trimAfter ? (object.trimRule == .always ? ", trims after" : ", trims after when far") : "", object.stopAfter ? ", stops after" : "", object.locked ? ", locked" : "", object.visible ? "" : ", hidden (still sews)"].joined()
         return Button { state.listClick(object.id, single: indented) } label: {
@@ -225,6 +229,9 @@ struct ProSewingOrder: View {
             }
         }
         .help("\(object.name): \(type), \(object.color.name) thread\(notes). Double-click the name to rename it; drag to change when it sews.")
+        .overlay(alignment: .trailing) { RowLock(state: state, ids: [object.id], showing: hovered == object.id.uuidString).padding(.trailing, 4) }
+        .onHover { inside in hovered = inside ? object.id.uuidString : (hovered == object.id.uuidString ? nil : hovered) }
+        .contextMenu { layerMenu(state: state, ids: [object.id], rename: object.lettering == nil ? { renaming = object.id } : nil) }
     }
 
     /// A group's line: open/close chevron (in the type-icon column, so the name keeps the table's full width),
@@ -244,6 +251,10 @@ struct ProSewingOrder: View {
         }
         .buttonStyle(.plain)
         .help(lettering == nil ? "Group of \(members.count) objects, sewing \(first + 1)–\(first + members.count). Drag to change when it sews." : "Lettering, sewing \(first + 1)–\(first + members.count). Edit it in Properties; Break Apart Lettering splits it into shapes.")
+        // The group's lock and menu act on all its objects.
+        .overlay(alignment: .trailing) { RowLock(state: state, ids: Set(members.map(\.id)), showing: hovered == "\(id.uuidString)-\(first)").padding(.trailing, 4) }
+        .onHover { inside in let key = "\(id.uuidString)-\(first)"; hovered = inside ? key : (hovered == key ? nil : hovered) }
+        .contextMenu { layerMenu(state: state, ids: Set(members.map(\.id)), rename: nil) }
         .overlay(alignment: .leading) {
             // Drawn over the row's empty icon column: 4 (padding) + 20 (number) + 4 + 10 (swatch) + 4. Lettering has
             // none: it's one object.
