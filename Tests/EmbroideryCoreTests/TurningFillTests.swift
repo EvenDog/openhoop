@@ -158,6 +158,54 @@ final class TurningFillTests: XCTestCase {
         }
     }
 
+    /// Between two parallel lines the rows are straight, and like every piece's they carry on from where the last
+    /// piece finished: a rectangle cut by two upright lines sews in one sweep, with no jump and one trim.
+    func testBetweenParallelLinesRowsCarryOnFromTheLastPiece() throws {
+        let lines = [[Point(10, 0), Point(10, 40)], [Point(50, 0), Point(50, 40)]]
+        let rows = try TurningFill.rows(in: [rectangle], angleLines: lines, spacing: 0.2, length: 3, start: Point(0, 40))
+        let hops = zip(rows, rows.dropFirst()).map { $0.last!.distance(to: $1.first!) }
+        XCTAssertLessThanOrEqual(hops.max() ?? 0, 0.5, "\(hops)")
+        XCTAssertEqual(stitchDirection(near: Point(30, 20), in: rows), 90, accuracy: 1)
+        var fill = RunObject(name: "Rectangle", nodes: rectangle.map { PathNode($0) }); fill.closed = true
+        fill.digitizing = DigitizingSettings(kind: .fill); fill.digitizing?.angleLines = lines
+        var design = Design(); design.objects = [fill]
+        XCTAssertEqual(try StitchEngine.compile(design).commands.filter { $0.op == .trim }.count, 1)
+    }
+
+    /// Each next piece is the neighbour across the cut nearest the needle: a ring with a line across it each way
+    /// (each, stretched across, cuts it twice) is four quarters sewn round in turn, each from where the last
+    /// finished. A corner a line only grazes, smaller than a stitch, is left to its neighbours' rows, not jumped to.
+    func testPiecesAreSewnInTurnFromWhereTheLastFinished() throws {
+        func circle(_ r: Double, clockwise: Bool) -> [Point] {
+            (0..<72).map { k in let a = Double(clockwise ? -k : k) / 72 * 2 * .pi; return Point(r * cos(a), r * sin(a)) }
+        }
+        let ring = [circle(20, clockwise: false), circle(10, clockwise: true)]
+        let round = try TurningFill.rows(in: ring, angleLines: [[Point(8, 0), Point(22, 0)], [Point(0, 8), Point(0, 22)]], spacing: 0.2, length: 3, start: nil)
+        let hops = zip(round, round.dropFirst()).map { $0.last!.distance(to: $1.first!) }
+        XCTAssertLessThanOrEqual(hops.max() ?? 0, 0.5, "\(hops)")
+        let grazed = try TurningFill.rows(in: [rectangle], angleLines: [[Point(-1, 39.85), Point(1, 41.85)], cornerLines[1]], spacing: 0.2, length: 3, start: nil)
+        XCTAssertEqual(zip(grazed, grazed.dropFirst()).filter { $0.last!.distance(to: $1.first!) > 3 }.count, 0)
+        let corner = Point(0.1, 40.8)
+        XCTAssertLessThanOrEqual(grazed.flatMap { zip($0, $0.dropFirst()).map { AreaGeometry.projection(corner, $0, $1).distance(to: corner) } }.min()!, 0.45)
+    }
+
+    /// A fan's last row runs right along its line to the end, so the next piece starts there: a circle with a line
+    /// each side sews its three pieces with no jump. When every line points at one spot (an L with a line across
+    /// each arm and the corner), the fan all the way round starts where it misses the shape, so there's no jump
+    /// whichever way the shape faces.
+    func testFansEndAtTheLineAndFullFansStartOutsideTheShape() throws {
+        func jumps(_ rows: [[Point]]) -> [Double] { zip(rows, rows.dropFirst()).map { $0.last!.distance(to: $1.first!) }.filter { $0 > 3 } }
+        let disc = [(0..<72).map { k in let a = Double(k) / 72 * 2 * .pi; return Point(20 * cos(a), 20 * sin(a)) }]
+        let sides = try TurningFill.rows(in: disc, angleLines: [[Point(-15, -5), Point(-12, 5)], [Point(15, -5), Point(12, 5)]], spacing: 0.2, length: 3, start: nil)
+        XCTAssertEqual(jumps(sides), [])
+        let elbow = elbow(), lines = [[Point(-2, 30), Point(12, 30)], [Point(-1, -1), Point(11, 11)], [Point(30, -2), Point(30, 12)]]
+        for flip in [1.0, -1.0] {
+            let region = [AreaGeometry.ring(elbow.nodes).map { Point(flip * $0.x, $0.y) }]
+            let rows = try TurningFill.rows(in: region, angleLines: lines.map { $0.map { Point(flip * $0.x, $0.y) } }, spacing: 0.2, length: 3, start: nil)
+            XCTAssertEqual(jumps(rows), [], "flipped \(flip)")
+        }
+    }
+
     /// A ring (a shape with a hole) with three or more lines from its outside edge to the hole's, all through the
     /// hole's middle: between every two lines the rows point at where they meet, the middle, so all the way round
     /// the stitches run straight across the ring.
