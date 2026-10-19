@@ -48,7 +48,11 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     // The summary reads names and the fabric from the design too, so a design change clears it even when the
     // stitches can't be worked out (or aren't ready yet).
     @Published var design = Design() { didSet { planFacts = nil } }
-    @Published var plan = StitchPlan() { didSet { planFacts = nil } }
+    // A style just chosen from the Fill style menu stays previewed until these fresh stitches arrive.
+    @Published var plan = StitchPlan() { didSet { planFacts = nil; if fillStylePreview?.kept == true { fillStylePreview = nil } } }
+    /// While pointing at a style in the Fill style menu: the selected fills' stitches in it (FillStyleMenu.swift).
+    @Published var fillStylePreview: FillStylePreview?
+    var fillStylePreviewTask: Task<StitchPlan, Error>?
     let pointer = PointerReadout()
     /// Numbers read from the current plan, worked out once per plan (a plan can have a million commands).
     private var planFacts: (summary: ProductionSummary, counts: [UUID: Int])?

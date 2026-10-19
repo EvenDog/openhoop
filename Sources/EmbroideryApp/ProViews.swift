@@ -458,10 +458,8 @@ extension InspectorPanel {
         let style = object.settings.fillStyle ?? .tatami, holes = object.holes?.count ?? 0
         return proSection("Fill") {
             proRow("Style", help: style.summary) {
-                Picker("Style", selection: Binding(get: { style }, set: { value in settings(.fill, "Fill Style") { $0.fillStyle = value == .tatami ? nil : value } })) {
-                    ForEach(FillStyle.allCases, id: \.self) { Text($0.title).tag($0) }
-                }
-                .labelsHidden().frame(width: 120)
+                FillStyleMenu(state: state, style: style, color: object.color, compact: true) { value in settings(.fill, "Fill Style") { $0.fillStyle = value == .tatami ? nil : value } }
+                    .frame(width: 120)
             }
             // Only where the rows follow it; otherwise the Underlay section shows it as the underlay's angle.
             if StitchAngleLine.applies(to: object) {

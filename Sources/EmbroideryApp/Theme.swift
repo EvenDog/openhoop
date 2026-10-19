@@ -86,6 +86,7 @@ enum Theme {
         static let startMarker = rgb(0x22914A)
         static let endMarker = rgb(0xD0342C)
         static let selection = nsAdaptive(light: 0x2E2520, dark: 0xF2E9DC)            // dotted outline of selected objects
+        static let previewOutline = nsAdaptive(light: 0xB0532F, dark: 0xD7774F)       // a fill trying out another style
     }
 }
 

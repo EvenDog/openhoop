@@ -715,9 +715,10 @@ struct InspectorPanel: View {
             if object.kind == .run || object.kind == .satin || object.kind == .fill { closeUp(object) }
             if object.kind == .fill {
                 let style=object.settings.fillStyle ?? .tatami
-                Picker("Fill style",selection:Binding(get:{style},set:{value in settings(.fill,"Fill Style"){$0.fillStyle=value == .tatami ? nil:value}})){
-                    ForEach(FillStyle.allCases,id:\.self){Text($0.title).tag($0)}
-                }.font(Theme.body(12, weight: .semibold)).help(style.summary)
+                HStack {
+                    Text("Fill style").font(Theme.body(12, weight: .semibold))
+                    FillStyleMenu(state: state, style: style, color: object.color) { value in settings(.fill,"Fill Style"){$0.fillStyle=value == .tatami ? nil:value} }
+                }.help(style.summary)
                 explain(style.summary)
                 // Only where the rows follow it (with stitch angle lines, or for contour, radial and guided fills, it
                 // turns just the underlay: see Underlay angle below).
