@@ -430,6 +430,8 @@ struct ObjectPanel: View {
     @State private var renaming: UUID?
     /// Where dragged objects would land (a sewing order index), while a drag is over the list.
     @State private var dropTarget: Int?
+    /// The step the pointer is over (its first object), which shows its lock faintly.
+    @State private var hovered: UUID?
     var body: some View {
         if preferences.isPro { ProSewingOrder(state: state) } else { steps }
     }
@@ -483,6 +485,7 @@ struct ObjectPanel: View {
     /// shows its text).
     private func stepRow(number: Int, object: RunObject, isLast: Bool, groupLabel: String?, lettering: LetteringSpec?) -> some View {
         let selected = state.selection.contains(object.id)
+        let stepIDs = lettering.map { spec in Set(state.design.objects.filter { $0.lettering?.id == spec.id }.map(\.id)) } ?? [object.id]
         let font = lettering.map { $0.fontKind == .embroidery ? EmbroideryFontLibrary.font($0.font)?.name ?? $0.font : NSFont(name: $0.font, size: 12)?.displayName ?? $0.font }
         let details = object.kind == .raw
             ? "Imported · \(object.rawStitches?.commands.filter { $0.op == .stitch }.count ?? 0) stitches"
@@ -511,8 +514,8 @@ struct ObjectPanel: View {
                         Text(details).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).lineLimit(2)
                     }
                     Spacer(minLength: 0)
-                    if object.locked { Image(systemName: "lock.fill").font(.caption2).help("Locked") }
                     if !object.visible { Image(systemName: "eye.slash").font(.caption2).help("Hidden while editing; still sews") }
+                    Color.clear.frame(width: 16, height: 16)   // the lock (RowLock) sits over this
                 }
                 .padding(.horizontal, 10).padding(.vertical, 7)
                 .background(selected ? Theme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 10))
@@ -530,6 +533,10 @@ struct ObjectPanel: View {
                 }
             }
             .help(lettering == nil ? "Double-click the name to rename it. Drag to change when it sews." : "Drag to change when it sews.")
+            // The lock and menu act on the step: one object, or all of lettering's letters.
+            .overlay(alignment: .trailing) { RowLock(state: state, ids: stepIDs, showing: hovered == object.id, size: 11).padding(.trailing, 10) }
+            .onHover { inside in hovered = inside ? object.id : (hovered == object.id ? nil : hovered) }
+            .contextMenu { layerMenu(state: state, ids: stepIDs, rename: lettering == nil ? { renaming = object.id } : nil) }
             .padding(.bottom, isLast ? 0 : 8)
         }
         // fixedSize lets the dashed line stretch exactly to the height of its row instead of growing without limit.
