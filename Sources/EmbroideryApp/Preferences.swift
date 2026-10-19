@@ -89,6 +89,8 @@ struct PreferenceData: Codable {
     var lengthUnit: LengthUnit?
     /// Whether the canvas shows its rulers and guide lines; nil means yes.
     var showRulers: Bool?
+    /// True when the design's palette is docked in the Threads panel; nil (the default) keeps it under the canvas.
+    var paletteDocked: Bool?
     /// What the Show list and the grid were last switched to, so new and opened designs start the same way; nil
     /// until one is switched.
     var shown: ShownItems?
@@ -174,6 +176,9 @@ struct ShownItems: Codable, Equatable {
     }
     /// True when the canvas shows its rulers and guides (View › Show Rulers & Guides). It's app-wide and remembered.
     var showsRulers: Bool { data.showRulers ?? true }
+    /// True while the design's palette sits in a strip under the canvas (the default), false while it's docked.
+    var paletteUnderCanvas: Bool { !(data.paletteDocked ?? false) }
+    func setPaletteUnderCanvas(_ on: Bool) { data.paletteDocked = on ? nil : true; save(announce: false) }
     /// Shows or hides the rulers and guides in every design window. Guides stay in the design while hidden.
     func setShowRulers(_ on: Bool) { data.showRulers = on; save(announce: false) }   // the menus show its check mark as they open
     /// Switches between millimeters and inches for every window, and remembers it.

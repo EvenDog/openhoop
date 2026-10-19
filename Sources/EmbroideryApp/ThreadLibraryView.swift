@@ -1,6 +1,7 @@
 // The Threads panel's thread library: a chart menu (the basic colors, the machine palettes, the thread brands and
 // the charts you imported), a search box, and every thread of the chosen chart as a swatch. Clicking a swatch sets
-// the current thread and recolors the selection. The chart chosen here is the one Choose Thread from Chart opens with.
+// the current thread, recolors the selection and adds the thread to the design's palette (PaletteRow.swift), which
+// sits above the library while it's docked here. The chart chosen here is the one Choose Thread from Chart opens with.
 import SwiftUI
 import EmbroideryCore
 
@@ -37,6 +38,7 @@ struct ThreadLibraryView: View {
     var body: some View {
         let shown = ThreadLibrary.threads(chart: preferences.data.threadChart, search: search, charts: charts)
         VStack(alignment: .leading, spacing: 8) {
+            if !preferences.paletteUnderCanvas { PaletteRow(state: state, placement: .docked); Divider().padding(.vertical, 2) }
             HStack(spacing: 6) {
                 Picker("Chart", selection: Binding(get: { chart?.name ?? ThreadLibrary.basicName },
                                                    set: { name in preferences.data.threadChart = name == ThreadLibrary.basicName ? nil : name; preferences.save(); search = "" })) {
@@ -49,6 +51,12 @@ struct ThreadLibraryView: View {
                     Image(systemName: "swatchpalette").font(.system(size: 13)).frame(width: 24, height: 22)
                 }.buttonStyle(.plain).foregroundStyle(Theme.inkSecondary)
                 .help("Choose Thread from Chart (\(preferences.label(.threadChart))): the chart threads closest to the current one, or match every thread in the design at once")
+                // Moves the design's palette between the strip under the canvas (highlighted) and the top of this panel.
+                Button { AppDelegate.shared.perform(.paletteUnderCanvas) } label: {
+                    Image(systemName: "rectangle.bottomthird.inset.filled").font(.system(size: 12)).frame(width: 24, height: 22)
+                        .background(preferences.paletteUnderCanvas ? Theme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 5))
+                }.buttonStyle(.plain).foregroundStyle(preferences.paletteUnderCanvas ? Theme.accent : Theme.inkSecondary)
+                .help(preferences.paletteUnderCanvas ? "The palette is under the canvas. Click to dock it at the top of this panel." : "Pop the palette out into a strip under the canvas")
             }.font(Theme.body(12))
             if chart != nil {
                 TextField("Search by name or number", text: $search).textFieldStyle(.roundedBorder).font(Theme.body(12))
@@ -72,10 +80,8 @@ struct ThreadLibraryView: View {
         .onChange(of: preferences.data.threadChart) { _, _ in charts = ThreadChartLibrary.charts(); importedNames = ThreadChartLibrary.importedNames() }
     }
 
-    /// Makes `color` the current thread and recolors the selection.
-    private func choose(_ color: ThreadColor) {
-        state.currentColor = color; state.editSelected("Thread Color") { $0.color = color }; state.focusCanvas()
-    }
+    /// Makes `color` the current thread, recolors the selection and keeps it in the design's palette.
+    private func choose(_ color: ThreadColor) { state.chooseThread(color); state.focusCanvas() }
     private func hint(_ color: ThreadColor) -> String {
         "\(color.chartLabel.map { "\(color.name) · \($0)" } ?? color.name): set the current thread and recolor the selection"
     }

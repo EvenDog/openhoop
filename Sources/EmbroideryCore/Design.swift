@@ -53,6 +53,8 @@ public struct ThreadColor: Codable, Hashable, Sendable {
     public init(_ name: String, _ hex: Int, brand: String? = nil, code: String? = nil) {
         self.name = name; self.hex = hex; self.brand = brand; self.code = code
     }
+    /// False for a color no file should hold: outside 0x000000…0xFFFFFF, or a name, brand or number far too long.
+    public var isValid: Bool { (0...0xffffff).contains(hex) && name.count <= 256 && (brand?.count ?? 0) <= 100 && (code?.count ?? 0) <= 100 }
     /// "Madeira Polyneon 1610" for a chart thread, or nil for a plain color.
     public var chartLabel: String? {
         let parts = [brand, code].compactMap { $0 }.filter { !$0.isEmpty }
@@ -521,6 +523,10 @@ public struct Design: Codable, Equatable, Sendable {
     /// Guide lines dragged out of the rulers (Guide.swift), or nil for none. Like the fabric color they never change
     /// the stitches, so older versions can safely ignore them.
     public var guides: [Guide]?
+    /// The design's palette: the threads kept at hand for it, in order (ThreadPalette.swift). nil (older files, and
+    /// new designs until it's changed) means the eight basic colors. Like the guides it never changes the stitches,
+    /// so older versions can safely ignore it.
+    public var palette: [ThreadColor]?
     public init() {}
     /// The IDs of every object grouped with `id` (just `id` itself when it isn't grouped).
     public func groupMembers(of id: UUID) -> Set<UUID> {
@@ -584,6 +590,7 @@ public struct Design: Codable, Equatable, Sendable {
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }
         guard trimDistance.map(Self.trimDistances.contains) ?? true else { throw DesignError.invalid("The trim distance must be between 0.5 and 20 mm.") }
         guard (guides ?? []).count <= Guide.limit, (guides ?? []).allSatisfy({ $0.position.isFinite && abs($0.position) <= 10_000 }) else { throw DesignError.invalid("The guide lines are invalid or too many.") }
+        guard (palette ?? []).count <= Self.paletteLimit, (palette ?? []).allSatisfy(\.isValid) else { throw DesignError.invalid("The design's thread palette is invalid or too long.") }
         guard objects.reduce(0, { $0 + $1.allNodes.count }) <= 100_000 else { throw DesignError.invalid("This design exceeds the 100,000-node limit.") }
         for object in objects {
             if let edits = object.stitchEdits {
@@ -607,7 +614,7 @@ public struct Design: Codable, Equatable, Sendable {
                   object.settings.radialCenter.map({ $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 }) ?? true,
                   object.settings.patternSize.map(DigitizingSettings.patternSizeRange.contains) ?? true, object.settings.patternGap.map(DigitizingSettings.patternGapRange.contains) ?? true,
                   [object.settings.gradientStart, object.settings.gradientEnd].allSatisfy({ $0.map(DigitizingSettings.gradientSpacingRange.contains) ?? true }) else { throw DesignError.invalid("Invalid line stitch or pattern size in \(object.name).") }
-            guard (0...0xffffff).contains(object.color.hex),object.color.name.count<=256,(object.color.brand?.count ?? 0)<=100,(object.color.code?.count ?? 0)<=100 else{throw DesignError.invalid("Invalid thread color.")}
+            guard object.color.isValid else{throw DesignError.invalid("Invalid thread color.")}
             if let raw=object.rawStitches {
                 guard object.nodes.isEmpty,(object.holes ?? []).isEmpty,object.digitizing==nil,MachineFormat(rawValue:raw.sourceFormat) != nil,
                       !object.tieIn,!object.tieOut,!object.closed,raw.commands.count<=100000 else{throw DesignError.invalid("Invalid imported stitch block.")}

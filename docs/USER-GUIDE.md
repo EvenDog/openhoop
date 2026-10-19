@@ -220,6 +220,8 @@ Add **ornaments** either side (swirls in bean stitch, leaves or dots, drawn for 
 
 **Thread colors.** The Threads panel shows a thread library: pick a chart from its menu (the basic colors, a machine palette, a thread brand such as Isacord or Madeira, or a chart you imported) and every thread in it appears as a swatch, with a search box for a name or number. Click a thread to set the current thread; anything selected changes to it too. The chart you pick here is the one **Choose Thread from Chart** opens with.
 
+**The design's palette.** Each design keeps a short row of threads, saved with it, in a strip under the canvas. A new design starts with the eight basic colors. Clicking a thread anywhere (the library, the chart dialog or the palette itself) adds it to the palette if it isn't there yet. **+** adds the current thread, **−** takes it out, and **Remove unused** clears every thread no object sews in; a thread objects still sew in stays (hover over it to see how many objects use it). The button beside the chart menu in the Threads panel, or **View › Palette Under Canvas**, docks the palette at the top of the Threads panel instead, and back.
+
 **Real threads (⌥T).** **Choose Thread from Chart** picks threads by brand and color number:
 - **Current thread and selection:** the closest matches are listed first, or search by name or number.
 - **Every thread in the design:** previews each thread beside its closest chart thread before **Match All** changes them. A muted color may match a gray if the chart has nothing closer.
