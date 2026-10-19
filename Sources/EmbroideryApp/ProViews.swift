@@ -286,25 +286,13 @@ struct ProSewingOrder: View {
     }
 }
 
-/// The Pro view's threads: the palette as small swatches (click to choose the current thread and recolor the
-/// selection), then the design's thread steps in sewing order with their stitch counts.
+/// The Pro view's threads: the thread library as small swatches (click to choose the current thread and recolor
+/// the selection), then the design's thread steps in sewing order with their stitch counts.
 struct ProThreads: View {
     @ObservedObject var state: EditorState
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                ForEach(ThreadColor.palette, id: \.hex) { color in
-                    Button { state.currentColor = color; state.editSelected("Thread Color") { $0.color = color }; state.focusCanvas() } label: {
-                        Circle().fill(Color(nsColor: color.nsColor)).frame(width: 18, height: 18).overlay(Circle().strokeBorder(Theme.controlBorder))
-                            .overlay(Circle().strokeBorder(Theme.ink.opacity(state.currentColor == color ? 0.85 : 0), lineWidth: 2).padding(-3))
-                    }
-                    .buttonStyle(.plain).help("\(color.name): set the current thread and recolor the selection")
-                }
-                Button { AppDelegate.shared.perform(.threadChart) } label: { Image(systemName: "swatchpalette").font(.system(size: 13)).frame(width: 22, height: 20) }
-                    .buttonStyle(.plain).foregroundStyle(Theme.inkSecondary)
-                    .help("Choose Thread from Chart (\(Preferences.shared.label(.threadChart))): a real thread by brand and number, or match every thread")
-            }
-            .padding(3)
+            ThreadLibraryView(state: state, swatchSize: 18, minHeight: 130, maxHeight: 170)   // at least four rows; the sewing order list gets the rest
             Text("IN SEWING ORDER").font(.system(size: 9, weight: .bold, design: .rounded)).tracking(0.6).foregroundStyle(Theme.inkSecondary)
             ScrollView {
                 VStack(spacing: 0) {
