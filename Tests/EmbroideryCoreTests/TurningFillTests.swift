@@ -149,6 +149,13 @@ final class TurningFillTests: XCTestCase {
             }
             XCTAssertEqual(thread / 4, 5, accuracy: 1.5, "thread per mm² around \(p)")
         }
+        // Sewn in one sweep, each row beside the last, from whichever end it starts: the needle steps more than 3 mm
+        // between rows only once (to a sliver of a row along the shape's left edge, as plain tatami rows leave).
+        for start in [Point(-31, -11), Point(-31, 27)] {
+            let sweep = try TurningFill.rows(in: [bent], angleLines: lines, spacing: 0.2, length: 3, start: start)
+            let jumps = zip(sweep, sweep.dropFirst()).map { $0.last!.distance(to: $1.first!) }.filter { $0 > 3 }
+            XCTAssertLessThanOrEqual(jumps.count, 1, "from \(start): \(jumps)")
+        }
     }
 
     /// A ring (a shape with a hole) with three or more lines from its outside edge to the hole's, all through the
