@@ -423,6 +423,8 @@ struct ObjectPanel: View {
     @ObservedObject var preferences = Preferences.shared
     /// The object whose name is being typed over (after a double-click), if any.
     @State private var renaming: UUID?
+    /// Where dragged objects would land (a sewing order index), while a drag is over the list.
+    @State private var dropTarget: Int?
     var body: some View {
         if preferences.isPro { ProSewingOrder(state: state) } else { steps }
     }
@@ -443,15 +445,19 @@ struct ObjectPanel: View {
                     ForEach(Array(entries.enumerated()), id: \.element.first.id) { number, step in
                         // The picture shows before the first step at or after its place (never inside lettering).
                         if pictureAt.map({ $0 <= step.index && (number == 0 || $0 > entries[number - 1].index) }) == true { PictureRow(state: state).padding(.leading, 36).padding(.bottom, 8) }
+                        // Lettering drags all its letters; another object drags its whole group, as clicking it selects.
+                        let ids = step.lettering.map { spec in Set(state.design.objects.filter { $0.lettering?.id == spec.id }.map(\.id)) } ?? state.design.groupMembers(of: step.first.id)
                         stepRow(number: number + 1, object: step.first, isLast: number == entries.count - 1, groupLabel: step.first.groupID.flatMap { labels[$0] }, lettering: step.lettering)
+                            .sewingOrderRow(state: state, ids: ids, place: step.index, target: $dropTarget)
                     }
                     if pictureAt == state.design.objects.count { PictureRow(state: state).padding(.leading, 36).padding(.top, state.design.objects.isEmpty ? 0 : 8) }
+                    if !state.design.objects.isEmpty { Color.clear.sewingOrderEnd(state: state, target: $dropTarget) }
                     if state.design.objects.isEmpty { Text("Your paths will appear here in sewing order.").font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).padding(.vertical, 28) }
                 }
             }
             .frame(maxHeight: .infinity)   // the list takes all the room the panel has
             HStack {
-                icon(.earlier, "arrow.up"); icon(.later, "arrow.down"); Spacer(); icon(.duplicate, "plus.square.on.square"); icon(.delete, "trash")
+                icon(.earlier, "arrow.up"); icon(.later, "arrow.down"); icon(.sequenceByColor, "paintpalette"); Spacer(); icon(.duplicate, "plus.square.on.square"); icon(.delete, "trash")
             }
         }
         .foregroundStyle(Theme.ink)
@@ -518,7 +524,7 @@ struct ObjectPanel: View {
                         .padding(.leading, 5).padding(.trailing, 8).padding(.top, 3)
                 }
             }
-            .help(lettering == nil ? "Double-click the name to rename it" : "")
+            .help(lettering == nil ? "Double-click the name to rename it. Drag to change when it sews." : "Drag to change when it sews.")
             .padding(.bottom, isLast ? 0 : 8)
         }
         // fixedSize lets the dashed line stretch exactly to the height of its row instead of growing without limit.

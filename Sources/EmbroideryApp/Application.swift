@@ -529,6 +529,13 @@ import EmbroideryCore
             guard order.count >= 2 else { state.status = "Shift-click two or more objects on the canvas (⌘-click in the sewing order list) in the order they should sew, then sequence them."; return }
             guard state.edit(command.title, { $0.sequence(order) }) else { return }
             state.status = "The \(order.count) selected objects now sew in the order you clicked them, from where the first of them sewed."
+        case .sequenceByColor:
+            let changes = { (design: Design) in zip(design.objects, design.objects.dropFirst()).filter { $0.color != $1.color }.count }
+            let before = changes(state.design)
+            var sorted = state.design
+            guard sorted.sequenceByColor() else { state.status = "Each thread's objects already sew together."; return }
+            guard state.edit(command.title, { $0 = sorted }) else { return }
+            state.status = "Each thread's objects now sew together: \(before) thread change\(before == 1 ? "" : "s") down to \(changes(sorted))."
         case .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters:
             let order = state.selectionOrder
             guard state.design.arrangeUnits(order).count >= 2 else { state.status = "Select two or more objects (or groups) to align. They line up with the one you select last."; return }
@@ -990,7 +997,7 @@ import EmbroideryCore
         app.submenu?.addItem(withTitle: "Quit OpenHoop", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         let groups: [(String, [CommandID])] = [
             ("File", [.new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportPES, .exportMachine, .exportDST, .exportEXP, .exportJEF, .exportVP3, .exportXXX, .exportPEC, .exportThreadList, .productionWorksheet, .sample, .stitchSampler]),
-            ("Edit", [.undo, .redo, .cutObjects, .copyObjects, .pasteObjects, .selectAll, .delete, .duplicate, .group, .ungroup, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .sequenceBySelection, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .closePath, .lockObject, .hideObject, .renameObject, .threadChart]),
+            ("Edit", [.undo, .redo, .cutObjects, .copyObjects, .pasteObjects, .selectAll, .delete, .duplicate, .group, .ungroup, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .sequenceBySelection, .sequenceByColor, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .closePath, .lockObject, .hideObject, .renameObject, .threadChart]),
             ("Digitize", [.done]),
             ("View", [.proView, .threadView, .useInches, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .showRulers, .clearGuides, .needles, .artwork, .showUnderlay, .densityMap, .play, .rewind]),
             ("Window", [.nextTab, .previousTab] + PanelID.allCases.map(\.command) + [.saveWorkspace, .restoreWorkspace])]

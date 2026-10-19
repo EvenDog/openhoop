@@ -1,6 +1,7 @@
 // Exact arranging for the Pro view's precision bar (and Guided's More settings): the box around some objects,
 // moving them by an exact amount, and turning them by any angle with their fill rows turning along. Also sewing
-// objects in the order they were clicked, lining them up, and skewing them.
+// objects in the order they were clicked, dragging them to a new place in the sewing order, gathering each thread's
+// objects together, lining them up, and skewing them.
 import Foundation
 
 /// The ways Align lines objects up: by an edge, or by their centers on a vertical or horizontal line.
@@ -22,6 +23,48 @@ extension Design {
         let picked = ids.compactMap { id in objects.first { $0.id == id } }
         objects.removeAll { ids.contains($0.id) }
         objects.insert(contentsOf: picked, at: start)   // everything before `start` was left in place, so it's still there
+    }
+
+    /// Runs of objects that must stay together in the sewing order, as ranges of `objects`: a group's (or lettering's)
+    /// consecutive members, and a branch's consecutive objects (joined by travel instead of trims). Every other object
+    /// is a run of one.
+    public var sewingUnits: [Range<Int>] {
+        func together(_ a: RunObject, _ b: RunObject) -> Bool {
+            (a.groupID != nil && a.groupID == b.groupID) || (a.lettering != nil && a.lettering?.id == b.lettering?.id) || (a.branchID != nil && a.branchID == b.branchID)
+        }
+        var units: [Range<Int>] = [], start = 0
+        for index in objects.indices.dropFirst() where !together(objects[index - 1], objects[index]) { units.append(start..<index); start = index }
+        if !objects.isEmpty { units.append(start..<objects.count) }
+        return units
+    }
+
+    /// Drag in the sewing order list: the objects in `ids` (in their present order) move to sew just before the
+    /// object now at `index` (`objects.count`: at the end). A place inside a group, lettering or branch moves to that
+    /// unit's end, so it's never split. Returns false when nothing moves.
+    @discardableResult public mutating func moveInSewingOrder(_ ids: Set<UUID>, to index: Int) -> Bool {
+        // Where it lands, counted among the objects that stay, pushed past any unit it would fall inside.
+        var place = Swift.min(Swift.max(0, index), objects.count)
+        if let unit = sewingUnits.first(where: { $0.lowerBound < place && place < $0.upperBound }) { place = unit.upperBound }
+        let staying = objects.filter { !ids.contains($0.id) }, moving = objects.filter { ids.contains($0.id) }
+        guard !moving.isEmpty else { return false }
+        let before = objects[..<place].filter { !ids.contains($0.id) }.count
+        let next = Array(staying[..<before]) + moving + Array(staying[before...])
+        guard next.map(\.id) != objects.map(\.id) else { return false }
+        objects = next
+        return true
+    }
+
+    /// Sequence by Color: each thread's objects sew together, the threads in the order they first appear, so the
+    /// machine changes thread as few times as possible. Within a thread, objects keep their order. Groups, lettering
+    /// and branches stay whole, sewn with the thread of their first object. Returns false when nothing moves.
+    @discardableResult public mutating func sequenceByColor() -> Bool {
+        let units = sewingUnits
+        var colors: [ThreadColor] = []
+        for unit in units where !colors.contains(objects[unit.lowerBound].color) { colors.append(objects[unit.lowerBound].color) }
+        let next = colors.flatMap { color in units.filter { objects[$0.lowerBound].color == color }.flatMap { objects[$0] } }
+        guard next.map(\.id) != objects.map(\.id) else { return false }
+        objects = next
+        return true
     }
 
     /// The objects in `ids` as the blocks that arranging moves: each group's members together (in the order the

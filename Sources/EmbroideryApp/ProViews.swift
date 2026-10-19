@@ -45,7 +45,7 @@ struct PrecisionBar: View {
                 arrange(.mirrorH, "arrow.left.and.right.righttriangle.left.righttriangle.right")
                 arrange(.mirrorV, "arrow.up.and.down.righttriangle.up.righttriangle.down")
                 arrange(.rotateLeft, "rotate.left"); arrange(.rotateRight, "rotate.right")
-                arrange(.earlier, "arrow.up"); arrange(.later, "arrow.down"); arrange(.sequenceBySelection, "list.number")
+                arrange(.earlier, "arrow.up"); arrange(.later, "arrow.down"); arrange(.sequenceBySelection, "list.number"); arrange(.sequenceByColor, "paintpalette")
                 arrange(.group, "square.on.square"); arrange(.ungroup, "square.dashed")
                 arrange(.lockObject, state.selected?.locked == true ? "lock.open" : "lock")
             }
@@ -104,6 +104,8 @@ struct ProSewingOrder: View {
     @State private var opened: Set<UUID> = []
     /// The object whose name is being typed over (after a double-click), if any.
     @State private var renaming: UUID?
+    /// Where dragged objects would land (a sewing order index), while a drag is over the table.
+    @State private var dropTarget: Int?
 
     /// One line of the table: an object, or a group's heading line.
     private enum Line: Identifiable {
@@ -160,18 +162,24 @@ struct ProSewingOrder: View {
                     let counts = state.stitchCounts, labels = state.design.groupLabels
                     ForEach(lines) { line in
                         switch line {
-                        case .object(let index, let object, let indented): objectRow(index, object, indented: indented, count: counts[object.id])
-                        case .group(let id, let first, let members): groupRow(id, first: first, members: members, label: labels[id], count: members.compactMap { counts[$0.id] }.reduce(0, +))
+                        case .object(let index, let object, let indented):
+                            // A row inside an opened group drags just that object; otherwise its whole group comes along.
+                            objectRow(index, object, indented: indented, count: counts[object.id])
+                                .sewingOrderRow(state: state, ids: indented ? [object.id] : state.design.groupMembers(of: object.id), place: index, target: $dropTarget)
+                        case .group(let id, let first, let members):
+                            groupRow(id, first: first, members: members, label: labels[id], count: members.compactMap { counts[$0.id] }.reduce(0, +))
+                                .sewingOrderRow(state: state, ids: Set(members.map(\.id)), place: first, target: $dropTarget)
                         case .picture: PictureRow(state: state, compact: true).padding(.vertical, 2)
                         }
                     }
+                    if !state.design.objects.isEmpty { Color.clear.sewingOrderEnd(state: state, target: $dropTarget) }
                     if state.design.objects.isEmpty { Text("Objects appear here in sewing order.").font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).padding(.vertical, 20) }
                 }
             }
             .frame(maxHeight: .infinity)
             Theme.divider.frame(height: 1)
             HStack(spacing: 10) {
-                icon(.earlier, "arrow.up"); icon(.later, "arrow.down"); Spacer(); icon(.duplicate, "plus.square.on.square"); icon(.delete, "trash")
+                icon(.earlier, "arrow.up"); icon(.later, "arrow.down"); icon(.sequenceByColor, "paintpalette"); Spacer(); icon(.duplicate, "plus.square.on.square"); icon(.delete, "trash")
             }
             .padding(.top, 6)
         }
@@ -216,7 +224,7 @@ struct ProSewingOrder: View {
                     .padding(.leading, indented ? 62 : 52).padding(.trailing, 72)
             }
         }
-        .help("\(object.name): \(type), \(object.color.name) thread\(notes). Double-click the name to rename it.")
+        .help("\(object.name): \(type), \(object.color.name) thread\(notes). Double-click the name to rename it; drag to change when it sews.")
     }
 
     /// A group's line: open/close chevron (in the type-icon column, so the name keeps the table's full width),
@@ -235,7 +243,7 @@ struct ProSewingOrder: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(lettering == nil ? "Group of \(members.count) objects, sewing \(first + 1)–\(first + members.count)" : "Lettering, sewing \(first + 1)–\(first + members.count). Edit it in Properties; Break Apart Lettering splits it into shapes.")
+        .help(lettering == nil ? "Group of \(members.count) objects, sewing \(first + 1)–\(first + members.count). Drag to change when it sews." : "Lettering, sewing \(first + 1)–\(first + members.count). Edit it in Properties; Break Apart Lettering splits it into shapes.")
         .overlay(alignment: .leading) {
             // Drawn over the row's empty icon column: 4 (padding) + 20 (number) + 4 + 10 (swatch) + 4. Lettering has
             // none: it's one object.
