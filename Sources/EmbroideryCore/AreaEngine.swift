@@ -54,12 +54,14 @@ public enum AreaEngine {
         let start=entry ?? result.sections.last?.points.last
         switch style {
         case .tatami where !(s.angleLines ?? []).isEmpty:
-            parts=[try TurningFill.rows(in:expanded,angleLines:s.angleLines!,spacing:s.rowGap,length:object.stitchLength,start:start)]
+            parts=try turningParts(in:expanded,angleLines:s.angleLines!,entry:entry,exit:exit,start:start){region,lines,from,to in
+                try TurningFill.rows(in:region,angleLines:lines,spacing:s.rowGap,length:object.stitchLength,start:from,end:to)}
             guard !parts[0].isEmpty else{throw DesignError.invalid("The stitch angle lines don't cross this fill. Draw them across it, or remove them.")}
         case .satin where !(s.angleLines ?? []).isEmpty:
             // A turning satin: the same rows, re-stitched so each is one stitch from edge to edge (see `asSatin`).
             let maximum=s.satinSplit ?? DigitizingSettings.defaultSatinSplit
-            parts=[try asSatin(try TurningFill.rows(in:expanded,angleLines:s.angleLines!,spacing:s.spacing,length:maximum,start:start),maximum:maximum,split:s.autoSplit != false)]
+            parts=try turningParts(in:expanded,angleLines:s.angleLines!,entry:entry,exit:exit,start:start){region,lines,from,to in
+                try asSatin(try TurningFill.rows(in:region,angleLines:lines,spacing:s.spacing,length:maximum,start:from,end:to),maximum:maximum,split:s.autoSplit != false)}
             guard !parts[0].isEmpty else{throw DesignError.invalid("The stitch angle lines don't cross this fill. Draw them across it, or remove them.")}
         case .tatami,.wave,.gradient:parts=try topRows(in:expanded,object,entry:entry,exit:exit)
         case .contour:parts=[try FillStyles.contour(in:expanded,spacing:s.spacing,length:object.stitchLength,start:start)]
@@ -87,11 +89,15 @@ public enum AreaEngine {
         // Sew each part's sections in the order (and from the ends) that keep travel shortest. Its first section stays
         // first (it honors the start point); with an end point, the last part's last stays last. Contour and radial
         // sections already come in sewing order.
+        // A later part is sewn from its far end back toward the part before, so the travel out to that end crosses
+        // the part itself, which then sews over it: that travel may be long.
+        var coveredStarts:Set<Int>=[]
         for (index,part) in parts.enumerated() {
+            if index>0 {coveredStarts.insert(result.sections.count)}
             let sections=part.map{StitchSection($0)}
             result.sections += reorders ? router?.ordered(sections,keepingLast:exit != nil && index==parts.count-1) ?? sections : sections
         }
-        result.sections=router?.join(result.sections) ?? result.sections
+        result.sections=router?.join(result.sections,coveredStarts:coveredStarts) ?? result.sections
         // The needle goes in exactly at the start point and runs inside the shape to where the stitching begins (under
         // everything sewn after it), and finishes exactly at the end point, which the last row runs beside.
         if let router,let entry,let first=result.sections.first?.points.first,first.distance(to:entry)>0.01,let path=router.route(from:entry,to:first) {
@@ -142,6 +148,39 @@ public enum AreaEngine {
             }
             return sewn
         }
+    }
+    /// A turning fill's rows (each piece sewn by `sew`), in parts sewn one after another. Without an end point, one
+    /// part. With one, the shape is split along the row through the end point, as a straight fill is (see
+    /// `topRows`): the piece holding the start point (without one, the biggest) is sewn first, finishing at that
+    /// row, then each other piece from its far end back to the row, so the fill ends beside the end point and the
+    /// travel out to a piece's far end is covered by the piece sewn over it. Each piece takes the cut as one more
+    /// angle line, so its rows keep turning right up to it.
+    private static func turningParts(in region:[[Point]],angleLines:[[Point]],entry:Point?,exit:Point?,start:Point?,
+                                     sew:(_ region:[[Point]],_ lines:[[Point]],_ start:Point?,_ end:Point?) throws -> [[Point]]) throws -> [[[Point]]] {
+        let whole=try sew(region,angleLines,start,nil)
+        guard let exit,!whole.isEmpty else{return [whole]}
+        // The row through the end point runs the way the stitch nearest it does.
+        let stitches=whole.flatMap{zip($0,$0.dropFirst()).map{(a:$0,b:$1)}}.filter{$0.a.distance(to:$0.b)>=1}
+        func gap(_ stitch:(a:Point,b:Point))->Double {AreaGeometry.projection(exit,stitch.a,stitch.b).distance(to:exit)}
+        guard let nearest=stitches.min(by:{gap($0)<gap($1)}) else{return [whole]}
+        let along=TurningFill.unit((a:nearest.a,b:nearest.b)),far=TurningFill.reach(across:region)
+        guard let cut=TurningFill.stretches(in:region,angleLines:[[exit-along*far,exit+along*far]]).first?.first else{return [whole]}
+        let pieces=try AreaGeometry.subtracting([TurningFill.slit(cut)],from:region).filter{abs(AreaGeometry.area($0[0]))>0.1}
+        guard pieces.count>=2 else{return [whole]}
+        let first=entry.flatMap{point in pieces.firstIndex{AreaGeometry.contains(point,rings:$0)}}
+            ?? pieces.indices.max{abs(AreaGeometry.area(pieces[$0][0]))<abs(AreaGeometry.area(pieces[$1][0]))}!
+        var parts:[[[Point]]]=[]
+        for index in [first]+pieces.indices.filter({$0 != first}) {
+            let piece=pieces[index]
+            // The cut lies along this piece's edge, so it's nudged a touch inward to read as a line across the piece.
+            let sideways=Point(-along.y,along.x)*0.02
+            let inward=AreaGeometry.contains(TurningFill.mid(cut)+sideways,rings:piece) ? sideways:sideways*(-1)
+            // The first piece sweeps from the start point; every other from its far end: all toward the cut.
+            let farthest=piece[0].max{$0.distance(to:exit)<$1.distance(to:exit)}
+            let rows=try sew(piece,angleLines+[[cut.a+inward,cut.b+inward]],index==first ? (entry ?? farthest):farthest,exit)
+            if !rows.isEmpty {parts.append(rows)}
+        }
+        return parts.isEmpty ? [whole]:parts
     }
     /// The top-layer fill rows, in parts sewn one after another. Without start or end points: one part in the default
     /// order. With only a start point: the rows begin at the end nearest it. With an end point, the fill is split along

@@ -204,13 +204,14 @@ struct TravelRouter {
     /// Joins consecutive sections with travel runs wherever a short enough route exists inside the shape. Each travel
     /// run becomes its own section, marked as joined, and so is the section after it: the compiler sews them straight
     /// on from where the needle already is, with no trim, jump or tie stitches. Until the top layer starts, travel
-    /// (including travel between underlay passes) is covered by it, so longer routes are allowed.
-    func join(_ sections: [StitchSection]) -> [StitchSection] {
+    /// (including travel between underlay passes) is covered by it, so longer routes are allowed; so is the travel
+    /// into a section listed in `coveredStarts` (the first section of a part of the fill sewn over its own travel).
+    func join(_ sections: [StitchSection], coveredStarts: Set<Int> = []) -> [StitchSection] {
         guard var result = sections.first.map({ [$0] }) else { return [] }
         var topStarted = !result[0].underlay
-        for section in sections.dropFirst() {
+        for (index, section) in sections.enumerated().dropFirst() {
             var next = section
-            let covered = !topStarted   // nothing of the top layer sewn yet
+            let covered = !topStarted || coveredStarts.contains(index)   // nothing of the top layer sewn yet, or sewn over next
             if let a = result.last?.points.last, let b = section.points.first, let path = route(from: a, to: b),
                AreaGeometry.pathLength(path) <= (covered ? Self.maximumCoveredLength : Self.maximumVisibleLength) {
                 let travel = travelStitches(path)
