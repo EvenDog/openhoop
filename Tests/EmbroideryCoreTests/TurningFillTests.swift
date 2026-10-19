@@ -33,9 +33,11 @@ final class TurningFillTests: XCTestCase {
         let chords = TurningFill.chords(in: [rectangle], angleLines: cornerLines)
         let centre = try XCTUnwrap(TurningFill.meeting(chords[0], chords[1]))
         XCTAssertGreaterThan(centre.y, 60)
+        // Within 4°: rows are matched by their distances to the lines themselves (not the endless lines through
+        // them), which bends the fan a little where a line ends on a slanted edge, as the other software's does.
         for p in [Point(10, 5), Point(30, 5), Point(50, 5), Point(20, 20), Point(40, 30)] {
             let towards = atan2(centre.y - p.y, centre.x - p.x) * 180 / .pi
-            XCTAssertLessThanOrEqual(apart(stitchDirection(near: p, in: rows), towards), 2, "at \(p) the row points at the meeting point")
+            XCTAssertLessThanOrEqual(apart(stitchDirection(near: p, in: rows), towards), 4, "at \(p) the row points at the meeting point")
         }
         // Beyond each line, the rows keep its angle.
         XCTAssertLessThanOrEqual(apart(stitchDirection(near: Point(1, 39), in: rows), 60.6), 2)
@@ -124,20 +126,20 @@ final class TurningFillTests: XCTestCase {
         let lines = [[Point(-26.5, 9.5), Point(-24.7, -18.5)], [Point(-26.6, 15.7), Point(-0.2, 35.9)], [Point(-24.7, 11.5), Point(17.3, -17.6)]]
         let rows = try TurningFill.rows(in: [bent], angleLines: lines, spacing: 0.2, length: 3, start: Point(-31, -11))
         let stitches = rows.flatMap { zip($0, $0.dropFirst()) }
-        // The corner of the upper arm beyond its line, and the lower arm's end, are sewn. Beyond the lower arm's line
-        // the rows keep its angle; that line, stretched right across, also cuts off the upper arm's tip, so the corner
-        // between it and the upper arm's line fans between the two: its rows point at where they meet.
+        // The corner of the upper arm beyond its line, and the lower arm's end, are sewn. Beyond each end line the
+        // rows keep its angle: the upper arm's tip runs along its line (nothing is cut by the lower arm's line
+        // stretched across, as the other software doesn't), the left end along the left line.
         for p in [Point(-28, 26), Point(-22, 26), Point(-15, 20), Point(-30, -5), Point(-10, -8), Point(0, -2)] {
             let nearest = stitches.map { AreaGeometry.projection(p, $0.0, $0.1).distance(to: p) }.min()!
             XCTAssertLessThanOrEqual(nearest, 0.3, "\(p) is covered")
         }
         XCTAssertLessThanOrEqual(apart(stitchDirection(near: Point(-30.5, -3), in: rows), 93.7), 2)
-        let chords = TurningFill.chords(in: [bent], angleLines: lines)
-        let centre = try XCTUnwrap(TurningFill.meeting(chords[0], chords[1]))
         for p in [Point(-24, 25), Point(-20, 26)] {
-            XCTAssertLessThanOrEqual(apart(stitchDirection(near: p, in: rows), atan2(centre.y - p.y, centre.x - p.x) * 180 / .pi), 3, "at \(p)")
+            XCTAssertLessThanOrEqual(apart(stitchDirection(near: p, in: rows), 37.4), 3, "at \(p)")
         }
-        // Rows 0.2 mm apart lay 5 mm of thread on each mm²: about that much in a 2 mm square, not twice as much.
+        // Rows 0.2 mm apart lay 5 mm of thread on each mm²: about that much in a 2 mm square, up to half as much
+        // again where the rows converge round the bend (the other software's bends measure 6.6–7.4 on average,
+        // 2026-10-19), never twice as much.
         for p in [Point(-30.5, -3), Point(-29.5, 4), Point(-12, -6)] {
             var thread = 0.0
             for (a, b) in stitches {
@@ -147,7 +149,7 @@ final class TurningFillTests: XCTestCase {
                     if abs(q.x - p.x) < 1 && abs(q.y - p.y) < 1 { thread += a.distance(to: b) / Double(steps) }
                 }
             }
-            XCTAssertEqual(thread / 4, 5, accuracy: 1.5, "thread per mm² around \(p)")
+            XCTAssertEqual(thread / 4, 6, accuracy: 2.5, "thread per mm² around \(p)")
         }
         // Sewn in one sweep, each row beside the last, from whichever end it starts: the needle steps more than 3 mm
         // between rows only once (to a sliver of a row along the shape's left edge, as plain tatami rows leave).

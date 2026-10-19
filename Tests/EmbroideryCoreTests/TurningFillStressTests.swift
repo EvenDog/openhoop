@@ -70,7 +70,7 @@ final class TurningFillStressTests: XCTestCase {
         all.append(Case(name: "rect 5 lines near hubs", rings: [r], lines: [5.0, 17.5, 30, 42.5, 55].enumerated().map { spoke($1, hub: Point(30 + Double($0) * 3, -60 - Double($0) * 5)) }))
         all.append(Case(name: "rect line through vertex", rings: [r], lines: [ln((0, 0), (10, 40.9)), cornerLines[1]]))
         all.append(Case(name: "rect line along edge", rings: [r], lines: [ln((0, 5), (0, 30)), cornerLines[1]]))
-        all.append(Case(name: "rect line grazes corner 0.3", rings: [r], lines: [ln((-1, 39.6), (1, 41.6)), cornerLines[1]], jumps: 1))   // short fan rows in that corner
+        all.append(Case(name: "rect line grazes corner 0.3", rings: [r], lines: [ln((-1, 39.6), (1, 41.6)), cornerLines[1]]))
         all.append(Case(name: "rect line grazes corner 0.05", rings: [r], lines: [ln((-1, 39.85), (1, 41.85)), cornerLines[1]]))
         all.append(Case(name: "rect duplicate line", rings: [r], lines: cornerLines + [cornerLines[0]]))
         all.append(Case(name: "rect lines meet on edge", rings: [rect(40, 40)], lines: [ln((15, 30), (20, 40)), ln((25, 30), (20, 40))], refused: true))
@@ -90,8 +90,8 @@ final class TurningFillStressTests: XCTestCase {
 
         let bent = pts([(-19, 7.1), (-31, 27.5), (-12.7, 27.5), (7, 0.3), (-1.4, -14), (-31.2, -11.7), (-32.8, 8.7)])
         let bentLines = [ln((-26.5, 9.5), (-24.7, -18.5)), ln((-26.6, 15.7), (-0.2, 35.9)), ln((-24.7, 11.5), (17.3, -17.6))]
-        all.append(Case(name: "bent", rings: [bent], lines: bentLines, start: Point(-31, -11), jumps: 1))   // tatami's sliver row along the left edge
-        all.append(Case(name: "bent from top", rings: [bent], lines: bentLines, start: Point(-31, 27), jumps: 1))
+        all.append(Case(name: "bent", rings: [bent], lines: bentLines, start: Point(-31, -11)))
+        all.append(Case(name: "bent from top", rings: [bent], lines: bentLines, start: Point(-31, 27)))
         all.append(Case(name: "bent rotated 120", rings: rotate([bent], 120), lines: rotate(bentLines, 120), jumps: 1))
         all.append(Case(name: "bent mirrored", rings: mirror([bent]), lines: mirror(bentLines), jumps: 1))
         all.append(Case(name: "bent spacing 0.5", rings: [bent], lines: bentLines, spacing: 0.5))
@@ -136,7 +136,7 @@ final class TurningFillStressTests: XCTestCase {
         all.append(Case(name: "circle 1 line", rings: disc, lines: [ln((-5, -5), (5, 5))]))
         all.append(Case(name: "circle 2 lines", rings: disc, lines: [ln((-15, -5), (-12, 5)), ln((15, -5), (12, 5))]))
         all.append(Case(name: "circle 3 lines", rings: disc, lines: [ln((-12, -5), (-12, 5)), ln((-2, -5), (2, 6)), ln((12, -5), (12, 5))]))
-        all.append(Case(name: "circle 2 lines nearly crossing", rings: disc, lines: [ln((-5, 0), (-5, 19.9)), ln((5, 0), (-4.9, 19.9))], jumps: 2))   // 3.3 mm steps where the rows converge
+        all.append(Case(name: "circle 2 lines nearly crossing", rings: disc, lines: [ln((-5, 0), (-5, 19.9)), ln((5, 0), (-4.9, 19.9))]))
 
         let y = yShape(angles: [90, 210, 330], half: 5, length: 35)
         func across(_ d: Double, at s: Double) -> [Point] { let a = d * .pi / 180; let c = Point(s * cos(a), s * sin(a)), n = Point(-sin(a), cos(a)) * 7; return [c - n, c + n] }
@@ -145,8 +145,8 @@ final class TurningFillStressTests: XCTestCase {
         all.append(Case(name: "Y 2 arm lines", rings: [y], lines: [90.0, 210].map { across($0, at: 20) }))
 
         let star = (0..<10).map { k -> Point in let a = Double(k) * .pi / 5 + .pi / 2, r = k % 2 == 0 ? 25.0 : 10.0; return Point(r * cos(a), r * sin(a)) }
-        all.append(Case(name: "star 2 parallel lines", rings: [star], lines: [ln((-5, 5), (5, 5)), ln((-5, -5), (5, -5))], jumps: 2))   // rows split by the points, as tatami's are
-        all.append(Case(name: "star 2 lines", rings: [star], lines: [ln((-5, 5), (5, 5)), ln((-5, -9.8), (5, -6.2))], jumps: 1))
+        all.append(Case(name: "star 2 parallel lines", rings: [star], lines: [ln((-5, 5), (5, 5)), ln((-5, -5), (5, -5))], jumps: 1))   // rows split by the points, as tatami's are
+        all.append(Case(name: "star 2 lines", rings: [star], lines: [ln((-5, 5), (5, 5)), ln((-5, -9.8), (5, -6.2))], jumps: 2))   // the end pieces' rows split by the points
         all.append(Case(name: "star 1 line", rings: [star], lines: [ln((-5, 5), (5, 5))], jumps: 1))
 
         all.append(Case(name: "thin bar 1 mm", rings: [rect(40, 1)], lines: [ln((10, -1), (10.3, 2)), ln((20, -1), (20, 2)), ln((30, -1), (29.7, 2))]))
@@ -161,7 +161,7 @@ final class TurningFillStressTests: XCTestCase {
         all.append(Case(name: "crescent rotated 90", rings: rotate(crescent, 90), lines: rotate(cLines, 90), jumps: 5))
 
         let comb = pts([(0, 0), (60, 0), (60, 40), (49, 40), (49, 15), (44, 15), (44, 40), (32, 40), (32, 15), (27, 15), (27, 40), (15, 40), (15, 15), (10, 15), (10, 40), (0, 40)])
-        all.append(Case(name: "comb 4 parallel lines", rings: [comb], lines: [5.0, 21, 38, 55].map { ln(($0, 20), ($0, 35)) }, jumps: 3))   // tatami starts the rows past each slot at the far end
+        all.append(Case(name: "comb 4 parallel lines", rings: [comb], lines: [5.0, 21, 38, 55].map { ln(($0, 20), ($0, 35)) }))
         all.append(Case(name: "comb 4 tilted lines", rings: [comb], lines: [5.0, 21, 38, 55].enumerated().map { k, x in let a = (84 + Double(k) * 4) * .pi / 180; return [Point(x, 25) - Point(cos(a), sin(a)) * 8, Point(x, 25) + Point(cos(a), sin(a)) * 8] }, jumps: 5))
 
         let dumbbell = pts([(-10, -10), (10, -10), (10, -2), (30, -2), (30, -10), (50, -10), (50, 10), (30, 10), (30, 2), (10, 2), (10, 10), (-10, 10)])
@@ -254,7 +254,7 @@ final class TurningFillStressTests: XCTestCase {
             }
             if let error = r.error ?? r.compileError { problems.append("\(c.name): \(error)"); continue }
             if r.bare > 0 { problems.append("\(c.name): \(r.bare)% bare") }
-            if r.doubled > 8 { problems.append("\(c.name): \(r.doubled)% sewn twice over") }
+            if r.doubled > 10 { problems.append("\(c.name): \(r.doubled)% sewn twice over") }   // the other software's bends measure 12% (2026-10-19)
             if r.thin > 3 { problems.append("\(c.name): \(r.thin)% thin") }
             if r.maxStitch > 3.6 { problems.append("\(c.name): a \(r.maxStitch) mm stitch") }   // a fan row stopping short can run 0.6 over
             if r.jumps > c.jumps { problems.append("\(c.name): \(r.jumps) jumps over 3 mm (longest \(r.maxJump)), \(c.jumps) allowed") }
