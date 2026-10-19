@@ -337,6 +337,45 @@ final class TurningFillTests: XCTestCase {
         XCTAssertLessThanOrEqual(apart(stitchDirection(near: Point(3, 3), in: sections), 45), 5)
     }
 
+    /// The elbow's sections as sewn (its rows and the travel between them), with the plan's trim count.
+    private func sewn(_ object: RunObject) throws -> (sections: [StitchSection], trims: Int) {
+        var design = Design(); design.objects = [object]
+        return (try AreaEngine.fill(object).sections, try StitchEngine.compile(design).commands.filter { $0.op == .trim }.count)
+    }
+
+    func testWithAnEndPointTheFillIsSplitAtTheRowThroughItAndEndsThere() throws {
+        // The end point sits on the bottom edge of the right arm, 5 mm from its tip; the start at the top of the up arm.
+        var object = elbow(); object.digitizing?.underlay = .none; object.digitizing?.expansion = 0
+        object.entry = Point(5, 39); object.exit = Point(35, 0)
+        let (sections, trims) = try sewn(object)
+        XCTAssertEqual(trims, 1, "only the trim after the fill")
+        XCTAssertLessThanOrEqual(sections.last!.points.last!.distance(to: object.exit!), 0.5, "the fill ends beside the end point")
+        // The rest of the shape is sewn first, its last row ending at the end point; then one run out through the
+        // unsewn tip (covered by it), and the tip back from its far end to the end point. No travel crosses sewn rows.
+        let rows = sections.filter { $0.points.count > 20 }
+        XCTAssertEqual(rows.count, 4, "up arm, bend, between the line and the cut, the tip: \(rows.map(\.points.count))")
+        XCTAssertLessThanOrEqual(rows[2].points.last!.distance(to: object.exit!), 0.5, "the main part finishes at the end point")
+        XCTAssertGreaterThanOrEqual(rows[3].points.first!.x, 39.5, "the tip is sewn from its far end")
+        XCTAssertTrue(rows[3].points.allSatisfy { $0.x >= 34.9 }, "the tip's rows stay beyond the cut")
+        let travel = sections.filter { $0.points.count <= 20 && AreaGeometry.pathLength($0.points) > 1 }
+        XCTAssertEqual(travel.count, 2, "the step from the start point, and the run out through the tip: \(travel.map { AreaGeometry.pathLength($0.points) })")
+        XCTAssertTrue(travel[1].points.allSatisfy { $0.x >= 34.9 }, "the run to the tip's far end stays inside the unsewn tip")
+    }
+
+    func testAnEndPointInABendCutsAlongTheTurningRowAndTheTravelOutIsCoveredHoweverLong() throws {
+        // The end point in the corner: the row through it runs at 45°, so the cut does too, and the far end of the
+        // piece beyond it is 40 mm away, further than visible travel may run.
+        var object = elbow(); object.digitizing?.underlay = .none; object.digitizing?.expansion = 0
+        object.entry = Point(5, 39); object.exit = Point(5, 5)
+        let (sections, trims) = try sewn(object)
+        XCTAssertEqual(trims, 1, "the long run to the tip is covered by the piece sewn over it, so no trim")
+        let last = sections.last!.points.last!
+        XCTAssertEqual(last.x, last.y, accuracy: 0.6, "the sewing finishes on the cut through the end point")
+        XCTAssertLessThanOrEqual(last.distance(to: object.exit!), 0.5)
+        // Each side's rows keep turning right up to the cut: beside it, they run near 45°.
+        for p in [Point(2, 6), Point(6, 2)] { XCTAssertLessThanOrEqual(apart(stitchDirection(near: p, in: sections.map(\.points)), 45), 12, "\(p)") }
+    }
+
     func testATurningSatinSplitsStitchesLongerThanItsSplitLength() throws {
         let (_, stitches) = try satinStitches(satinElbow(split: 6))   // the arms are 10 mm wide
         XCTAssertGreaterThan(stitches.count, 100)

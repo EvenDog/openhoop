@@ -17,13 +17,18 @@ enum TurningFill {
     static let thinning = 0.75
 
     /// The fill's rows as stitches, sewn in one sweep from one end of the shape to the other. `start` picks which
-    /// end of the shape the rows begin from (the one nearest it).
-    static func rows(in region: [[Point]], angleLines: [[Point]], spacing: Double, length: Double, start: Point?) throws -> [[Point]] {
+    /// end of the shape the rows begin from (the one nearest it). With `end`, the last stitch finishes as near it
+    /// as the rows allow (the first row runs whichever way brings the last row's end there); a shape sewn piece by
+    /// piece (see `sewPieces`) doesn't take it.
+    static func rows(in region: [[Point]], angleLines: [[Point]], spacing: Double, length: Double, start: Point?, end: Point? = nil) throws -> [[Point]] {
         let chords = Self.chords(in: region, angleLines: angleLines)
         guard !chords.isEmpty else { return [] }
         if let problem = crossingProblem(chords, in: region) { throw DesignError.invalid(problem) }
         // One line sets the direction for the whole fill: ordinary rows along it.
-        if chords.count == 1 { return try AreaEngine.rows(in: region, angle: direction(chords[0]), spacing: spacing, length: length) }
+        if chords.count == 1 {
+            if let end { return try straightRows(in: region, along: chords[0], spacing: spacing, length: length, needle: nil, end: end) ?? [] }
+            return try AreaEngine.rows(in: region, angle: direction(chords[0]), spacing: spacing, length: length)
+        }
         // Three or more lines that all meet at one point outside the fill (lines across a ring, all pointing at the
         // middle of its hole): between every two of them the rows point at that point, so all the way round they do.
         if chords.count >= 3, let centre = meeting(chords[0], chords[1]), !AreaGeometry.contains(centre, rings: region),
@@ -31,7 +36,11 @@ enum TurningFill {
             return try fan(in: region, centre: centre, from: clearBearing(from: centre, of: region), turn: 2 * .pi, spacing: spacing, length: length)
         }
         if let band = Band(region: region, chords: chords) {
-            do { return try band.sew(spacing: spacing, length: length, start: start) } catch is NotABand {}
+            do {
+                guard let end else { return try band.sew(spacing: spacing, length: length, start: start) }
+                let ways = try [false, true].map { try band.sew(spacing: spacing, length: length, start: start, flip: $0) }
+                return ways.min { ($0.last?.last?.distance(to: end) ?? .infinity) < ($1.last?.last?.distance(to: end) ?? .infinity) }!
+            } catch is NotABand {}
         }
         return try sewPieces(in: region, angleLines: angleLines, chords: chords, spacing: spacing, length: length, start: start)
     }
@@ -104,8 +113,9 @@ enum TurningFill {
         }
 
         /// All the rows, as stitches: the end piece nearest `start`, then each stretch between two lines, then the
-        /// far end piece, every piece carrying on from where the last one finished.
-        func sew(spacing: Double, length: Double, start: Point?) throws -> [[Point]] {
+        /// far end piece, every piece carrying on from where the last one finished. `flip` runs the first row the
+        /// other way (each row starts where the last ended, so every row after it turns round too).
+        func sew(spacing: Double, length: Double, start: Point?, flip: Bool = false) throws -> [[Point]] {
             let n = order.count
             var forward = true
             if let start {
@@ -115,16 +125,18 @@ enum TurningFill {
             var sections: [[Point]] = []
             let holes = Array(region.dropFirst())
             func endPiece(_ ring: [Point], chord: (a: Point, b: Point)) throws {
-                guard abs(AreaGeometry.area(ring)) > 0.1 else { return }
+                // A sliver thinner than half a row (the cut of a fill split at its end point lies a hair from the
+                // piece's edge) holds no row of its own.
+                guard abs(AreaGeometry.area(ring)) > 0.1, ring.map({ TurningFill.offLine($0, chord) }).max() ?? 0 >= spacing / 2 else { return }
                 let inside = holes.filter { AreaGeometry.contains(AreaGeometry.centroid($0), rings: [ring]) }
-                if let rows = try TurningFill.straightRows(in: [ring] + inside, along: chord, spacing: spacing, length: length, needle: sections.last?.last) { sections += rows }
+                if let rows = try TurningFill.straightRows(in: [ring] + inside, along: chord, spacing: spacing, length: length, needle: sections.last?.last, flip: flip) { sections += rows }
             }
             try endPiece(forward ? ends.first : ends.last, chord: chords[forward ? order[0] : order[n - 1]])
             for step in 0..<(n - 1) {
                 let k = forward ? step : n - 2 - step
                 var a = sides[k].a, b = sides[k].b, fa = shares[k].a, fb = shares[k].b
                 if !forward { a.reverse(); b.reverse(); fa = fa.reversed().map { 1 - $0 }; fb = fb.reversed().map { 1 - $0 } }
-                sections += try between(a, fa, b, fb, spacing: spacing, length: length, needle: sections.last?.last, toTheEnd: step == n - 2)
+                sections += try between(a, fa, b, fb, spacing: spacing, length: length, needle: sections.last?.last, toTheEnd: step == n - 2, flip: flip)
             }
             try endPiece(forward ? ends.last : ends.first, chord: chords[forward ? order[n - 1] : order[0]])
             return sections
@@ -135,7 +147,8 @@ enum TurningFill {
         /// back and forth as pairs that stop short together where the rows converge (see `thinning`): rows aren't
         /// rays from one point here, so each row's crowding is measured against its neighbour at either end.
         /// `toTheEnd`: include the row on the far line too (the last stretch; otherwise the next stretch starts there).
-        func between(_ a: [Point], _ fa: [Double], _ b: [Point], _ fb: [Double], spacing: Double, length: Double, needle: Point?, toTheEnd: Bool) throws -> [[Point]] {
+        /// `flip`: with nothing sewn yet (no `needle`), the first row runs the other way.
+        func between(_ a: [Point], _ fa: [Double], _ b: [Point], _ fb: [Double], spacing: Double, length: Double, needle: Point?, toTheEnd: Bool, flip: Bool = false) throws -> [[Point]] {
             let outerIsA = AreaGeometry.pathLength(a) >= AreaGeometry.pathLength(b)
             let outer = outerIsA ? a : b, fo = outerIsA ? fa : fb, inner = outerIsA ? b : a, fi = outerIsA ? fb : fa
             // Where the rows go: `spacing` apart measured across them at the outer side (further apart along the
@@ -186,7 +199,7 @@ enum TurningFill {
             var headsIn: [Bool] = [], needleAt = needle
             for row in laid {
                 let far = row.origin + row.out * row.length
-                let startsNarrow = needleAt.map { $0.distance(to: row.origin) <= $0.distance(to: far) } ?? false
+                let startsNarrow = needleAt.map { $0.distance(to: row.origin) <= $0.distance(to: far) } ?? flip
                 headsIn.append(!startsNarrow); needleAt = startsNarrow ? far : row.origin
             }
             // Pairs stop short in a repeating pattern of 4 (pairs 1 and 3 of each 4, at two depths), or 8, 16… where
@@ -278,11 +291,17 @@ enum TurningFill {
 
     /// Straight rows at the line's angle across `rings`, sewn so they finish at the line when nothing has been
     /// sewn yet (`needle` nil), otherwise begin at the line, at the end of it nearest the needle. Nil when the
-    /// rings hold no rows.
-    static func straightRows(in rings: [[Point]], along line: (a: Point, b: Point), spacing: Double, length: Double, needle: Point?) throws -> [[Point]]? {
+    /// rings hold no rows. With nothing sewn yet, `end` asks for the way whose last stitch finishes nearest it,
+    /// and `flip` for the way whose first row runs the other way from the usual choice.
+    static func straightRows(in rings: [[Point]], along line: (a: Point, b: Point), spacing: Double, length: Double, needle: Point?, flip: Bool = false, end: Point? = nil) throws -> [[Point]]? {
         let ways = try [false, true].flatMap { top in try [false, true].map { try AreaEngine.rows(in: rings, angle: direction(line), spacing: spacing, length: length, fromTop: top, startReversed: $0) } }.filter { !$0.isEmpty }
         guard !ways.isEmpty else { return nil }
-        guard let needle else { return ways.min { offLine($0.last!.last!, line) < offLine($1.last!.last!, line) } }
+        guard let needle else {
+            let usual = ways.min { offLine($0.last!.last!, line) < offLine($1.last!.last!, line) }!
+            let finishing = ways.filter { offLine($0.last!.last!, line) <= offLine(usual.last!.last!, line) + 0.5 }   // all the ways finishing at the line
+            if let end { return finishing.min { $0.last!.last!.distance(to: end) < $1.last!.last!.distance(to: end) } }
+            return flip ? finishing.first { $0[0][0].distance(to: usual[0][0]) > 0.5 } ?? usual : usual
+        }
         let atLine = ways.map { offLine($0[0][0], line) }.min()!
         return ways.filter { offLine($0[0][0], line) <= atLine + 0.5 }.min { needle.distance(to: $0[0][0]) < needle.distance(to: $1[0][0]) }
     }
