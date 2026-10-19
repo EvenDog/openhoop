@@ -38,4 +38,11 @@ final class ProToolStripTests: XCTestCase {
         let all = sections.flatMap(\.commands)
         XCTAssertEqual(Set(all).count, all.count, "no command twice in the Digitize menu")
     }
+
+    /// Move & Size Artwork shows a + while there's no image to move, because clicking it imports one.
+    func testArtworkButtonShowsAPlusUntilThereIsAnImage() {
+        XCTAssertEqual(ToolStrip.symbol(.artworkTool, hasArtwork: false), CommandID.importImage.symbol)
+        XCTAssertEqual(ToolStrip.symbol(.artworkTool, hasArtwork: true), CommandID.artworkTool.symbol)
+        XCTAssertEqual(ToolStrip.symbol(.satinTool, hasArtwork: false), CommandID.satinTool.symbol, "other tools never change")
+    }
 }

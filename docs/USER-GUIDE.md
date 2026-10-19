@@ -26,7 +26,7 @@ Open `dist/OpenHoop.app` after building it. To look around first, choose **File 
 
 ## Bringing in artwork
 
-**Trace over an image.** **⌘I** imports a PNG or JPEG as a reference image (it never sews). Set its size in the Reference image panel, and drag the **Opacity** slider there to fade it (the image changes as you drag; letting go is one step to undo). Press **⌥D** (or **Move & size on canvas**) to move it or resize it from a corner (Shift stretches it); press Escape when done. With no image yet, **Move & Size Artwork** asks for one first, then lets you place it. **D** shows or hides it.
+**Trace over an image.** **⌘I** imports a PNG or JPEG as a reference image (it never sews). Set its size in the Reference image panel, and drag the **Opacity** slider there to fade it (the image changes as you drag; letting go is one step to undo). Press **⌥D** (or **Move & size on canvas**) to move it or resize it from a corner (Shift stretches it); press Escape when done. With no image yet, **Move & Size Artwork** shows a + on its icon and asks for one first, then lets you place it. **D** shows or hides it.
 
 **Put the image between layers.** The reference image has its own row in the Sewing order, at the top to begin with (under everything). Its **▲ ▼** arrows move it one step at a time: the steps listed above it are drawn under the image and the ones below it on top. So you can digitize the background, move the image below it, and trace the next layer over it. Grouped objects (such as the letters of a word) count as one step. New objects go at the end of the list, over the image. It only changes what you see: the image is never sewn.
 
