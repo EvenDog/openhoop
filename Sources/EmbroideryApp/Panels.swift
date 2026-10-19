@@ -1342,7 +1342,8 @@ struct StitchPreview: View {
     }
 }
 
-/// The Threads panel: the thread palette. Clicking a color sets the current thread and recolors the selection.
+/// The Threads panel: the thread library (a chart's threads, or the basic colors). Clicking a thread sets the
+/// current thread and recolors the selection.
 struct ThreadsPanel: View {
     @ObservedObject var state: EditorState
     @ObservedObject var preferences = Preferences.shared
@@ -1351,22 +1352,8 @@ struct ThreadsPanel: View {
     }
     private var palette: some View {
         VStack(alignment: .leading, spacing: 10) {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 30), spacing: 8)], alignment: .leading, spacing: 10) {
-                ForEach(ThreadColor.palette, id: \.hex) { color in
-                    Button {
-                        state.currentColor = color; state.editSelected("Thread Color") { $0.color = color }; state.focusCanvas()
-                    } label: {
-                        Circle().fill(Color(nsColor: color.nsColor)).frame(width: 24, height: 24).overlay(Circle().strokeBorder(Theme.controlBorder))
-                            .overlay(Circle().strokeBorder(Theme.ink.opacity(state.currentColor == color ? 0.85 : 0), lineWidth: 2).padding(-3))
-                    }.buttonStyle(.plain).help(color.name)
-                }
-                // The last "swatch" opens the thread chart: real threads by brand and color number.
-                Button { AppDelegate.shared.perform(.threadChart) } label: {
-                    Image(systemName: "swatchpalette").font(.system(size: 13)).frame(width: 24, height: 24).overlay(Circle().strokeBorder(Theme.controlBorder))
-                }.buttonStyle(.plain).foregroundStyle(Theme.inkSecondary)
-                .help("Thread chart (\(preferences.label(.threadChart))): choose a real thread by brand and color number, or match every thread at once")
-            }.padding(3)
-            Text("Current thread: \(state.currentColor.name)\(state.currentColor.chartLabel.map { " · \($0)" } ?? ""). Clicking a color also recolors the selection.")
+            ThreadLibraryView(state: state)
+            Text("Current thread: \(state.currentColor.name)\(state.currentColor.chartLabel.map { " · \($0)" } ?? ""). Clicking a thread also recolors the selection.")
                 .font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
         }
         .foregroundStyle(Theme.ink)
