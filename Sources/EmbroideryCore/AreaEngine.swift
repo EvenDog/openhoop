@@ -50,6 +50,8 @@ public enum AreaEngine {
         }
         // The top rows, in parts sewn one after another (tatami and wave fills with an end point come in two).
         var parts:[[[Point]]]
+        // For straight rows: each part's sections come in sweep order, with those reached by covered travel.
+        var sweptCovered:[Set<Int>]?
         // Without a start point, contour and radial fills begin where the underlay finished, so no long travel is needed.
         let start=entry ?? result.sections.last?.points.last
         switch style {
@@ -63,7 +65,9 @@ public enum AreaEngine {
             parts=try turningParts(in:expanded,angleLines:s.angleLines!,entry:entry,exit:exit,start:start){region,lines,from,to in
                 try asSatin(try TurningFill.rows(in:region,angleLines:lines,spacing:s.spacing,length:maximum,start:from,end:to),maximum:maximum,split:s.autoSplit != false)}
             guard !parts[0].isEmpty else{throw DesignError.invalid("The stitch angle lines don't cross this fill. Draw them across it, or remove them.")}
-        case .tatami,.wave,.gradient:parts=try topRows(in:expanded,object,entry:entry,exit:exit)
+        case .tatami,.wave,.gradient:
+            let swept=try topRows(in:expanded,object,entry:entry,exit:exit).filter{!$0.rows.isEmpty}
+            parts=swept.map(\.rows);sweptCovered=swept.map(\.covered)
         case .contour:parts=[try FillStyles.contour(in:expanded,spacing:s.spacing,length:object.stitchLength,start:start)]
         case .motif:parts=[try Motifs.fill(in:expanded,motif:s.motif ?? .heart,size:s.patternSize ?? DigitizingSettings.defaultPatternSize(.motif),gap:s.patternGap ?? DigitizingSettings.defaultPatternGap,angle:s.angle,length:object.stitchLength)]
         case .crossStitch:parts=[try Motifs.crossStitch(in:expanded,size:s.patternSize ?? DigitizingSettings.defaultPatternSize(.crossStitch))]
@@ -95,7 +99,13 @@ public enum AreaEngine {
         for (index,part) in parts.enumerated() {
             if index>0 {coveredStarts.insert(result.sections.count)}
             let sections=part.map{StitchSection($0)}
-            result.sections += reorders ? router?.ordered(sections,keepingLast:exit != nil && index==parts.count-1) ?? sections : sections
+            if let covered=sweptCovered?[index] {
+                // Already in sweep order: reordering by distance would leave a branch to be reached over sewn rows.
+                coveredStarts.formUnion(covered.map{result.sections.count+$0})
+                result.sections += sections
+            } else {
+                result.sections += reorders ? router?.ordered(sections,keepingLast:exit != nil && index==parts.count-1) ?? sections : sections
+            }
         }
         result.sections=router?.join(result.sections,coveredStarts:coveredStarts) ?? result.sections
         // The needle goes in exactly at the start point and runs inside the shape to where the stitching begins (under
@@ -186,7 +196,8 @@ public enum AreaEngine {
     /// order. With only a start point: the rows begin at the end nearest it. With an end point, the fill is split along
     /// the line through it that runs the way the rows do, and each side is sewn toward that line, so the last row lies
     /// right beside the end point and no travel crosses rows already sewn. The side holding the start point goes first.
-    private static func topRows(in region:[[Point]],_ object:RunObject,entry:Point?,exit:Point?) throws -> [[[Point]]] {
+    /// Each part comes in sweep order (see `sweepOrder`), with the sections the needle reaches by covered travel.
+    private static func topRows(in region:[[Point]],_ object:RunObject,entry:Point?,exit:Point?) throws -> [(rows:[[Point]],covered:Set<Int>)] {
         let s=object.settings
         let wave=s.fillStyle == .wave ? (height:s.waveHeight ?? DigitizingSettings.defaultWaveHeight,length:s.waveLength ?? DigitizingSettings.defaultWaveLength) : nil
         // Gradient fills: the rows' spacing grows from start to end across the whole shape, measured once here, so a
@@ -194,19 +205,19 @@ public enum AreaEngine {
         let heightsAcross=region.flatMap{$0}.map{AreaGeometry.rotate($0,degrees:-s.angle).y}
         let gradient=s.fillStyle == .gradient ? (from:s.gradientStart ?? DigitizingSettings.defaultGradientStart,to:s.gradientEnd ?? DigitizingSettings.defaultGradientEnd,low:heightsAcross.min() ?? 0,high:heightsAcross.max() ?? 0) : nil
         /// Of the ways to sew `part` (from the sides in `fromTop`, the first row either way), the one with the lowest score.
-        func best(_ part:[[Point]],fromTop:[Bool],_ score:([[Point]])->Double) throws -> [[Point]] {
-            var best:(score:Double,rows:[[Point]])?
+        func best(_ part:[[Point]],fromTop:[Bool],_ score:([[Point]])->Double) throws -> (rows:[[Point]],covered:Set<Int>) {
+            var best:(score:Double,rows:[[Point]],covered:Set<Int>)?
             for top in fromTop {
                 for reversed in [false,true] {
-                    let candidate=try rows(in:part,angle:s.angle,spacing:s.rowGap,length:object.stitchLength,fromTop:top,startReversed:reversed,wave:wave,gradient:gradient)
-                    guard !candidate.isEmpty else{continue}
-                    let value=score(candidate)
-                    if best==nil || value<best!.score {best=(value,candidate)}
+                    let candidate=try sweptRows(in:part,angle:s.angle,spacing:s.rowGap,length:object.stitchLength,fromTop:top,startReversed:reversed,wave:wave,gradient:gradient)
+                    guard !candidate.rows.isEmpty else{continue}
+                    let value=score(candidate.rows)
+                    if best==nil || value<best!.score {best=(value,candidate.rows,candidate.covered)}
                 }
             }
-            return best?.rows ?? []
+            return best.map{($0.rows,$0.covered)} ?? ([],[])
         }
-        guard entry != nil || exit != nil else{return [try rows(in:region,angle:s.angle,spacing:s.rowGap,length:object.stitchLength,wave:wave,gradient:gradient)]}
+        guard entry != nil || exit != nil else{return [try sweptRows(in:region,angle:s.angle,spacing:s.rowGap,length:object.stitchLength,wave:wave,gradient:gradient)]}
         guard let exit else{return [try best(region,fromTop:[false,true]){$0[0][0].distance(to:entry!)}]}
         // The two sides of the line through the end point. Rows sew upward (fromTop false) on the side below it.
         // `far` is longer than any line across the shape, so each half covers the whole of its side.
@@ -217,13 +228,13 @@ public enum AreaEngine {
         let above=try AreaGeometry.subtracting([halfPlane(-1)],from:region).flatMap{$0}
         var sides=[(region:below,fromTop:false),(region:above,fromTop:true)].filter{!$0.region.isEmpty}
         if let entry,sides.count==2,AreaGeometry.cross(along,entry-exit)>0 {sides.reverse()}   // the start point is above the line
-        var parts:[[[Point]]]=[]
+        var parts:[(rows:[[Point]],covered:Set<Int>)]=[]
         for (index,side) in sides.enumerated() {
             let isLast=index==sides.count-1
             let part=try best(side.region,fromTop:[side.fromTop]){rows in
                 (isLast ? rows.last!.last!.distance(to:exit):0)+(index==0 ? entry.map{rows[0][0].distance(to:$0)} ?? 0:0)
             }
-            if !part.isEmpty {parts.append(part)}
+            if !part.rows.isEmpty {parts.append(part)}
         }
         return parts
     }
@@ -236,6 +247,20 @@ public enum AreaEngine {
     /// from `from` to `to`, instead of all `spacing` apart.
     public static func rows(in region:[[Point]],angle:Double,spacing:Double,length:Double,fromTop:Bool=false,startReversed:Bool=false,wave:(height:Double,length:Double)?=nil,
                             gradient:(from:Double,to:Double,low:Double,high:Double)?=nil) throws -> [[Point]] {
+        try rowSections(in:region,angle:angle,spacing:spacing,length:length,fromTop:fromTop,startReversed:startReversed,wave:wave,gradient:gradient).rows.filter{$0.count>=2}
+    }
+    /// The same rows, sewn in one sweep with every travel run hidden (see `sweepOrder`). `covered`: the sections the
+    /// needle reaches by travelling through bare rows that are sewn over it afterwards, so that travel may be long.
+    static func sweptRows(in region:[[Point]],angle:Double,spacing:Double,length:Double,fromTop:Bool=false,startReversed:Bool=false,wave:(height:Double,length:Double)?=nil,
+                          gradient:(from:Double,to:Double,low:Double,high:Double)?=nil) throws -> (rows:[[Point]],covered:Set<Int>) {
+        let scan=try rowSections(in:region,angle:angle,spacing:spacing,length:length,fromTop:fromTop,startReversed:startReversed,wave:wave,gradient:gradient)
+        return sweepOrder(scan.rows,links:scan.links,lastRows:scan.lastRows)
+    }
+    /// The rows as `rows` makes them, before scraps are dropped (so indexes match), with `links`: each section that
+    /// starts where the shape splits or joins, paired with each section it carries on from (parent, child). `lastRows`:
+    /// the number of each section's last row, counted from the first row sewn.
+    static func rowSections(in region:[[Point]],angle:Double,spacing:Double,length:Double,fromTop:Bool,startReversed:Bool,wave:(height:Double,length:Double)?,
+                            gradient:(from:Double,to:Double,low:Double,high:Double)?) throws -> (rows:[[Point]],links:[(parent:Int,child:Int)],lastRows:[Int]) {
         var rings=region.map{$0.map{AreaGeometry.rotate($0,degrees:-angle)}}
         var ripple:(Double)->Double={_ in 0}
         if let wave,wave.height>0,wave.length>0 {
@@ -244,7 +269,7 @@ public enum AreaEngine {
             rings=rings.map{ring in AreaGeometry.densified(ring,step:piece).map{Point($0.x,$0.y-ripple($0.x))}}
         }
         let points=rings.flatMap{$0}
-        guard let minY=points.map(\.y).min(),let maxY=points.map(\.y).max(),let minX=points.map(\.x).min(),let maxX=points.map(\.x).max(),maxY-minY>0.0001 else{return []}
+        guard let minY=points.map(\.y).min(),let maxY=points.map(\.y).max(),let minX=points.map(\.x).min(),let maxX=points.map(\.x).max(),maxY-minY>0.0001 else{return ([],[],[])}
         // Where each row runs: evenly `spacing` apart, or for a gradient further apart the further across it is.
         var heights:[Double]=[]
         if let gradient,gradient.high>gradient.low {
@@ -262,7 +287,7 @@ public enum AreaEngine {
         }
         let rowCount=heights.count
         guard rowCount<=20000,Double(rowCount)*ceil((maxX-minX)/length+2)<1_000_000 else{throw DesignError.invalid("Fill would produce too many stitches. Reduce its size or increase spacing.")}
-        var sections:[[Point]]=[],previous:[Interval]=[],total=0
+        var sections:[[Point]]=[],previous:[Interval]=[],total=0,links:[(parent:Int,child:Int)]=[],lastRows:[Int]=[]
         for row in 0..<rowCount {
             try Task.checkCancellation()
             let y=heights[row]
@@ -304,15 +329,94 @@ public enum AreaEngine {
                         destination=parent.section
                     }
                 }
-                if destination==nil {destination=sections.count;sections.append([])}
-                let section=destination!;current[index].section=section
+                if destination==nil {
+                    destination=sections.count;sections.append([]);lastRows.append(row)
+                    links+=parents.map{(previous[$0].section,destination!)}
+                }
+                let section=destination!;current[index].section=section;lastRows[section]=row
                 if sections[section].last==sewing.first {sections[section]+=sewing.dropFirst()} else {sections[section]+=sewing}
                 total+=sewing.count
                 guard total<=1_000_000 else{throw DesignError.invalid("Fill exceeds the one-million-stitch limit.")}
             }
             previous=current
         }
-        return sections.filter{$0.count>=2}.map{$0.map{AreaGeometry.rotate(Point($0.x,$0.y+ripple($0.x)),degrees:angle)}}
+        return (sections.map{$0.map{AreaGeometry.rotate(Point($0.x,$0.y+ripple($0.x)),degrees:angle)}},links,lastRows)
+    }
+    /// Sections in an order that sews a fill in one sweep with no travel showing. Where the shape splits or joins
+    /// (rows meeting a notch or a hole), the sections that touch there meet at a junction. Arriving at one, the needle
+    /// carries on into the branch that leads on to the last row; each other branch there is sewn first, there and
+    /// back: the needle travels out through it while it's still bare, then sews it back to the junction, over that
+    /// travel. (Sewing the nearest section next instead left a branch behind, to be reached later by a run over rows
+    /// already sewn.) Returns the sections, each turned to run whichever way the order needs, without scraps too short
+    /// to sew, and which of them the needle reaches by such a covered travel.
+    static func sweepOrder(_ sections:[[Point]],links:[(parent:Int,child:Int)],lastRows:[Int]) -> (rows:[[Point]],covered:Set<Int>) {
+        let count=sections.count
+        guard count>1 else{return (sections.filter{$0.count>=2 && isLongEnough($0)},[])}
+        // Each section has two ends, 2s (its first row) and 2s + 1 (its last). Ends that meet form one junction.
+        var group=Array(0..<2*count)
+        func junction(_ end:Int)->Int {var e=end;while group[e] != e {group[e]=group[group[e]];e=group[e]};return e}
+        for link in links {group[junction(2*link.parent+1)]=junction(2*link.child)}
+        var ends:[Int:[Int]]=[:]
+        for end in 0..<2*count {ends[junction(end),default:[]].append(end)}
+        let last=lastRows.indices.max{lastRows[$0]<lastRows[$1]} ?? 0   // the section holding the last row
+        var sewn=[Bool](repeating:false,count:count),rows:[[Point]]=[],covered:Set<Int>=[],travelCovered=false
+        /// Sews section `s` starting from its end `end`.
+        func sew(_ s:Int,from end:Int) {
+            let points=end==2*s ? sections[s]:sections[s].reversed()
+            guard points.count>=2,isLongEnough(points) else{return}
+            if travelCovered {covered.insert(rows.count);travelCovered=false}
+            rows.append(points)
+        }
+        /// The bare sections reachable from end `end` without passing back through its own junction.
+        func reach(_ end:Int)->Set<Int> {
+            let home=junction(end)
+            var found:Set<Int>=[end/2],queue=[end/2]
+            while let s=queue.popLast() {
+                for e in [2*s,2*s+1] where junction(e) != home {
+                    for other in ends[junction(e)]! where !sewn[other/2] && !found.contains(other/2) {found.insert(other/2);queue.append(other/2)}
+                }
+            }
+            return found
+        }
+        /// The needle is at junction `j`. Sews every bare branch there and back; unless `returning`, then carries on
+        /// along the branch that leads to the last row (or else the biggest).
+        func arrive(at j:Int,returning:Bool) {
+            while true {
+                let open=ends[j]!.filter{!sewn[$0/2]}
+                guard !open.isEmpty else{return}
+                var onward:Int?,later:Set<Int>=[]
+                if !returning {
+                    let reaches=open.map{(end:$0,reach:reach($0))}
+                    let next=(reaches.first{$0.reach.contains(last)} ?? reaches.max{$0.reach.map{sections[$0].count}.reduce(0,+)<$1.reach.map{sections[$0].count}.reduce(0,+)})!
+                    onward=next.end
+                    // A branch that joins the onward one again further on (round a hole) is left for then, when the
+                    // needle meets it from the other side; only dead ends are sewn there and back now.
+                    later=Set(reaches.filter{$0.end != next.end && !$0.reach.isDisjoint(with:next.reach)}.map(\.end))
+                }
+                for end in open where end != onward && !later.contains(end) && !sewn[end/2] {thereAndBack(end)}
+                guard let onward,!sewn[onward/2] else{if returning {return};continue}
+                sewn[onward/2]=true
+                sew(onward/2,from:onward)
+                arrive(at:junction(onward^1),returning:false)   // onward ^ 1 is the section's other end
+                return
+            }
+        }
+        /// Sews the branch whose end `end` is at the needle's junction, finishing back there: the needle travels out
+        /// through it (bare) to its far end, sews whatever branches out there the same way, then sews it back.
+        func thereAndBack(_ end:Int) {
+            sewn[end/2]=true
+            travelCovered=true
+            arrive(at:junction(end^1),returning:true)
+            sew(end/2,from:end^1)
+        }
+        // Every piece of the shape, from its first row (the first piece holds the fill's first row, so it stays first).
+        for s in 0..<count where !sewn[s] {
+            travelCovered=false
+            sewn[s]=true
+            sew(s,from:2*s)
+            arrive(at:junction(2*s+1),returning:false)
+        }
+        return (rows,covered)
     }
 
     private struct Arc {

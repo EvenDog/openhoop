@@ -364,7 +364,7 @@ These are the starting keys; every one can be changed. Tools on a function key a
 
 **Stitches:**
 - Satin columns with crossing or reversed pairs are refused; split sharp bends into separate columns. Each satin is limited to 5,000 edge pairs.
-- Parts of a shape are joined by short travel runs sewn inside it where possible (up to 150 mm while they'll be covered, 40 mm after); longer gaps use trims. Some travel runs over sewn fill near edges, so check it at the sew-out.
+- Parts of a shape are joined by short travel runs sewn inside it where possible (up to 150 mm while they'll be covered, 40 mm after); longer gaps use trims. Where a tatami, wave or gradient fill's rows split at a notch or hole, the side branch is sewn there and back (the needle travels out through it while it's bare, then sews it back over that run), so the fill sews in one sweep with its travel covered. Other fills can still run travel over sewn fill near edges, so check it at the sew-out.
 - Stitches shorter than 0.3 mm are merged into the next stitch, as most digitizing software does, so a very small corner can be rounded off slightly. Imported machine files keep every stitch.
 - Contour fills spiral smoothly on round shapes (ovals, rounded corners). Shapes with sharp corners show a short step line from ring to ring; it runs from the Start point toward the middle, so put the start where it shows least. Radial fills crowd a little where the edge comes close to the center.
 - Underlay that won't fit at the chosen inset is left out, with a warning.

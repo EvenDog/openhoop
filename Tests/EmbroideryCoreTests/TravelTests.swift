@@ -15,9 +15,9 @@ final class TravelTests: XCTestCase {
     }
 
     func testConcaveFillSewsWithoutTrims() throws {
-        // A "U" with 6 mm arms: rows split into two arms, which used to need a trim between them. The run back from
-        // the top of the left arm to the bottom of the right one is about 32 mm. (Past 40 mm over sewn fill, a
-        // larger U gets a trim there instead.)
+        // A "U" with 6 mm arms: rows split into two arms, which used to need a trim between them. One arm is sewn
+        // there and back (the needle travels up it while it's bare, then sews it back down over that run), then the
+        // other arm, so no travel crosses sewn rows.
         let u = fill([Point(0, 0), Point(22, 0), Point(22, 20), Point(16, 20), Point(16, 10), Point(6, 10), Point(6, 20), Point(0, 20)])
         let result = try AreaEngine.fill(u)
         XCTAssertGreaterThan(result.sections.count, 2)
@@ -32,6 +32,60 @@ final class TravelTests: XCTestCase {
             XCTAssertTrue(AreaGeometry.segmentInside(a, b, rings: [ring]), "\(a) -> \(b)")
             XCTAssertLessThanOrEqual(a.distance(to: b), 3.0001)
         } }
+    }
+
+    /// Sections where two branches join (an L: the bar and the top of the upright meet the rest past the inside
+    /// corner): the needle sews the bar, travels out through the bare top of the upright, sews it back to the
+    /// corner, then carries on. Nothing is left to reach later over sewn rows.
+    func testSweepSewsTheBranchThatJoinsThereAndBack() {
+        let bar = [Point(0, 0), Point(1, 0)], top = [Point(0, 5), Point(1, 5)], rest = [Point(0, 9), Point(1, 9)]
+        let swept = AreaEngine.sweepOrder([bar, top, rest], links: [(0, 2), (1, 2)], lastRows: [10, 10, 20])
+        XCTAssertEqual(swept.rows, [bar, top, rest], "the top of the upright is sewn toward the corner, before the rest")
+        XCTAssertEqual(swept.covered, [1], "reached by travel through itself")
+    }
+
+    /// Where the shape splits (a U's arms), the arm that doesn't lead on is sewn there and back: travel up it,
+    /// sew it back down, then up the other arm.
+    func testSweepSewsTheBranchThatSplitsOffThereAndBack() {
+        let base = [Point(0, 0), Point(1, 0)], left = [Point(0, 5), Point(0, 6)], right = [Point(9, 5), Point(9, 6)]
+        let swept = AreaEngine.sweepOrder([base, left, right], links: [(0, 1), (0, 2)], lastRows: [4, 10, 12])
+        XCTAssertEqual(swept.rows, [base, left.reversed(), right], "the left arm sewn from its far end back to the base")
+        XCTAssertEqual(swept.covered, [1])
+    }
+
+    /// Round a hole the rows split and join again. The side that rejoins isn't sewn there and back from the split
+    /// (that would end the fill back at the split); the needle goes up one side and sews the other there and back
+    /// from where they join, then carries on to the last row.
+    func testSweepAroundAHoleFinishesAtTheLastRow() {
+        let below = [Point(0, 0), Point(1, 0)], left = [Point(0, 5), Point(0, 6)], right = [Point(9, 5), Point(9, 6)], above = [Point(0, 9), Point(1, 9)]
+        let swept = AreaEngine.sweepOrder([below, left, right, above], links: [(0, 1), (0, 2), (1, 3), (2, 3)], lastRows: [4, 8, 8, 12])
+        XCTAssertEqual(swept.rows.first, below)
+        XCTAssertEqual(swept.rows.last, above, "it finishes at the last row")
+        XCTAssertEqual(Set(swept.rows.dropFirst().dropLast().map { $0.map(\.x) }), [[0, 0], [9, 9]], "both sides sewn once each")
+        XCTAssertEqual(swept.covered.count, 1, "one side reached by travel through itself")
+    }
+
+    /// A real L-shaped fill at 45°, whose rows meet the inside corner: every travel run in its top layer ends up
+    /// under rows sewn after it (none left on top, as a run up the outside edge over sewn rows once was).
+    func testTravelInAnLShapedFillIsAllCovered() throws {
+        let l = fill([Point(0, -16), Point(10, -16), Point(10, 0), Point(50, 0), Point(50, 6), Point(0, 6)])   // rows past the corner cross the notch
+        var object = l; object.digitizing?.angle = 45; object.digitizing?.underlay = UnderlayStyle.none
+        let sections = try AreaEngine.fill(object).sections
+        XCTAssertTrue(sections.dropFirst().allSatisfy(\.joined), "no trims")
+        // Travel runs are the stitches that don't lie along the rows (45°); each must have rows sewn over it later.
+        let stitches = sections.flatMap { zip($0.points, $0.points.dropFirst()).map { ($0, $1) } }
+        func distance(_ p: Point, _ a: Point, _ b: Point) -> Double {
+            let d = b - a, t = max(0, min(1, ((p - a).x * d.x + (p - a).y * d.y) / max(1e-12, d.x * d.x + d.y * d.y)))
+            return p.distance(to: a + d * t)
+        }
+        var shown = 0.0
+        for (index, stitch) in stitches.enumerated() {
+            let d = stitch.1 - stitch.0, angle = abs(atan2(d.y, d.x) * 180 / .pi).truncatingRemainder(dividingBy: 180)
+            guard abs(angle - 45) > 10 else { continue }   // a row
+            let middle = (stitch.0 + stitch.1) * 0.5
+            if !stitches[(index + 1)...].contains(where: { distance(middle, $0.0, $0.1) < 0.25 }) { shown += stitch.0.distance(to: stitch.1) }
+        }
+        XCTAssertLessThan(shown, 3, "travel left on top: \(shown) mm")
     }
 
     func testSectionsAreReorderedToShortenTravel() throws {
