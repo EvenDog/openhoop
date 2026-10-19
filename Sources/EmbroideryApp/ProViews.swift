@@ -288,13 +288,20 @@ struct ProSewingOrder: View {
 
 /// The Pro view's threads: the thread library as a two-column list of swatch, name and number (click to choose the
 /// current thread and recolor the selection), then the design's thread steps in sewing order with their stitch counts.
+/// The bar between them drags to make the steps list taller or shorter; double-clicking it lets the list fit its steps again.
 struct ProThreads: View {
     @ObservedObject var state: EditorState
+    @ObservedObject var preferences = Preferences.shared
+    /// The steps list's height while the bar is being dragged (saved when the drag ends), and as last laid out.
+    @State private var draggedHeight: Double?
+    @State private var shownHeight: Double = 0
+    @State private var dragBase: Double?
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             // At least three rows; every bit of height the sewing order list doesn't need goes to the library, so a
             // taller panel shows more threads (and a wider one more columns).
             ThreadLibraryView(state: state, layout: .list(minColumnWidth: 100), minHeight: 64)
+            divider
             Text("IN SEWING ORDER").font(.system(size: 9, weight: .bold, design: .rounded)).tracking(0.6).foregroundStyle(Theme.inkSecondary)
             ScrollView {
                 VStack(spacing: 0) {
@@ -314,11 +321,39 @@ struct ProThreads: View {
                     }
                 }
             }
-            // Room for two thread steps at least, and only as tall as its steps need (up to eight), so the rest of the
-            // panel's height goes to the library above.
-            .frame(minHeight: 44, maxHeight: max(44, min(CGFloat(state.summary.steps.count) * 20 + 4, 164)))
+            // As tall as it was dragged to, or else as its steps need. The list asks first (layoutPriority), but never
+            // for the library's last three rows, so in a short panel it gets less than asked rather than spilling out.
+            .frame(minHeight: 0, maxHeight: Self.stepsHeight(dragged: draggedHeight ?? preferences.data.threadStepsHeight, steps: state.summary.steps.count))
+            .onGeometryChange(for: Double.self) { $0.size.height } action: { shownHeight = $0 }
+            .layoutPriority(1)
         }
         .foregroundStyle(Theme.ink)
+    }
+
+    /// The steps list's height: the dragged height if there is one, else room for its steps (two at least, eight at most).
+    static func stepsHeight(dragged: Double?, steps: Int) -> Double {
+        dragged ?? max(44, min(Double(steps) * 20 + 4, 164))
+    }
+
+    /// The bar above the steps list, drawn like the one between panel groups. Dragging it up makes the list taller.
+    private var divider: some View {
+        Theme.card.frame(height: 8).frame(maxWidth: .infinity)
+            .overlay(Capsule().fill(Theme.controlBorder).frame(width: 36, height: 3))
+            .contentShape(Rectangle())
+            .onHover { inside in if inside { NSCursor.resizeUpDown.push() } else { NSCursor.pop() } }
+            .help("Drag to show more threads or more sewing steps. Double-click to fit the steps again.")
+            .onTapGesture(count: 2) { draggedHeight = nil; preferences.data.threadStepsHeight = nil; preferences.save(announce: false) }
+            // Measured in window coordinates, so the distance doesn't change as the bar moves with the list.
+            .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                .onChanged { drag in
+                    if dragBase == nil { dragBase = shownHeight }   // starts from the height on screen, which may be less than asked
+                    draggedHeight = max(0, (dragBase ?? 0) - drag.translation.height)
+                }
+                .onEnded { _ in
+                    // Saved as the height it ended up on screen, so a drag past the library's minimum doesn't stick.
+                    if draggedHeight != nil { preferences.data.threadStepsHeight = shownHeight; preferences.save(announce: false) }
+                    draggedHeight = nil; dragBase = nil
+                })
     }
 }
 

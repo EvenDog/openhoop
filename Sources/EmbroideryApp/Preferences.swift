@@ -91,6 +91,8 @@ struct PreferenceData: Codable {
     var showRulers: Bool?
     /// True when the design's palette is docked in the Threads panel; nil (the default) keeps it under the canvas.
     var paletteDocked: Bool?
+    /// How tall the Pro Threads panel's In Sewing Order list was dragged to; nil means as tall as its steps need.
+    var threadStepsHeight: Double?
     /// What the Show list and the grid were last switched to, so new and opened designs start the same way; nil
     /// until one is switched.
     var shown: ShownItems?
