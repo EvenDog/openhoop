@@ -47,7 +47,7 @@ struct LaydownView: View {
             HStack(alignment: .top, spacing: 20) {
                 VStack(alignment: .leading, spacing: 12) {
                     stepper("Reaches past the edge", value: $settings.offset, in: LaydownSettings.offsets, step: 0.5)
-                    stepper("Row spacing", value: $settings.spacing, in: LaydownSettings.spacings, step: 0.25)
+                    stepper("Row spacing", value: $settings.spacing, in: LaydownSettings.spacings, step: 0.5)
                     stepper("Stitch length", value: $settings.stitchLength, in: LaydownSettings.stitchLengths, step: 0.5)
                     Stepper(value: $settings.angle, in: -90...180, step: 15) {
                         Text("Angle: \(settings.angle.formatted())°").font(Theme.body(13, weight: .semibold))

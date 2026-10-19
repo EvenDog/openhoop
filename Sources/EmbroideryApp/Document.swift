@@ -796,6 +796,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     override func read(from fileWrapper: FileWrapper, ofType typeName: String) throws {
         guard let bytes = fileWrapper.fileWrappers?["design.json"]?.regularFileContents, bytes.count < 100_000_000 else { throw DesignError.invalid("The project is missing its design data or is too large.") }
         var design = try JSONDecoder().decode(Design.self, from: bytes)
+        design.measureSpacingAcrossTwoRows()   // older files: tatami row spacing is now measured across two rows
         if design.artwork != nil {
             guard let image = fileWrapper.fileWrappers?["artwork.bin"]?.regularFileContents else { throw DesignError.invalid("The project is missing its reference artwork.") }
             design.artwork?.data = image

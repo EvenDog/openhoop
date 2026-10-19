@@ -7,15 +7,16 @@ import Foundation
 public struct LaydownSettings: Equatable, Sendable {
     /// How far the laydown reaches past the edge of what it's under, in mm.
     public var offset = 1.5
-    /// The gap between its rows, in mm: far wider than a normal fill, so it pins the pile down without covering it.
-    public var spacing = 2.0
+    /// Its row spacing, in mm, measured across two rows like a tatami fill's (rows 2 mm apart): far wider than a normal
+    /// fill, so it pins the pile down without covering it.
+    public var spacing = 4.0
     /// The rows' direction, in degrees.
     public var angle = 45.0
     /// 1, or 2 for a second layer at right angles to the first (a light grid that pins the pile both ways).
     public var layers = 2
     /// The longest stitch along each row, in mm.
     public var stitchLength = 4.0
-    public static let offsets = 0.0...10.0, spacings = 1.0...5.0, stitchLengths = 2.0...7.0
+    public static let offsets = 0.0...10.0, spacings = 2.0...10.0, stitchLengths = 2.0...7.0
     public init() {}
 }
 

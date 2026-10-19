@@ -54,7 +54,7 @@ public enum AreaEngine {
         let start=entry ?? result.sections.last?.points.last
         switch style {
         case .tatami where !(s.angleLines ?? []).isEmpty:
-            parts=[try TurningFill.rows(in:expanded,angleLines:s.angleLines!,spacing:s.spacing,length:object.stitchLength,start:start)]
+            parts=[try TurningFill.rows(in:expanded,angleLines:s.angleLines!,spacing:s.rowGap,length:object.stitchLength,start:start)]
             guard !parts[0].isEmpty else{throw DesignError.invalid("The stitch angle lines don't cross this fill. Draw them across it, or remove them.")}
         case .tatami,.wave,.gradient:parts=try topRows(in:expanded,object,entry:entry,exit:exit)
         case .contour:parts=[try FillStyles.contour(in:expanded,spacing:s.spacing,length:object.stitchLength,start:start)]
@@ -63,7 +63,7 @@ public enum AreaEngine {
         case .stipple:parts=[try FillStyles.stipple(in:expanded,spacing:s.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing,length:object.stitchLength,start:start)]
         case .guided:
             guard let guide=s.guideLine else{throw DesignError.invalid("This guided fill has no guide line. Draw a line over it, select both and choose Use Line as Fill Guide.")}
-            parts=[try GuidedFill.rows(in:expanded,guide:guide,spacing:s.spacing,length:object.stitchLength)]
+            parts=[try GuidedFill.rows(in:expanded,guide:guide,spacing:s.rowGap,length:object.stitchLength)]
         case .satin:parts=[try SatinFill.stitches(in:expanded,angle:s.angle,spacing:s.spacing,maximum:s.satinSplit ?? DigitizingSettings.defaultSatinSplit,split:s.autoSplit != false)]
         case .radial:parts=[try FillStyles.radial(in:expanded,center:s.radialCenter ?? AreaGeometry.centroid(original[0]),spacing:s.spacing,length:object.stitchLength,start:start)]
         }
@@ -129,7 +129,7 @@ public enum AreaEngine {
             var best:(score:Double,rows:[[Point]])?
             for top in fromTop {
                 for reversed in [false,true] {
-                    let candidate=try rows(in:part,angle:s.angle,spacing:s.spacing,length:object.stitchLength,fromTop:top,startReversed:reversed,wave:wave,gradient:gradient)
+                    let candidate=try rows(in:part,angle:s.angle,spacing:s.rowGap,length:object.stitchLength,fromTop:top,startReversed:reversed,wave:wave,gradient:gradient)
                     guard !candidate.isEmpty else{continue}
                     let value=score(candidate)
                     if best==nil || value<best!.score {best=(value,candidate)}
@@ -137,7 +137,7 @@ public enum AreaEngine {
             }
             return best?.rows ?? []
         }
-        guard entry != nil || exit != nil else{return [try rows(in:region,angle:s.angle,spacing:s.spacing,length:object.stitchLength,wave:wave,gradient:gradient)]}
+        guard entry != nil || exit != nil else{return [try rows(in:region,angle:s.angle,spacing:s.rowGap,length:object.stitchLength,wave:wave,gradient:gradient)]}
         guard let exit else{return [try best(region,fromTop:[false,true]){$0[0][0].distance(to:entry!)}]}
         // The two sides of the line through the end point. Rows sew upward (fromTop false) on the side below it.
         // `far` is longer than any line across the shape, so each half covers the whole of its side.

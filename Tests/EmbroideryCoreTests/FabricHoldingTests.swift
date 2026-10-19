@@ -50,7 +50,7 @@ final class FabricHoldingTests: XCTestCase {
         XCTAssertEqual(laydown.count, 4, "A and B join (2 mm gap, grown 2 mm each), Far gets its own; two layers each")
         XCTAssertEqual(Set(laydown.map(\.groupID)).count, 1)
         XCTAssertEqual(laydown.map(\.settings.angle), [45, 135, 45, 135])
-        XCTAssertTrue(laydown.allSatisfy { $0.settings.underlay == UnderlayStyle.none && $0.settings.spacing == 2 && $0.color == ThreadColor.palette[4] })
+        XCTAssertTrue(laydown.allSatisfy { $0.settings.underlay == UnderlayStyle.none && $0.settings.spacing == 4 && $0.settings.rowGap == 2 && $0.color == ThreadColor.palette[4] })
         let joined = AreaGeometry.ring(laydown[0].nodes)
         XCTAssertTrue(AreaGeometry.contains(Point(6, 0), rings: [joined]), "the gap between A and B is covered")
         XCTAssertTrue(AreaGeometry.contains(Point(-6.5, 0), rings: [joined]), "it reaches 2 mm past the edge")

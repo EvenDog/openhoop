@@ -124,7 +124,9 @@ final class FillStyleTests: XCTestCase {
             return Array(main[start...].prefix(10))   // about 25 mm of that row
         }
         let wavy = try middleRow(object)
-        XCTAssertGreaterThan(wavy.map(\.y).max()! - wavy.map(\.y).min()!, 2.5)
+        // The stitches sample the 3 mm wave every quarter wavelength, so they can miss its crests by up to 45°:
+        // 3 × sin 45° ≈ 2.1 mm at least.
+        XCTAssertGreaterThan(wavy.map(\.y).max()! - wavy.map(\.y).min()!, 2.0)
         var tatami = object; tatami.digitizing?.fillStyle = nil
         let straight = try middleRow(tatami)
         XCTAssertLessThan(straight.map(\.y).max()! - straight.map(\.y).min()!, 0.001)

@@ -595,7 +595,7 @@ import EmbroideryCore
             state.showDensity.toggle()
             if state.showDensity {
                 let cells = DensityMap.cells(state.plan), red = cells.filter { $0.level == .tooDense }.count, yellow = cells.count - red
-                state.status = cells.isEmpty ? "Density map: no heavy or over-dense spots." : "Density map: \(red) mm² too dense (red: over 6 layers of thread, or needle holes piling up) · \(yellow) mm² heavy (yellow: over 4 layers)."
+                state.status = cells.isEmpty ? "Density map: no heavy or over-dense spots." : "Density map: \(red) mm² too dense (red: over 3 layers of thread, or needle holes piling up) · \(yellow) mm² heavy (yellow: over 2 layers)."
             }
         case .testSwatches: makeTestSwatches(state)
         case .useAsFillGuide: state.useSelectedLineAsFillGuide()

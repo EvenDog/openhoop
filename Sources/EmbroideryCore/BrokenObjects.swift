@@ -51,7 +51,7 @@ extension StitchEngine {
                 case .crossStitch: fits = try !Motifs.crossStitch(in: expanded, size: s.patternSize ?? DigitizingSettings.defaultPatternSize(.crossStitch)).isEmpty
                 case .guided:
                     guard let guide = s.guideLine else { throw DesignError.invalid("This guided fill has no guide line. Draw a line over it, select both and choose Use Line as Fill Guide.") }
-                    fits = try !GuidedFill.rows(in: expanded, guide: guide, spacing: s.spacing, length: object.stitchLength).isEmpty
+                    fits = try !GuidedFill.rows(in: expanded, guide: guide, spacing: s.rowGap, length: object.stitchLength).isEmpty
                 case .stipple: fits = try !FillStyles.stipple(in: expanded, spacing: s.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing, length: object.stitchLength, start: nil).isEmpty
                 default: fits = true
                 }
