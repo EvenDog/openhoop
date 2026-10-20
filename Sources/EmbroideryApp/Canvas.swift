@@ -378,10 +378,10 @@ final class DesignCanvas: NSView {
         // A dashed "stitched" outline marks the sewing area inside the cloth.
         Theme.Canvas.sewingArea.setStroke(); hoopPath.lineWidth = 1.2; hoopPath.setLineDash([6, 4], count: 2, phase: 0); hoopPath.stroke()
         let userHidden = Set(design.objects.filter { !state.isShown($0) }.map(\.id))
-        // Pointing at a style in the Fill style menu: the selected fills' own stitches give way to the preview's,
-        // drawn after the rest (FillStyleMenu.swift).
-        let fillPreview = state.fillStylePreview
-        var hidden = userHidden.union(fillPreview?.objects ?? [])
+        // Pointing at a choice in a picture menu (Fill style, Pattern): the selected objects' own stitches give way
+        // to the preview's, drawn after the rest (PictureMenu.swift).
+        let menuPreview = state.settingsPreview
+        var hidden = userHidden.union(menuPreview?.objects ?? [])
         var previous = Point(0, 0)
         // This loop runs once per stitch (tens of thousands of times), and it runs on every frame of a window resize,
         // so everything it needs is read once up here: reading the editor state's @Published values or making a new
@@ -429,9 +429,9 @@ final class DesignCanvas: NSView {
         drawStitches(commands[..<split])
         if artworkLayer > 0 { drawArtwork() }
         drawStitches(commands[split...])
-        if let fillPreview, let first = fillPreview.plan.commands.first {
-            hidden = userHidden; threads = fillPreview.plan.threads; threadColors = colors(threads); previous = first.point
-            drawStitches(fillPreview.plan.commands[...])
+        if let menuPreview, let first = menuPreview.plan.commands.first {
+            hidden = userHidden; threads = menuPreview.plan.threads; threadColors = colors(threads); previous = first.point
+            drawStitches(menuPreview.plan.commands[...])
         }
         // On thread, each needle point gets a light ring so it shows on any thread color.
         if threadView && showStitches { context.setStrokeColor(NSColor.white.withAlphaComponent(0.85).cgColor); context.setLineWidth(0.8); context.addPath(needles); context.strokePath() }
@@ -451,8 +451,8 @@ final class DesignCanvas: NSView {
                         Theme.Canvas.handle.setStroke(); path.lineWidth = selected ? 2 : 1.5
                         path.setLineDash([6, 4], count: 2, phase: 0); path.stroke(); continue
                     }
-                    // While a fill shows another style from the Fill style menu, its outline is terracotta, so it reads as a try-out.
-                    let trying = fillPreview.map { !$0.kept && $0.objects.contains(object.id) } ?? false
+                    // While an object shows a choice from a picture menu, its outline is terracotta, so it reads as a try-out.
+                    let trying = menuPreview.map { !$0.kept && $0.objects.contains(object.id) } ?? false
                     (broken ? NSColor.systemRed : trying ? Theme.Canvas.previewOutline : selected ? Theme.Canvas.selection : object.color.nsColor.withAlphaComponent(0.4)).setStroke(); path.lineWidth = broken ? 2 : 1
                     if selected { path.setLineDash([2, 2], count: 2, phase: 0) }; path.stroke()
                 }

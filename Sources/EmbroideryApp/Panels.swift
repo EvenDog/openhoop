@@ -1148,6 +1148,16 @@ struct InspectorPanel: View {
     @ViewBuilder func patternSettings(_ object: RunObject) -> some View {
         let s = object.settings
         switch s.fillStyle ?? .tatami {
+        case .tatami where !(s.angleLines ?? []).isEmpty:
+            explain("Patterns are for straight rows: with stitch angle lines, the rows keep the Smooth pattern.")
+        case .tatami:
+            let pattern = TatamiPattern.of(s)
+            HStack {
+                Text("Pattern").font(Theme.body(pro ? 11 : 12, weight: pro ? .regular : .semibold)); Spacer()
+                TatamiPatternMenu(state: state, pattern: pattern, color: object.color, compact: pro) { value in settings(.fill, "Tatami Pattern") { $0.tatamiPattern = value == .smooth ? nil : value.id } }
+                    .frame(width: pro ? 120 : 150)
+            }
+            .help("Where each row's needle holes go. The lines of holes make a texture in the fill: zigzags, waves, blocks. \(pattern.name): \(pattern.tagline)")
         case .stipple:
             number("Stipple spacing", value: s.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing, range: DigitizingSettings.stippleSpacingRange, help: "How far apart the line's neighbouring passes are (mm). Smaller is denser. Stipple sews without underlay.") { value in settings(.fill, "Stipple Spacing") { $0.stippleSpacing = value } }
         case .motif:

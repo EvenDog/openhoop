@@ -204,12 +204,13 @@ public enum AreaEngine {
         // fill split in two by its end point still shades smoothly from one side to the other.
         let heightsAcross=region.flatMap{$0}.map{AreaGeometry.rotate($0,degrees:-s.angle).y}
         let gradient=s.fillStyle == .gradient ? (from:s.gradientStart ?? DigitizingSettings.defaultGradientStart,to:s.gradientEnd ?? DigitizingSettings.defaultGradientEnd,low:heightsAcross.min() ?? 0,high:heightsAcross.max() ?? 0) : nil
+        let pattern=(s.fillStyle ?? .tatami) == .tatami ? TatamiPattern.of(s) : .smooth
         /// Of the ways to sew `part` (from the sides in `fromTop`, the first row either way), the one with the lowest score.
         func best(_ part:[[Point]],fromTop:[Bool],_ score:([[Point]])->Double) throws -> (rows:[[Point]],covered:Set<Int>) {
             var best:(score:Double,rows:[[Point]],covered:Set<Int>)?
             for top in fromTop {
                 for reversed in [false,true] {
-                    let candidate=try sweptRows(in:part,angle:s.angle,spacing:s.rowGap,length:object.stitchLength,fromTop:top,startReversed:reversed,wave:wave,gradient:gradient)
+                    let candidate=try sweptRows(in:part,angle:s.angle,spacing:s.rowGap,length:object.stitchLength,fromTop:top,startReversed:reversed,wave:wave,gradient:gradient,pattern:pattern)
                     guard !candidate.rows.isEmpty else{continue}
                     let value=score(candidate.rows)
                     if best==nil || value<best!.score {best=(value,candidate.rows,candidate.covered)}
@@ -217,7 +218,7 @@ public enum AreaEngine {
             }
             return best.map{($0.rows,$0.covered)} ?? ([],[])
         }
-        guard entry != nil || exit != nil else{return [try sweptRows(in:region,angle:s.angle,spacing:s.rowGap,length:object.stitchLength,wave:wave,gradient:gradient)]}
+        guard entry != nil || exit != nil else{return [try sweptRows(in:region,angle:s.angle,spacing:s.rowGap,length:object.stitchLength,wave:wave,gradient:gradient,pattern:pattern)]}
         guard let exit else{return [try best(region,fromTop:[false,true]){$0[0][0].distance(to:entry!)}]}
         // The two sides of the line through the end point. Rows sew upward (fromTop false) on the side below it.
         // `far` is longer than any line across the shape, so each half covers the whole of its side.
@@ -244,23 +245,23 @@ public enum AreaEngine {
     /// level), straight rows are laid in the bent shape, and bending them back turns them into waves that still fill
     /// the real shape edge to edge. The shape's edges are cut into short pieces first so they bend smoothly.
     /// `gradient`: rows from `low` to `high` (across the rows, after turning by `angle`) whose spacing grows steadily
-    /// from `from` to `to`, instead of all `spacing` apart.
+    /// from `from` to `to`, instead of all `spacing` apart. `pattern`: where each row's needle holes start.
     public static func rows(in region:[[Point]],angle:Double,spacing:Double,length:Double,fromTop:Bool=false,startReversed:Bool=false,wave:(height:Double,length:Double)?=nil,
-                            gradient:(from:Double,to:Double,low:Double,high:Double)?=nil) throws -> [[Point]] {
-        try rowSections(in:region,angle:angle,spacing:spacing,length:length,fromTop:fromTop,startReversed:startReversed,wave:wave,gradient:gradient).rows.filter{$0.count>=2}
+                            gradient:(from:Double,to:Double,low:Double,high:Double)?=nil,pattern:TatamiPattern = .smooth) throws -> [[Point]] {
+        try rowSections(in:region,angle:angle,spacing:spacing,length:length,fromTop:fromTop,startReversed:startReversed,wave:wave,gradient:gradient,pattern:pattern).rows.filter{$0.count>=2}
     }
     /// The same rows, sewn in one sweep with every travel run hidden (see `sweepOrder`). `covered`: the sections the
     /// needle reaches by travelling through bare rows that are sewn over it afterwards, so that travel may be long.
     static func sweptRows(in region:[[Point]],angle:Double,spacing:Double,length:Double,fromTop:Bool=false,startReversed:Bool=false,wave:(height:Double,length:Double)?=nil,
-                          gradient:(from:Double,to:Double,low:Double,high:Double)?=nil) throws -> (rows:[[Point]],covered:Set<Int>) {
-        let scan=try rowSections(in:region,angle:angle,spacing:spacing,length:length,fromTop:fromTop,startReversed:startReversed,wave:wave,gradient:gradient)
+                          gradient:(from:Double,to:Double,low:Double,high:Double)?=nil,pattern:TatamiPattern = .smooth) throws -> (rows:[[Point]],covered:Set<Int>) {
+        let scan=try rowSections(in:region,angle:angle,spacing:spacing,length:length,fromTop:fromTop,startReversed:startReversed,wave:wave,gradient:gradient,pattern:pattern)
         return sweepOrder(scan.rows,links:scan.links,lastRows:scan.lastRows)
     }
     /// The rows as `rows` makes them, before scraps are dropped (so indexes match), with `links`: each section that
     /// starts where the shape splits or joins, paired with each section it carries on from (parent, child). `lastRows`:
     /// the number of each section's last row, counted from the first row sewn.
     static func rowSections(in region:[[Point]],angle:Double,spacing:Double,length:Double,fromTop:Bool,startReversed:Bool,wave:(height:Double,length:Double)?,
-                            gradient:(from:Double,to:Double,low:Double,high:Double)?) throws -> (rows:[[Point]],links:[(parent:Int,child:Int)],lastRows:[Int]) {
+                            gradient:(from:Double,to:Double,low:Double,high:Double)?,pattern:TatamiPattern = .smooth) throws -> (rows:[[Point]],links:[(parent:Int,child:Int)],lastRows:[Int]) {
         var rings=region.map{$0.map{AreaGeometry.rotate($0,degrees:-angle)}}
         var ripple:(Double)->Double={_ in 0}
         if let wave,wave.height>0,wave.length>0 {
@@ -303,8 +304,8 @@ public enum AreaEngine {
             func overlaps(_ a:Interval,_ b:Interval)->Bool {min(a.right,b.right)-max(a.left,b.left)>0.0001}
             for index in current.indices {
                 let interval=current[index],lo=interval.left,hi=interval.right
-                // Stagger consecutive rows by quarters of a stitch length.
-                var xs=[lo];var x=floor(lo/length)*length+Double(row%4)*length/4
+                // Stagger consecutive rows as the pattern says (Smooth: by quarters of a stitch length).
+                var xs=[lo];var x=floor(lo/length)*length+pattern.offset(row:row)*length
                 while x<=lo+0.00001{x+=length}
                 while x<hi-0.00001{xs.append(x);x+=length};xs.append(hi)
                 // No sliver under 0.3 mm at a row's ends: the grid point next to it moves halfway between its

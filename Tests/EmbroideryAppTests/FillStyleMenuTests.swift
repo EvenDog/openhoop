@@ -32,31 +32,31 @@ final class FillStyleMenuTests: XCTestCase {
     @MainActor func testPointingAtAStylePreviewsItWithoutChangingTheDesign() async throws {
         let (document, square) = documentWithASquare(), state = document.state
         let before = state.design
-        state.previewFillStyle(.contour)
-        try await waitFor { state.fillStylePreview != nil }
-        let preview = try XCTUnwrap(state.fillStylePreview)
-        XCTAssertEqual(preview.style, .contour)
+        FillStyleMenu.preview(.contour, state)
+        try await waitFor { state.settingsPreview != nil }
+        let preview = try XCTUnwrap(state.settingsPreview)
+        XCTAssertEqual(preview.choice, FillStyleMenu.choice(.contour))
         XCTAssertEqual(preview.objects, [square.id])
         XCTAssertTrue(preview.plan.commands.contains { $0.op == .stitch && $0.objectID == square.id })
         XCTAssertEqual(state.design, before, "a preview changes nothing")
 
-        state.previewFillStyle(.tatami)   // its own style: nothing to preview
-        XCTAssertNil(state.fillStylePreview)
-        state.previewFillStyle(.radial); state.previewFillStyle(nil)   // moved off before it was ready
+        FillStyleMenu.preview(.tatami, state)   // its own style: nothing to preview
+        XCTAssertNil(state.settingsPreview)
+        FillStyleMenu.preview(.radial, state); state.previewSettings(nil)   // moved off before it was ready
         try await Task.sleep(nanoseconds: 300_000_000)
-        XCTAssertNil(state.fillStylePreview, "a late preview doesn't show up after moving off")
+        XCTAssertNil(state.settingsPreview, "a late preview doesn't show up after moving off")
     }
 
     @MainActor func testAChosenStyleStaysPreviewedUntilItsStitchesArrive() async throws {
         let (document, _) = documentWithASquare(), state = document.state
         try await waitFor { state.compiledRevision == state.revision }
-        state.previewFillStyle(.contour)
-        try await waitFor { state.fillStylePreview != nil }
+        FillStyleMenu.preview(.contour, state)
+        try await waitFor { state.settingsPreview != nil }
         state.editSelected("Fill Style") { $0.digitizing?.fillStyle = .contour }
-        state.keepFillStylePreview(.contour)
-        state.previewFillStyle(nil)   // the menu closing
-        XCTAssertEqual(state.fillStylePreview?.kept, true, "still shown while the new stitches are worked out")
-        try await waitFor { state.fillStylePreview == nil }
+        state.keepSettingsPreview(FillStyleMenu.choice(.contour))
+        state.previewSettings(nil)   // the menu closing
+        XCTAssertEqual(state.settingsPreview?.kept, true, "still shown while the new stitches are worked out")
+        try await waitFor { state.settingsPreview == nil }
         XCTAssertEqual(state.compiledRevision, state.revision, "gone once they're in")
     }
 }
