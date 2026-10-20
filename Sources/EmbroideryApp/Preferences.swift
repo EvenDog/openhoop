@@ -115,6 +115,8 @@ struct PreferenceData: Codable {
     var speedPresets: [Double]?
     /// True when the stitch player's scissors button is lit: playing pauses at each trim, stop and thread change.
     var pauseAtTrims: Bool?
+    /// The format last exported with, as an id from ExportFormatPicker ("pes6", "dst"…); nil means PES 6.
+    var exportFormat: String?
 }
 
 /// The canvas's view choices, remembered across designs and launches. Each is nil until it's first switched, which

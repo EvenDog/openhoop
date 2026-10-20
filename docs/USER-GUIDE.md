@@ -282,9 +282,9 @@ Hoops are listed upright; **Turn sideways** swaps width and height. You can also
 **Save your work** as a `.stitchproj` project; that's what you keep editing. Machine files are output only.
 
 **Export:**
-- **⌘E** saves PES for Brother machines. **⇧E** chooses another format: PES, PEC, DST, EXP, JEF, VP3 or XXX.
+- **File → Export Machine File…** (**⌘E** or **⇧E**) saves the stitches for your machine. Pick the format from the **Format** menu at the bottom of the save window: PES 6 (the default, for Brother and Baby Lock), PES 1, PEC, DST, EXP, JEF, VP3 or XXX. OpenHoop remembers the one you used last.
 - Every export is read back and checked before saving: needle positions, colors, stops, travel and hoop bounds. If anything changed, nothing is saved.
-- **File → Export Thread List…** saves a spreadsheet (CSV) of the thread order, with brands and numbers. Use it for DST and EXP, which store no colors.
+- **File → Export Thread List…** saves a spreadsheet (CSV) of the thread order, with brands and numbers, for the format you pick. Use it for DST and EXP, which store no colors.
 
 **Production worksheet (⌘P).** A page to keep beside the machine:
 - size, stitch count, thread steps, trims, stops, and the sewing time at your machine's speed (set it in the preview)
@@ -341,7 +341,7 @@ These are the starting keys; every one can be changed. Tools on a function key a
 | Fill | F3 or ⌥F | Select all | ⌘A |
 | Convert to fill | ⇧M | New / Open / Save | ⌘N / ⌘O / ⌘S |
 | Lettering / edit lettering | A / ⌥L | Import image / SVG / machine file | ⌘I / ⇧⌘I / ⌥⌘O |
-| Appliqué | F7 or ⌥Q | Export PES / choose format | ⌘E / ⇧E |
+| Appliqué | F7 or ⌥Q | Export machine file | ⌘E or ⇧E |
 | Satin border | ⇧⌘O | Production worksheet | ⌘P |
 | Underlay on/off / show | U / ⇧U | Fit hoop / zoom in / zoom out | ⌥0 / Z / ⇧Z |
 | | | Zoom box / real size / to selected | B / 1 / ⇧0 |
