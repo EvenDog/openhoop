@@ -19,7 +19,7 @@ struct StripPlayer: View {
         if stacked {
             VStack(alignment: .leading, spacing: 5) {
                 caption
-                HStack(spacing: 4) { rewindButton; playButton }
+                HStack(spacing: 4) { rewindButton; playButton; pauseAtTrimsButton }
                 slider
                 count.minimumScaleFactor(0.7)
                 SpeedButtons(stacked: true, onBand: onBand)
@@ -28,7 +28,7 @@ struct StripPlayer: View {
             // Caption and count on top, then the controls, then the speeds: two rows, like the tool groups beside it.
             VStack(alignment: .leading, spacing: 3) {
                 HStack { caption; Spacer(minLength: 8); count }
-                HStack(spacing: 4) { rewindButton; playButton; slider }
+                HStack(spacing: 4) { rewindButton; playButton; pauseAtTrimsButton; slider }
                 SpeedButtons(stacked: false, onBand: onBand)
             }
             .frame(width: 250)
@@ -56,6 +56,20 @@ struct StripPlayer: View {
         .buttonStyle(.plain)
         .help(state.playing ? "Pause  \(preferences.label(.play))" : preferences.hint(.play))
         .accessibilityLabel(state.playing ? "Pause" : "Play")
+    }
+    /// Pause at trims: lit, playing stops at each trim, stop and thread change, like a sew-out. Remembered between launches.
+    private var pauseAtTrimsButton: some View {
+        let on = preferences.data.pauseAtTrims == true
+        return Button { preferences.data.pauseAtTrims = on ? nil : true; preferences.save(announce: false) } label: {
+            Image(systemName: "scissors").font(.system(size: 10, weight: .semibold)).frame(width: 22, height: 22)
+                .background(Circle().fill(on ? Theme.accent.opacity(0.18) : Color.clear))
+                .foregroundStyle(on ? Theme.accent : secondaryInk)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(on ? "Pausing at trims, stops and thread changes. Press Play to carry on; click to play straight through."
+              : "Pause at trims: playing stops at each trim, stop and thread change, as the machine would.")
+        .accessibilityLabel("Pause at trims").accessibilityAddTraits(on ? .isSelected : [])
     }
     private var slider: some View {
         Slider(value: $state.playback, in: 0...1).controlSize(.small).tint(Theme.accent)

@@ -113,6 +113,8 @@ struct PreferenceData: Codable {
     var satinPullPercent: Double?
     /// The stitch player's four speed buttons, in stitches per second (Settings › Tools & player); nil means the built-in ones.
     var speedPresets: [Double]?
+    /// True when the stitch player's scissors button is lit: playing pauses at each trim, stop and thread change.
+    var pauseAtTrims: Bool?
 }
 
 /// The canvas's view choices, remembered across designs and launches. Each is nil until it's first switched, which

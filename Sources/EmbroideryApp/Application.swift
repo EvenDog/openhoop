@@ -669,7 +669,20 @@ import EmbroideryCore
                 if state.playback >= 1 { state.playback = 0 }; state.playing = true; playbackTimer?.invalidate()
                 // 30 times a second, move on by 1/30 of the chosen stitches per second. The speed is read on every
                 // tick, so changing it while playing takes effect at once.
-                playbackTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak state] timer in MainActor.assumeIsolated { guard let state else { timer.invalidate(); return }; state.playback = min(1, state.playback + Preferences.shared.playbackSpeed / 30 / max(1, Double(state.plan.stitchCount))); if state.playback >= 1 { state.playing = false; timer.invalidate() } } }
+                // With Pause at trims on (read on every tick too), the player stops where the machine would cut, stop
+                // or change thread (PlayerPauses.swift), and Play carries on from there. Each pause is a playback
+                // position that shows exactly the commands up to it (the canvas shows that fraction of the commands).
+                let commandCount = Double(max(1, state.plan.commands.count))
+                let pauses = state.plan.machinePauses.map { (Double($0) + 0.5) / commandCount }
+                playbackTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak state] timer in MainActor.assumeIsolated {
+                    guard let state else { timer.invalidate(); return }
+                    let next = min(1, state.playback + Preferences.shared.playbackSpeed / 30 / max(1, Double(state.plan.stitchCount)))
+                    if Preferences.shared.data.pauseAtTrims == true, let pause = pauses.first(where: { $0 > state.playback && $0 <= next }) {
+                        state.playback = pause; state.playing = false; timer.invalidate(); return
+                    }
+                    state.playback = next
+                    if state.playback >= 1 { state.playing = false; timer.invalidate() }
+                } }
             }
         case .rewind: playbackTimer?.invalidate(); state.playing = false; state.playback = 0
         default: break
