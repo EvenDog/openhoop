@@ -401,6 +401,8 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     public var patternGap:Double?
     public static func defaultPatternSize(_ style:FillStyle)->Double {style == .crossStitch ? 3 : 5}
     public static let defaultPatternGap=1.5, patternSizeRange=1.5...20.0, patternGapRange=0.0...10.0
+    /// Tatami fills: the id of the pattern of needle holes (TatamiPattern.swift); nil is Smooth, the classic.
+    public var tatamiPattern:String?
     /// Gradient fills: the row spacing where the rows start (the densest end) and where they finish, in mm.
     public var gradientStart:Double?
     public var gradientEnd:Double?
@@ -560,6 +562,7 @@ public struct Design: Codable, Equatable, Sendable {
         objects.contains { ($0.kind == .run && ($0.settings.runStyle ?? .running) != .running)
             || $0.lettering.map { $0.letterSpacing != nil || !($0.letterOffsets ?? [:]).isEmpty || $0.entry != nil || $0.exit != nil || $0.shape == .onLine } == true
             || ($0.kind == .fill && [.stipple, .motif, .crossStitch, .gradient, .guided, .satin].contains($0.settings.fillStyle ?? .tatami)) || ($0.kind == .satin && $0.settings.raised == true)
+            || ($0.kind == .fill && $0.settings.tatamiPattern != nil)
             || $0.guideFor != nil }
     }
     public var needsSchemaFive: Bool { usesHandles || basting != nil || objects.contains { $0.branchID != nil || $0.stitchEdits != nil || $0.entry != nil || $0.exit != nil || ($0.kind == .satin && ($0.closed || $0.settings.relaxedChecks == true)) || ($0.kind == .fill && ($0.settings.fillStyle ?? .tatami) != .tatami) || ($0.kind == .run && ($0.settings.runPasses ?? 1) > 1) || ($0.kind == .satin && ($0.settings.shortStitches == true || $0.settings.autoSplit == true)) || ($0.kind == .fill && ($0.settings.cutOutOverlaps == true || !($0.settings.angleLines ?? []).isEmpty)) || ($0.kind == .satin && ($0.settings.secondUnderlay != nil || $0.settings.underlay == .auto || $0.settings.pullPercent != nil)) } }
@@ -612,6 +615,7 @@ public struct Design: Codable, Equatable, Sendable {
                   object.settings.stippleSpacing.map(DigitizingSettings.stippleSpacingRange.contains) ?? true,
                   object.settings.rippleLines.map(DigitizingSettings.rippleLineRange.contains) ?? true,
                   object.settings.radialCenter.map({ $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 }) ?? true,
+                  object.settings.tatamiPattern.map({ TatamiPattern.named($0) != nil }) ?? true,
                   object.settings.patternSize.map(DigitizingSettings.patternSizeRange.contains) ?? true, object.settings.patternGap.map(DigitizingSettings.patternGapRange.contains) ?? true,
                   [object.settings.gradientStart, object.settings.gradientEnd].allSatisfy({ $0.map(DigitizingSettings.gradientSpacingRange.contains) ?? true }) else { throw DesignError.invalid("Invalid line stitch or pattern size in \(object.name).") }
             guard object.color.isValid else{throw DesignError.invalid("Invalid thread color.")}

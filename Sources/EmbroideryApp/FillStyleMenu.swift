@@ -1,52 +1,9 @@
 // The Fill style menu in Properties: a button with a small picture of the fill's stitches that opens a list of every
 // fill style, each with a picture, its name and a line about it. Pointing at a style shows the selected fills stitched
-// that way on the canvas; nothing in the design changes until a style is clicked. (EmbroideryCore.FillStyle is spelled
+// that way on the canvas; nothing in the design changes until a style is clicked (PictureMenu.swift). (EmbroideryCore.FillStyle is spelled
 // out because SwiftUI has a FillStyle of its own.)
 import SwiftUI
 import EmbroideryCore
-
-/// While pointing at a style in the Fill style menu: the selected fills' stitches in that style, which the canvas
-/// draws in place of theirs. `kept` once the style has been chosen, until the design's own stitches catch up.
-struct FillStylePreview {
-    let style: EmbroideryCore.FillStyle
-    let objects: Set<UUID>
-    let plan: StitchPlan
-    var kept = false
-}
-
-extension EditorState {
-    /// Shows the selected fills stitched in `style` on the canvas (nil stops). Their stitches are worked out in the
-    /// background on their own, apart from the rest of the design, so a big design doesn't slow the preview down.
-    func previewFillStyle(_ style: EmbroideryCore.FillStyle?) {
-        fillStylePreviewTask?.cancel(); fillStylePreviewTask = nil
-        let fills = design.objects.filter { selection.contains($0.id) && $0.kind == .fill && !$0.locked && ($0.settings.fillStyle ?? .tatami) != style }
-        guard let style, !fills.isEmpty else {
-            if fillStylePreview?.kept != true { fillStylePreview = nil }
-            return
-        }
-        var sample = design
-        sample.objects = fills.map { object in
-            var object = object, settings = object.settings
-            settings.fillStyle = style == .tatami ? nil : style
-            object.digitizing = settings
-            object.stitchEdits = nil   // as on the real change: a new style means fresh stitches
-            return object
-        }
-        let work = Task.detached(priority: .userInitiated) { try RunningEngine.compile(sample) }
-        fillStylePreviewTask = work
-        Task { [weak self] in
-            // A style that can't be sewn (Guided with no guide line) just shows no preview.
-            guard let plan = try? await work.value, let self, self.fillStylePreviewTask == work else { return }
-            self.fillStylePreview = FillStylePreview(style: style, objects: Set(fills.map(\.id)), plan: plan)
-        }
-    }
-    /// After `style` is chosen from the menu: keeps its preview on the canvas until the design's fresh stitches are
-    /// ready (EditorState.plan clears it), so the old style doesn't flash back in between.
-    func keepFillStylePreview(_ style: EmbroideryCore.FillStyle) {
-        fillStylePreviewTask?.cancel(); fillStylePreviewTask = nil
-        if fillStylePreview?.style == style { fillStylePreview?.kept = true } else { fillStylePreview = nil }
-    }
-}
 
 /// Each fill style's stitches on one sample shape, for the menu's pictures. They're worked out once, in the
 /// background, the first time a Fill style menu shows, and kept until the app quits.
@@ -154,16 +111,7 @@ struct FillStyleMenu: View {
 
     var body: some View {
         Button { open.toggle() } label: {
-            HStack(spacing: compact ? 6 : 8) {
-                FillStyleThumbnail(style: style, color: color).frame(width: compact ? 26 : 46, height: compact ? 17 : 30)
-                Text(style.title).font(Theme.body(compact ? 11 : 12, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.down").font(.system(size: compact ? 8 : 9, weight: .semibold)).foregroundStyle(Theme.inkSecondary)
-            }
-            .padding(compact ? 2 : 4).padding(.trailing, compact ? 4 : 6)
-            .background(RoundedRectangle(cornerRadius: 7).fill(Theme.card))
-            .overlay(RoundedRectangle(cornerRadius: 7).stroke(Theme.controlBorder))
-            .contentShape(Rectangle())
+            PictureMenuLabel(title: style.title, compact: compact) { FillStyleThumbnail(style: style, color: color) }
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Fill style: \(style.title)")
@@ -174,26 +122,19 @@ struct FillStyleMenu: View {
     private var list: some View {
         VStack(alignment: .leading, spacing: 1) {
             ForEach(EmbroideryCore.FillStyle.allCases, id: \.self) { option in row(option) }
-            Text(note).font(Theme.body(11)).foregroundStyle(Theme.ink).fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 10).padding(.vertical, 8)
-                .background(RoundedRectangle(cornerRadius: 7).fill(Theme.ground)).padding(.top, 4)
+            pictureMenuNote(pointedAt: pointedAt == style ? nil : pointedAt?.title, current: style.title, kind: "style").padding(.top, 4)
         }
         .padding(6).frame(width: 290)
         // Moving off the list, or closing it without choosing, puts the fills' own stitches back. (Leaving one row
         // for the next doesn't, so the canvas doesn't flash back in between.)
-        .onHover { inside in if !inside { pointedAt = nil; state.previewFillStyle(nil) } }
-        .onDisappear { pointedAt = nil; state.previewFillStyle(nil) }
-    }
-
-    private var note: String {
-        guard let pointedAt, pointedAt != style else { return "Point at a style to see it stitched on your shape." }
-        return "Your shape shows \(pointedAt.title). Click to keep it; move away to go back to \(style.title)."
+        .onHover { inside in if !inside { pointedAt = nil; state.previewSettings(nil) } }
+        .onDisappear { pointedAt = nil; state.previewSettings(nil) }
     }
 
     private func row(_ option: EmbroideryCore.FillStyle) -> some View {
         Button {
             choose(option)
-            state.keepFillStylePreview(option)
+            state.keepSettingsPreview(Self.choice(option))
             open = false
         } label: {
             HStack(spacing: 10) {
@@ -213,6 +154,14 @@ struct FillStyleMenu: View {
         .help(option.summary)
         .accessibilityLabel(option.title)
         .accessibilityValue(option == style ? "In use" : "")
-        .onHover { inside in if inside { pointedAt = option; state.previewFillStyle(option) } }
+        .onHover { inside in
+            if inside { pointedAt = option; Self.preview(option, state) }
+        }
+    }
+    /// The name of trying `option` out (see SettingsPreview).
+    static func choice(_ option: EmbroideryCore.FillStyle) -> String { "style:\(option.rawValue)" }
+    /// Tries `option` out on the selected fills.
+    static func preview(_ option: EmbroideryCore.FillStyle, _ state: EditorState) {
+        state.previewSettings(choice(option), applies: { $0.kind == .fill }) { $0.fillStyle = option == .tatami ? nil : option }
     }
 }
