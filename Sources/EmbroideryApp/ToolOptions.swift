@@ -11,8 +11,13 @@ struct ToolOptions: View {
     @ObservedObject var preferences = Preferences.shared
     /// True for the tools whose choices live in Properties, so picking one opens the panel if it's closed.
     static func applies(to tool: Tool) -> Bool { NextShapeOptions.shows(tool) || tool == .node || tool == .stitchEdit }
+    /// True when Properties shows the next shape's choices: with a shape tool on, while nothing is selected or just
+    /// after the tool was picked. They then stand in for the selection's properties.
+    static func showsNextShape(_ state: EditorState) -> Bool {
+        NextShapeOptions.shows(state.tool) && (state.selected == nil || state.toolPicked)
+    }
     var body: some View {
-        if NextShapeOptions.shows(state.tool), state.selected == nil {
+        if Self.showsNextShape(state) {
             NextShapeOptions(state: state)
         } else if state.tool == .node, let node = state.selectedPathNode {
             // The selected point's type, so it can be seen and switched without knowing the right-click or the key.

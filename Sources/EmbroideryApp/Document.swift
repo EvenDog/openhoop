@@ -73,8 +73,12 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             selectionOrder.removeAll { !selection.contains($0) }
             if !joined.isEmpty { selectionOrder += design.objects.map(\.id).filter(joined.contains) }
             if let angle = selectedAngle, !selection.contains(angle.object) { selectedAngle = nil }
+            if selection != oldValue { toolPicked = false }   // the selection's properties show again
         }
     }
+    /// True just after a tool with Next shape choices is picked: Properties shows those choices even while something
+    /// is selected, until the selection changes (such as the shape just drawn being selected).
+    @Published var toolPicked = false
     /// The selected objects in the order they were selected (for Sequence by Selection Order and aligning).
     private(set) var selectionOrder: [UUID] = []
     @Published var tool: Tool = .select {
