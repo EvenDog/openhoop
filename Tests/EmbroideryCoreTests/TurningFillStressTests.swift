@@ -7,8 +7,9 @@ import XCTest
 @testable import EmbroideryCore
 
 final class TurningFillStressTests: XCTestCase {
-    /// `refused`: the lines cross inside the shape, so the fill must be refused. `jumps`: how many steps over
-    /// 3 mm between rows it's allowed (what it makes today; see the notes by each case that has any).
+    /// `refused`: the lines cross inside the shape, or three or more meet one part of it, so the fill must be
+    /// refused. `jumps`: how many steps over 3 mm between rows it's allowed (what it makes today; see the notes by
+    /// each case that has any).
     struct Case { var name: String; var rings: [[Point]]; var lines: [[Point]]; var spacing = 0.2; var start: Point? = nil; var refused = false; var jumps = 0 }
     struct Result {
         var name: String, sections = 0, stitches = 0, bare = 0.0, doubled = 0.0, thin = 0.0, jumps = 0, maxJump = 0.0, maxStitch = 0.0
@@ -86,7 +87,7 @@ final class TurningFillStressTests: XCTestCase {
         all.append(Case(name: "elbow 3 lines", rings: [elbow], lines: elbowLines))
         all.append(Case(name: "elbow 3 lines rotated 37", rings: rotate([elbow], 37), lines: rotate(elbowLines, 37)))
         all.append(Case(name: "elbow 3 lines mirrored", rings: mirror([elbow]), lines: mirror(elbowLines)))
-        all.append(Case(name: "elbow corner cut off", rings: [elbow], lines: [ln((-2, 30), (12, 30)), ln((-3, 13), (13, -3)), ln((30, -2), (30, 12))], jumps: 3))   // the middle piece touches all three lines: straight rows
+        all.append(Case(name: "elbow corner cut off", rings: [elbow], lines: [ln((-2, 30), (12, 30)), ln((-3, 13), (13, -3)), ln((30, -2), (30, 12))], refused: true))   // the middle piece touches all three lines
 
         let bent = pts([(-19, 7.1), (-31, 27.5), (-12.7, 27.5), (7, 0.3), (-1.4, -14), (-31.2, -11.7), (-32.8, 8.7)])
         let bentLines = [ln((-26.5, 9.5), (-24.7, -18.5)), ln((-26.6, 15.7), (-0.2, 35.9)), ln((-24.7, 11.5), (17.3, -17.6))]
@@ -140,8 +141,8 @@ final class TurningFillStressTests: XCTestCase {
 
         let y = yShape(angles: [90, 210, 330], half: 5, length: 35)
         func across(_ d: Double, at s: Double) -> [Point] { let a = d * .pi / 180; let c = Point(s * cos(a), s * sin(a)), n = Point(-sin(a), cos(a)) * 7; return [c - n, c + n] }
-        all.append(Case(name: "Y 3 arm lines", rings: [y], lines: [90.0, 210, 330].map { across($0, at: 20) }, jumps: 4))   // the middle touches three lines: straight rows, then a jump to the last arm
-        all.append(Case(name: "Y 3 arm lines near centre", rings: [y], lines: [90.0, 210, 330].map { across($0, at: 9) }, jumps: 2))
+        all.append(Case(name: "Y 3 arm lines", rings: [y], lines: [90.0, 210, 330].map { across($0, at: 20) }, refused: true))   // the middle touches three lines
+        all.append(Case(name: "Y 3 arm lines near centre", rings: [y], lines: [90.0, 210, 330].map { across($0, at: 9) }, refused: true))
         all.append(Case(name: "Y 2 arm lines", rings: [y], lines: [90.0, 210].map { across($0, at: 20) }))
 
         let star = (0..<10).map { k -> Point in let a = Double(k) * .pi / 5 + .pi / 2, r = k % 2 == 0 ? 25.0 : 10.0; return Point(r * cos(a), r * sin(a)) }
@@ -156,9 +157,9 @@ final class TurningFillStressTests: XCTestCase {
 
         let crescent = try AreaGeometry.subtracting([circle(20, centre: Point(8, 0), clockwise: true)], from: [circle(25)])[0]
         let cLines = [ln((0, 17), (0.5, 27)), ln((-20, 12), (-12, 20)), ln((-26, 0), (-10, 0)), ln((-20, -12), (-12, -20)), ln((0, -17), (0.5, -27))]
-        all.append(Case(name: "crescent 5 lines", rings: crescent, lines: cLines, jumps: 6))   // each tip's line, stretched across, cuts the other tip too
+        all.append(Case(name: "crescent 5 lines", rings: crescent, lines: cLines, refused: true))   // the slanted lines only cut caps off the outer edge, so each half touches three
         all.append(Case(name: "crescent 3 lines", rings: crescent, lines: [cLines[0], cLines[2], cLines[4]]))
-        all.append(Case(name: "crescent rotated 90", rings: rotate(crescent, 90), lines: rotate(cLines, 90), jumps: 5))
+        all.append(Case(name: "crescent rotated 90", rings: rotate(crescent, 90), lines: rotate(cLines, 90), refused: true))
 
         let comb = pts([(0, 0), (60, 0), (60, 40), (49, 40), (49, 15), (44, 15), (44, 40), (32, 40), (32, 15), (27, 15), (27, 40), (15, 40), (15, 15), (10, 15), (10, 40), (0, 40)])
         all.append(Case(name: "comb 4 parallel lines", rings: [comb], lines: [5.0, 21, 38, 55].map { ln(($0, 20), ($0, 35)) }))
@@ -249,7 +250,7 @@ final class TurningFillStressTests: XCTestCase {
             let r = measure(c)
             table.append(String(format: "%@ | %d | %d | %.1f | %.1f | %.1f | %d | %.1f | %.2f | %d | %@", r.name, r.sections, r.stitches, r.bare, r.doubled, r.thin, r.jumps, r.maxJump, r.maxStitch, r.trims, r.error ?? r.compileError ?? ""))
             if c.refused {
-                if r.error == nil { problems.append("\(c.name): should be refused, the lines cross inside") }
+                if r.error == nil { problems.append("\(c.name): should be refused") }
                 continue
             }
             if let error = r.error ?? r.compileError { problems.append("\(c.name): \(error)"); continue }

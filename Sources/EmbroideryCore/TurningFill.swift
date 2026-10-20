@@ -5,8 +5,9 @@
 // distances to both lines, and each row is the straight stitch line joining the point on one side of the shape to
 // the point on the other side with the same share. Across a rectangle that makes rows fanning out from where the
 // two lines meet; round a bend it turns the rows all the way round, with no seam at any line (measured against
-// that software's exports, 2026-10-19). Shapes the lines don't cross like rungs of a ladder (a ring, a Y, a hole in
-// the way) are cut along the lines into pieces and sewn piece by piece instead, as before.
+// that software's exports, 2026-10-19). Shapes the lines don't cross like rungs of a ladder (a ring, a hole in the
+// way) are cut along the lines into pieces and sewn piece by piece instead, as before. A piece three or more lines
+// meet (the middle of a Y) can't turn from one to the next, so that fill isn't sewn, as in that software.
 import Foundation
 
 enum TurningFill {
@@ -15,6 +16,9 @@ enum TurningFill {
     /// Measured against the same shapes sewn by other software (2026-10-18), whose rows thin out between 0.57 and
     /// 0.75 of their spacing.
     static let thinning = 0.75
+
+    /// Why a fill whose stitch angle lines can't be joined up isn't sewn (see `threeMeet`).
+    static let unreconciled = "Three or more stitch angle lines meet the same part of this fill, so its stitches can't turn from one line to the next. Move or delete some of the lines, so they cross the shape one after another."
 
     /// The fill's rows as stitches, sewn in one sweep from one end of the shape to the other. `start` picks which
     /// end of the shape the rows begin from (the one nearest it). With `end`, the last stitch finishes as near it
@@ -42,6 +46,7 @@ enum TurningFill {
                 return ways.min { ($0.last?.last?.distance(to: end) ?? .infinity) < ($1.last?.last?.distance(to: end) ?? .infinity) }!
             } catch is NotABand {}
         }
+        if try threeMeet(in: region, chords: chords) { throw DesignError.invalid(unreconciled) }
         return try sewPieces(in: region, angleLines: angleLines, chords: chords, spacing: spacing, length: length, start: start)
     }
 
@@ -328,6 +333,25 @@ enum TurningFill {
         return result
     }
 
+    /// Whether three or more lines meet the same part of the shape (the middle of a Y, or of a star with a line in
+    /// each point): cut along each line just where it's drawn across the shape, a piece that three or more of them
+    /// border. Rows only turn from one line to one other, so those lines can't be joined up, and other embroidery
+    /// software refuses them too.
+    static func threeMeet(in region: [[Point]], chords: [(a: Point, b: Point)]) throws -> Bool {
+        var pieces = [region]
+        for chord in chords { pieces = try pieces.flatMap { try AreaGeometry.subtracting([slit(chord)], from: $0) } }
+        // The lines bordering each piece, found just to each side of every line's middle. (A piece far smaller than
+        // a stitch, a corner a line just grazes, doesn't count, as when sewing piece by piece.)
+        var borders = pieces.map { _ in Set<Int>() }
+        for (c, chord) in chords.enumerated() {
+            let n = Point(-unit(chord).y, unit(chord).x) * 0.02
+            for p in [mid(chord) + n, mid(chord) - n] {
+                if let i = pieces.firstIndex(where: { AreaGeometry.contains(p, rings: $0) }) { borders[i].insert(c) }
+            }
+        }
+        return pieces.indices.contains { abs(AreaGeometry.area(pieces[$0][0])) > 0.1 && borders[$0].count >= 3 }
+    }
+
     // MARK: - Any other shape: cut along the lines and sewn piece by piece
 
     /// Each line is extended right across the shape, like a cut. In a piece beyond the end line, rows run
@@ -399,8 +423,9 @@ enum TurningFill {
                 guard let picked = try straightRows(in: rings, along: line, spacing: spacing, length: length, needle: sections.last?.last) else { continue }
                 rows = picked
             default:
-                // Where three or more lines meet a piece (the middle of a Y): straight rows at their average angle,
-                // averaged with doubled angles so a line and its reverse count the same, begun nearest the needle.
+                // Where three or more lines meet a piece (a line stretched across the shape cutting another part of
+                // it): straight rows at their average angle, averaged with doubled angles so a line and its reverse
+                // count the same, begun nearest the needle.
                 let doubled = touching.map { 2 * direction(chords[$0]) * .pi / 180 }
                 let mean = atan2(doubled.map(sin).reduce(0, +), doubled.map(cos).reduce(0, +)) / 2 * 180 / .pi
                 let all = try [false, true].flatMap { top in try [false, true].map { try AreaEngine.rows(in: rings, angle: mean, spacing: spacing, length: length, fromTop: top, startReversed: $0) } }.filter { !$0.isEmpty }
@@ -432,11 +457,6 @@ enum TurningFill {
             if let meeting = meeting(chords[i], chords[j]), AreaGeometry.contains(meeting, rings: region) { return message }
         }}
         return nil
-    }
-    /// The same check for a fill's own angle lines, as drawn (the fill's settings and shape, before compensation).
-    static func crossingProblem(_ object: RunObject) -> String? {
-        let region = ([object.nodes] + (object.holes ?? [])).map { AreaGeometry.ring($0) }
-        return crossingProblem(chords(in: region, angleLines: object.settings.angleLines ?? []), in: region)
     }
 
     /// Rows between two lines, each pointing at the spot where the lines meet, so the direction turns evenly from one
@@ -595,6 +615,12 @@ enum TurningFill {
 
 extension RunObject {
     /// Why this fill's stitch angle lines can't be used together (two of them, stretched right across the shape,
-    /// meet inside it), or nil when they can.
-    public var angleLineProblem: String? { TurningFill.crossingProblem(self) }
+    /// meet inside it, or three or more meet the same part of it), or nil when they can. Checked on the lines as
+    /// drawn (the fill's settings and shape, before compensation).
+    public var angleLineProblem: String? {
+        let region = ([nodes] + (holes ?? [])).map { AreaGeometry.ring($0) }
+        let chords = TurningFill.chords(in: region, angleLines: settings.angleLines ?? [])
+        if let problem = TurningFill.crossingProblem(chords, in: region) { return problem }
+        return (try? TurningFill.threeMeet(in: region, chords: chords)) == true ? TurningFill.unreconciled : nil
+    }
 }
