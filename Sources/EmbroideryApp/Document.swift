@@ -750,6 +750,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         // stitches (Undo brings the edits back).
         let lost=updated.dropStaleStitchEdits()
         updated.keepArtworkPlace(from:state.design)   // the reference picture stays between the same objects
+        updated.renameAfterStitches(from:state.design)   // "Zigzag 2" made a ripple is called "Ripple 2"
         // Guided fills and lettering on a line follow their guide lines' new shapes. Rebuilt letters are new objects,
         // so selected lettering stays selected by its lettering id.
         let selectedLettering = Set(updated.objects.filter { state.selection.contains($0.id) }.compactMap { $0.lettering?.id })
