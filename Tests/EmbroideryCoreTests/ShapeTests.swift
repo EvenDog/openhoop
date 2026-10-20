@@ -208,3 +208,32 @@ final class ShapeTests: XCTestCase {
     }
 }
 
+
+final class StitchNameTests: XCTestCase {
+    /// A line named for its stitch follows a new stitch, keeping its number; a typed name, or one with words after
+    /// the number, stays; changing anything else leaves the name alone.
+    func testNamesFollowTheStitchUntilTyped() {
+        func line(_ name: String, _ style: RunStyle?) -> RunObject {
+            var object = RunObject(name: name, nodes: [Point(0, 0), Point(10, 0)].map { PathNode($0) })
+            object.digitizing = DigitizingSettings(kind: .run); object.digitizing?.runStyle = style
+            return object
+        }
+        var before = Design()
+        before.objects = [line("Zigzag 2", .zigzag), line("Zigzag border", .zigzag), line("Zigzag 3 outline", .zigzag), line("Zigzag 4", .zigzag)]
+        var after = before
+        for i in 0..<3 { after.objects[i].digitizing?.runStyle = .ripple }
+        after.objects[3].digitizing?.runWidth = 3
+        after.renameAfterStitches(from: before)
+        XCTAssertEqual(after.objects.map(\.name), ["Ripple 2", "Zigzag border", "Zigzag 3 outline", "Zigzag 4"])
+        // Back to plain running stitch, and a tatami fill made a contour fill.
+        var plain = after; plain.objects[0].digitizing?.runStyle = nil
+        var fill = RunObject(name: "Tatami Fill 5", nodes: [Point(0, 0), Point(10, 0), Point(10, 10)].map { PathNode($0) })
+        fill.closed = true; fill.digitizing = DigitizingSettings(kind: .fill)
+        plain.objects.append(fill)
+        plain.renameAfterStitches(from: after)
+        var contour = plain; contour.objects[4].digitizing?.fillStyle = .contour
+        contour.renameAfterStitches(from: plain)
+        XCTAssertEqual(contour.objects[0].name, "Running 2")
+        XCTAssertEqual(contour.objects[4].name, "Contour Fill 5")
+    }
+}

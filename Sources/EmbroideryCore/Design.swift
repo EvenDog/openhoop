@@ -718,6 +718,17 @@ extension DigitizingSettings {
 }
 
 extension Design {
+    /// An object still called by the name it was given for its stitch and number ("Zigzag 2") takes its new stitch's
+    /// name when the stitch changes ("Ripple 2"), so lists say what it sews. A name typed in (anything else) stays.
+    public mutating func renameAfterStitches(from previous: Design) {
+        let before = Dictionary(previous.objects.map { ($0.id, $0.stitchTitle) }, uniquingKeysWith: { first, _ in first })
+        for i in objects.indices {
+            guard let old = before[objects[i].id], old != objects[i].stitchTitle, objects[i].name.hasPrefix(old + " ") else { continue }
+            let number = objects[i].name.dropFirst(old.count + 1)
+            guard !number.isEmpty, number.allSatisfy(\.isNumber) else { continue }
+            objects[i].name = "\(objects[i].stitchTitle) \(number)"
+        }
+    }
     /// Brings a design saved before Row spacing was measured across two rows up to date: those fills' spacing is
     /// doubled, so they sew exactly as before. Hand-edited stitches that matched their object still do.
     public mutating func measureSpacingAcrossTwoRows() {
