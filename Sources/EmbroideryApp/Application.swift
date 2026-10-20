@@ -464,6 +464,8 @@ import EmbroideryCore
             state.angleStart=nil; state.selectedAngle=nil
             state.tool = Tool.forCommand[command] ?? .select
             state.toolPicked = NextShapeOptions.shows(state.tool)   // Properties switches to the tool's choices
+            // A closed-shape tool starts with Outline: None; an outline picked then lasts until a tool is picked again.
+            if NextShapeOptions.shows(state.tool) && !state.tool.makesOpenShape { Preferences.shared.updateShapes { $0.startWithoutOutline() } }
             switch state.tool {
             case .satin:state.status="Click left edge, then right edge, along the column · Drag while clicking to curve an edge · Enter finishes complete pairs"
             case .fill:state.status="Trace a closed fill outline · Click for corners, drag to pull out a curve · Enter to finish"
