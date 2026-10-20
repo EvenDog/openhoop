@@ -170,6 +170,29 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     func editSelected(_ name: String, _ block: (inout RunObject) -> Void) {
         edit(name) { next in for index in next.objects.indices where selection.contains(next.objects[index].id) && !next.objects[index].locked { block(&next.objects[index]) } }
     }
+    // MARK: Stop at Jumps (JumpStops.swift)
+    /// The objects Stop at Jumps works on: the selection, or the whole design when nothing is selected.
+    var jumpStopScope: Set<UUID>? { selection.isEmpty ? nil : selection }
+    /// Takes off the stops Stop at Jumps added (in the selection, or the whole design) if there are any; otherwise
+    /// adds Stop after to each object there that ends in a jump. Either way it's one step you can undo.
+    func toggleJumpStops() {
+        let scope = jumpStopScope
+        var next = design
+        if design.hasJumpStops(in: scope) {
+            let removed = next.removeJumpStops(in: scope)
+            if edit("Remove Jump Stops", { $0 = next }) { status = "Removed \(removed) stop\(removed == 1 ? "" : "s") at jumps." }
+            return
+        }
+        // Which objects jump is read from the stitches, so they must be up to date.
+        guard !busy, compiledRevision == revision, generationError == nil else { status = "Wait for the current stitches first."; return }
+        let added = next.addJumpStops(using: plan, in: scope)
+        guard added > 0 else { status = "No jumps to stop at: each object here carries straight on or changes thread."; return }
+        guard edit("Stop at Jumps", { $0 = next }) else { return }
+        // PES and most machine files hold at most 255 thread steps, and each stop is one.
+        let steps = summary.steps.count + added
+        status = "Added \(added) stop\(added == 1 ? "" : "s"): the machine pauses after each jump so you can snip it."
+            + (steps > 255 ? " That's \(steps) steps, more than the 255 a machine file holds." : "")
+    }
     // MARK: Thread palette (ThreadPalette.swift, PaletteRow.swift)
     /// Makes `color` the current thread, recolors the selection and keeps the thread in the design's palette, all as
     /// one Undo step.

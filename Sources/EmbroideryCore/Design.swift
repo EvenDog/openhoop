@@ -83,6 +83,9 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
     /// only when the next object starts at least the design's trim distance away. `trimRule` reads both as one choice.
     public var trimAlways: Bool?
     public var stopAfter = false
+    /// True when Stop after was turned on by Stop at Jumps (JumpStops.swift), which may turn it off again; nil once
+    /// Stop after is switched by hand, so stops like appliqué's are never touched.
+    public var stopForJump: Bool?
     // Optional additions allow v0.1 running projects to decode without rewriting them.
     public var digitizing: DigitizingSettings?
     public var holes: [[PathNode]]?
