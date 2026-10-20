@@ -315,7 +315,11 @@ struct ProThreads: View {
             // taller panel shows more threads (and a wider one more columns).
             ThreadLibraryView(state: state, layout: .list(minColumnWidth: 100), minHeight: 64)
             divider
-            Text("IN SEWING ORDER").font(.system(size: 9, weight: .bold, design: .rounded)).tracking(0.6).foregroundStyle(Theme.inkSecondary)
+            HStack {
+                Text("IN SEWING ORDER").font(.system(size: 9, weight: .bold, design: .rounded)).tracking(0.6).foregroundStyle(Theme.inkSecondary)
+                Spacer()
+                JumpStopsButton(state: state)
+            }
             ScrollView {
                 VStack(spacing: 0) {
                     ForEach(state.summary.steps, id: \.number) { step in

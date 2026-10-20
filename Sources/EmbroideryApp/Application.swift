@@ -625,7 +625,7 @@ import EmbroideryCore
         case .tieIn: state.editSelected(command.title) { if $0.kind != .raw {$0.tieIn.toggle()} }
         case .tieOut: state.editSelected(command.title) { if $0.kind != .raw {$0.tieOut.toggle()} }
         case .trimAfter: state.editSelected(command.title) { $0.trimAfter.toggle() }
-        case .stopAfter: state.editSelected(command.title) { $0.stopAfter.toggle() }
+        case .stopAfter: state.editSelected(command.title) { $0.stopAfter.toggle(); $0.stopForJump = nil }   // now a stop set by hand
         case .lockObject: state.edit("Object Lock") { design in for index in design.objects.indices where state.selection.contains(design.objects[index].id) { design.objects[index].locked.toggle() } }
         case .hideObject: state.edit("Object Visibility") { design in for index in design.objects.indices where state.selection.contains(design.objects[index].id) { design.objects[index].visible.toggle() } }
         case .zoomIn: state.zoom = min(60, state.zoom * 1.2)

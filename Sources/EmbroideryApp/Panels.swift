@@ -1377,8 +1377,25 @@ struct ThreadsPanel: View {
             ThreadLibraryView(state: state)
             Text("Current thread: \(state.currentColor.name)\(state.currentColor.chartLabel.map { " · \($0)" } ?? ""). Clicking a thread also recolors the selection.")
                 .font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
+            JumpStopsButton(state: state)
+            Text("No thread cutter on your machine? Stop at Jumps pauses it after each jump, so you can snip the thread.")
+                .font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
         }
         .foregroundStyle(Theme.ink)
+    }
+}
+
+/// Stop at Jumps, for machines without a thread cutter (JumpStops.swift): adds a stop after each jump in the
+/// selection (or the whole design when nothing is selected), and takes those stops off again.
+struct JumpStopsButton: View {
+    @ObservedObject var state: EditorState
+    var body: some View {
+        let removing = state.design.hasJumpStops(in: state.jumpStopScope)
+        let scope = state.selection.isEmpty ? "the design" : "the selection"
+        Button(removing ? "Remove Jump Stops" : "Stop at Jumps") { state.toggleJumpStops() }
+            .buttonStyle(ThemedButtonStyle())
+            .help(removing ? "Take off the stops Stop at Jumps added in \(scope). Stops you set yourself stay."
+                  : "The machine pauses after each jump in \(scope), as for a thread change, so you can snip the loose thread. Press Start to carry on in the same thread.")
     }
 }
 
