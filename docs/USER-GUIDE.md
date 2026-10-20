@@ -322,6 +322,8 @@ Print it, or choose **PDF** in the print dialog to save it.
 
 **Millimeters or inches:** **Settings → Measuring**, or **View → Use Inches**, switches how sizes and positions are shown and typed: object, design and hoop sizes, positions, start and end points, the rulers, guides, Measure, nudge, lettering and monogram height, and the worksheet. In inches the grid draws a line every ½ in (¼ in zoomed in) and Snap rounds to 0.05 in, unless Grid & snap is set finer or coarser. Stitch settings (stitch length, row spacing, satin and border widths, underlay, compensation) always stay in millimeters, as digitizers usually give them. Designs are saved the same either way, so switching never changes a design.
 
+**Updates:** OpenHoop looks for a new version once a day while it's open, and **OpenHoop → Check for Updates…** looks right away. When there is one, a window shows what's new: **Install Update** downloads it, installs it and reopens OpenHoop, **Remind Me Later** asks again another day, and **Skip This Version** waits for the one after. Only updates signed by OpenHoop's maker are installed. Nothing about you or your designs is sent; it only reads the list of versions on openhoop.app. **Settings → Updates** switches the daily check off, or checks now. (This starts with the version after 0.6.0; to get it, download it from openhoop.app once.)
+
 **Toolbar:** secondary-click it to customize.
 
 ## Keyboard shortcuts

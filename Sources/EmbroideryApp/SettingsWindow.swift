@@ -1,12 +1,12 @@
-// The Settings window: a sidebar of short pages (Look, Measuring, Tools & player, New designs, Machine and Keyboard
-// shortcuts). Each page is a heading and cards of rows: a setting's name and a one-line hint on the left, its control
+// The Settings window: a sidebar of short pages (Look, Measuring, Tools & player, New designs, Machine, Updates and
+// Keyboard shortcuts). Each page is a heading and cards of rows: a setting's name and a one-line hint on the left, its control
 // on the right, and the longer explanation when the pointer rests on it.
 import SwiftUI
 import EmbroideryCore
 
 /// The pages of the Settings window, in sidebar order.
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case look, measuring, tools, newDesigns, machine, shortcuts
+    case look, measuring, tools, newDesigns, machine, updates, shortcuts
     var id: Self { self }
     var title: String {
         switch self {
@@ -15,6 +15,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .tools: return "Tools & player"
         case .newDesigns: return "New designs"
         case .machine: return "Machine"
+        case .updates: return "Updates"
         case .shortcuts: return "Keyboard shortcuts"
         }
     }
@@ -26,6 +27,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .tools: return "Where the Pro view's tools sit, and the stitch player's speeds."
         case .newDesigns: return "What a blank new design and newly drawn objects start with."
         case .machine: return "Your machine, for time estimates."
+        case .updates: return "Getting new versions of OpenHoop."
         case .shortcuts: return "Assign a key to any command. Your shortcuts stay with you."
         }
     }
@@ -37,6 +39,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .tools: return "slider.horizontal.3"
         case .newDesigns: return "circle.circle"
         case .machine: return "speedometer"
+        case .updates: return "arrow.down.circle"
         case .shortcuts: return "keyboard"
         }
     }
@@ -107,6 +110,7 @@ struct SettingsView: View {
         case .tools: ToolsSettings()
         case .newDesigns: NewDesignSettings()
         case .machine: MachineSettings()
+        case .updates: UpdateSettings()
         case .shortcuts: EmptyView()   // shown full size above
         }
     }
@@ -357,5 +361,25 @@ private struct MachineSettings: View {
                 }
             }
         }
+    }
+}
+
+/// Updates: whether OpenHoop checks for new versions by itself, and a button to check now (Updates.swift).
+private struct UpdateSettings: View {
+    @State private var automatic = Updates.checksAutomatically
+    var body: some View {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        SettingsCard(caption: "New versions") {
+            SettingsRow(title: "Check automatically", hint: "Once a day, when OpenHoop is open",
+                        help: "OpenHoop asks openhoop.app whether there's a newer version. Nothing about you or your designs is sent. When there is one, it shows what's new and offers to install it; nothing installs without your OK.") {
+                Toggle("Check automatically", isOn: Binding(get: { automatic }, set: { automatic = $0; Updates.checksAutomatically = $0 }))
+                    .toggleStyle(.switch).labelsHidden()
+            }
+            RowDivider()
+            SettingsRow(title: "This is version \(version)", hint: Updates.lastCheck.map { "Last checked \($0.formatted(.relative(presentation: .named)))" } ?? "Not checked yet") {
+                Button("Check Now") { Updates.checkNow() }.buttonStyle(ThemedButtonStyle())
+            }
+        }
+        .disabled(Updates.controller == nil)   // running outside the app bundle, which has no update feed
     }
 }

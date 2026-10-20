@@ -17,6 +17,13 @@ To pack the built app into a DMG for downloading, run `./scripts/make-dmg.sh`. I
 SIGN_IDENTITY="Developer ID Application: …" NOTARY_PROFILE=openhoop-notary ./scripts/make-dmg.sh
 ```
 
+The app updates itself with [Sparkle](https://sparkle-project.org) 2 (`Sources/EmbroideryApp/Updates.swift`): it reads the feed at `https://openhoop.app/appcast.xml` (`website/appcast.xml`) once a day, and only installs downloads signed with the update key whose public half is `SUPublicEDKey` in `Resources/Info.plist`. The private key lives in the release maker's login keychain under the account `openhoop` (made once with Sparkle's `generate_keys --account openhoop`; back it up with `generate_keys --account openhoop -x <file>`, since without it no update can be signed). To release a version:
+
+1. Raise `CFBundleShortVersionString` and `CFBundleVersion` in `Resources/Info.plist` (Sparkle compares `CFBundleVersion`, so it must go up every time).
+2. Build, then make the signed, notarized DMG as above.
+3. Publish the GitHub release `v<version>` with the DMG and the release notes (Markdown).
+4. `python3 scripts/add-to-appcast.py dist/OpenHoop-<version>.dmg <notes.md>` signs the DMG and adds it to `website/appcast.xml`; publish that, with the website's download links, by PR. Once the site deploys, every copy with the updater offers the new version.
+
 `build.sh` copies the bundled embroidery fonts (`Resources/EmbroideryFonts`, downloaded unmodified by `scripts/fetch-embroidery-fonts.sh` from a pinned commit of the Ink/Stitch font collection) and builds the native app in optimized (release) mode, which generates large fills about 40 times faster than a debug build, packages the converter with PyInstaller, and signs and verifies the app locally. The initial dependency installation requires network access. `test.sh` expects the virtual environment created by the build.
 
 `Sources/EmbroideryCore` contains the millimeter geometry, running, satin and fill generators, project model and shortcut registry. `Sources/EmbroideryApp` contains AppKit document/window management and drawing, SwiftUI panels, and export orchestration. `Sources/GeometryBridge` vendors Clipper2 2.0.1 for polygon offsetting. `Helper` contains the versioned converter protocol and PES tests.
