@@ -31,6 +31,11 @@ if [ -n "${SIGN_IDENTITY:-}" ]; then
       codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$file"
     fi
   done
+  # Sparkle's helpers, then Sparkle itself, in the order its guide gives (no --deep: each piece is signed on its own).
+  SPARKLE="$COPY/Contents/Frameworks/Sparkle.framework"
+  codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$SPARKLE/Versions/B/Autoupdate"
+  codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$SPARKLE/Versions/B/Updater.app"
+  codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$SPARKLE"
   codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$COPY"
   codesign --verify --deep --strict "$COPY"
   echo "Signed the app."

@@ -261,6 +261,7 @@ import EmbroideryCore
         NSApp.setActivationPolicy(.regular)
         NSApp.appearance = Preferences.shared.appearance.nsAppearance   // Light, Dark or the Mac's setting, before any window opens
         NSWindow.allowsAutomaticWindowTabbing = false   // designs use OpenHoop's own tabs, not macOS window tabs
+        Updates.start()   // before the menu, which offers Check for Updates… once the updater runs
         makeMenu()
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             let handled = MainActor.assumeIsolated {
@@ -1005,6 +1006,7 @@ import EmbroideryCore
         let menu = NSMenu()
         let app = NSMenuItem(); app.submenu = NSMenu(title: "OpenHoop"); menu.addItem(app)
         app.submenu?.addItem(withTitle: "About OpenHoop", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        if let updates = Updates.menuItem() { app.submenu?.addItem(updates) }
         app.submenu?.addItem(commandItem(.settings)); app.submenu?.addItem(.separator())
         app.submenu?.addItem(withTitle: "Hide OpenHoop", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         app.submenu?.addItem(withTitle: "Quit OpenHoop", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")

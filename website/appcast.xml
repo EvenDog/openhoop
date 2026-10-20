@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+    <channel>
+        <title>OpenHoop</title>
+        <link>https://openhoop.app</link>
+        <description>New versions of OpenHoop.</description>
+        <language>en</language>
+        <item>
+            <title>OpenHoop 0.6.0</title>
+            <pubDate>Tue, 20 Oct 2026 00:48:57 GMT</pubDate>
+            <sparkle:version>6</sparkle:version>
+            <sparkle:shortVersionString>0.6.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.6.0</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. This is an early preview: expect rough edges, and test-sew designs before stitching anything important.</p>
+<h3>New in 0.6.0</h3>
+<h4>Fills</h4>
+<ul>
+<li><b>See a fill before you pick it.</b> The Fill style button shows a picture of each style's stitches, and pointing at one shows your selected shape stitched that way on the canvas.</li>
+<li><b>26 tatami patterns.</b> Zigzags, waves, herringbone, chevrons, blocks, steps, ribs and more, made by where each row's needle holes go. Pick from pictures; Smooth (the default) sews as before.</li>
+<li><b>New fill styles:</b> stipple, motif, cross stitch, gradient, guided (rows that bend along a line you draw) and satin fills.</li>
+<li><b>Turning fills.</b> Stitch angle lines bend tatami and satin fills round curves, in one smooth sweep, finishing at the end point you set.</li>
+<li>Tatami row spacing is measured across two rows, as embroidery software usually does (0.40 mm lays rows 0.20 mm apart). Older designs open with their spacing converted, so they sew the same.</li>
+<li>Straight fills with notches or holes hide their travel under rows sewn later.</li>
+</ul>
+<h4>Lines and satins</h4>
+<ul>
+<li><b>Line styles:</b> zigzag, blanket, back stitch, stem stitch, motif runs and ripple.</li>
+<li>Raised satin, and satins and lines that start or end part way along.</li>
+<li>Borders, outlines and lines start and end right at their points.</li>
+</ul>
+<h4>Lettering</h4>
+<ul>
+<li>Lettering is one object, added and edited in Properties, with a font list you can arrow through and letters you can nudge.</li>
+<li>Lettering can sit along a line you draw.</li>
+</ul>
+<h4>Threads</h4>
+<ul>
+<li>The Threads panel shows a whole thread chart: 21 brand charts and machine palettes, with search by name or number.</li>
+<li>Each design keeps its own thread palette, under the canvas or docked in the Threads panel.</li>
+</ul>
+<h4>Working with objects</h4>
+<ul>
+<li>Drag rows in the sewing order to reorder them, and Sequence by Color.</li>
+<li>Lock, rename and hide from the sewing order: click a row's lock, or right-click it.</li>
+<li>Box-select with Select, resize handles on the selection, and a green start / red end marker you can drag.</li>
+<li>With nothing selected, Properties shows the whole design: its size, stitch count, whether it fits the hoop, and its settings.</li>
+<li>Corner and smooth points, Delete removes just the selected point, and test swatches with a density map.</li>
+</ul>
+<h4>Everything else</h4>
+<ul>
+<li>Millimeters or inches, rulers that mark the pointer, and a choice of light, dark or match-the-Mac.</li>
+<li>Settings is a sidebar of short pages, including what new designs and objects start with.</li>
+<li>Move &amp; Size Artwork imports an image when the design has none.</li>
+<li>Saved projects show their design as their Finder icon, and the window reopens at the size it was closed at.</li>
+<li>Many speed-ups and fixes.</li>
+</ul>
+<p><b>Note:</b> designs that use the new stitch types are saved in a newer file version, so OpenHoop 0.5.0 can't open them.</p>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.6.0/OpenHoop-0.6.0.dmg" sparkle:edSignature="iEBcYdZu2i39JrmVFHhiS+EXV4MSlEdd8H5ND7ec+tsN6z44pu7MDq+A3+4borjpvENF4+ZkZNrxCB7kpLEwCQ==" length="21062051" type="application/octet-stream"/>
+        </item>
+    </channel>
+</rss>

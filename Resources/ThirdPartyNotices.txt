@@ -6,6 +6,8 @@ OpenHoop bundles these parts by other people, each under its own license:
 - Hand-digitized embroidery fonts from the Ink/Stitch font collection (see EMBROIDERY FONTS at the end).
 - Thread charts made from pyembroidery's machine palettes (MIT License, below).
 - Brand thread charts from Ink/Stitch (GNU GPL v3; see THREAD CHARTS at the end).
+- Sparkle 2.10.0 (MIT License and the licenses of the parts it bundles, in Sparkle-LICENSE.txt), which checks for,
+  downloads and installs new versions of OpenHoop.
 
 LICENSE — pyembroidery-1.5.1.dist-info
 MIT License
