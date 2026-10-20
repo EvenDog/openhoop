@@ -6,6 +6,22 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.6.6</title>
+            <pubDate>Tue, 20 Oct 2026 23:20:10 GMT</pubDate>
+            <sparkle:version>12</sparkle:version>
+            <sparkle:shortVersionString>0.6.6</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.6.6</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. This is an early preview: expect rough edges, and test-sew designs before stitching anything important.</p>
+<h3>New in 0.6.6</h3>
+<ul>
+<li><b>New shapes start without an outline.</b> Picking Closed Shape, Freehand shape, Rectangle, Ellipse or Basic Shapes sets the next shape's <b>Outline</b> to <b>None</b>, instead of reusing the last outline you chose. Pick an outline and it applies to the shapes you draw with that tool until you pick a tool again. Your fill and other shape choices are still remembered.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.6.6/OpenHoop-0.6.6.dmg" sparkle:edSignature="NpOPlYQzKjELk1aB1Mttrj4Tv7FpjYNT6B1ek5tFbEvpoIw3+EAP6j+jTqyVfXbaBEvhPOtYCdzqq64heTpWDg==" length="22909370" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.6.5</title>
             <pubDate>Tue, 20 Oct 2026 23:06:59 GMT</pubDate>
             <sparkle:version>11</sparkle:version>
