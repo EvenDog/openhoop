@@ -71,6 +71,27 @@ final class TurningFillTests: XCTestCase {
         XCTAssertNoThrow(try StitchEngine.compile(design))
     }
 
+    /// A star with a line across each point: all five meet its middle, and rows can only turn from one line to one
+    /// other, so the lines can't be joined up. Refused as the third is drawn, and by the engine for a design that
+    /// already has them; two lines are fine.
+    func testThreeLinesMeetingOnePartOfTheFillAreRefused() throws {
+        let tips = (0..<5).map { Double($0) * 72 * .pi / 180 }
+        var star = RunObject(name: "Star", nodes: tips.flatMap { a in
+            [Point(20 * cos(a), 20 * sin(a)), Point(8 * cos(a + .pi / 5), 8 * sin(a + .pi / 5))]
+        }.map { PathNode($0) })
+        star.closed = true; star.digitizing = DigitizingSettings(kind: .fill)
+        // Across each point, 14 mm out from the middle.
+        let lines = tips.map { a in [Point(14 * cos(a) - 4 * sin(a), 14 * sin(a) + 4 * cos(a)), Point(14 * cos(a) + 4 * sin(a), 14 * sin(a) - 4 * cos(a))] }
+        star.digitizing?.angleLines = Array(lines.prefix(2))
+        XCTAssertNil(star.angleLineProblem)
+        for count in [3, 5] {
+            star.digitizing?.angleLines = Array(lines.prefix(count))
+            XCTAssertEqual(star.angleLineProblem, TurningFill.unreconciled, "\(count) lines")
+            var design = Design(); design.objects = [star]
+            XCTAssertThrowsError(try StitchEngine.compile(design)) { XCTAssertTrue("\($0)".contains("Three or more stitch angle lines"), "\($0)") }
+        }
+    }
+
     func testStitchesFollowEachAngleLineAndTurnBetween() throws {
         let object = elbow()
         let region = [AreaGeometry.ring(object.nodes)]
