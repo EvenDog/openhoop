@@ -43,6 +43,11 @@ public struct ShapeSettings: Codable, Equatable, Sendable {
     /// How round a rectangle's corners are, in mm (0 is square corners).
     public var cornerRadius = 0.0
     public init() {}
+    /// Picking a closed-shape tool starts it without an outline. A shape with no fill keeps its outline, since a
+    /// closed shape needs one of the two.
+    public mutating func startWithoutOutline() {
+        if closedFill != nil { closedOutline = nil }
+    }
     public static let polygonSideRange = 3...12, starPointRange = 4...12, starInnerRange = 0.2...0.8, cornerRadiusRange = 0.0...20.0
 
     /// The next closed shape's stitches in words, such as "Tatami fill + satin outline".

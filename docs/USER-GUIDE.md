@@ -106,7 +106,7 @@ If you delete the guide, the fill keeps sewing the last shape it had. **Running 
 
 ### Shapes and the stitch picker
 
-Pick a stitch first, then draw. The **Shape** group in the tool strip holds them, and while one is on and nothing is selected, the **Properties** panel shows the **Next shape**: its shape and stitches, with a small drawing of it. Its **Stitch**, **Fill** and **Outline** buttons open lists with a picture of each choice's stitches, in the thread the shape will get. Your choices are remembered. Picking a shape tool opens Properties if it's closed.
+Pick a stitch first, then draw. The **Shape** group in the tool strip holds them. Picking one shows the **Next shape** in the **Properties** panel, even while something is selected (select something again to see its properties): its shape and stitches, with a small drawing of it. Its **Stitch**, **Fill** and **Outline** buttons open lists with a picture of each choice's stitches, in the thread the shape will get. Your choices are remembered, except the outline: picking a closed-shape tool starts it with **Outline: None**, and an outline you pick then lasts until you pick a tool again. Picking a shape tool opens Properties if it's closed.
 
 | Tool | How to draw | Stitch it gets |
 | --- | --- | --- |

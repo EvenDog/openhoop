@@ -236,4 +236,15 @@ final class StitchNameTests: XCTestCase {
         XCTAssertEqual(contour.objects[0].name, "Running 2")
         XCTAssertEqual(contour.objects[4].name, "Contour Fill 5")
     }
+
+    func testPickingAShapeToolStartsWithoutAnOutline() {
+        var settings = ShapeSettings(); settings.closedOutline = .satin
+        settings.startWithoutOutline()
+        XCTAssertNil(settings.closedOutline)
+        XCTAssertEqual(settings.closedFill, .tatami, "The fill stays as picked")
+        // With no fill, the outline is the shape's only stitching, so it stays.
+        settings.closedOutline = .bean; settings.closedFill = nil
+        settings.startWithoutOutline()
+        XCTAssertEqual(settings.closedOutline, .bean)
+    }
 }
