@@ -6,6 +6,24 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.6.1</title>
+            <pubDate>Tue, 20 Oct 2026 01:00:22 GMT</pubDate>
+            <sparkle:version>7</sparkle:version>
+            <sparkle:shortVersionString>0.6.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.6.1</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. This is an early preview: expect rough edges, and test-sew designs before stitching anything important.</p>
+<h3>New in 0.6.1</h3>
+<ul>
+<li><b>Updates come to you.</b> OpenHoop now looks for new versions once a day while it's open, and <b>OpenHoop › Check for Updates…</b> looks right away. When there's one, it shows what's new and <b>Install Update</b> downloads it, installs it and reopens OpenHoop. Only updates signed by OpenHoop's maker are installed, and nothing about you or your designs is sent.</li>
+<li><b>Settings › Updates</b> turns the daily check off, or checks now.</li>
+</ul>
+<p>This is the last version you need to download by hand: from here on, updates arrive inside the app.</p>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.6.1/OpenHoop-0.6.1.dmg" sparkle:edSignature="cVs4q0ijyOaapETKy0s2f6abeKTpj2p6PPqvRCZ4vcJy+FvAdH94ZTRSJNbYWF/ao73RVWZRHzvqELOpWMEpAA==" length="22870503" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.6.0</title>
             <pubDate>Tue, 20 Oct 2026 00:48:57 GMT</pubDate>
             <sparkle:version>6</sparkle:version>
