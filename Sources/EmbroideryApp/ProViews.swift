@@ -5,7 +5,8 @@ import SwiftUI
 import EmbroideryCore
 
 /// One row under the Pro tool strip: the selection's name; its exact center (X, Y), size (W, H, optionally keeping
-/// proportions) and a "rotate by" angle; the arrow keys' nudge distance; and one-click arrange buttons.
+/// proportions) and a "rotate by" angle; the arrow keys' nudge distance (while something is selected); and one-click
+/// arrange buttons.
 struct PrecisionBar: View {
     @ObservedObject var state: EditorState
     @ObservedObject var preferences = Preferences.shared
@@ -32,14 +33,15 @@ struct PrecisionBar: View {
                 .accessibilityLabel("Keep proportions").accessibilityAddTraits(keep ? .isSelected : [])
                 field("Rotate", 0, range: -360...360, help: "Type an angle and press Return to turn the selection by it (positive turns counterclockwise)") { state.rotateSelection(by: $0) }
                 field("Skew", 0, range: -60...60, help: "Type an angle and press Return to lean the selection sideways by it (positive leans the top to the right, like italics)") { state.skewSelection(by: $0) }
+                // Only with something to move, as in the Guided view.
+                Theme.controlBorder.frame(width: 1, height: 18)
+                field("Nudge", preferences.nudge, range: Preferences.nudgeRange, length: true, help: "How far the arrow keys move the selection") { value in
+                    preferences.data.nudgeDistance = value; preferences.save()
+                }
+                unitLabel
             } else {
                 Text("Select objects to place them exactly").font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
             }
-            Theme.controlBorder.frame(width: 1, height: 18)
-            field("Nudge", preferences.nudge, range: Preferences.nudgeRange, length: true, help: "How far the arrow keys move the selection") { value in
-                preferences.data.nudgeDistance = value; preferences.save()
-            }
-            unitLabel
             Spacer(minLength: 8)
             HStack(spacing: 0) {
                 arrange(.mirrorH, "arrow.left.and.right.righttriangle.left.righttriangle.right")
