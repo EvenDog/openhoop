@@ -6,6 +6,22 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.6.5</title>
+            <pubDate>Tue, 20 Oct 2026 23:06:59 GMT</pubDate>
+            <sparkle:version>11</sparkle:version>
+            <sparkle:shortVersionString>0.6.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.6.5</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. This is an early preview: expect rough edges, and test-sew designs before stitching anything important.</p>
+<h3>New in 0.6.5</h3>
+<ul>
+<li><b>One export, any format.</b> <b>File › Export Machine File…</b> (⌘E or ⇧E) replaces the separate Export PES…, DST…, EXP…, JEF…, VP3…, XXX… and PEC… items. Pick the format from the <b>Format</b> menu at the bottom of the save window: PES 6 (the default, for Brother and Baby Lock), PES 1, PEC, DST, EXP, JEF, VP3 or XXX. The file name follows your pick, and OpenHoop remembers the format you used last. <b>Export Thread List…</b> uses the same menu. Your ⌘E shortcut moves to the new item by itself.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.6.5/OpenHoop-0.6.5.dmg" sparkle:edSignature="i03pRmuGBcbH8pVgekTbC7Y5ekQV3Fi8QKBZWBKN3M5iFo/pnr96ZUB4dyC+u+WDAMYmGPza7JNClohFpOurAg==" length="22910461" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.6.4</title>
             <pubDate>Tue, 20 Oct 2026 22:17:57 GMT</pubDate>
             <sparkle:version>10</sparkle:version>
