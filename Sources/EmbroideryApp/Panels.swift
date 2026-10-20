@@ -696,7 +696,9 @@ struct InspectorPanel: View {
     var pro: Bool { preferences.isPro }
     @ViewBuilder private var propertiesSection: some View {
         ToolOptions(state: state)   // the current tool's choices, such as the next shape's (ToolOptions.swift)
-        if pro, let object = state.selected {
+        if ToolOptions.showsNextShape(state) {
+            // A shape tool was just picked: its choices stand in for the selection's properties.
+        } else if pro, let object = state.selected {
             proProperties(object)   // the compact Pro layout (ProViews.swift)
         } else if let object = state.selected {
             if state.selection.count > 1 && !selectionIsOneLettering { selectionSummary }
