@@ -6,6 +6,25 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.6.2</title>
+            <pubDate>Tue, 20 Oct 2026 01:56:39 GMT</pubDate>
+            <sparkle:version>8</sparkle:version>
+            <sparkle:shortVersionString>0.6.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.6.2</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. This is an early preview: expect rough edges, and test-sew designs before stitching anything important.</p>
+<h3>New in 0.6.2</h3>
+<ul>
+<li><b>See a line stitch before you pick it.</b> <b>Line style</b> in Properties is a button with a picture, like Fill style: click it for every style with a picture of its stitches, and point at one to see your line sewn that way on the canvas.</li>
+<li><b>Next shape shows pictures too.</b> Its <b>Stitch</b>, <b>Fill</b> and <b>Outline</b> buttons list each choice with a picture of its stitches, in the thread your next shape gets.</li>
+<li><b>Names follow the stitch.</b> A line called "Zigzag 2" becomes "Ripple 2" when you change its style. Names you've typed yourself stay as they are.</li>
+<li><b>Stitch angle lines that can't be joined up are refused.</b> When three or more lines meet the same part of a fill (a line in each point of a star, or each arm of a Y), the stitches can't turn from one to the next. The line isn't added, and the status line says why. A design that already has such lines shows the fill in red until some are moved or deleted.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.6.2/OpenHoop-0.6.2.dmg" sparkle:edSignature="sr/xFzQCbFprL+eycdjHvzwgZryUl1B6O7/rz4CAt4OVlv3dPxJdE/x4N5NHi1bP2g+VEivqY7zNt9Pl3+oGBA==" length="22900880" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.6.1</title>
             <pubDate>Tue, 20 Oct 2026 01:00:22 GMT</pubDate>
             <sparkle:version>7</sparkle:version>
