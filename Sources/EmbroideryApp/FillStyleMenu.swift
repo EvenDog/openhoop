@@ -106,62 +106,40 @@ struct FillStyleMenu: View {
     let color: ThreadColor
     var compact = false
     let choose: (EmbroideryCore.FillStyle) -> Void
-    @State private var open = false
-    @State private var pointedAt: EmbroideryCore.FillStyle?
 
     var body: some View {
-        Button { open.toggle() } label: {
-            PictureMenuLabel(title: style.title, compact: compact) { FillStyleThumbnail(style: style, color: color) }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Fill style: \(style.title)")
-        .popover(isPresented: $open, arrowEdge: .bottom) { list }
-        .onAppear { FillStyleSamples.shared.load() }
-    }
-
-    private var list: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            ForEach(EmbroideryCore.FillStyle.allCases, id: \.self) { option in row(option) }
-            pictureMenuNote(pointedAt: pointedAt == style ? nil : pointedAt?.title, current: style.title, kind: "style").padding(.top, 4)
-        }
-        .padding(6).frame(width: 290)
-        // Moving off the list, or closing it without choosing, puts the fills' own stitches back. (Leaving one row
-        // for the next doesn't, so the canvas doesn't flash back in between.)
-        .onHover { inside in if !inside { pointedAt = nil; state.previewSettings(nil) } }
-        .onDisappear { pointedAt = nil; state.previewSettings(nil) }
-    }
-
-    private func row(_ option: EmbroideryCore.FillStyle) -> some View {
-        Button {
+        PictureListMenu(label: "Fill style", options: EmbroideryCore.FillStyle.allCases, current: style, name: \.title, tagline: \.tagline, help: \.summary, compact: compact,
+                        tryOut: { option in if let option { Self.preview(option, state) } else { state.previewSettings(nil) } },
+                        picture: { FillStyleThumbnail(style: $0, color: color) }) { option in
             choose(option)
             state.keepSettingsPreview(Self.choice(option))
-            open = false
-        } label: {
-            HStack(spacing: 10) {
-                FillStyleThumbnail(style: option, color: color).frame(width: 66, height: 44)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(option.title).font(Theme.body(12, weight: .semibold)).foregroundStyle(Theme.ink)
-                    Text(option.tagline).font(Theme.body(10.5)).foregroundStyle(Theme.inkSecondary).lineLimit(2)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(Theme.accent).opacity(option == style ? 1 : 0)
-            }
-            .padding(4).padding(.trailing, 4)
-            .background(RoundedRectangle(cornerRadius: 7).fill(pointedAt == option ? Theme.accentSoft : .clear))
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .help(option.summary)
-        .accessibilityLabel(option.title)
-        .accessibilityValue(option == style ? "In use" : "")
-        .onHover { inside in
-            if inside { pointedAt = option; Self.preview(option, state) }
-        }
+        .onAppear { FillStyleSamples.shared.load() }
     }
     /// The name of trying `option` out (see SettingsPreview).
     static func choice(_ option: EmbroideryCore.FillStyle) -> String { "style:\(option.rawValue)" }
     /// Tries `option` out on the selected fills.
     static func preview(_ option: EmbroideryCore.FillStyle, _ state: EditorState) {
         state.previewSettings(choice(option), applies: { $0.kind == .fill }) { $0.fillStyle = option == .tatami ? nil : option }
+    }
+}
+
+/// The Next shape bar's Fill menu: the fill the next closed shape gets, or None (first) for just an outline, in the
+/// thread it gets. There's no shape yet to show a choice on, so pointing at one only highlights it.
+struct NewShapeFillMenu: View {
+    let current: EmbroideryCore.FillStyle?
+    let color: ThreadColor
+    var compact = false
+    let choose: (EmbroideryCore.FillStyle?) -> Void
+
+    var body: some View {
+        // Optional.some wraps each style, so the list can hold None (nil) too.
+        let options: [EmbroideryCore.FillStyle?] = [nil] + EmbroideryCore.FillStyle.forNewShapes.map(Optional.some)
+        PictureListMenu(label: "Fill", options: options, current: current, name: { $0?.title ?? "None" },
+                        tagline: { $0?.tagline ?? "No fill: just the outline." }, help: { $0?.summary ?? "The shape gets no fill, just its outline." }, compact: compact,
+                        picture: { option in
+                            if let option { FillStyleThumbnail(style: option, color: color) } else { NoStitchPicture() }
+                        }, choose: choose)
+        .onAppear { FillStyleSamples.shared.load() }
     }
 }

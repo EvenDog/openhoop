@@ -1196,9 +1196,9 @@ struct InspectorPanel: View {
         let style = object.settings.runStyle ?? .running
         HStack {
             Text("Line style").font(Theme.body(pro ? 11 : 12, weight: pro ? .regular : .semibold)); Spacer()
-            Picker("Line style", selection: Binding(get: { style }, set: { value in settings(.run, "Line Style") { $0.runStyle = value == .running ? nil : value; $0.runWidth = nil; $0.runSpacing = nil } })) {
-                ForEach(RunStyle.allCases, id: \.self) { Text($0.title).tag($0) }
-            }.labelsHidden().frame(width: pro ? 120 : 140)
+            LineStyleMenu(state: state, style: style, color: object.color, compact: pro) { value in
+                settings(.run, "Line Style") { $0.runStyle = value == .running ? nil : value; $0.runWidth = nil; $0.runSpacing = nil }
+            }.frame(width: pro ? 120 : 150)
         }
         .help(style.summary)
         if !pro { explain(style.summary) }

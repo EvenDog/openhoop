@@ -95,22 +95,19 @@ struct NextShapeOptions: View {
             caption("Stitches")
             if tool.makesOpenShape {
                 row("Stitch", help: "The stitch the next open shape gets. Change it later in Properties.") {
-                    Picker("Stitch", selection: setting(\.openStitch)) { ForEach(OpenShapeStitch.allCases, id: \.self) { Text($0.title).tag($0) } }
+                    NewLineStitchMenu(label: "Stitch", current: shapes.openStitch, color: state.currentColor, compact: preferences.isPro) { value in
+                        if let value { setting(\.openStitch).wrappedValue = value }
+                    }.frame(width: menuWidth)
                 }
             } else {
-                // The settings are optional (nil is "None"), so each tag is too: `Optional($0)` wraps a choice to match.
-                // (EmbroideryCore.FillStyle is spelled out because SwiftUI has a FillStyle of its own.)
+                // Both are optional: nil is "None".
                 row("Fill", help: "The fill the next shape gets, or None for just an outline. Change it later in Properties.") {
-                    Picker("Fill", selection: setting(\.closedFill)) {
-                        Text("None").tag(nil as EmbroideryCore.FillStyle?)
-                        ForEach(FillStyle.forNewShapes, id: \.self) { Text($0.title).tag(Optional($0)) }
-                    }
+                    NewShapeFillMenu(current: shapes.closedFill, color: state.currentColor, compact: preferences.isPro) { setting(\.closedFill).wrappedValue = $0 }
+                        .frame(width: menuWidth)
                 }
                 row("Outline", help: "The stitch sewn along the next shape's edge, after its fill. With a fill, the two are grouped.") {
-                    Picker("Outline", selection: setting(\.closedOutline)) {
-                        Text("None").tag(nil as OpenShapeStitch?)
-                        ForEach(OpenShapeStitch.allCases, id: \.self) { Text($0.title).tag(Optional($0)) }
-                    }
+                    NewLineStitchMenu(label: "Outline", current: shapes.closedOutline, offersNone: true, color: state.currentColor, compact: preferences.isPro) { setting(\.closedOutline).wrappedValue = $0 }
+                        .frame(width: menuWidth)
                 }
             }
             if (tool.makesOpenShape ? shapes.openStitch : shapes.closedOutline) == .satin {
@@ -132,6 +129,8 @@ struct NextShapeOptions: View {
         }
         .font(Theme.body(12))
     }
+    /// How wide the stitch picture menus are: as in Properties, narrower in Pro.
+    private var menuWidth: CGFloat { preferences.isPro ? 120 : 150 }
     /// The shape a drag tool draws, for the preview; nil for the tools that trace a path.
     private func dragged(_ tool: Tool, _ shapes: ShapeSettings) -> BasicShape? {
         switch tool {

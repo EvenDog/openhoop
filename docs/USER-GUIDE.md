@@ -44,7 +44,7 @@ A line of stitches along your path. Set **Stitch length** in Properties.
 
 **Bean stitch:** set **Passes** to **Bean ×3** or **Bean ×5** for a bold outline. Each stitch is sewn forward, back and forward again. Stitch lengths of 2.5–3.5 mm suit it.
 
-**Line styles:** **Line style** in Properties sews a line as something other than plain running stitch:
+**Line styles:** **Line style** in Properties sews a line as something other than plain running stitch. Like Fill style, it's a button with a picture: click it for the list of styles, each with a picture of its stitches, and point at one to see the selected line sewn that way on the canvas (nothing changes until you click):
 
 | Style | What it looks like | Settings |
 |---|---|---|
@@ -106,7 +106,7 @@ If you delete the guide, the fill keeps sewing the last shape it had. **Running 
 
 ### Shapes and the stitch picker
 
-Pick a stitch first, then draw. The **Shape** group in the tool strip holds them, and while one is on and nothing is selected, the **Properties** panel shows the **Next shape**: its shape and stitches, with a small drawing of it. Your choices are remembered. Picking a shape tool opens Properties if it's closed.
+Pick a stitch first, then draw. The **Shape** group in the tool strip holds them, and while one is on and nothing is selected, the **Properties** panel shows the **Next shape**: its shape and stitches, with a small drawing of it. Its **Stitch**, **Fill** and **Outline** buttons open lists with a picture of each choice's stitches, in the thread the shape will get. Your choices are remembered. Picking a shape tool opens Properties if it's closed.
 
 | Tool | How to draw | Stitch it gets |
 | --- | --- | --- |

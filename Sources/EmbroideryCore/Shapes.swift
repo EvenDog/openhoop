@@ -22,7 +22,7 @@ public enum OpenShapeStitch: String, Codable, CaseIterable, Sendable {
         }
     }
     /// The line stitch style this choice puts on a running line, for the styles that are one.
-    var runStyle: RunStyle? {
+    public var runStyle: RunStyle? {
         switch self { case .zigzag: return .zigzag; case .blanket: return .blanket; case .backStitch: return .backStitch; case .stemStitch: return .stemStitch; case .motif: return .motif; default: return nil }
     }
 }
