@@ -181,7 +181,7 @@ import EmbroideryCore
     }
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         // The design tabs take the free width; tools live in the docked tool strip, so the rest are document actions.
-        [.designTabs, .init(CommandID.importImage.rawValue), .space, .init(CommandID.undo.rawValue), .init(CommandID.redo.rawValue), .space, .viewMode, .init(CommandID.exportPES.rawValue)]
+        [.designTabs, .init(CommandID.importImage.rawValue), .space, .init(CommandID.undo.rawValue), .init(CommandID.redo.rawValue), .space, .viewMode, .init(CommandID.exportMachine.rawValue)]
     }
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
         if identifier == .designTabs {
@@ -431,7 +431,7 @@ import EmbroideryCore
         case .importSVG: importSVG(state)
         case .importMachine: importMachine(state)
         case .productionWorksheet: productionWorksheet(state, name: document.fileURL?.deletingPathExtension().lastPathComponent ?? document.displayName)
-        case .exportPES, .exportMachine, .exportDST, .exportEXP, .exportJEF, .exportVP3, .exportXXX, .exportPEC, .exportThreadList: exportMachine(state, format: command.exportFormat, threadListOnly: command == .exportThreadList)
+        case .exportMachine, .exportThreadList: exportMachine(state, threadListOnly: command == .exportThreadList)
         case .zoomBoxTool:
             // Unlike the other tools, Zoom Box works in the middle of drawing a path: the path waits, and the tool
             // it was being drawn with comes back once the box is drawn.
@@ -953,22 +953,20 @@ import EmbroideryCore
             state.focusCanvas()
         } catch { showError(error) }
     }
-    private func exportMachine(_ state: EditorState, format requestedFormat:MachineFormat?, threadListOnly:Bool=false) {
+    /// Saves a machine file, or the thread list: the save window's Format popup picks the format (and PES version),
+    /// remembering the last one exported.
+    private func exportMachine(_ state: EditorState, threadListOnly:Bool=false) {
         guard state.draft.isEmpty else {state.status="Finish or cancel the current path before exporting.";return}
         if let error=state.generationError {state.status=error;return}
         guard !state.busy,!state.exporting,!state.hasVersionMismatch,state.compiledRevision==state.revision,state.plan.stitchCount>0 else{state.status="Wait for current stitches before exporting.";return}
-        var format=requestedFormat ?? .pes
-        if requestedFormat == nil {
-            guard let chosen=GuidedDialog.chooseFormat(threadListOnly:threadListOnly) else{return}
-            format=chosen
-        }
-        let panel=NSSavePanel(),ext=threadListOnly ? "csv":format.rawValue
-        panel.allowedContentTypes=[UTType(filenameExtension:ext) ?? .data];panel.nameFieldStringValue="Design.\(ext)"
-        let versions=NSPopUpButton(frame:NSRect(x:0,y:0,width:250,height:26))
-        versions.addItems(withTitles:["PES 6 (default)","PES 1 (older machines)"])
-        if format == .pes {panel.accessoryView=versions}
+        let panel=NSSavePanel();panel.nameFieldStringValue="Design"
+        let preferences=Preferences.shared
+        let picker=ExportFormatPicker(panel:panel,threadListOnly:threadListOnly,remembered:preferences.data.exportFormat)
+        panel.accessoryView=picker.accessoryView
         guard panel.runModal() == .OK,let url=panel.url else{return}
-        let revision=state.revision,plan=state.plan,hoop=state.design.hoop,version=versions.indexOfSelectedItem==0 ? 6:1,target=format
+        let choice=picker.choice
+        if !threadListOnly && choice.id != preferences.data.exportFormat {preferences.data.exportFormat=choice.id;preferences.save(announce:false)}
+        let revision=state.revision,plan=state.plan,hoop=state.design.hoop,version=choice.pesVersion,target=choice.format
         state.exporting=true;state.status="Encoding and checking \(target.title)…"
         Task {
             do {
@@ -1025,7 +1023,7 @@ import EmbroideryCore
         app.submenu?.addItem(withTitle: "Hide OpenHoop", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         app.submenu?.addItem(withTitle: "Quit OpenHoop", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         let groups: [(String, [CommandID])] = [
-            ("File", [.new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportPES, .exportMachine, .exportDST, .exportEXP, .exportJEF, .exportVP3, .exportXXX, .exportPEC, .exportThreadList, .productionWorksheet, .sample, .stitchSampler]),
+            ("File", [.new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportMachine, .exportThreadList, .productionWorksheet, .sample, .stitchSampler]),
             ("Edit", [.undo, .redo, .cutObjects, .copyObjects, .pasteObjects, .selectAll, .delete, .duplicate, .group, .ungroup, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .sequenceBySelection, .sequenceByColor, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .closePath, .lockObject, .hideObject, .renameObject, .threadChart]),
             ("Digitize", [.done]),
             ("View", [.proView, .threadView, .useInches, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .showRulers, .clearGuides, .needles, .artwork, .paletteUnderCanvas, .showUnderlay, .densityMap, .play, .rewind]),

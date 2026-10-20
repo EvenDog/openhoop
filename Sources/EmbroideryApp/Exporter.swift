@@ -2,6 +2,7 @@
 import AppKit
 import EmbroideryCore
 import Darwin
+import UniformTypeIdentifiers
 
 struct ExportRequest: Encodable {
     var version = 1
@@ -83,5 +84,52 @@ extension Exporter {
         let response=try JSONDecoder().decode(ImportResponse.self,from:runHelper(bytes:bytes,executable:executable))
         guard response.version==1,response.ok,response.format==format.rawValue,response.plan != nil else{throw DesignError.invalid(response.error ?? "Invalid machine import response.")}
         return response
+    }
+}
+
+/// The Format popup at the bottom of the export save window: one entry per machine format, PES twice for its two
+/// versions. Picking one changes the file name's extension to match. The thread list (a .csv file) uses it too,
+/// since the format decides which thread palette the list names.
+@MainActor final class ExportFormatPicker: NSObject {
+    struct Choice { let id: String; let title: String; let format: MachineFormat; let pesVersion: Int }
+    static let choices: [Choice] = [
+        Choice(id: "pes6", title: "PES 6 — Brother / Baby Lock", format: .pes, pesVersion: 6),
+        Choice(id: "pes1", title: "PES 1 — older Brother machines", format: .pes, pesVersion: 1),
+        Choice(id: "pec", title: "PEC — Brother", format: .pec, pesVersion: 6),
+        Choice(id: "dst", title: "DST — Tajima", format: .dst, pesVersion: 6),
+        Choice(id: "exp", title: "EXP — Melco / Bernina", format: .exp, pesVersion: 6),
+        Choice(id: "jef", title: "JEF — Janome", format: .jef, pesVersion: 6),
+        Choice(id: "vp3", title: "VP3 — Husqvarna / Pfaff", format: .vp3, pesVersion: 6),
+        Choice(id: "xxx", title: "XXX — Singer", format: .xxx, pesVersion: 6),
+    ]
+    let popup = NSPopUpButton(frame: .zero, pullsDown: false)
+    private let shown: [Choice]
+    private weak var panel: NSSavePanel?
+    private let threadListOnly: Bool
+    /// Fills the popup (the thread list needs only one PES entry) and selects `remembered`, the id last exported
+    /// with, or PES 6.
+    init(panel: NSSavePanel, threadListOnly: Bool, remembered: String?) {
+        self.panel = panel; self.threadListOnly = threadListOnly
+        shown = threadListOnly ? Self.choices.filter { $0.id != "pes1" } : Self.choices
+        super.init()
+        popup.addItems(withTitles: shown.map(\.title))
+        popup.selectItem(at: shown.firstIndex { $0.id == remembered } ?? 0)
+        popup.target = self; popup.action = #selector(changed)
+        changed()
+    }
+    var choice: Choice { shown[max(0, popup.indexOfSelectedItem)] }
+    /// "Format:" and the popup, laid out for the save window's accessory area.
+    var accessoryView: NSView {
+        let row = NSStackView(views: [NSTextField(labelWithString: "Format:"), popup])
+        row.edgeInsets = NSEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
+        return row
+    }
+    /// Gives the file name the chosen format's extension (the thread list stays a .csv file).
+    @objc private func changed() {
+        guard let panel else { return }
+        let ext = threadListOnly ? "csv" : choice.format.rawValue
+        panel.allowedContentTypes = [UTType(filenameExtension: ext) ?? .data]
+        let base = (panel.nameFieldStringValue as NSString).deletingPathExtension
+        panel.nameFieldStringValue = (base.isEmpty ? "Design" : base) + "." + ext
     }
 }

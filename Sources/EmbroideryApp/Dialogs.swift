@@ -21,14 +21,6 @@ import EmbroideryCore
         window.orderOut(nil)
         return response == .OK
     }
-    /// The format chooser: returns the picked format, or nil if the person cancelled.
-    static func chooseFormat(threadListOnly: Bool) -> MachineFormat? {
-        var chosen: MachineFormat?   // the chooser's closure writes the pick here before the dialog closes
-        let confirmed = run(width: 820) { finish in
-            FormatChooserView(threadListOnly: threadListOnly) { format in chosen = format; finish(format != nil) }
-        }
-        return confirmed ? chosen : nil
-    }
 }
 
 /// The shared look of every dialog: a small label, a serif title and subtitle, the body, then Cancel and the main button.
@@ -203,69 +195,6 @@ struct NotesList: View {
                 }
                 .padding(10).background(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.divider))
             }
-        }
-    }
-}
-
-/// The machine-format chooser: one card per format, plus notes on the selected format.
-struct FormatChooserView: View {
-    let threadListOnly: Bool
-    let choose: (MachineFormat?) -> Void
-    @State private var selected: MachineFormat = .pes
-    var body: some View {
-        DialogFrame(eyebrow: threadListOnly ? "Thread list" : "Save for machine",
-                    title: threadListOnly ? "Thread list for which format?" : "Choose a machine format",
-                    subtitle: "PES is the default for your Brother. Select the format accepted by the target machine.",
-                    primary: "Continue", finish: { confirmed in choose(confirmed ? selected : nil) }) {
-            HStack(alignment: .top, spacing: 20) {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], spacing: 10) {
-                    ForEach(MachineFormat.allCases, id: \.self) { format in card(format) }
-                }
-                .frame(maxWidth: .infinity)
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Good to know about \(selected.title)").font(Theme.heading(17))
-                    ForEach(Self.notes(for: selected), id: \.self) { note in
-                        HStack(alignment: .top, spacing: 8) { Text("•"); Text(note).fixedSize(horizontal: false, vertical: true) }
-                    }
-                    Spacer(minLength: 0)
-                }
-                .font(Theme.body(12)).foregroundStyle(Theme.ink)
-                .padding(14).frame(width: 250, alignment: .leading).frame(maxHeight: .infinity, alignment: .top)
-                .background(Theme.ground, in: RoundedRectangle(cornerRadius: 14))
-            }
-        }
-    }
-    private func card(_ format: MachineFormat) -> some View {
-        let active = selected == format
-        // The description reads like "PES — Brother / Baby Lock"; the part after the dash names the machines.
-        let machines = format.description.components(separatedBy: " — ").last ?? ""
-        return Button { selected = format } label: {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack {
-                    Text(format.title).font(Theme.heading(19))
-                    Spacer()
-                    if format == .pes { Text("Default").font(Theme.body(10, weight: .bold)).padding(.horizontal, 7).padding(.vertical, 2).background(Theme.success.opacity(0.15), in: Capsule()).foregroundStyle(Theme.success) }
-                }
-                Text(machines).font(Theme.body(12, weight: .semibold))
-            }
-            .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-            .background(active ? Theme.accentSoft : Theme.card, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(active ? Theme.accent : Theme.divider, lineWidth: 2))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(active ? .isSelected : [])
-    }
-    /// Plain-English notes per format, condensed from the export format table in README.md.
-    static func notes(for format: MachineFormat) -> [String] {
-        switch format {
-        case .pes: return ["PES 6 stores your exact thread colors. The embedded preview and PES 1 use Brother's palette.", "The design must fit the hoop chosen under Sewing area; its size is stored in the file.", "Moves between parts can become trims. Separate trim requests may be omitted; your machine decides whether to cut."]
-        case .pec: return ["Colors are matched to Brother's palette.", "Moves and trims follow PEC's rules; the configured hoop is checked."]
-        case .dst: return ["DST doesn't store thread colors. Export the thread list (CSV) to know the loading order.", "Trims are written as jump sequences; whether they cut depends on the machine's setup."]
-        case .exp: return ["EXP doesn't store thread colors. Export the thread list (CSV) to know the loading order.", "Trim commands are written, but controllers treat them differently."]
-        case .jef: return ["Colors are matched to Janome's palette.", "The file picks a standard hoop from the design's size; placement outside that hoop is rejected."]
-        case .vp3: return ["VP3 stores your thread colors.", "Moves between parts are always trimmed first.", "How the first move behaves still needs a test sew-out."]
-        case .xxx: return ["XXX stores your thread colors.", "This exporter allows at most 21 thread blocks."]
         }
     }
 }

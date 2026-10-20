@@ -15,28 +15,19 @@ public struct KeyBinding: Codable, Hashable, Sendable {
 }
 
 public enum CommandID: String, Codable, CaseIterable, Sendable {
-    case new, open, save, saveAs, close, importImage, importSVG, importMachine, exportPES, exportMachine, exportDST, exportEXP, exportJEF, exportVP3, exportXXX, exportPEC, exportThreadList, productionWorksheet, sample, stitchSampler, settings
+    case new, open, save, saveAs, close, importImage, importSVG, importMachine, exportMachine, exportThreadList, productionWorksheet, sample, stitchSampler, settings
     case selectTool, artworkTool, runTool, satinTool, fillTool, holeTool, removeHoles, nodeTool, panTool, entryExitTool, autoStartPoints, clearStartEnd, lettering, editLettering, autoDigitize, satinBorder, applique, done, finishPath, cancelPath, removePoint, insertNode, deleteNode, toggleNodeType, breakApartLettering, densityMap, testSwatches, useAsFillGuide, putLetteringOnLine, renameObject, convertFill, convertRun, convertSatin, toggleUnderlay, showUnderlay, focusSpacing, focusAngle
     case openShapeTool, closedShapeTool, freehandOpenTool, freehandClosedTool, rectangleTool, ellipseTool, basicShapeTool, knifeTool, weldObjects, smoothShapes, laydown, branching, addStitchAngles, removeStitchAngles, editStitches, addMonogram, editMonogram
     case undo, redo, delete, selectAll, sequenceBySelection, sequenceByColor, alignLeft, alignCentersVertically, alignRight, alignTop, alignCentersHorizontally, alignBottom, alignCenters, spaceAcross, spaceDown, duplicate, mirrorH, mirrorV, rotateLeft, rotateRight, earlier, later, closePath, lockObject, hideObject, tieIn, tieOut, trimAfter, stopAfter, group, ungroup, threadChart, cutObjects, copyObjects, pasteObjects
     case zoomIn, zoomOut, zoomFit, zoomDesign, zoomBoxTool, zoomActual, zoomSelected, showStitches, showOutlines, showConnectors, hideOthers, measureTool, grid, snap, clearGuides, needles, threadView, artwork, inspector, palette, restoreWorkspace, saveWorkspace, proView, useInches, showRulers, paletteUnderCanvas
     case panelSewingOrder, panelDesign, panelReference, nextTab, previousTab
     case nudgeLeft, nudgeRight, nudgeUp, nudgeDown, play, rewind, focusLength
-    public var exportFormat:MachineFormat? {
-        switch self {
-        case .exportPES:return .pes;case .exportDST:return .dst;case .exportEXP:return .exp
-        case .exportJEF:return .jef;case .exportVP3:return .vp3;case .exportXXX:return .xxx;case .exportPEC:return .pec
-        default:return nil
-        }
-    }
-    public var isExport:Bool {exportFormat != nil || self == .exportMachine || self == .exportThreadList}
+    public var isExport:Bool {self == .exportMachine || self == .exportThreadList}
     public var title: String {
         switch self {
         case .importMachine:return "Import Machine File…"
         case .importSVG:return "Import SVG Outlines…"
         case .exportMachine:return "Export Machine File…"
-        case .exportDST:return "Export DST…";case .exportEXP:return "Export EXP…";case .exportJEF:return "Export JEF…"
-        case .exportVP3:return "Export VP3…";case .exportXXX:return "Export XXX…";case .exportPEC:return "Export PEC…"
         case .exportThreadList:return "Export Thread List…"
         case .productionWorksheet:return "Production Worksheet…"
         case .stitchSampler:return "Open Satin + Fill Sampler"
@@ -48,7 +39,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .new: return "New Design"; case .open: return "Open Project…"; case .save: return "Save"; case .saveAs: return "Save As…"
         case .close: return "Close Window"
         case .tieIn: return "Toggle Tie In"; case .tieOut: return "Toggle Tie Off"; case .trimAfter: return "Toggle Trim After"; case .stopAfter: return "Toggle Stop After"
-        case .importImage: return "Import Reference Image…"; case .exportPES: return "Export PES…"; case .sample: return "Open Sample Design"
+        case .importImage: return "Import Reference Image…"; case .sample: return "Open Sample Design"
         case .settings: return "Settings…"; case .selectTool: return "Select"; case .runTool: return "Running Stitch"
         case .nodeTool: return "Edit Nodes"; case .panTool: return "Pan"; case .entryExitTool: return "Start & End Points"; case .autoStartPoints: return "Auto Start Points"; case .clearStartEnd: return "Clear Start & End Points"; case .lettering: return "Add Lettering"; case .editLettering: return "Edit Lettering"; case .autoDigitize: return "Auto-Digitize Artwork…"; case .satinBorder: return "Add Satin Border…"; case .applique: return "Make Appliqué…"; case .artworkTool: return "Move & Size Artwork"; case .done: return "Done (Back to Select)"; case .finishPath: return "Finish Path"; case .cancelPath: return "Cancel Path"
         case .openShapeTool: return "Digitize Open Shape"; case .closedShapeTool: return "Digitize Closed Shape"
@@ -91,14 +82,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .importImage: return "Bring in a PNG or JPEG to trace over. It's only a guide: it never sews."
         case .importSVG: return "Bring in an SVG drawing as outlines, at its real size, ready to turn into stitches."
         case .importMachine: return "Bring in stitches from a machine file (PES, DST, JEF and more) into this design."
-        case .exportPES: return "Save the stitches as a PES file for Brother and Babylock machines."
-        case .exportMachine: return "Save the stitches as a machine file, in the format you choose."
-        case .exportDST: return "Save the stitches as a DST file (Tajima), which most machines read."
-        case .exportEXP: return "Save the stitches as an EXP file (Melco and Bernina)."
-        case .exportJEF: return "Save the stitches as a JEF file (Janome)."
-        case .exportVP3: return "Save the stitches as a VP3 file (Husqvarna Viking and Pfaff)."
-        case .exportXXX: return "Save the stitches as an XXX file (Singer)."
-        case .exportPEC: return "Save the stitches as a PEC file (older Brother machines)."
+        case .exportMachine: return "Save the stitches as a machine file. Pick the format in the save window: PES for Brother and Baby Lock, DST, JEF and more."
         case .exportThreadList: return "Save a list of the design's threads, in sewing order."
         case .productionWorksheet: return "A page to keep beside the machine: a picture of the design, its size and its threads in order."
         case .sample: return "Open a small ready-made design to try things on."
@@ -238,7 +222,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
     }
     public var category: String {
         switch self {
-        case .new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportPES, .exportMachine, .exportDST, .exportEXP, .exportJEF, .exportVP3, .exportXXX, .exportPEC, .exportThreadList, .productionWorksheet, .sample, .stitchSampler: return "File"
+        case .new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportMachine, .exportThreadList, .productionWorksheet, .sample, .stitchSampler: return "File"
         case .selectTool, .runTool, .satinTool, .fillTool, .holeTool, .nodeTool, .panTool, .entryExitTool, .autoStartPoints, .clearStartEnd, .lettering, .editLettering, .autoDigitize, .satinBorder, .applique, .done, .artworkTool, .finishPath, .cancelPath, .removePoint, .openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool, .knifeTool, .laydown, .branching, .addStitchAngles, .removeStitchAngles, .useAsFillGuide, .putLetteringOnLine, .editStitches, .addMonogram, .editMonogram: return "Digitizing"
         case .settings, .inspector, .palette, .restoreWorkspace, .saveWorkspace, .panelSewingOrder, .panelDesign, .panelReference, .nextTab, .previousTab: return "Workspace"
         case .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .clearGuides, .needles, .threadView, .artwork, .play, .rewind, .proView, .useInches, .showRulers, .paletteUnderCanvas, .densityMap: return "View"
@@ -272,7 +256,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .new: return [.init("n", 1)]; case .open: return [.init("o", 1)]; case .save: return [.init("s", 1)]
         case .saveAs: return [.init("s", 3)]; case .close: return [.init("w", 1)]; case .settings: return [.init(",", 1)]
         case .importImage: return [.init("i", 1)]; case .importSVG: return [.init("i", 3)]; case .importMachine: return [.init("o", 5)]
-        case .exportPES: return [.init("e", 1)]; case .exportMachine: return [.init("e", 2), .init("e", 3)]
+        case .exportMachine: return [.init("e", 1), .init("e", 2), .init("e", 3)]
         case .productionWorksheet: return [.init("p", 1)]
         // Digitizing tools
         case .selectTool: return [.init("o")]
@@ -342,7 +326,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .satinTool:return "openhoop.satin";case .fillTool:return "square.fill";case .holeTool:return "circle.dashed"
         case .selectTool: return "cursorarrow"; case .runTool: return "point.topleft.down.to.point.bottomright.curvepath"
         case .nodeTool: return "point.3.connected.trianglepath.dotted"; case .toggleNodeType: return "circle.square"; case .breakApartLettering: return "burst"; case .densityMap: return "circle.grid.3x3.fill"; case .testSwatches: return "square.grid.2x2"; case .useAsFillGuide: return "scribble.variable"; case .putLetteringOnLine: return "textformat.abc"; case .panTool: return "hand.draw"; case .entryExitTool: return "flag"; case .autoStartPoints: return "wand.and.stars"; case .clearStartEnd: return "flag.slash"; case .lettering: return "textformat"; case .editLettering: return "character.cursor.ibeam"; case .autoDigitize: return "wand.and.rays"; case .satinBorder: return "circle.circle"; case .applique: return "scissors"; case .done: return "checkmark.circle"; case .artworkTool: return "photo"
-        case .importImage: return "photo.badge.plus"; case .exportPES: return "square.and.arrow.up"; case .productionWorksheet: return "doc.text"; case .save: return "square.and.arrow.down"
+        case .importImage: return "photo.badge.plus"; case .exportMachine: return "square.and.arrow.up"; case .productionWorksheet: return "doc.text"; case .save: return "square.and.arrow.down"
         case .zoomFit: return "arrow.up.left.and.arrow.down.right"; case .zoomBoxTool: return "plus.magnifyingglass"; case .zoomActual: return "1.magnifyingglass"; case .zoomSelected: return "viewfinder"; case .zoomDesign: return "square.dashed";
         case .showStitches: return "point.topleft.down.to.point.bottomright.curvepath.fill"; case .showOutlines: return "rectangle.dashed"; case .showConnectors: return "line.diagonal"; case .hideOthers: return "eye.square"; case .measureTool: return "ruler"; case .sequenceBySelection: return "list.number"; case .sequenceByColor: return "paintpalette"
         case .alignLeft: return "align.horizontal.left"; case .alignCentersVertically: return "align.horizontal.center"; case .alignRight: return "align.horizontal.right"
@@ -363,12 +347,12 @@ public struct ShortcutProfile: Codable, Equatable, Identifiable {
     public var name: String
     public var bindings: [String: [KeyBinding]]
     /// Which set of default keys this profile was made with: nil for profiles saved with the first default keys, 2
-    /// after, 3 once Branching took I from Insert Node.
+    /// after, 3 once Branching took I from Insert Node, 4 once the export commands became one.
     public var keySet: Int?
     public init(name: String = "My Shortcuts") {
         self.name = name
         bindings = Dictionary(uniqueKeysWithValues: CommandID.allCases.map { ($0.rawValue, $0.defaults) })
-        keySet = 3
+        keySet = 4
     }
     /// Moves a profile saved with the first default keys onto the second set, once. Only commands still on their old
     /// default key change; keys the person set themselves stay, and a new default that would clash with one of
@@ -396,15 +380,30 @@ public struct ShortcutProfile: Codable, Equatable, Identifiable {
         keySet = 3
         return true
     }
+    /// The one-format export commands (Export PES…, Export DST… and the rest) were folded into Export Machine File…,
+    /// which picks the format in the save window. Once, it takes over their keys (⌘E was Export PES…'s) where
+    /// they're free, and their saved keys are dropped. Returns whether anything changed.
+    @discardableResult public mutating func updateToOneExport() -> Bool {
+        guard keySet == 3 else { return false }
+        let retired = ["exportPES", "exportDST", "exportEXP", "exportJEF", "exportVP3", "exportXXX", "exportPEC"]
+        var keys = bindings[CommandID.exportMachine.rawValue] ?? []
+        for binding in retired.flatMap({ bindings[$0] ?? [] }) where !keys.contains(binding) && conflicts(binding, for: .exportMachine).isEmpty {
+            keys.append(binding)
+        }
+        bindings[CommandID.exportMachine.rawValue] = keys
+        for name in retired { bindings[name] = nil }
+        keySet = 4
+        return true
+    }
     /// Brings a saved profile up to date: the moves above (each once, keeping keys the person set), then commands
     /// added since it was saved get their default keys where they're free. The moves come first, so new commands
     /// can have keys the moves freed. Returns whether any keys moved.
     @discardableResult public mutating func upgrade() -> Bool {
-        let movedToSecondSet = updateToSecondKeySet(), movedForBranching = updateToBranchingKey()
+        let movedToSecondSet = updateToSecondKeySet(), movedForBranching = updateToBranchingKey(), joinedExports = updateToOneExport()
         for command in CommandID.allCases where bindings[command.rawValue] == nil {
             bindings[command.rawValue] = command.defaults.filter { conflicts($0, for: command).isEmpty }
         }
-        return movedToSecondSet || movedForBranching
+        return movedToSecondSet || movedForBranching || joinedExports
     }
     public func conflicts(_ binding: KeyBinding, for command: CommandID) -> [CommandID] {
         CommandID.allCases.filter { $0 != command && !$0.contexts.isDisjoint(with: command.contexts) && (bindings[$0.rawValue] ?? []).contains(binding) }

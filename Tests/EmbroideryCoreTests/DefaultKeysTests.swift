@@ -14,7 +14,7 @@ final class DefaultKeysTests: XCTestCase {
             (.init("f7"), .applique), (.init("o", 3), .satinBorder), (.init("u"), .toggleUnderlay), (.init("k"), .lockObject),
             (.init("g", 2), .grid), (.init("g", 3), .snap), (.init("."), .needles), (.init("d"), .artwork),
             (.init("z"), .zoomIn), (.init("z", 2), .zoomOut), (.init("0", 4), .zoomFit), (.init("1", 1), .mirrorH), (.init("1", 4), .mirrorV),
-            (.init("u", 1), .ungroup), (.init("y", 1), .redo), (.init("r", 2), .play), (.init("home"), .rewind), (.init("e", 2), .exportMachine),
+            (.init("u", 1), .ungroup), (.init("y", 1), .redo), (.init("r", 2), .play), (.init("home"), .rewind), (.init("e", 1), .exportMachine), (.init("e", 2), .exportMachine),
             (.init("p", 1), .productionWorksheet), (.init("d", 1), .duplicate), (.init("escape"), .done), (.init("delete"), .delete),
             (.init("t"), .threadView), (.init("b"), .zoomBoxTool), (.init("1"), .zoomActual), (.init("0"), .zoomDesign), (.init("0", 2), .zoomSelected),
             (.init("s"), .showStitches), (.init("l"), .showOutlines), (.init("c", 2), .showConnectors), (.init("s", 2), .hideOthers), (.init("m"), .measureTool),
@@ -63,7 +63,7 @@ final class DefaultKeysTests: XCTestCase {
     }
     func testProfileKeySetSurvivesSaving() throws {
         let saved = try JSONDecoder().decode(ShortcutProfile.self, from: JSONEncoder().encode(ShortcutProfile()))
-        XCTAssertEqual(saved.keySet, 3)
+        XCTAssertEqual(saved.keySet, 4)
         var old = try JSONSerialization.jsonObject(with: JSONEncoder().encode(ShortcutProfile())) as! [String: Any]
         old.removeValue(forKey: "keySet")
         XCTAssertNil(try JSONDecoder().decode(ShortcutProfile.self, from: JSONSerialization.data(withJSONObject: old)).keySet)
@@ -97,6 +97,26 @@ final class DefaultKeysTests: XCTestCase {
         }
         XCTAssertFalse(profile.upgrade(), "only once")
         try profile.validate()
+    }
+    func testSavedProfileMovesExportPESKeysToTheOneExport() throws {
+        // Saved before the exports became one: ⌘E on Export PES…, ⇧E and ⇧⌘E on Export Machine File…, and a key the
+        // person gave Export DST….
+        var profile = ShortcutProfile(); profile.keySet = 3
+        profile.bindings[CommandID.exportMachine.rawValue] = [.init("e", 2), .init("e", 3)]
+        profile.bindings["exportPES"] = [.init("e", 1)]; profile.bindings["exportDST"] = [.init("d", 5)]
+        XCTAssertTrue(profile.upgrade())
+        XCTAssertEqual(profile.bindings[CommandID.exportMachine.rawValue], [.init("e", 2), .init("e", 3), .init("e", 1), .init("d", 5)])
+        XCTAssertNil(profile.bindings["exportPES"]); XCTAssertNil(profile.bindings["exportDST"])
+        XCTAssertEqual(profile.command(for: .init("e", 1), context: .canvas), .exportMachine)
+        XCTAssertFalse(profile.updateToOneExport(), "only once")
+        try profile.validate()
+
+        // A key another command took in the meantime stays with it.
+        var taken = ShortcutProfile(); taken.keySet = 3
+        taken.bindings[CommandID.exportMachine.rawValue] = []; taken.bindings["exportPES"] = [.init("e", 1)]
+        taken.bindings[CommandID.productionWorksheet.rawValue] = [.init("e", 1)]
+        taken.upgrade()
+        XCTAssertEqual(taken.bindings[CommandID.exportMachine.rawValue], [])
     }
     func testInsertNodeKeyClearedOnPurposeStaysCleared() {
         var profile = ShortcutProfile(); profile.keySet = 2
