@@ -6,6 +6,23 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.6.3</title>
+            <pubDate>Tue, 20 Oct 2026 16:04:40 GMT</pubDate>
+            <sparkle:version>9</sparkle:version>
+            <sparkle:shortVersionString>0.6.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.6.3</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. This is an early preview: expect rough edges, and test-sew designs before stitching anything important.</p>
+<h3>New in 0.6.3</h3>
+<ul>
+<li><b>Stop at Jumps, for machines without a thread cutter.</b> A single-needle machine ignores trims and drags the thread across to the next part. Click <b>Stop at Jumps</b> in the Threads panel and the machine pauses after each jump, as it does for a thread change, so you can snip the loose thread and press Start to carry on. Your thread colors stay as they are. It works on the selected objects, or the whole design when nothing is selected. Click <b>Remove Jump Stops</b> to take them off again; stops you set yourself, such as appliqué's, stay.</li>
+<li><b>The stitch player can pause where the machine would.</b> Light the new scissors button beside Play, and playing stops at each trim, stop and thread change. Press Play to carry on to the next one.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.6.3/OpenHoop-0.6.3.dmg" sparkle:edSignature="RyIy4L4D7pGOQc9HxMs8+KfiSilrEvQR5+jwdQ42wegUdIHtAw1T2Ub1GAFEdvjUsoKhJQe8cCyAkGfGAHMkAA==" length="22910952" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.6.2</title>
             <pubDate>Tue, 20 Oct 2026 01:56:39 GMT</pubDate>
             <sparkle:version>8</sparkle:version>
