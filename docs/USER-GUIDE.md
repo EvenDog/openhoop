@@ -61,6 +61,7 @@ Projects using line styles, the stipple, motif, cross stitch, gradient or guided
 
 Smooth, shiny columns for borders, outlines and lettering. Two ways to make one:
 - **Edge by edge:** with **⇧A**, click pairs of points, one on each side of the column, all the way along; press Return after at least two pairs.
+- **Make it longer later:** select the column, choose **⇧A**, and click one of the two points at either end. Drawing picks up from there: click more pairs and press Return, and they join the same column (Esc leaves it as it was). Running lines work the same way with **⇧N**: click the first or last point.
 - **From a center line (⇧I):** draw a running line down the middle, set **Satin width** in Properties (0.8–10 mm), then press **⇧I** (or F6) or **Make satin column**. Sharp turns are rounded just enough for the satin to turn. Turns too tight for the width are explained and the line is left alone.
 
 Settings: **Row spacing**, **Compensation** per side (extra width because thread pulls the fabric in), **Compensation % of width** (More settings; in Pro, **% of width**), and **Maximum stitch**. The percentage adds a share of each stitch's own width on top, so wide parts of a satin get more: new satins start at 3%, so a 2 mm part gets 0.26 mm per side and a 6 mm part 0.38 mm. It's a starting value to tune after a test sew-out. Two helpers, on for new satins:
