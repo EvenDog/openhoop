@@ -921,6 +921,9 @@ final class DesignCanvas: NSView {
         let point = snapped(model(location))
         if state.tool.draws {
             if event.clickCount == 2 { state.finishPath(); return }
+            // With nothing drawn yet, a click on an end of a selected open line (Running tool) or satin column (Satin
+            // tool) picks it up there, to carry on drawing it.
+            if state.draft.isEmpty, let end = continuableEnd(near: location) { state.continueDrawing(end.id, fromStart: end.fromStart); return }
             state.draft.append(PathNode(point, smooth: event.modifierFlags.contains(.control)))
             drawingHandle = state.draft.count - 1; return
         }
@@ -1354,6 +1357,24 @@ final class DesignCanvas: NSView {
     }
     /// The node within reach of `p` (model mm): the selected objects' nodes first, since they're the ones shown, and
     /// only if none is near, the nearest node of any other visible, unlocked object (clicking it selects that object).
+    /// The selected line or satin the current tool can carry on, and which end, when `location` (on screen) is within
+    /// 7 points of one of its end points: a line's first or last point, or either point of a column's first or last
+    /// edge pair. Kept that small so a new column can still start just beside the last one.
+    private func continuableEnd(near location: CGPoint) -> (id: UUID, fromStart: Bool)? {
+        guard state.tool == .run || state.tool == .satin else { return nil }
+        let kind: StitchKind = state.tool == .satin ? .satin : .run
+        var best: (id: UUID, fromStart: Bool)?, distance = 7.0
+        for object in state.design.objects where state.selection.contains(object.id) && object.visible && object.kind == kind && object.canContinueDrawing {
+            let handles = object.continueHandles
+            for (points, fromStart) in [(handles.start, true), (handles.end, false)] {
+                for point in points {
+                    let onScreen = screen(point), gap = hypot(onScreen.x - location.x, onScreen.y - location.y)
+                    if gap < distance { distance = gap; best = (object.id, fromStart) }
+                }
+            }
+        }
+        return best
+    }
     private func nearestNode(_ p:Point)->NodeLocation? {
         func nearest(selected: Bool) -> NodeLocation? {
             var best:NodeLocation?,distance=9/state.zoom
