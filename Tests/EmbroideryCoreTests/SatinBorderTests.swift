@@ -61,7 +61,7 @@ final class SatinBorderTests: XCTestCase {
         XCTAssertThrowsError(try SatinBorder.around(fill([Point(0, 0), Point(30, 0), Point(30, 1.5), Point(0, 1.5)]), width: 6, color: thread))
         let dumbbell = fill([Point(0, 0), Point(20, 0), Point(20, 9.5), Point(30, 9.5), Point(30, 0), Point(50, 0), Point(50, 20), Point(30, 20), Point(30, 10.5), Point(20, 10.5), Point(20, 20), Point(0, 20)])
         XCTAssertThrowsError(try SatinBorder.around(dumbbell, width: 4, color: thread)) { XCTAssertTrue($0.localizedDescription.contains("neck")) }
-        XCTAssertThrowsError(try SatinBorder.around(fill(square), width: 12, color: thread))
+        XCTAssertThrowsError(try SatinBorder.around(fill(square), width: 0.5, color: thread), "narrower than 1 mm")
         var open = fill(square); open.digitizing = nil; open.closed = false
         XCTAssertFalse(SatinBorder.canBorder(open))
     }
@@ -91,7 +91,7 @@ final class SatinBorderTests: XCTestCase {
         }
         XCTAssertNoThrow(try AreaEngine.satin(wider))
         XCTAssertEqual(try XCTUnwrap(SatinLine.evenWidth(of: SatinLine.rewidth(wider, to: 3))), 3, accuracy: 0.05, "and back again")
-        XCTAssertThrowsError(try SatinLine.rewidth(border, to: 20), "outside 0.8–10 mm")
+        XCTAssertThrowsError(try SatinLine.rewidth(border, to: 0.5), "narrower than 0.8 mm")
     }
 
     /// Open satin lines change width too. Their sharp turns were rounded for the width they were made at, so a turn

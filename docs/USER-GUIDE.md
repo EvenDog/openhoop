@@ -65,7 +65,7 @@ Smooth, shiny columns for borders, outlines and lettering. Two ways to make one:
 
 Settings: **Row spacing**, **Compensation** per side (extra width because thread pulls the fabric in), **Compensation % of width** (More settings; in Pro, **% of width**), and **Maximum stitch**. The percentage adds a share of each stitch's own width on top, so wide parts of a satin get more: new satins start at 3%, so a 2 mm part gets 0.26 mm per side and a 6 mm part 0.38 mm. It's a starting value to tune after a test sew-out. Two helpers, on for new satins:
 - **Short stitches on curves:** on the inside of a curve, every other stitch stops short so the thread doesn't pile up.
-- **Split wide satin:** stitches longer than the maximum are split into shorter, staggered ones instead of the column being refused.
+- **Split wide satin:** stitches longer than the maximum are split into shorter, staggered ones instead of the column being refused. Maximum stitch can be as long as you like, but stitches over 12 mm get a warning: they can snag, and machine files split them all at the same place.
 - **Raised (padded):** lanes of padding stitches are sewn along the column first, so the satin stands up off the fabric for a 3D look. Best on columns 3 mm and wider.
 
 ### Fills (F3)

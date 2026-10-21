@@ -324,6 +324,10 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     public var expansion=0.2
     public var angle=45.0
     public var maximumSatin=10.0
+    /// Satin columns' Maximum stitch can be as long as anyone wants (the top only keeps project files sane). Stitches
+    /// longer than `longSatinStitch` get a warning instead: they can snag, and machine files can't hold a stitch much
+    /// longer than 12 mm (DST: 12.1 mm), so the export splits them all at the same place.
+    public static let maximumSatinRange=1.0...1000.0, longSatinStitch=12.0
     public var underlay:UnderlayStyle {
         // A second underlay needs a first one, of a different style (the same style twice would just sew it again).
         // Auto picks its own second underlay.
@@ -639,7 +643,7 @@ public struct Design: Codable, Equatable, Sendable {
                 let s=object.settings
                 guard object.allNodes.count<=2000,(object.holes?.count ?? 0)<=100,
                       (0.15...10).contains(s.spacing),(0...2).contains(s.expansion),(-180...180).contains(s.angle),
-                      (1...10).contains(s.maximumSatin),s.satinSplit.map(DigitizingSettings.satinSplitRange.contains) ?? true,(0...3).contains(s.inset),(0.5...5).contains(s.underlaySpacing),
+                      DigitizingSettings.maximumSatinRange.contains(s.maximumSatin),s.satinSplit.map(DigitizingSettings.satinSplitRange.contains) ?? true,(0...3).contains(s.inset),(0.5...5).contains(s.underlaySpacing),
                       object.kind == .fill ? [.none,.edge,.edgeAndSparse].contains(s.underlay) : [.none,.center,.edge,.zigzag,.auto].contains(s.underlay),
                       s.secondUnderlay.map({object.kind == .satin && s.underlay != .none && s.underlay != .auto && $0 != s.underlay && [.center,.edge,.zigzag].contains($0)}) ?? true,
                       s.pullPercent.map({object.kind == .satin && DigitizingSettings.pullPercentRange.contains($0)}) ?? true else {throw DesignError.invalid("Invalid digitizing settings in \(object.name).")}

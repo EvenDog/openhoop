@@ -858,7 +858,7 @@ struct InspectorPanel: View {
                 number(object.kind == .fill ? "Fill expansion":"Compensation / side",value:object.settings.expansion,range:0...2,help:object.kind == .fill ? "Grows the fill past its outline by this much, because thread pulls fabric inward as it sews." : "Thread pulls fabric inward as it sews. A little extra width on each side keeps the column the size you drew."){value in settings(object.kind,"Compensation"){$0.expansion=value}}
                 if object.kind == .satin {
                     number("Compensation % of width",value:object.settings.pullPercent ?? 0,range:DigitizingSettings.pullPercentRange,help:"Extra compensation for each stitch, as a share of its width, on top of the amount above, so wide parts of the satin get more. 3% is a starting value to tune after a test sew-out."){value in settings(.satin,"Compensation % of Width"){$0.pullPercent=value}}
-                    number("Maximum stitch",value:object.settings.maximumSatin,range:1...10,help:"The longest satin stitch allowed. With Split wide satin on, longer stitches are split; otherwise wider columns are refused."){value in settings(.satin,"Satin Limit"){$0.maximumSatin=value}}
+                    number("Maximum stitch",value:object.settings.maximumSatin,range:DigitizingSettings.maximumSatinRange,help:"The longest satin stitch allowed. With Split wide satin on, longer stitches are split; otherwise wider columns are refused. Stitches over 12 mm get a warning: they can snag, and machine files split them."){value in settings(.satin,"Satin Limit"){$0.maximumSatin=value}}
                     satinOptions(object)
                 }
             }
