@@ -154,7 +154,7 @@ final class RandomDesignTests: XCTestCase {
         let width = Double.random(in: 3...120, using: &r), height = width * Double.random(in: 0.3...1.5, using: &r)
         let center = Point(.random(in: -100...100, using: &r), .random(in: -100...100, using: &r))
         let box = (min: Point(center.x - width / 2, center.y - height / 2), max: Point(center.x + width / 2, center.y + height / 2))
-        let satinWidth = Double.random(in: SatinLine.widths, using: &r)
+        let satinWidth = Double.random(in: 0.8...10, using: &r)   // everyday widths; SatinLine.widths goes up to 1,000 mm
         switch Int.random(in: 0..<10, using: &r) {
         case 0..<5:
             return try closedShape(randomOutline(&r, in: box), &r, satinWidth: satinWidth, name: name)

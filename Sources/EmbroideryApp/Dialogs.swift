@@ -387,7 +387,7 @@ struct SatinBorderView: View {
                         Stepper(value: $width, in: SatinBorder.widths, step: 0.5) {
                             Text("Width: \(width.formatted()) mm").font(Theme.body(13, weight: .semibold))
                         }
-                        Text("Patch borders are usually 2.5–4 mm. Satin wider than about 7 mm can snag.")
+                        Text("Patch borders are usually 2.5–4 mm. Satin stitches over 12 mm can snag.")
                             .font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
                         HStack(spacing: 6) {
                             Circle().fill(Color(nsColor: color.nsColor)).frame(width: 12, height: 12)

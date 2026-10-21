@@ -511,7 +511,7 @@ extension InspectorPanel {
             number("Row spacing", value: object.settings.spacing, id: "rowSpacing", range: 0.15...5, help: "Gap between each pass of thread. Smaller gaps give fuller coverage and use more stitches.") { value in settings(.satin, "Row Spacing") { $0.spacing = value } }
             number("Compensation / side", value: object.settings.expansion, range: 0...2, help: "Thread pulls fabric inward as it sews. A little extra width on each side keeps the column the size you drew.") { value in settings(.satin, "Compensation") { $0.expansion = value } }
             number("% of width", value: object.settings.pullPercent ?? 0, range: DigitizingSettings.pullPercentRange, help: "Extra compensation for each stitch, as a share of its width, on top of the amount above, so wide parts of the satin get more. 3% is a starting value to tune after a test sew-out.") { value in settings(.satin, "Compensation % of Width") { $0.pullPercent = value } }
-            number("Maximum stitch", value: object.settings.maximumSatin, range: 1...10, help: "The longest satin stitch allowed. With Split wide satin on, longer stitches are split; otherwise wider columns are refused.") { value in settings(.satin, "Satin Limit") { $0.maximumSatin = value } }
+            number("Maximum stitch", value: object.settings.maximumSatin, range: DigitizingSettings.maximumSatinRange, help: "The longest satin stitch allowed. With Split wide satin on, longer stitches are split; otherwise wider columns are refused. Stitches over 12 mm get a warning: they can snag, and machine files split them.") { value in settings(.satin, "Satin Limit") { $0.maximumSatin = value } }
             satinOptions(object)
             border(object)
         }

@@ -4,7 +4,8 @@
 import Foundation
 
 public enum SatinLine {
-    public static let widths = 0.8...10.0
+    /// As wide as anyone wants (the top only keeps values sane); stitches over 12 mm get a warning when sewn.
+    public static let widths = 0.8...1000.0
     public static let defaultWidth = 3.0
 
     /// True for objects that can become a satin column this way: running lines and unstitched outlines.
@@ -16,7 +17,7 @@ public enum SatinLine {
     /// place. Sharp turns are rounded just enough for the satin to turn. Throws, with a reason, if it can't sew.
     public static func column(from object: RunObject, width: Double) throws -> RunObject {
         guard canConvert(object) else { throw DesignError.invalid("‘\(object.name)’ isn't a line. Satin from a center line needs a running stitch or outline.") }
-        guard widths.contains(width) else { throw DesignError.invalid("Satin width must be between 0.8 and 10 mm.") }
+        guard widths.contains(width) else { throw DesignError.invalid("Satin width must be between 0.8 and 1,000 mm.") }
         var satin = object
         satin.nodes = object.closed
             ? try SatinBorder.edgePairs(around: AreaGeometry.ring(object.nodes), width: width, name: object.name)
@@ -146,7 +147,7 @@ extension SatinLine {
     /// else about it stays. Throws, with a reason, if it isn't an even-width satin or can't sew that wide.
     public static func rewidth(_ object: RunObject, to width: Double) throws -> RunObject {
         guard evenWidth(of: object) != nil else { throw DesignError.invalid("‘\(object.name)’ isn't an even-width satin, so it has no single width to change.") }
-        guard widths.contains(width) else { throw DesignError.invalid("Satin width must be between 0.8 and 10 mm.") }
+        guard widths.contains(width) else { throw DesignError.invalid("Satin width must be between 0.8 and 1,000 mm.") }
         let center = stride(from: 0, to: object.nodes.count, by: 2).map { (object.nodes[$0].point + object.nodes[$0 + 1].point) * 0.5 }
         var satin = object
         satin.nodes = object.closed

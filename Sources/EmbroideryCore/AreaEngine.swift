@@ -505,7 +505,7 @@ public enum AreaEngine {
         let allowed=(try? AreaGeometry.offset(regionRings,by:strayAllowance)) ?? regionRings
         let usableArea=abs(AreaGeometry.area(regionRings[0]))-regionRings.dropFirst().reduce(0){$0+abs(AreaGeometry.area($1))}
         guard usableArea>0.01 else{throw DesignError.invalid("Satin rails have no usable area.")}
-        var pairs:[(Point,Point)]=[],underPairs:[(Point,Point)]=[],warningNarrow=false,warningWide=false,warningCrowded=false
+        var pairs:[(Point,Point)]=[],underPairs:[(Point,Point)]=[],warningNarrow=false,warningCrowded=false
         var lastRung:(Point,Point)?   // the stitch before, rail to rail, without compensation
         var widthTotal=0.0,widthCount=0   // for the column's average width
         for span in leftSegments.indices {
@@ -520,7 +520,7 @@ public enum AreaEngine {
                 let l=a.at(Double(i)/Double(count)),r=b.at(Double(i)/Double(count)),width=l.distance(to:r)
                 if relaxed && width<=0.05 {continue}   // where a fan's rails meet, there's no stitch to make
                 guard width>0.05,relaxed || AreaGeometry.segmentInside(l,r,rings:allowed) else{throw DesignError.invalid("A satin direction rung crosses a rail. Reshape or split the column.")}
-                warningNarrow = warningNarrow || width<1;warningWide = warningWide || width>7
+                warningNarrow = warningNarrow || width<1
                 widthTotal+=width;widthCount+=1
                 // Compensation: the base amount plus (with a percentage) a share of this stitch's own width.
                 let pull=s.expansion+width*(s.pullPercent ?? 0)/100
@@ -573,7 +573,8 @@ public enum AreaEngine {
         }
         var result=ObjectStitches()
         if warningNarrow{result.warnings.append("Satin is narrower than 1 mm in places; check crowding during sew-out.")}
-        if warningWide{result.warnings.append("Satin is wider than 7 mm in places; check loose or snag-prone stitches.")}
+        let longest=tops.flatMap{top in zip(top,top.dropFirst()).map{$0.distance(to:$1)}}.max() ?? 0
+        if longest>DigitizingSettings.longSatinStitch+0.0001 {result.warnings.append("Satin stitches are longer than 12 mm in places: they can snag, and machine files split stitches that long. Turn on Split wide satin or lower Maximum stitch.")}
         if warningCrowded{result.warnings.append("Satin inner-edge points are crowded. Reshape or split tight corners.")}
         // The first underlay, then the second (if any), then the top stitches. The second sews backwards, so the
         // needle goes along the column, back, and along again for the top, with no long travel in between.

@@ -33,6 +33,23 @@ final class SatinToolsTests: XCTestCase {
         XCTAssertThrowsError(try AreaEngine.satin(column(width: 16) { $0.autoSplit = nil }))
     }
 
+    func testMaximumStitchHasNoCapButStitchesOver12mmWarn() throws {
+        let long = { (s: inout DigitizingSettings) in s.autoSplit = nil; s.maximumSatin = 20 }
+        let unsplit = try AreaEngine.satin(column(width: 15, settings: long))
+        XCTAssertTrue(unsplit.warnings.contains { $0.contains("longer than 12 mm") })
+        var design = Design(); design.objects = [column(width: 15, settings: long)]
+        XCTAssertNoThrow(try design.validate(), "a 20 mm Maximum stitch is allowed")
+        // Split into stitches of 10 mm at most, the same wide column sews without the warning; so does one 10 mm wide
+        // (compensation makes its stitches 11 mm; 11 mm wide would sew just over 12).
+        XCTAssertFalse(try AreaEngine.satin(column(width: 15)).warnings.contains { $0.contains("longer than 12 mm") })
+        XCTAssertFalse(try AreaEngine.satin(column(width: 10, settings: long)).warnings.contains { $0.contains("longer than 12 mm") })
+        // Satin from a line and borders can be wider than they used to allow (10 and 8 mm).
+        let wideLine = try SatinLine.column(from: line([Point(-20, 0), Point(20, 0)]), width: 20)
+        XCTAssertNoThrow(try AreaEngine.satin(wideLine))
+        let square = line([Point(-20, -20), Point(20, -20), Point(20, 20), Point(-20, 20)], closed: true)
+        for width in [9.0, 12.0, 20.0] { XCTAssertNoThrow(try SatinBorder.around(square, width: width, color: ThreadColor.palette[0]), "\(width) mm border") }
+    }
+
     func testShortStitchesOnlyOnTheInsideOfCurves() {
         // A quarter ring: inner rail radius 3, outer radius 9.
         let pairs = (0...12).map { k -> (Point, Point) in
@@ -87,7 +104,7 @@ final class SatinToolsTests: XCTestCase {
         var fill = line([Point(0, 0), Point(10, 0), Point(10, 10)], closed: true); fill.digitizing = DigitizingSettings(kind: .fill)
         XCTAssertFalse(SatinLine.canConvert(fill))
         XCTAssertThrowsError(try SatinLine.column(from: line([Point(0, 0), Point(0.5, 0)]), width: 3))
-        XCTAssertThrowsError(try SatinLine.column(from: line([Point(0, 0), Point(10, 0)]), width: 12))
+        XCTAssertThrowsError(try SatinLine.column(from: line([Point(0, 0), Point(10, 0)]), width: 0.5))
         // A hairpin turn tighter than the column can follow.
         XCTAssertThrowsError(try SatinLine.column(from: line([Point(0, 0), Point(20, 0), Point(0, 1)]), width: 6)) { error in
             XCTAssertTrue(error.localizedDescription.contains("doesn't fit"), error.localizedDescription)

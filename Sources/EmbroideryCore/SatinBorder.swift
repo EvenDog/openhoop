@@ -8,7 +8,8 @@ public struct SatinBorderResult: Sendable {
 }
 
 public enum SatinBorder {
-    public static let widths = 1.0...8.0
+    /// As wide as anyone wants (the top only keeps values sane); stitches over 12 mm get a warning when sewn.
+    public static let widths = 1.0...1000.0
 
     /// True for shapes a border can go around: fills and closed outlines.
     public static func canBorder(_ object: RunObject) -> Bool {
@@ -19,7 +20,7 @@ public enum SatinBorder {
     /// Throws if the shape can't take a border that wide.
     public static func around(_ object: RunObject, width: Double, color: ThreadColor) throws -> SatinBorderResult {
         guard canBorder(object) else { throw DesignError.invalid("‘\(object.name)’ isn't a closed shape. Borders go around fills and closed outlines.") }
-        guard widths.contains(width) else { throw DesignError.invalid("Border width must be between 1 and 8 mm.") }
+        guard widths.contains(width) else { throw DesignError.invalid("Border width must be between 1 and 1,000 mm.") }
         let edge = AreaGeometry.ring(object.nodes)
         let nodes = try edgePairs(around: edge, width: width, name: object.name)
         var border = RunObject(name: "\(object.name) border", nodes: nodes, color: color)
@@ -42,8 +43,10 @@ public enum SatinBorder {
         let half = width / 2
         // The centerline's corners must curve more gently than half the width, or the satin stitches on the inside
         // of a corner would cross each other. The extra 0.6 mm leaves room for pull compensation (0.2 mm by default),
-        // which pushes the inside ends of the stitches further into the corner.
-        var center = try rounded(edge, radius: half + 0.6, name: name, width: width)
+        // which pushes the inside ends of the stitches further into the corner. Past 8 mm it grows with the width:
+        // with a fixed 0.6 mm, the inside ends of wide borders' stitches bunch up so tightly in the corners that they
+        // fold over (from 9 mm on, borders were refused).
+        var center = try rounded(edge, radius: half + max(0.6, width * 0.2 - 1), name: name, width: width)
         if AreaGeometry.area(center) < 0 { center.reverse() }   // counterclockwise, so the outward side is to the right
         // Edge pairs evenly spaced about every 0.8 mm. Uneven spacing could fold a rail back on itself where it is
         // pushed into a corner; even spacing can't, because every corner curves more gently than half the width.
@@ -87,10 +90,18 @@ public enum SatinBorder {
     /// shrinking then growing rounds the outward ones (the geometry library's offsets use round joins). Throws when
     /// parts of the shape are too narrow to survive, which would split the border.
     static func rounded(_ ring: [Point], radius: Double, name: String, width: Double) throws -> [Point] {
-        var rings = try AreaGeometry.offset([ring], by: radius)
-        rings = try AreaGeometry.offset(rings, by: -radius)
-        rings = try AreaGeometry.offset(rings, by: -radius)
-        rings = try AreaGeometry.offset(rings, by: radius)
+        // The geometry library offsets at most 10 mm at a time. Growing (or shrinking) by r in steps that add up to r
+        // gives exactly the same round-cornered shape, so wide borders go in steps.
+        func offset(_ rings: [[Point]], by amount: Double) throws -> [[Point]] {
+            let steps = max(1, Int(ceil(abs(amount) / 10)))
+            var result = rings
+            for _ in 0..<steps { result = try AreaGeometry.offset(result, by: amount / Double(steps)) }
+            return result
+        }
+        var rings = try offset([ring], by: radius)
+        rings = try offset(rings, by: -radius)
+        rings = try offset(rings, by: -radius)
+        rings = try offset(rings, by: radius)
         // Closing a narrow gap can leave a hole; only outer rings (those not inside another ring) matter here.
         let outer = rings.filter { ring in abs(AreaGeometry.area(ring)) > 0.01 && !rings.contains { $0 != ring && AreaGeometry.contains(ring[0], rings: [$0]) } }
         guard let largest = outer.max(by: { abs(AreaGeometry.area($0)) < abs(AreaGeometry.area($1)) }) else {
