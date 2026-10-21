@@ -419,6 +419,105 @@ struct SatinBorderView: View {
     }
 }
 
+extension GuidedDialog {
+    static var lastOutlineOptions = OutlineOptions()
+    /// The Outlines & Offsets dialog: returns each source shape's ID with its new outlines, or nil if the person cancelled.
+    static func outlinesOffsets(_ shapes: [RunObject], color: ThreadColor) -> [(source: UUID, outlines: [RunObject])]? {
+        var made: [(source: UUID, outlines: [RunObject])] = []   // the dialog's closure writes the outlines here before it closes
+        let confirmed = run(width: 760) { finish in
+            OutlinesOffsetsView(shapes: shapes, color: color, options: lastOutlineOptions) { options, outlines in
+                lastOutlineOptions = options; made = outlines ?? []; finish(outlines != nil)
+            }
+        }
+        return confirmed ? made : nil
+    }
+}
+
+/// Pick which outlines to add (on the edge, and up to two offsets) and their stitch, and see them around the
+/// selected shapes. Outlines that don't fit are explained.
+struct OutlinesOffsetsView: View {
+    let shapes: [RunObject]
+    let color: ThreadColor
+    @State var options: OutlineOptions
+    /// Called with the options and the outlines (nil for Cancel).
+    let done: (OutlineOptions, [(source: UUID, outlines: [RunObject])]?) -> Void
+    /// The latest outlines and notes; nil while they are being worked out.
+    @State private var built: (outlines: [(source: UUID, outlines: [RunObject])], notes: [String])?
+    /// Each offset's distance, kept while it's switched off so switching it back on brings it back.
+    @State private var distances: [Double]
+    init(shapes: [RunObject], color: ThreadColor, options: OutlineOptions, done: @escaping (OutlineOptions, [(source: UUID, outlines: [RunObject])]?) -> Void) {
+        self.shapes = shapes; self.color = color; self.done = done
+        _options = State(initialValue: options)
+        _distances = State(initialValue: [options.offsets[0] ?? 3, options.offsets[1] ?? 6])
+    }
+
+    var body: some View {
+        DialogFrame(eyebrow: "Outlines & offsets", title: "Add outlines and offsets",
+                    subtitle: "New outlines around \(shapes.count == 1 ? "the selected shape" : "each selected shape"): one right on its edge, and up to two more a set distance outside or inside it. Each is an ordinary outline you can recolor or reshape.",
+                    primary: "Add Outlines",
+                    finish: { add in
+                        if !add { done(options, nil) } else if let built, built.outlines.contains(where: { !$0.outlines.isEmpty }) { done(options, built.outlines) }
+                    }) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .top, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Toggle("Outline on the edge", isOn: $options.edge).font(Theme.body(13, weight: .semibold))
+                        offsetRow(0); offsetRow(1)
+                        Text("Offsets go outside the shape. Below 0 they go inside it.")
+                            .font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
+                        Picker("Stitch", selection: $options.stitch) { ForEach(OpenShapeStitch.allCases, id: \.self) { Text($0.title).tag($0) } }
+                            .font(Theme.body(13, weight: .semibold))
+                        if options.stitch == .satin {
+                            Stepper(value: $options.satinWidth, in: SatinLine.widths, step: 0.5) {
+                                Text("Satin width: \(options.satinWidth.formatted()) mm").font(Theme.body(13, weight: .semibold))
+                            }
+                        }
+                        Toggle("Outline holes too", isOn: $options.holes).font(Theme.body(13, weight: .semibold))
+                        HStack(spacing: 6) {
+                            Circle().fill(Color(nsColor: color.nsColor)).frame(width: 12, height: 12)
+                            Text("Sews in \(color.name), the current thread, right after its shape.").foregroundStyle(Theme.inkSecondary)
+                        }.font(Theme.body(12)).fixedSize(horizontal: false, vertical: true)
+                    }.frame(width: 300, alignment: .leading)
+                    ZStack {
+                        Theme.ground
+                        if let built { StitchThumbnail(objects: shapes + built.outlines.flatMap(\.outlines), label: "Preview of the outlines") } else { ProgressView().controlSize(.small) }
+                    }.frame(height: 260).clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+                if let built, !built.notes.isEmpty { NotesList(title: "Notes", notes: built.notes) }
+            }
+        }
+        // Rebuild the outlines in the background whenever an option changes.
+        .task(id: options) {
+            built = nil
+            let shapes = shapes, options = options, color = color
+            let result = await Task.detached(priority: .userInitiated) { () -> (outlines: [(source: UUID, outlines: [RunObject])], notes: [String]) in
+                var outlines: [(source: UUID, outlines: [RunObject])] = [], notes: [String] = []
+                guard options.makesSomething else { return ([], ["Switch on the edge outline or an offset."]) }
+                for shape in shapes {
+                    do { let made = try OutlinesOffsets.around(shape, options: options, color: color); outlines.append((shape.id, made.objects)); notes += made.warnings }
+                    catch { notes.append(error.localizedDescription) }
+                }
+                return (outlines, notes)
+            }.value
+            if !Task.isCancelled { built = result }
+        }
+    }
+
+    /// "Offset 1" or "Offset 2": a switch, and its distance from the edge in the person's unit.
+    private func offsetRow(_ index: Int) -> some View {
+        HStack(spacing: 8) {
+            Toggle("Offset \(index + 1)", isOn: Binding(get: { options.offsets[index] != nil },
+                                                       set: { options.offsets[index] = $0 ? distances[index] : nil }))
+                .font(Theme.body(13, weight: .semibold))
+            Spacer(minLength: 8)
+            NumberField(value: options.offsets[index] ?? distances[index], range: OutlinesOffsets.distances, unit: Preferences.shared.unit,
+                        commit: { distances[index] = $0; options.offsets[index] = $0 }, focusCanvas: {})
+                .frame(width: 70, height: 22)
+            Text(Preferences.shared.unit.symbol).font(Theme.body(12)).foregroundStyle(Theme.inkSecondary)
+        }
+    }
+}
+
 
 /// Who made each bundled embroidery font, and its license. Every font's full license text is included.
 struct FontCreditsView: View {

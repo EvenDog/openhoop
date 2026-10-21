@@ -557,6 +557,9 @@ extension InspectorPanel {
             proRow("Satin border", help: "A satin column around this shape's outside edge, like the finished edge of a patch") {
                 Button("Add…") { AppDelegate.shared.perform(.satinBorder) }.buttonStyle(ThemedButtonStyle())
             }
+            proRow("Outlines & offsets", help: preferences.hint(.outlinesOffsets)) {
+                Button("Add…") { AppDelegate.shared.perform(.outlinesOffsets) }.buttonStyle(ThemedButtonStyle())
+            }
             proRow("Appliqué", help: "Sew a piece of fabric in this shape: placement line, tack-down and a satin edge, with stops to lay and trim the fabric") {
                 Button("Make…") { AppDelegate.shared.perform(.applique) }.buttonStyle(ThemedButtonStyle())
             }

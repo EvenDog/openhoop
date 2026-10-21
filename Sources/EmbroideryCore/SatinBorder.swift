@@ -90,18 +90,10 @@ public enum SatinBorder {
     /// shrinking then growing rounds the outward ones (the geometry library's offsets use round joins). Throws when
     /// parts of the shape are too narrow to survive, which would split the border.
     static func rounded(_ ring: [Point], radius: Double, name: String, width: Double) throws -> [Point] {
-        // The geometry library offsets at most 10 mm at a time. Growing (or shrinking) by r in steps that add up to r
-        // gives exactly the same round-cornered shape, so wide borders go in steps.
-        func offset(_ rings: [[Point]], by amount: Double) throws -> [[Point]] {
-            let steps = max(1, Int(ceil(abs(amount) / 10)))
-            var result = rings
-            for _ in 0..<steps { result = try AreaGeometry.offset(result, by: amount / Double(steps)) }
-            return result
-        }
-        var rings = try offset([ring], by: radius)
-        rings = try offset(rings, by: -radius)
-        rings = try offset(rings, by: -radius)
-        rings = try offset(rings, by: radius)
+        var rings = try AreaGeometry.offset([ring], by: radius)
+        rings = try AreaGeometry.offset(rings, by: -radius)
+        rings = try AreaGeometry.offset(rings, by: -radius)
+        rings = try AreaGeometry.offset(rings, by: radius)
         // Closing a narrow gap can leave a hole; only outer rings (those not inside another ring) matter here.
         let outer = rings.filter { ring in abs(AreaGeometry.area(ring)) > 0.01 && !rings.contains { $0 != ring && AreaGeometry.contains(ring[0], rings: [$0]) } }
         guard let largest = outer.max(by: { abs(AreaGeometry.area($0)) < abs(AreaGeometry.area($1)) }) else {

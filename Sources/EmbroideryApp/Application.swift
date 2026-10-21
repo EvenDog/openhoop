@@ -368,7 +368,7 @@ import EmbroideryCore
         return true
     }
     /// Commands that open a dialog and wait for it to close.
-    private static let opensDialog: Set<CommandID> = [.laydown, .testSwatches, .addMonogram, .editMonogram, .autoDigitize, .satinBorder, .applique, .threadChart, .renameObject, .importImage]
+    private static let opensDialog: Set<CommandID> = [.laydown, .testSwatches, .addMonogram, .editMonogram, .autoDigitize, .satinBorder, .outlinesOffsets, .applique, .threadChart, .renameObject, .importImage]
     /// `now` is false unless the command was already put off by one beat (see below).
     func perform(_ command: CommandID, now: Bool = false) {
         // A dialog opened inside a SwiftUI button's action never updates (no typing, no setup), because SwiftUI
@@ -517,6 +517,7 @@ import EmbroideryCore
         case .breakApartLettering: state.breakApartLettering()
         case .autoDigitize: autoDigitize(state)
         case .satinBorder: addSatinBorder(state)
+        case .outlinesOffsets: addOutlinesOffsets(state)
         case .applique: makeApplique(state)
         case .laydown: addLaydown(state)
         case .addMonogram: addMonogram(state)
@@ -801,6 +802,26 @@ import EmbroideryCore
             state.status = "Added \(borders.count) satin border\(borders.count == 1 ? "" : "s"). Each sews right after its shape; reorder or recolor it like any object."
         } catch { showError(error) }
     }
+    /// Outlines & Offsets: the dialog builds the outlines around each selected closed shape; each shape's outlines
+    /// are placed right after it in the sewing order, all in one step you can undo.
+    private func addOutlinesOffsets(_ state: EditorState) {
+        guard !state.hasVersionMismatch, state.draft.isEmpty else { state.status = "Finish the current path and regenerate older projects before adding outlines."; return }
+        let shapes = state.design.objects.filter { state.selection.contains($0.id) && !$0.locked && SatinBorder.canBorder($0) }
+        guard !shapes.isEmpty else { state.status = "Select a fill or a closed outline first, then add outlines and offsets."; return }
+        guard let made = GuidedDialog.outlinesOffsets(shapes, color: state.currentColor) else { state.status = "Outlines & Offsets cancelled."; return }
+        do {
+            var candidate = state.design
+            for (source, outlines) in made {
+                guard let index = candidate.objects.firstIndex(where: { $0.id == source }) else { continue }
+                candidate.objects.insert(contentsOf: outlines.map { candidate.withFabric($0) }, at: index + 1)
+            }
+            try candidate.validate()
+            state.edit("Add Outlines & Offsets") { $0 = candidate }
+            let added = made.flatMap(\.outlines)
+            state.selection = Set(added.map(\.id)); state.selectedNode = nil; state.tool = .select; state.focusCanvas()
+            state.status = "Added \(added.count) outline\(added.count == 1 ? "" : "s"). Each sews right after its shape; reorder, recolor or reshape it like any object."
+        } catch { showError(error) }
+    }
     /// Add Monogram: the dialog builds the monogram, then it's added (centered in the hoop) as one step you can undo.
     private func addMonogram(_ state: EditorState) {
         guard !state.hasVersionMismatch, state.draft.isEmpty else { state.status = "Finish the current path and regenerate older projects before adding a monogram."; return }
@@ -1014,7 +1035,7 @@ import EmbroideryCore
                     .convertRun, .convertSatin, .convertFill, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool,
                    .finishPath, .removePoint, .cancelPath]),
-        ("Add", [.lettering, .editLettering, .breakApartLettering, .putLetteringOnLine, .addMonogram, .editMonogram, .satinBorder, .applique, .autoDigitize, .laydown, .testSwatches])
+        ("Add", [.lettering, .editLettering, .breakApartLettering, .putLetteringOnLine, .addMonogram, .editMonogram, .satinBorder, .outlinesOffsets, .applique, .autoDigitize, .laydown, .testSwatches])
     ]
     private func makeMenu() {
         let menu = NSMenu()

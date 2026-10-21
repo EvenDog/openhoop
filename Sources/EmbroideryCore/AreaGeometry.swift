@@ -70,8 +70,14 @@ public enum AreaGeometry {
             }
         }
     }
+    /// `rings` grown by `amount` mm (shrunk when it's below zero), with rounded corners. The geometry library
+    /// offsets at most 10 mm at a time; offsetting in steps that add up to `amount` gives exactly the same shape,
+    /// so larger amounts go in steps.
     public static func offset(_ rings: [[Point]], by amount: Double) throws -> [[Point]] {
-        try resolvedPaths(rings,by:amount,nonzero:nil).rings
+        let steps = max(1, Int(ceil(abs(amount) / 10)))
+        var result = rings
+        for _ in 0..<steps where !result.isEmpty { result = try resolvedPaths(result,by:amount/Double(steps),nonzero:nil).rings }
+        return result
     }
     /// Preserve Clipper's topology rather than infer containment from boundary vertices.
     static func svgRegions(_ rings:[[Point]],nonzero:Bool)throws->[[[Point]]] {

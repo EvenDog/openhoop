@@ -34,7 +34,7 @@ struct ToolStrip: View {
         ("Pick & shape", [[.selectTool], [.nodeTool, .editStitches, .smoothShapes], [.knifeTool, .weldObjects, .branching], [.entryExitTool]]),
         ("Stitch", [[.runTool], [.satinTool], [.fillTool, .holeTool, .addStitchAngles, .removeStitchAngles]]),
         ("Shape", [[.openShapeTool, .closedShapeTool], [.freehandOpenTool, .freehandClosedTool], [.rectangleTool, .ellipseTool, .basicShapeTool]]),
-        ("Add", [[.lettering, .addMonogram, .satinBorder, .applique, .autoDigitize, .laydown]]),
+        ("Add", [[.lettering, .addMonogram, .satinBorder, .outlinesOffsets, .applique, .autoDigitize, .laydown]]),
         ("View", [[.panTool, .measureTool], [.grid], [.threadView], [.zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected]])
     ]
     /// The Pro view's tools: every one out as an icon button (no shared slots or lists to open), in captioned groups.
@@ -43,7 +43,7 @@ struct ToolStrip: View {
         ("Pick & shape", [.selectTool, .nodeTool, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .branching, .entryExitTool, .panTool, .artworkTool]),
         ("Stitch", [.runTool, .satinTool, .fillTool, .holeTool, .addStitchAngles, .removeStitchAngles]),
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool]),
-        ("Add", [.lettering, .addMonogram, .satinBorder, .applique, .autoDigitize, .laydown]),
+        ("Add", [.lettering, .addMonogram, .satinBorder, .outlinesOffsets, .applique, .autoDigitize, .laydown]),
         ("View", [.measureTool, .grid, .snap, .threadView]),
         ("Show", [.showStitches, .showOutlines, .showConnectors, .needles, .showUnderlay, .hideOthers, .showRulers, .densityMap]),
         ("Zoom", [.zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected])
@@ -335,7 +335,7 @@ struct ToolStrip: View {
         case .removeStitchAngles: return state.selection.count == 1 && state.selected?.locked == false && !(state.selected?.settings.angleLines ?? []).isEmpty
         case .useAsFillGuide: return state.fillAndGuideLine != nil
         case .putLetteringOnLine: return state.letteringAndLine != nil
-        case .satinBorder, .applique: return state.design.objects.contains { state.selection.contains($0.id) && !$0.locked && SatinBorder.canBorder($0) }
+        case .satinBorder, .outlinesOffsets, .applique: return state.design.objects.contains { state.selection.contains($0.id) && !$0.locked && SatinBorder.canBorder($0) }
         case .autoDigitize: return state.design.artwork != nil
         case .weldObjects: return state.design.objects.filter { state.selection.contains($0.id) && !$0.locked && $0.areaRings != nil }.count >= 2
         case .smoothShapes: return !state.editableSelection.isEmpty
@@ -381,6 +381,7 @@ struct ToolStrip: View {
         case .basicShapeTool: return "Shapes"
         case .lettering: return "Text"
         case .satinBorder: return "Border"
+        case .outlinesOffsets: return "Outlines"
         case .applique: return "Appliqué"
         case .autoDigitize: return "Auto-digitize"
         case .grid: return "Grid"
@@ -756,6 +757,8 @@ struct InspectorPanel: View {
             if SatinBorder.canBorder(object) {
                 Button("Add satin border…") { AppDelegate.shared.perform(.satinBorder) }.buttonStyle(ThemedButtonStyle())
                     .help("A satin column around this shape's outside edge, like the finished edge of a patch")
+                Button("Outlines & offsets…") { AppDelegate.shared.perform(.outlinesOffsets) }.buttonStyle(ThemedButtonStyle())
+                    .help(preferences.hint(.outlinesOffsets))
                 Button("Make appliqué…") { AppDelegate.shared.perform(.applique) }.buttonStyle(ThemedButtonStyle())
                     .help("Sew a piece of fabric in this shape: placement line, tack-down and a satin edge, with stops to lay and trim the fabric")
             }

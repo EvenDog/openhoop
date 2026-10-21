@@ -16,7 +16,7 @@ public struct KeyBinding: Codable, Hashable, Sendable {
 
 public enum CommandID: String, Codable, CaseIterable, Sendable {
     case new, open, save, saveAs, close, importImage, importSVG, importMachine, exportMachine, exportThreadList, productionWorksheet, sample, stitchSampler, settings
-    case selectTool, artworkTool, runTool, satinTool, fillTool, holeTool, removeHoles, nodeTool, panTool, entryExitTool, autoStartPoints, clearStartEnd, lettering, editLettering, autoDigitize, satinBorder, applique, done, finishPath, cancelPath, removePoint, insertNode, deleteNode, toggleNodeType, breakApartLettering, densityMap, testSwatches, useAsFillGuide, putLetteringOnLine, renameObject, convertFill, convertRun, convertSatin, toggleUnderlay, showUnderlay, focusSpacing, focusAngle
+    case selectTool, artworkTool, runTool, satinTool, fillTool, holeTool, removeHoles, nodeTool, panTool, entryExitTool, autoStartPoints, clearStartEnd, lettering, editLettering, autoDigitize, satinBorder, outlinesOffsets, applique, done, finishPath, cancelPath, removePoint, insertNode, deleteNode, toggleNodeType, breakApartLettering, densityMap, testSwatches, useAsFillGuide, putLetteringOnLine, renameObject, convertFill, convertRun, convertSatin, toggleUnderlay, showUnderlay, focusSpacing, focusAngle
     case openShapeTool, closedShapeTool, freehandOpenTool, freehandClosedTool, rectangleTool, ellipseTool, basicShapeTool, knifeTool, weldObjects, smoothShapes, laydown, branching, addStitchAngles, removeStitchAngles, editStitches, addMonogram, editMonogram
     case undo, redo, delete, selectAll, sequenceBySelection, sequenceByColor, alignLeft, alignCentersVertically, alignRight, alignTop, alignCentersHorizontally, alignBottom, alignCenters, spaceAcross, spaceDown, duplicate, mirrorH, mirrorV, rotateLeft, rotateRight, earlier, later, closePath, lockObject, hideObject, tieIn, tieOut, trimAfter, stopAfter, group, ungroup, threadChart, cutObjects, copyObjects, pasteObjects
     case zoomIn, zoomOut, zoomFit, zoomDesign, zoomBoxTool, zoomActual, zoomSelected, showStitches, showOutlines, showConnectors, hideOthers, measureTool, grid, snap, clearGuides, needles, threadView, artwork, inspector, palette, restoreWorkspace, saveWorkspace, proView, useInches, showRulers, paletteUnderCanvas
@@ -41,7 +41,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .tieIn: return "Toggle Tie In"; case .tieOut: return "Toggle Tie Off"; case .trimAfter: return "Toggle Trim After"; case .stopAfter: return "Toggle Stop After"
         case .importImage: return "Import Reference Image…"; case .sample: return "Open Sample Design"
         case .settings: return "Settings…"; case .selectTool: return "Select"; case .runTool: return "Running Stitch"
-        case .nodeTool: return "Edit Nodes"; case .panTool: return "Pan"; case .entryExitTool: return "Start & End Points"; case .autoStartPoints: return "Auto Start Points"; case .clearStartEnd: return "Clear Start & End Points"; case .lettering: return "Add Lettering"; case .editLettering: return "Edit Lettering"; case .autoDigitize: return "Auto-Digitize Artwork…"; case .satinBorder: return "Add Satin Border…"; case .applique: return "Make Appliqué…"; case .artworkTool: return "Move & Size Artwork"; case .done: return "Done (Back to Select)"; case .finishPath: return "Finish Path"; case .cancelPath: return "Cancel Path"
+        case .nodeTool: return "Edit Nodes"; case .panTool: return "Pan"; case .entryExitTool: return "Start & End Points"; case .autoStartPoints: return "Auto Start Points"; case .clearStartEnd: return "Clear Start & End Points"; case .lettering: return "Add Lettering"; case .editLettering: return "Edit Lettering"; case .autoDigitize: return "Auto-Digitize Artwork…"; case .satinBorder: return "Add Satin Border…"; case .outlinesOffsets: return "Outlines & Offsets…"; case .applique: return "Make Appliqué…"; case .artworkTool: return "Move & Size Artwork"; case .done: return "Done (Back to Select)"; case .finishPath: return "Finish Path"; case .cancelPath: return "Cancel Path"
         case .openShapeTool: return "Digitize Open Shape"; case .closedShapeTool: return "Digitize Closed Shape"
         case .freehandOpenTool: return "Freehand Open Shape"; case .freehandClosedTool: return "Freehand Closed Shape"
         case .rectangleTool: return "Rectangle"; case .ellipseTool: return "Ellipse"; case .basicShapeTool: return "Basic Shapes"
@@ -105,6 +105,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .editLettering: return "Change the selected text's words, font, size or shape in Properties."
         case .autoDigitize: return "Trace the reference image into fills automatically, one per color."
         case .satinBorder: return "Add a satin column around the outside of the selected shape, like the edge of a patch."
+        case .outlinesOffsets: return "Add outlines around the selected shapes: one on the edge, and up to two more set outside or inside it."
         case .applique: return "Sew a piece of fabric on in this shape, instead of filling it with stitches."
         case .done: return "Finish with the current tool and go back to Select."
         case .finishPath: return "Finish the line or shape you're drawing."
@@ -223,7 +224,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
     public var category: String {
         switch self {
         case .new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportMachine, .exportThreadList, .productionWorksheet, .sample, .stitchSampler: return "File"
-        case .selectTool, .runTool, .satinTool, .fillTool, .holeTool, .nodeTool, .panTool, .entryExitTool, .autoStartPoints, .clearStartEnd, .lettering, .editLettering, .autoDigitize, .satinBorder, .applique, .done, .artworkTool, .finishPath, .cancelPath, .removePoint, .openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool, .knifeTool, .laydown, .branching, .addStitchAngles, .removeStitchAngles, .useAsFillGuide, .putLetteringOnLine, .editStitches, .addMonogram, .editMonogram: return "Digitizing"
+        case .selectTool, .runTool, .satinTool, .fillTool, .holeTool, .nodeTool, .panTool, .entryExitTool, .autoStartPoints, .clearStartEnd, .lettering, .editLettering, .autoDigitize, .satinBorder, .outlinesOffsets, .applique, .done, .artworkTool, .finishPath, .cancelPath, .removePoint, .openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool, .knifeTool, .laydown, .branching, .addStitchAngles, .removeStitchAngles, .useAsFillGuide, .putLetteringOnLine, .editStitches, .addMonogram, .editMonogram: return "Digitizing"
         case .settings, .inspector, .palette, .restoreWorkspace, .saveWorkspace, .panelSewingOrder, .panelDesign, .panelReference, .nextTab, .previousTab: return "Workspace"
         case .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .clearGuides, .needles, .threadView, .artwork, .play, .rewind, .proView, .useInches, .showRulers, .paletteUnderCanvas, .densityMap: return "View"
         default: return "Edit"
@@ -233,7 +234,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
     /// is selected. Finer cases (the wrong kind of object, say) stay clickable and explain in the status line.
     public var needsSelection: Bool {
         [.holeTool, .removeHoles, .clearStartEnd, .editLettering, .breakApartLettering, .testSwatches, .useAsFillGuide, .putLetteringOnLine,
-         .renameObject, .convertFill, .convertRun, .convertSatin, .toggleUnderlay, .focusSpacing, .focusAngle, .focusLength, .satinBorder, .applique,
+         .renameObject, .convertFill, .convertRun, .convertSatin, .toggleUnderlay, .focusSpacing, .focusAngle, .focusLength, .satinBorder, .outlinesOffsets, .applique,
          .insertNode, .deleteNode, .toggleNodeType, .weldObjects, .smoothShapes, .branching, .addStitchAngles, .removeStitchAngles, .editStitches, .editMonogram,
          .delete, .sequenceBySelection, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters,
          .spaceAcross, .spaceDown, .duplicate, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .closePath, .lockObject, .hideObject,
@@ -243,7 +244,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
     public var contexts: Set<CommandContext> {
         if appWide { return [.canvas, .drawing, .list, .text] }
         if [.finishPath, .cancelPath, .removePoint].contains(self) { return [.drawing] }
-        if [.holeTool, .removeHoles, .insertNode, .deleteNode, .toggleNodeType, .breakApartLettering, .renameObject, .convertFill, .convertRun, .convertSatin, .toggleUnderlay, .focusSpacing, .focusAngle, .delete, .selectAll, .sequenceBySelection, .sequenceByColor, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .duplicate, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .closePath, .lockObject, .hideObject, .group, .ungroup, .threadChart, .cutObjects, .copyObjects, .pasteObjects, .clearStartEnd, .lettering, .editLettering, .autoDigitize, .satinBorder, .applique, .done, .focusLength, .nudgeLeft, .nudgeRight, .nudgeUp, .nudgeDown, .weldObjects, .smoothShapes, .laydown, .branching, .addMonogram, .editMonogram, .useAsFillGuide, .putLetteringOnLine].contains(self) { return [.canvas, .list] }
+        if [.holeTool, .removeHoles, .insertNode, .deleteNode, .toggleNodeType, .breakApartLettering, .renameObject, .convertFill, .convertRun, .convertSatin, .toggleUnderlay, .focusSpacing, .focusAngle, .delete, .selectAll, .sequenceBySelection, .sequenceByColor, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .duplicate, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .closePath, .lockObject, .hideObject, .group, .ungroup, .threadChart, .cutObjects, .copyObjects, .pasteObjects, .clearStartEnd, .lettering, .editLettering, .autoDigitize, .satinBorder, .outlinesOffsets, .applique, .done, .focusLength, .nudgeLeft, .nudgeRight, .nudgeUp, .nudgeDown, .weldObjects, .smoothShapes, .laydown, .branching, .addMonogram, .editMonogram, .useAsFillGuide, .putLetteringOnLine].contains(self) { return [.canvas, .list] }
         return [.canvas, .drawing, .list]
     }
     public var repeats: Bool { [.nudgeLeft, .nudgeRight, .nudgeUp, .nudgeDown, .zoomIn, .zoomOut].contains(self) }
@@ -269,7 +270,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .convertFill: return [.init("m", 2)]
         case .applique: return [.init("f7"), .init("q", 4)]
         case .lettering: return [.init("a")]
-        case .satinBorder: return [.init("o", 3)]
+        case .outlinesOffsets: return [.init("o", 3)]
         case .toggleUnderlay: return [.init("u")]
         case .done: return [.init("escape")]   // while drawing, Escape cancels the path instead
         case .finishPath: return [.init("return")]; case .cancelPath: return [.init("escape")]
@@ -325,7 +326,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         switch self {
         case .satinTool:return "openhoop.satin";case .fillTool:return "square.fill";case .holeTool:return "circle.dashed"
         case .selectTool: return "cursorarrow"; case .runTool: return "point.topleft.down.to.point.bottomright.curvepath"
-        case .nodeTool: return "point.3.connected.trianglepath.dotted"; case .toggleNodeType: return "circle.square"; case .breakApartLettering: return "burst"; case .densityMap: return "circle.grid.3x3.fill"; case .testSwatches: return "square.grid.2x2"; case .useAsFillGuide: return "scribble.variable"; case .putLetteringOnLine: return "textformat.abc"; case .panTool: return "hand.draw"; case .entryExitTool: return "flag"; case .autoStartPoints: return "wand.and.stars"; case .clearStartEnd: return "flag.slash"; case .lettering: return "textformat"; case .editLettering: return "character.cursor.ibeam"; case .autoDigitize: return "wand.and.rays"; case .satinBorder: return "circle.circle"; case .applique: return "scissors"; case .done: return "checkmark.circle"; case .artworkTool: return "photo"
+        case .nodeTool: return "point.3.connected.trianglepath.dotted"; case .toggleNodeType: return "circle.square"; case .breakApartLettering: return "burst"; case .densityMap: return "circle.grid.3x3.fill"; case .testSwatches: return "square.grid.2x2"; case .useAsFillGuide: return "scribble.variable"; case .putLetteringOnLine: return "textformat.abc"; case .panTool: return "hand.draw"; case .entryExitTool: return "flag"; case .autoStartPoints: return "wand.and.stars"; case .clearStartEnd: return "flag.slash"; case .lettering: return "textformat"; case .editLettering: return "character.cursor.ibeam"; case .autoDigitize: return "wand.and.rays"; case .satinBorder: return "circle.circle"; case .outlinesOffsets: return "target"; case .applique: return "scissors"; case .done: return "checkmark.circle"; case .artworkTool: return "photo"
         case .importImage: return "photo.badge.plus"; case .exportMachine: return "square.and.arrow.up"; case .productionWorksheet: return "doc.text"; case .save: return "square.and.arrow.down"
         case .zoomFit: return "arrow.up.left.and.arrow.down.right"; case .zoomBoxTool: return "plus.magnifyingglass"; case .zoomActual: return "1.magnifyingglass"; case .zoomSelected: return "viewfinder"; case .zoomDesign: return "square.dashed";
         case .showStitches: return "point.topleft.down.to.point.bottomright.curvepath.fill"; case .showOutlines: return "rectangle.dashed"; case .showConnectors: return "line.diagonal"; case .hideOthers: return "eye.square"; case .measureTool: return "ruler"; case .sequenceBySelection: return "list.number"; case .sequenceByColor: return "paintpalette"
@@ -347,12 +348,13 @@ public struct ShortcutProfile: Codable, Equatable, Identifiable {
     public var name: String
     public var bindings: [String: [KeyBinding]]
     /// Which set of default keys this profile was made with: nil for profiles saved with the first default keys, 2
-    /// after, 3 once Branching took I from Insert Node, 4 once the export commands became one.
+    /// after, 3 once Branching took I from Insert Node, 4 once the export commands became one, 5 once Outlines &
+    /// Offsets took ⇧⌘O from Add Satin Border.
     public var keySet: Int?
     public init(name: String = "My Shortcuts") {
         self.name = name
         bindings = Dictionary(uniqueKeysWithValues: CommandID.allCases.map { ($0.rawValue, $0.defaults) })
-        keySet = 4
+        keySet = 5
     }
     /// Moves a profile saved with the first default keys onto the second set, once. Only commands still on their old
     /// default key change; keys the person set themselves stay, and a new default that would clash with one of
@@ -395,15 +397,24 @@ public struct ShortcutProfile: Codable, Equatable, Identifiable {
         keySet = 4
         return true
     }
+    /// Outlines & Offsets takes ⇧⌘O, its key in other embroidery software, from Add Satin Border, once: Add Satin
+    /// Border lets go of it only if it still has just that key. Outlines & Offsets then gets it as a new command
+    /// does (see `upgrade`). Returns whether anything changed.
+    @discardableResult public mutating func updateToOutlinesKey() -> Bool {
+        guard keySet == 4 else { return false }
+        if bindings[CommandID.satinBorder.rawValue] == [.init("o", 3)] { bindings[CommandID.satinBorder.rawValue] = [] }
+        keySet = 5
+        return true
+    }
     /// Brings a saved profile up to date: the moves above (each once, keeping keys the person set), then commands
     /// added since it was saved get their default keys where they're free. The moves come first, so new commands
     /// can have keys the moves freed. Returns whether any keys moved.
     @discardableResult public mutating func upgrade() -> Bool {
-        let movedToSecondSet = updateToSecondKeySet(), movedForBranching = updateToBranchingKey(), joinedExports = updateToOneExport()
+        let movedToSecondSet = updateToSecondKeySet(), movedForBranching = updateToBranchingKey(), joinedExports = updateToOneExport(), freedForOutlines = updateToOutlinesKey()
         for command in CommandID.allCases where bindings[command.rawValue] == nil {
             bindings[command.rawValue] = command.defaults.filter { conflicts($0, for: command).isEmpty }
         }
-        return movedToSecondSet || movedForBranching || joinedExports
+        return movedToSecondSet || movedForBranching || joinedExports || freedForOutlines
     }
     public func conflicts(_ binding: KeyBinding, for command: CommandID) -> [CommandID] {
         CommandID.allCases.filter { $0 != command && !$0.contexts.isDisjoint(with: command.contexts) && (bindings[$0.rawValue] ?? []).contains(binding) }
