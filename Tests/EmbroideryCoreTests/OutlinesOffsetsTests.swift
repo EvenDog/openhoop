@@ -52,6 +52,27 @@ final class OutlinesOffsetsTests: XCTestCase {
         XCTAssertEqual(try OutlinesOffsets.around(square(size: 20), options: options(3, stitch: .zigzag), color: .palette[0]).objects[0].settings.runStyle, .zigzag)
     }
 
+    func testSharpOrRoundedCorners() throws {
+        let sharp = try OutlinesOffsets.around(square(size: 20), options: options(3), color: .palette[0]).objects[0]
+        XCTAssertEqual(sharp.nodes.count, 4, "A square's offset is a square")
+        XCTAssertTrue(sharp.nodes.contains { $0.point.distance(to: Point(13, 13)) < 0.01 })
+        var rounded = options(3); rounded.sharpCorners = false
+        let round = try OutlinesOffsets.around(square(size: 20), options: rounded, color: .palette[0]).objects[0]
+        XCTAssertGreaterThan(round.nodes.map { $0.point.distance(to: Point(13, 13)) }.min()!, 1, "Rounded corners cut inside the square's corner")
+
+        // A 20° tip: a true point 3 mm out would reach about 17 mm past it, so it's cut off flat 3 mm past it. A 40°
+        // one stays pointed (3 mm / sin 20° ≈ 8.8 mm past it).
+        let half = 30 * tan(10 * Double.pi / 180)
+        var tip = square(size: 20); tip.nodes = [Point(-half, 0), Point(half, 0), Point(0, 30)].map { PathNode($0) }
+        let around = try OutlinesOffsets.around(tip, options: options(3), color: .palette[0]).objects[0]
+        let top = around.nodes.map(\.point.y).max()!
+        XCTAssertEqual(top, 33, accuracy: 0.05)
+        let wide = 30 * tan(20 * Double.pi / 180)
+        tip.nodes = [Point(-wide, 0), Point(wide, 0), Point(0, 30)].map { PathNode($0) }
+        let pointed = try OutlinesOffsets.around(tip, options: options(3), color: .palette[0]).objects[0]
+        XCTAssertEqual(pointed.nodes.map(\.point.y).max()!, 30 + 3 / sin(20 * Double.pi / 180), accuracy: 0.05)
+    }
+
     func testOnlyClosedShapes() {
         var line = square(size: 20); line.closed = false; line.digitizing = DigitizingSettings(kind: .run)
         XCTAssertThrowsError(try OutlinesOffsets.around(line, options: OutlineOptions(), color: .palette[0]))

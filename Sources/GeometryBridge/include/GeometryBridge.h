@@ -7,6 +7,8 @@ extern "C" {
 typedef struct { double *xy; int32_t *counts; int32_t path_count; int32_t point_count; int32_t error; int32_t *parents; } EGPaths;
 // All units are mm; output ownership belongs to the caller until eg_free_paths.
 EGPaths eg_offset(const double *xy, const int32_t *counts, int32_t path_count, double delta);
+// Like eg_offset, with pointed corners; corners narrower than about 29° are cut off flat instead of making long spikes.
+EGPaths eg_offset_sharp(const double *xy, const int32_t *counts, int32_t path_count, double delta);
 EGPaths eg_resolve(const double *xy, const int32_t *counts, int32_t path_count, int32_t nonzero);
 // Subject minus clip, each read with the even-odd rule (so holes stay holes). The result carries each ring's
 // parent ring (-1 for outer rings), like eg_resolve.

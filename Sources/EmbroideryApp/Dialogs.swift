@@ -465,6 +465,8 @@ struct OutlinesOffsetsView: View {
                         offsetRow(0); offsetRow(1)
                         Text("Offsets go outside the shape. Below 0 they go inside it.")
                             .font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
+                        Picker("Corners", selection: $options.sharpCorners) { Text("Sharp").tag(true); Text("Rounded").tag(false) }
+                            .pickerStyle(.segmented).font(Theme.body(13, weight: .semibold))
                         Picker("Stitch", selection: $options.stitch) { ForEach(OpenShapeStitch.allCases, id: \.self) { Text($0.title).tag($0) } }
                             .font(Theme.body(13, weight: .semibold))
                         if options.stitch == .satin {

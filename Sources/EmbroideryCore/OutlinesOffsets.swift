@@ -12,6 +12,8 @@ public struct OutlineOptions: Equatable, Sendable {
     public var stitch = OpenShapeStitch.running
     /// A satin outline's width in mm.
     public var satinWidth = SatinLine.defaultWidth
+    /// Offsets get pointed corners like the shape's own (very narrow ones are flattened); off, they're rounded.
+    public var sharpCorners = true
     /// Outline the shape's holes too, not only its outside edge.
     public var holes = false
     public init() {}
@@ -32,7 +34,7 @@ public enum OutlinesOffsets {
 
     /// The outlines `options` asks for around `object`, in `color`, in sewing order: the edge outline, then each
     /// offset, each with its outside ring before its holes. Offsets always keep clear of the shape's holes; with
-    /// `holes` on, the rings around them are kept too. An outline that doesn't fit is left out with a warning.
+    /// `holes` on, the rings around them are kept too. Offset corners are pointed or rounded as chosen. An outline that doesn't fit is left out with a warning.
     public static func around(_ object: RunObject, options: OutlineOptions, color: ThreadColor) throws -> OutlinesResult {
         guard SatinBorder.canBorder(object) else { throw DesignError.invalid("‘\(object.name)’ isn't a closed shape. Outlines go around fills and closed outlines.") }
         var result = OutlinesResult(objects: [], warnings: [])
@@ -49,7 +51,7 @@ public enum OutlinesOffsets {
         for (index, distance) in options.offsets.enumerated() {
             guard let distance else { continue }
             let name = "\(object.name) offset \(index + 1)"
-            let rings = try AreaGeometry.offset(area, by: distance)
+            let rings = try AreaGeometry.offset(area, by: distance, sharp: options.sharpCorners)
             // A ring inside another ring goes round a hole.
             let outside = rings.filter { ring in !rings.contains { $0 != ring && AreaGeometry.contains(ring[0], rings: [$0]) } }
             guard !outside.isEmpty else {

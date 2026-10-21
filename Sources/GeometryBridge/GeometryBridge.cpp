@@ -4,7 +4,9 @@
 #include <cmath>
 #include <functional>
 using namespace Clipper2Lib;
-static EGPaths resolve(const double *xy, const int32_t *counts, int32_t count, double delta, bool nonzero, bool hierarchy=false) {
+// `sharp` offsets with mitered (pointed) corners instead of rounded ones. A point that would reach more than 4 times
+// `delta` from its corner (corners narrower than about 29°) is cut off flat, `delta` past the corner, instead.
+static EGPaths resolve(const double *xy, const int32_t *counts, int32_t count, double delta, bool nonzero, bool hierarchy=false, bool sharp=false) {
     EGPaths result{};
     try {
         if (!xy || !counts || count < 1 || count > 1024 || !std::isfinite(delta) || std::abs(delta)>10) { result.error=1; return result; }
@@ -32,7 +34,7 @@ static EGPaths resolve(const double *xy, const int32_t *counts, int32_t count, d
             visit(tree,-1);
         } else {
             auto clean=Union(input,FillRule::EvenOdd,4);
-            output=std::abs(delta)<1e-9 ? clean : InflatePaths(clean,delta,JoinType::Round,EndType::Polygon,2.0,4,0.02);
+            output=std::abs(delta)<1e-9 ? clean : (sharp ? InflatePaths(clean,delta,JoinType::Miter,EndType::Polygon,4.0,4,0.02) : InflatePaths(clean,delta,JoinType::Round,EndType::Polygon,2.0,4,0.02));
         }
         size_t points=0; for(const auto &path:output) points+=path.size();
         if(points>200000 || output.size()>1024) { result.error=2; return result; }
@@ -54,6 +56,7 @@ static EGPaths resolve(const double *xy, const int32_t *counts, int32_t count, d
 extern "C" void eg_free_paths(EGPaths result) { std::free(result.xy); std::free(result.counts); std::free(result.parents); }
 
 extern "C" EGPaths eg_offset(const double *xy,const int32_t *counts,int32_t count,double delta) { return resolve(xy,counts,count,delta,false); }
+extern "C" EGPaths eg_offset_sharp(const double *xy,const int32_t *counts,int32_t count,double delta) { return resolve(xy,counts,count,delta,false,false,true); }
 extern "C" EGPaths eg_resolve(const double *xy,const int32_t *counts,int32_t count,int32_t nonzero) { return resolve(xy,counts,count,0,nonzero!=0,true); }
 
 // Reads `count` rings of mm coordinates (same limits as resolve); false if any ring or point is out of range.
