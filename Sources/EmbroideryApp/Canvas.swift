@@ -708,29 +708,26 @@ final class DesignCanvas: NSView {
         let chosen = design.objects.filter { state.selection.contains($0.id) }
         return chosen.filter { $0.lettering == nil }.count + Set(chosen.compactMap { $0.lettering?.id }).count <= Self.fewForMarkers
     }
-    /// The start marker, like a play button: a green circle with a white triangle pointing right. A white edge and a
-    /// thin dark rim keep it clear on any thread, light or dark. It tells itself apart from the end marker by color,
-    /// shape and symbol, so it needs no label.
-    private func drawStartMarker(_ point: Point?) {
+    /// The start marker: a green crosshair, a small ring with four arms straight out (+).
+    private func drawStartMarker(_ point: Point?) { drawCrosshair(point, color: Theme.Canvas.startMarker, diagonal: false) }
+    /// The end marker: a red crosshair with its arms turned to a cross (×).
+    private func drawEndMarker(_ point: Point?) { drawCrosshair(point, color: Theme.Canvas.endMarker, diagonal: true) }
+    /// A crosshair on `point`, like a needle's aim: a ring with four arms, open in the middle so the exact stitch
+    /// shows through. A white edge under the color keeps it clear on any thread, light or dark. Start and end tell
+    /// themselves apart by color and by the arms' angle, so they need no label.
+    private func drawCrosshair(_ point: Point?, color: NSColor, diagonal: Bool) {
         guard let point else { return }
-        let p = screen(point), disc = NSBezierPath(ovalIn: CGRect(x: p.x - 7.5, y: p.y - 7.5, width: 15, height: 15))
-        Theme.Canvas.startMarker.setFill(); disc.fill()
-        NSColor.white.setStroke(); disc.lineWidth = 2; disc.stroke()
-        NSColor(white: 0, alpha: 0.45).setStroke(); NSBezierPath(ovalIn: CGRect(x: p.x - 8.5, y: p.y - 8.5, width: 17, height: 17)).stroke()
-        // The triangle sits a touch right of the middle, so it looks centered.
-        let play = NSBezierPath()
-        play.move(to: CGPoint(x: p.x - 2.2, y: p.y - 3.6)); play.line(to: CGPoint(x: p.x + 3.8, y: p.y)); play.line(to: CGPoint(x: p.x - 2.2, y: p.y + 3.6)); play.close()
-        NSColor.white.setFill(); play.fill()
-    }
-    /// The end marker, like a stop button: a red rounded square with a white square inside, with the same white
-    /// edge and dark rim as the start marker.
-    private func drawEndMarker(_ point: Point?) {
-        guard let point else { return }
-        let p = screen(point), square = NSBezierPath(roundedRect: CGRect(x: p.x - 7, y: p.y - 7, width: 14, height: 14), xRadius: 2.5, yRadius: 2.5)
-        Theme.Canvas.endMarker.setFill(); square.fill()
-        NSColor.white.setStroke(); square.lineWidth = 2; square.stroke()
-        NSColor(white: 0, alpha: 0.45).setStroke(); NSBezierPath(roundedRect: CGRect(x: p.x - 8, y: p.y - 8, width: 16, height: 16), xRadius: 3, yRadius: 3).stroke()
-        NSColor.white.setFill(); NSBezierPath(rect: CGRect(x: p.x - 2.75, y: p.y - 2.75, width: 5.5, height: 5.5)).fill()
+        let p = screen(point), ring = NSBezierPath(ovalIn: CGRect(x: p.x - 5.5, y: p.y - 5.5, width: 11, height: 11))
+        let unit: CGFloat = diagonal ? 0.75 : 1   // diagonal arms are shortened so they reach about as far as straight ones
+        let directions: [(CGFloat, CGFloat)] = diagonal ? [(1, 1), (-1, 1), (1, -1), (-1, -1)] : [(1, 0), (-1, 0), (0, 1), (0, -1)]
+        let arms = NSBezierPath()
+        for (dx, dy) in directions {
+            arms.move(to: CGPoint(x: p.x + dx * unit * 2.5, y: p.y + dy * unit * 2.5)); arms.line(to: CGPoint(x: p.x + dx * unit * 8, y: p.y + dy * unit * 8))
+        }
+        arms.lineCapStyle = .round
+        // All the white edges first, then all the color on top, so no white edge cuts across a colored arm.
+        NSColor.white.setStroke(); ring.lineWidth = 4; ring.stroke(); arms.lineWidth = 5; arms.stroke()
+        color.setStroke(); ring.lineWidth = 2; ring.stroke(); arms.lineWidth = 2.5; arms.stroke()
     }
     /// The selection's box on screen: around every selected, shown, unlocked object's outline. Nil when nothing
     /// that can be resized is selected.
