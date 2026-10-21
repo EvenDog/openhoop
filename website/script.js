@@ -34,7 +34,7 @@ document.querySelectorAll('[data-preview]').forEach(preview => {
     const view = workspace === 'pro' ? 'Pro' : 'Guided';
     const appearance = theme === 'dark' ? 'Dark' : 'Light';
     preview.querySelector('[data-preview-label]').textContent = `${view} · ${appearance}`;
-    preview.querySelector('[data-preview-caption]').textContent = `${view} · ${appearance} mode · Trail Club patch`;
+    preview.querySelector('[data-preview-caption]').textContent = `${view} · ${appearance} mode · Garden Flower`;
   }
   function setTheme(value) {
     theme = value;
@@ -69,8 +69,8 @@ document.querySelectorAll('[data-preview]').forEach(preview => {
       lensLight.style.backgroundImage = `url("${urls[0]}")`;
       lensDark.style.backgroundImage = `url("${urls[1]}")`;
       const name = mode === 'pro' ? 'Pro' : 'Guided';
-      light.alt = `OpenHoop’s ${name} view in light mode showing the Trail Club patch.`;
-      dark.alt = `The same Trail Club patch in ${name} view, dark mode.`;
+      light.alt = `OpenHoop’s ${name} view in light mode showing the Garden Flower design.`;
+      dark.alt = `The same Garden Flower design in ${name} view, dark mode.`;
       workspace = mode;
       updateLabels();
       preview.querySelectorAll('[data-mode]').forEach(option => {
@@ -128,7 +128,7 @@ async function initStitchPlayer() {
   const threadName = player.querySelector('[data-thread-name]');
   const status = player.querySelector('[data-player-status]');
   try {
-    const response = await fetch('assets/trail-club-stitches.json');
+    const response = await fetch('assets/garden-flower-stitches.json');
     if (!response.ok) throw new Error('Stitch data unavailable');
     const data = await response.json();
     if (!ctx) throw new Error('Canvas unavailable');
@@ -176,7 +176,7 @@ async function initStitchPlayer() {
       progress.value = target;
       count.textContent = `${target.toLocaleString()} / ${segments.length.toLocaleString()} stitches`;
       const thread = target ? data.threads[segments[target - 1].thread] : null;
-      threadName.textContent = target === segments.length ? 'Patch complete' : thread ? thread.name : 'Ready for the first stitch';
+      threadName.textContent = target === segments.length ? 'Design complete' : thread ? thread.name : 'Ready for the first stitch';
     }
     function setRunning(value) {
       running = value;
