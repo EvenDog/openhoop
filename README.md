@@ -7,7 +7,7 @@ Digitize logos, patches and lettering into stitch files for your embroidery mach
 
 <p align="center"><a href="https://openhoop.app"><strong>openhoop.app</strong></a> · <a href="https://github.com/EvenDog/openhoop/releases/latest">Download for Mac</a> · <a href="docs/USER-GUIDE.md">User guide</a></p>
 
-![OpenHoop's Guided view: a patch design stitched in the hoop, drawn as real thread, with the sewing order, threads, fabric settings and stitch player around it](docs/screenshot-guided.jpg)
+![OpenHoop's Guided view: a flower design stitched in the hoop, drawn as real thread, with the sewing order, threads, palette, fabric settings and stitch player around it](docs/screenshot-guided.jpg)
 
 > **Early development.** OpenHoop works end to end, from artwork to a machine file, and its PES files load correctly on a Brother SE600. Sew-out testing is under way, so stitch settings may still change. Test-stitch on scrap fabric before using a design on anything that matters.
 
@@ -31,7 +31,7 @@ Digitize logos, patches and lettering into stitch files for your embroidery mach
 
 **Guided** (above) shows the everyday tools with their names and a plain-English line under each setting. **Pro** puts every tool one click away, adds a precision bar for exact position, size and rotation, and shows the sewing order as a table with stitch counts and live stats. Switch any time with **⌥⌘P**.
 
-![OpenHoop's Pro view in dark mode: every tool in one row, a precision bar, the sewing order as a table with stitch counts, threads in sewing order, and stats along the bottom](docs/screenshot-pro.jpg)
+![OpenHoop's Pro view in dark mode: two rows of tools, a precision bar for the selected petal, the sewing order as a table with stitch counts, threads in sewing order, the petal's satin settings, and stats along the bottom](docs/screenshot-pro.jpg)
 
 ## Download
 
