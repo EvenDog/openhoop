@@ -6,6 +6,22 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.6.8</title>
+            <pubDate>Wed, 21 Oct 2026 21:45:57 GMT</pubDate>
+            <sparkle:version>14</sparkle:version>
+            <sparkle:shortVersionString>0.6.8</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.6.8</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. This is an early preview: expect rough edges, and test-sew designs before stitching anything important.</p>
+<h3>New in 0.6.8</h3>
+<ul>
+<li><b>New start and end markers.</b> A selected object now shows where it starts as a green crosshair (+) and where it ends as a red crosshair turned to a cross (×), in place of the play and stop buttons. The middle is open, so you can see the exact stitch each one marks. Drag them just as before.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.6.8/OpenHoop-0.6.8.dmg" sparkle:edSignature="dS4brDPNmUaIFYEHDLZALpobfFkGAiksGZdIe9BjV/IDW03zI2kUMNxCJL4CcJmJxleXPTdb/88KjTtF5aaSBw==" length="22999273" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.6.7</title>
             <pubDate>Wed, 21 Oct 2026 19:00:12 GMT</pubDate>
             <sparkle:version>13</sparkle:version>
