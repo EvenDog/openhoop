@@ -81,4 +81,18 @@ final class OverlapCutoutTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(Design.self, from: JSONEncoder().encode(design)).objects[0].settings.cutOutOverlaps, true)
         XCTAssertNil(DigitizingSettings(kind: .fill).cutOutOverlaps, "Off unless switched on")
     }
+
+    func testRemoveOverlapsFindsFillsWithSomethingOnTop() {
+        // Base has Top sewn over it; Top has nothing after it; Apart is sewn last but touches nothing.
+        let base = square("Base", center: Point(0, 0), size: 40), top = square("Top", center: Point(0, 0), size: 20)
+        var lockedBase = square("Locked", center: Point(0, 0), size: 40); lockedBase.locked = true
+        let apart = square("Apart", center: Point(60, 0), size: 10)
+        var design = Design(); design.objects = [base, lockedBase, top, apart]
+        let all = Set(design.objects.map(\.id))
+        XCTAssertEqual(design.fillsWithOverlaps(among: all), [base.id], "locked fills and fills with nothing on top are left out")
+        XCTAssertEqual(design.fillsWithOverlaps(among: [top.id, apart.id]), [])
+        // Only shapes sewn after a fill count: with Top sewn first, nothing covers Base.
+        design.objects = [top, base]
+        XCTAssertEqual(design.fillsWithOverlaps(among: all), [top.id])
+    }
 }

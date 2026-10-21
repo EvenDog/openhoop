@@ -31,7 +31,7 @@ struct ToolStrip: View {
     private let showList: [CommandID] = [.showStitches, .showOutlines, .showConnectors, .needles, .showUnderlay, .hideOthers, .showRulers, .densityMap]
     // Each group is a caption plus its slots, in on-screen order; a slot with several commands is a flyout.
     private let groups: [(title: String, slots: [[CommandID]])] = [
-        ("Pick & shape", [[.selectTool], [.nodeTool, .editStitches, .smoothShapes], [.knifeTool, .weldObjects, .branching], [.entryExitTool]]),
+        ("Pick & shape", [[.selectTool], [.nodeTool, .editStitches, .smoothShapes], [.knifeTool, .weldObjects, .removeOverlaps, .branching], [.entryExitTool]]),
         ("Stitch", [[.runTool], [.satinTool], [.fillTool, .holeTool, .addStitchAngles, .removeStitchAngles]]),
         ("Shape", [[.openShapeTool, .closedShapeTool], [.freehandOpenTool, .freehandClosedTool], [.rectangleTool, .ellipseTool, .basicShapeTool]]),
         ("Add", [[.lettering, .addMonogram, .satinBorder, .applique, .autoDigitize, .laydown]]),
@@ -40,7 +40,7 @@ struct ToolStrip: View {
     /// The Pro view's tools: every one out as an icon button (no shared slots or lists to open), in captioned groups.
     /// Hovering a button shows its name and key.
     static let proGroups: [(title: String, commands: [CommandID])] = [
-        ("Pick & shape", [.selectTool, .nodeTool, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .branching, .entryExitTool, .panTool, .artworkTool]),
+        ("Pick & shape", [.selectTool, .nodeTool, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .removeOverlaps, .branching, .entryExitTool, .panTool, .artworkTool]),
         ("Stitch", [.runTool, .satinTool, .fillTool, .holeTool, .addStitchAngles, .removeStitchAngles]),
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool]),
         ("Add", [.lettering, .addMonogram, .satinBorder, .applique, .autoDigitize, .laydown]),
@@ -338,6 +338,7 @@ struct ToolStrip: View {
         case .satinBorder, .applique: return state.design.objects.contains { state.selection.contains($0.id) && !$0.locked && SatinBorder.canBorder($0) }
         case .autoDigitize: return state.design.artwork != nil
         case .weldObjects: return state.design.objects.filter { state.selection.contains($0.id) && !$0.locked && $0.areaRings != nil }.count >= 2
+        case .removeOverlaps: return state.design.objects.contains { (state.selection.isEmpty || state.selection.contains($0.id)) && $0.kind == .fill && !$0.locked }
         case .smoothShapes: return !state.editableSelection.isEmpty
         case .editStitches: return state.selection.count == 1 && state.selected?.locked == false && [.run, .satin, .fill].contains(state.selected?.kind)
         case .branching: return state.design.objects.filter { state.selection.contains($0.id) && !$0.locked && [.run, .satin, .fill].contains($0.kind) }.count >= 2
@@ -1045,6 +1046,8 @@ struct InspectorPanel: View {
                 Button("Branch") { AppDelegate.shared.perform(.branching) }
                     .help("Branching: sew these one after another in one thread, travelling inside them instead of trimming.")
             }.buttonStyle(ThemedButtonStyle())
+            Button("Remove overlaps") { AppDelegate.shared.perform(.removeOverlaps) }
+                .buttonStyle(ThemedButtonStyle()).help(preferences.hint(.removeOverlaps))
             // Align and space: objects line up with the one selected last.
             HStack(spacing: 0) {
                 ForEach([CommandID.alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters], id: \.self) { alignButton($0) }
