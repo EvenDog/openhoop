@@ -212,7 +212,9 @@ Add **ornaments** either side (swirls in bean stitch, leaves or dots, drawn for 
 
 ## Patches: borders and appliqué
 
-**Satin border (⇧⌘O).** Select a fill or closed outline to add a satin column around its outside edge (1–8 mm, default 3), like the edge of a patch. Corners are rounded just enough for the satin to turn, and shapes too thin for the width are explained. To change a border's width later, select it and type a new **Width** in Properties (satin columns made from a line have it too). The satin is rebuilt around the same middle line; a satin line's sharp turns can't be widened past the width they were made at, and Properties says so.
+**Satin border.** Select a fill or closed outline to add a satin column around its outside edge (1 mm or wider, default 3), like the edge of a patch. Corners are rounded just enough for the satin to turn, and shapes too thin for the width are explained. To change a border's width later, select it and type a new **Width** in Properties (satin columns made from a line have it too). The satin is rebuilt around the same middle line; a satin line's sharp turns can't be widened past the width they were made at, and Properties says so.
+
+**Outlines & offsets (⇧⌘O).** Select fills or closed outlines and choose **Digitize › Add › Outlines & Offsets…** to add new outlines around them: one right on the edge, and up to two **offsets** a set distance away. Offsets go outside the shape; give a distance below 0 to put one inside it, like a contour line. Pick any line stitch (running, bean, satin line, zigzag and the rest), and switch on **Outline holes too** to go round the shape's holes as well. Offsets keep clear of holes, and their corners can be **Sharp** (very narrow points are cut off flat rather than making long spikes) or **Rounded**. The new outlines sew in the current thread, right after their shape, and are ordinary closed outlines: recolor, reshape, reorder or delete them like any object.
 
 **Appliqué (F7 or ⌥Q).** Sews a piece of fabric on instead of filling the shape with stitches. The shape becomes three grouped parts, in its own thread:
 1. **Placement line**, then the machine stops: lay your fabric over the line.
@@ -298,7 +300,7 @@ Print it, or choose **PDF** in the print dialog to save it.
 
 ## Importing machine files
 
-**⇧⌘O** imports PES, PEC, DST, EXP, JEF, VP3 or XXX into the open design, at its original size and place. Each thread change becomes a block you can move, turn, mirror, recolor, reorder or combine with new work. These are finished stitches, not editable shapes: you can't edit their points or change their stitch type, and resizing changes their density. Colors the file doesn't store come in as **Unknown thread**; pick the right thread for each block.
+**⌥⌘O** imports PES, PEC, DST, EXP, JEF, VP3 or XXX into the open design, at its original size and place. Each thread change becomes a block you can move, turn, mirror, recolor, reorder or combine with new work. These are finished stitches, not editable shapes: you can't edit their points or change their stitch type, and resizing changes their density. Colors the file doesn't store come in as **Unknown thread**; pick the right thread for each block.
 
 ## Making it yours
 
@@ -344,7 +346,7 @@ These are the starting keys; every one can be changed. Tools on a function key a
 | Convert to fill | ⇧M | New / Open / Save | ⌘N / ⌘O / ⌘S |
 | Lettering / edit lettering | A / ⌥L | Import image / SVG / machine file | ⌘I / ⇧⌘I / ⌥⌘O |
 | Appliqué | F7 or ⌥Q | Export machine file | ⌘E or ⇧E |
-| Satin border | ⇧⌘O | Production worksheet | ⌘P |
+| Outlines & offsets | ⇧⌘O | Production worksheet | ⌘P |
 | Underlay on/off / show | U / ⇧U | Fit hoop / zoom in / zoom out | ⌥0 / Z / ⇧Z |
 | | | Zoom box / real size / to selected | B / 1 / ⇧0 |
 | | | Zoom to design | 0 |

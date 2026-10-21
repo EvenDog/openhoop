@@ -11,7 +11,7 @@ final class DefaultKeysTests: XCTestCase {
             (.init("o"), .selectTool), (.init("h"), .nodeTool), (.init("p"), .panTool), (.init("a"), .lettering),
             (.init("n", 2), .runTool), (.init("f8"), .runTool), (.init("a", 2), .satinTool), (.init("f4"), .satinTool),
             (.init("f6"), .convertSatin), (.init("i", 2), .convertSatin), (.init("f3"), .fillTool), (.init("m", 2), .convertFill),
-            (.init("f7"), .applique), (.init("o", 3), .satinBorder), (.init("u"), .toggleUnderlay), (.init("k"), .lockObject),
+            (.init("f7"), .applique), (.init("o", 3), .outlinesOffsets), (.init("u"), .toggleUnderlay), (.init("k"), .lockObject),
             (.init("g", 2), .grid), (.init("g", 3), .snap), (.init("."), .needles), (.init("d"), .artwork),
             (.init("z"), .zoomIn), (.init("z", 2), .zoomOut), (.init("0", 4), .zoomFit), (.init("1", 1), .mirrorH), (.init("1", 4), .mirrorV),
             (.init("u", 1), .ungroup), (.init("y", 1), .redo), (.init("r", 2), .play), (.init("home"), .rewind), (.init("e", 1), .exportMachine), (.init("e", 2), .exportMachine),
@@ -63,7 +63,7 @@ final class DefaultKeysTests: XCTestCase {
     }
     func testProfileKeySetSurvivesSaving() throws {
         let saved = try JSONDecoder().decode(ShortcutProfile.self, from: JSONEncoder().encode(ShortcutProfile()))
-        XCTAssertEqual(saved.keySet, 4)
+        XCTAssertEqual(saved.keySet, 5)
         var old = try JSONSerialization.jsonObject(with: JSONEncoder().encode(ShortcutProfile())) as! [String: Any]
         old.removeValue(forKey: "keySet")
         XCTAssertNil(try JSONDecoder().decode(ShortcutProfile.self, from: JSONSerialization.data(withJSONObject: old)).keySet)
@@ -117,6 +117,23 @@ final class DefaultKeysTests: XCTestCase {
         taken.bindings[CommandID.productionWorksheet.rawValue] = [.init("e", 1)]
         taken.upgrade()
         XCTAssertEqual(taken.bindings[CommandID.exportMachine.rawValue], [])
+    }
+    func testSavedProfileGivesOutlinesOffsetsShiftCommandOOnce() throws {
+        // Saved before Outlines & Offsets: ⇧⌘O on Add Satin Border, and no key for the new command yet.
+        var profile = ShortcutProfile(); profile.keySet = 4
+        profile.bindings[CommandID.satinBorder.rawValue] = [.init("o", 3)]; profile.bindings[CommandID.outlinesOffsets.rawValue] = nil
+        XCTAssertTrue(profile.upgrade())
+        XCTAssertEqual(profile.bindings[CommandID.satinBorder.rawValue], [])
+        XCTAssertEqual(profile.command(for: .init("o", 3), context: .canvas), .outlinesOffsets)
+        XCTAssertFalse(profile.updateToOutlinesKey(), "only once")
+        try profile.validate()
+
+        // Someone who gave Add Satin Border a key of their own keeps it.
+        var own = ShortcutProfile(); own.keySet = 4
+        own.bindings[CommandID.satinBorder.rawValue] = [.init("o", 3), .init("b", 4)]; own.bindings[CommandID.outlinesOffsets.rawValue] = nil
+        own.upgrade()
+        XCTAssertEqual(own.bindings[CommandID.satinBorder.rawValue], [.init("o", 3), .init("b", 4)])
+        XCTAssertEqual(own.bindings[CommandID.outlinesOffsets.rawValue], [], "its key is taken, so it waits")
     }
     func testInsertNodeKeyClearedOnPurposeStaysCleared() {
         var profile = ShortcutProfile(); profile.keySet = 2

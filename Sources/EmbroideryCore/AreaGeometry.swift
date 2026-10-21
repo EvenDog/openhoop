@@ -70,8 +70,15 @@ public enum AreaGeometry {
             }
         }
     }
-    public static func offset(_ rings: [[Point]], by amount: Double) throws -> [[Point]] {
-        try resolvedPaths(rings,by:amount,nonzero:nil).rings
+    /// `rings` grown by `amount` mm (shrunk when it's below zero), with rounded corners, or pointed ones when `sharp`
+    /// (very narrow corners are flattened rather than making long spikes). The geometry library
+    /// offsets at most 10 mm at a time; offsetting in steps that add up to `amount` gives the same shape (a
+    /// flattened sharp tip may come out a little different), so larger amounts go in steps.
+    public static func offset(_ rings: [[Point]], by amount: Double, sharp: Bool = false) throws -> [[Point]] {
+        let steps = max(1, Int(ceil(abs(amount) / 10)))
+        var result = rings
+        for _ in 0..<steps where !result.isEmpty { result = try resolvedPaths(result,by:amount/Double(steps),nonzero:nil,sharp:sharp).rings }
+        return result
     }
     /// Preserve Clipper's topology rather than infer containment from boundary vertices.
     static func svgRegions(_ rings:[[Point]],nonzero:Bool)throws->[[[Point]]] {
@@ -114,12 +121,12 @@ public enum AreaGeometry {
         }
         return pieces
     }
-    private static func resolvedPaths(_ rings:[[Point]],by amount:Double,nonzero:Bool?)throws->(rings:[[Point]],parents:[Int]) {
+    private static func resolvedPaths(_ rings:[[Point]],by amount:Double,nonzero:Bool?,sharp:Bool=false)throws->(rings:[[Point]],parents:[Int]) {
         try Task.checkCancellation()
         guard !rings.isEmpty else{return ([],[])}
         guard rings.count<=1024 else{throw DesignError.invalid("A compound outline has more than 1,024 subpaths. Split it into smaller objects before importing.")}
         let xy=rings.flatMap{$0.flatMap{[$0.x,$0.y]}},counts=rings.map{Int32($0.count)}
-        let output=xy.withUnsafeBufferPointer{x in counts.withUnsafeBufferPointer{n in (nonzero.map{eg_resolve(x.baseAddress,n.baseAddress,Int32(counts.count),$0 ? 1:0)} ?? eg_offset(x.baseAddress,n.baseAddress,Int32(counts.count),amount))}}
+        let output=xy.withUnsafeBufferPointer{x in counts.withUnsafeBufferPointer{n in (nonzero.map{eg_resolve(x.baseAddress,n.baseAddress,Int32(counts.count),$0 ? 1:0)} ?? (sharp ? eg_offset_sharp : eg_offset)(x.baseAddress,n.baseAddress,Int32(counts.count),amount))}}
         defer{eg_free_paths(output)}
         guard output.error==0 else{throw DesignError.invalid("The polygon geometry could not be generated (\(output.error)). Simplify or split the outline.")}
         try Task.checkCancellation()
