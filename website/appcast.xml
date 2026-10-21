@@ -6,6 +6,25 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.6.7</title>
+            <pubDate>Wed, 21 Oct 2026 19:00:12 GMT</pubDate>
+            <sparkle:version>13</sparkle:version>
+            <sparkle:shortVersionString>0.6.7</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.6.7</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. This is an early preview: expect rough edges, and test-sew designs before stitching anything important.</p>
+<h3>New in 0.6.7</h3>
+<ul>
+<li><b>Outlines &amp; Offsets (⇧⌘O).</b> Select fills or closed outlines and choose <b>Digitize › Add › Outlines &amp; Offsets…</b> to add new outlines around them: one right on the edge, and up to two offsets a set distance outside the shape (or inside it, with a distance below 0). Pick any line stitch, sharp or rounded corners, and whether to outline holes too. The dialog previews the result. <b>Add Satin Border</b> no longer has a default key; give it one in Settings if you like. A key you set for it yourself stays.</li>
+<li><b>Remove Overlaps.</b> <b>Digitize › Pick &amp; Shape › Remove Overlaps</b> makes fills leave out the parts that shapes sewn on top of them cover, so they aren't stitched twice. It works on the selection, or the whole design with nothing selected. Nothing is cut for good: move the shape on top and the fill fills back in, and choosing it again sews the fills in full.</li>
+<li><b>Keep drawing a finished line or satin.</b> Select a running line or satin column, pick its drawing tool and click one of its ends to carry on drawing from there. Press Return to finish; it's one step to undo.</li>
+<li><b>Satins as wide as you like.</b> Satin columns, satin lines and satin borders are no longer capped. Where satin stitches come out longer than 12 mm, a warning suggests turning on <b>Split wide satin</b>, since stitches that long can snag.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.6.7/OpenHoop-0.6.7.dmg" sparkle:edSignature="f4K83cpQEby0qAfr5JtwnErrfhm08TSpgVkZPNbNBvyBBATvO7ddygRKgkgvt439ooxYPE1y/rn2c0HBeRoGBg==" length="23000471" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.6.6</title>
             <pubDate>Tue, 20 Oct 2026 23:20:10 GMT</pubDate>
             <sparkle:version>12</sparkle:version>
