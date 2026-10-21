@@ -92,3 +92,16 @@ public enum OverlapCutout {
         return piece.flatMap { ring in ring.indices.map { AreaGeometry.projection(point, ring[$0], ring[($0 + 1) % ring.count]).distance(to: point) } }.min() ?? .infinity
     }
 }
+
+extension Design {
+    /// Remove Overlaps: the unlocked fills among `ids` that something sewn after them overlaps, so cutting out what's
+    /// on top would change their stitches. Fills whose cut can't be worked out are left out.
+    public func fillsWithOverlaps(among ids: Set<UUID>) -> Set<UUID> {
+        var found: Set<UUID> = []
+        for (index, object) in objects.enumerated() where ids.contains(object.id) && object.kind == .fill && !object.locked {
+            // nil when nothing on top overlaps it (or the cut fails, which try? also turns into nil).
+            if (try? OverlapCutout.pieces(of: object, under: Array(objects[(index + 1)...]))) != nil { found.insert(object.id) }
+        }
+        return found
+    }
+}

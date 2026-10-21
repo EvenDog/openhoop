@@ -573,6 +573,9 @@ import EmbroideryCore
         case .branching:
             guard state.draft.isEmpty else { state.status = "Finish the current path with Enter, or cancel with Escape, first."; return }
             state.startBranching(); state.focusCanvas(); state.canvas?.window?.invalidateCursorRects(for: state.canvas!)
+        case .removeOverlaps:
+            guard state.draft.isEmpty else { state.status = "Finish the current path with Enter, or cancel with Escape, first."; return }
+            state.removeOverlaps()
         case .weldObjects:
             var next = state.design
             do {
@@ -1008,7 +1011,7 @@ import EmbroideryCore
     /// The Digitize menu's submenus, one per toolbar group (Pick & Shape, Stitch, Shape, Add): the group's tools in
     /// toolbar order, with related commands next to the tool they go with.
     static let digitizeSections: [(title: String, commands: [CommandID])] = [
-        ("Pick & Shape", [.selectTool, .nodeTool, .insertNode, .deleteNode, .toggleNodeType, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .branching,
+        ("Pick & Shape", [.selectTool, .nodeTool, .insertNode, .deleteNode, .toggleNodeType, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .removeOverlaps, .branching,
                           .entryExitTool, .autoStartPoints, .clearStartEnd, .panTool, .artworkTool]),
         ("Stitch", [.runTool, .satinTool, .fillTool, .holeTool, .removeHoles, .addStitchAngles, .removeStitchAngles, .useAsFillGuide,
                     .convertRun, .convertSatin, .convertFill, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),
