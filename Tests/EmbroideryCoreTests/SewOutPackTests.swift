@@ -1,6 +1,6 @@
-// The sew-out test pack: seven designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
+// The sew-out test pack: eight designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
 // machine side by side (satin widths and compensation, the fill styles, small lettering, a monogram, travel and
-// finishing, the line styles and stipple, and motifs, cross stitch, gradient and raised satin). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
+// finishing, the line styles and stipple, and motifs, cross stitch, gradient and raised satin, then wide satin, Remove Overlaps and Outlines & Offsets). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
 // designs there as OpenHoop projects:
 //   SEWOUT_DIR="$PWD/docs/sewout" swift test --filter SewOutPackTests
 import XCTest
@@ -151,9 +151,32 @@ final class SewOutPackTests: XCTestCase {
         return design
     }
 
+    /// 8 · Wide satin, overlaps and outlines: a 6 mm satin beside two 14 mm ones, split and not split (top left); a
+    /// star with an edge outline and two offsets outside it (top right); and a square with a circle sewn on top, with
+    /// Remove Overlaps on (bottom left) and off (bottom right).
+    func wideSatinOverlapsAndOutlinesSheet() throws -> Design {
+        var design = newDesign()
+        let split = column("Satin 14 mm, split", at: Point(-24, 8), length: 34, width: 14, color: threads[0])
+        // Not split: Maximum stitch raised past the width, so its stitches sew the full 14 mm (and get the long-stitch warning).
+        var unsplit = column("Satin 14 mm, not split", at: Point(-6, 8), length: 34, width: 14, color: threads[0])
+        unsplit.digitizing?.autoSplit = false; unsplit.digitizing?.maximumSatin = 16
+        design.objects = [column("Satin 6 mm", at: Point(-40, 8), length: 34, width: 6, color: threads[0]), split, unsplit]
+        var settings = ShapeSettings(); settings.starPoints = 5
+        let star = fill("Star", ShapeGeometry.nodes(.star, in: box(Point(27, 25), 10), settings: settings), color: threads[1])
+        var options = OutlineOptions(); options.offsets = [2.5, 5]
+        design.objects += [star] + (try OutlinesOffsets.around(star, options: options, color: threads[3]).objects)
+        for (x, removed) in [(-24.0, true), (24.0, false)] {
+            var square = fill("Square, overlaps \(removed ? "removed" : "kept")", ShapeGeometry.nodes(.rectangle, in: box(Point(x, -26), 17)), color: threads[2])
+            if removed { square.digitizing?.cutOutOverlaps = true }
+            design.objects += [square, fill("Circle on top, overlaps \(removed ? "removed" : "kept")", ShapeGeometry.nodes(.ellipse, in: box(Point(x, -26), 9)), color: threads[4])]
+        }
+        return design
+    }
+
     func testEverySheetSewsAndFitsTheHoop() throws {
         let sheets: [(String, Design)] = [("1 Satin", satinSheet()), ("2 Fills", fillSheet()), ("3 Lettering", try letteringSheet()),
-                                          ("4 Monogram", try monogramSheet()), ("5 Travel and finishing", try travelSheet()), ("6 Line styles and stipple", lineStyleSheet()), ("7 Motifs, cross stitch and more", patternSheet())]
+                                          ("4 Monogram", try monogramSheet()), ("5 Travel and finishing", try travelSheet()), ("6 Line styles and stipple", lineStyleSheet()), ("7 Motifs, cross stitch and more", patternSheet()),
+                                          ("8 Wide satin, overlaps and outlines", try wideSatinOverlapsAndOutlinesSheet())]
         for (name, sheet) in sheets {
             var design = sheet
             design.schemaVersion = design.needsSchemaSix ? 6 : design.needsSchemaFive ? 5 : 4
@@ -174,5 +197,12 @@ final class SewOutPackTests: XCTestCase {
             return plan.commands.filter { $0.op == .trim && $0.objectID.map(ids.contains) == true }.count
         }
         XCTAssertLessThan(trims("Branched"), trims("Unbranched"))
+        // The square with its overlap removed sews fewer stitches than the one that keeps it.
+        let sheet8 = try wideSatinOverlapsAndOutlinesSheet(), plan8 = try RunningEngine.compile(sheet8)
+        func stitches(_ name: String) -> Int {
+            let id = sheet8.objects.first { $0.name == name }?.id
+            return plan8.commands.filter { $0.op == .stitch && $0.objectID == id }.count
+        }
+        XCTAssertLessThan(stitches("Square, overlaps removed"), stitches("Square, overlaps kept"))
     }
 }
