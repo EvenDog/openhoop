@@ -55,4 +55,32 @@ final class SewingReviewTests: XCTestCase {
         XCTAssertGreaterThan(letters.count, 1)
         XCTAssertEqual(steps.map(\.objects), [letters, [line.id]])
     }
+
+    func testLongMovesAndUntrimmedJumpsAreWarnedAbout() {
+        func travel(_ length: Double, trimmed: Bool = true, jumped: Bool = true, colorChange: Bool = false) -> SewingTravel {
+            SewingTravel(from: Point(0, 0), length: length, trimmed: trimmed, jumped: jumped, colorChange: colorChange, stopped: false)
+        }
+        XCTAssertNil(travel(14.9).warning(trimDistance: 3), "a short trimmed move")
+        XCTAssertEqual(travel(18.6).warning(trimDistance: 3), .longMove(18.6))
+        XCTAssertNil(travel(30, colorChange: true).warning(trimDistance: 3), "the machine starts afresh for a new thread")
+        XCTAssertNil(travel(30, trimmed: false, colorChange: true).warning(trimDistance: 3))
+        XCTAssertEqual(travel(6, trimmed: false).warning(trimDistance: 3), .untrimmedJump(6), "trimming would have cut it")
+        XCTAssertNil(travel(2, trimmed: false).warning(trimDistance: 3), "shorter than the trim distance")
+        XCTAssertEqual(travel(20, trimmed: false).warning(trimDistance: 3), .untrimmedJump(20), "the thread across matters more than the length")
+        XCTAssertNil(travel(1, trimmed: false, jumped: false).warning(trimDistance: 3), "stitched across")
+    }
+
+    func testWarningsAreListedByStep() throws {
+        // Three short lines across the hoop: the second 30 mm on from the first in the same thread, the third 30 mm on
+        // again but in another thread.
+        let ink = ThreadColor.palette[0], other = ThreadColor.palette[1]
+        var design = Design()
+        design.objects = [(-40.0, ink), (-10.0, ink), (20.0, other)].map { x, color in
+            RunObject(name: "Line", nodes: [PathNode(Point(x, 0)), PathNode(Point(x + 10, 0))], color: color)
+        }
+        let warnings = design.sewingWarnings(design.sewingSteps(plan: try RunningEngine.compile(design)))
+        XCTAssertEqual(Array(warnings.keys), [1], "only the long move in the same thread")
+        guard case .longMove(let length)? = warnings[1] else { return XCTFail("a long move") }
+        XCTAssertEqual(length, 20, accuracy: 0.5, "from the first line's end to the second's start")
+    }
 }

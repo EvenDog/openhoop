@@ -166,14 +166,16 @@ struct ProSewingOrder: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     let counts = state.stitchCounts, labels = state.design.groupLabels
+                    let warned = state.reviewing ? state.warnedObjects : []   // marked while reviewing the sewing order
                     ForEach(lines) { line in
                         switch line {
                         case .object(let index, let object, let indented):
                             // A row inside an opened group drags just that object; otherwise its whole group comes along.
-                            objectRow(index, object, indented: indented, count: counts[object.id])
+                            objectRow(index, object, indented: indented, count: counts[object.id], warned: warned.contains(object.id))
                                 .sewingOrderRow(state: state, ids: indented ? [object.id] : state.design.groupMembers(of: object.id), place: index, target: $dropTarget)
                         case .group(let id, let first, let members):
-                            groupRow(id, first: first, members: members, label: labels[id], count: members.compactMap { counts[$0.id] }.reduce(0, +))
+                            groupRow(id, first: first, members: members, label: labels[id], count: members.compactMap { counts[$0.id] }.reduce(0, +),
+                                     warned: members.contains { warned.contains($0.id) })
                                 .sewingOrderRow(state: state, ids: Set(members.map(\.id)), place: first, target: $dropTarget)
                         case .picture: PictureRow(state: state).padding(.vertical, 2)
                         }
@@ -193,12 +195,16 @@ struct ProSewingOrder: View {
     }
 
     /// The table's columns, shared by the heading and every line so they stay lined up.
-    private func row<Name: View>(number: String, swatch: Color?, symbol: String?, name: Name, stitches: String, flags: String, indent: Bool = false) -> some View {
+    /// `warned` puts a warning triangle in the type-icon column (a step Review Sewing Order warns about).
+    private func row<Name: View>(number: String, swatch: Color?, symbol: String?, name: Name, stitches: String, flags: String, indent: Bool = false, warned: Bool = false) -> some View {
         HStack(spacing: 4) {   // kept tight so the name column gets as much of a narrow panel as possible
             Text(number).font(.system(size: 10, design: .monospaced)).foregroundStyle(Theme.inkSecondary).lineLimit(1).frame(width: 20, alignment: .leading)
             Group { if let swatch { RoundedRectangle(cornerRadius: 2).fill(swatch).overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(Color.black.opacity(0.25))) } else { Color.clear } }
                 .frame(width: 10, height: 10)
-            Group { if let symbol { Image.symbol(symbol, size: 10).font(.system(size: 10)).foregroundStyle(Theme.inkSecondary) } else { Color.clear } }
+            Group {
+                if warned { Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 10)).foregroundStyle(Theme.primaryAction).help("Review Sewing Order warns about the move to this step") }
+                else if let symbol { Image.symbol(symbol, size: 10).font(.system(size: 10)).foregroundStyle(Theme.inkSecondary) } else { Color.clear }
+            }
                 .frame(width: 14, height: 12)
             name.lineLimit(1).truncationMode(.tail).padding(.leading, indent ? 10 : 0).frame(maxWidth: .infinity, alignment: .leading)
             Text(stitches).font(.system(size: 10, design: .monospaced)).fixedSize().frame(width: 46, alignment: .trailing)   // fixedSize: the "STITCHES" heading may spill left, never truncate
@@ -209,14 +215,14 @@ struct ProSewingOrder: View {
         .padding(.horizontal, 4)
     }
 
-    private func objectRow(_ index: Int, _ object: RunObject, indented: Bool, count: Int?) -> some View {
+    private func objectRow(_ index: Int, _ object: RunObject, indented: Bool, count: Int?, warned: Bool) -> some View {
         let selected = state.selection.contains(object.id)
         let flags = [object.trimAfter ? "T" : "", object.stopAfter ? "S" : "", object.visible ? "" : "H"].joined()
         let type = object.kind == .raw ? "Imported stitches" : object.stitchTitle
         let notes = [object.trimAfter ? (object.trimRule == .always ? ", trims after" : ", trims after when far") : "", object.stopAfter ? ", stops after" : "", object.locked ? ", locked" : "", object.visible ? "" : ", hidden (still sews)"].joined()
         return Button { state.listClick(object.id, single: indented) } label: {
             row(number: "\(index + 1)", swatch: Color(nsColor: object.color.nsColor), symbol: Self.symbol(object), name: Text(object.name),
-                stitches: count.map { $0.formatted() } ?? "–", flags: flags, indent: indented)
+                stitches: count.map { $0.formatted() } ?? "–", flags: flags, indent: indented, warned: warned)
                 .frame(height: 22)
                 .background(selected ? Theme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 4))
                 .contentShape(Rectangle())
@@ -239,7 +245,7 @@ struct ProSewingOrder: View {
 
     /// A group's line: open/close chevron (in the type-icon column, so the name keeps the table's full width),
     /// what it is (lettering shows its text) with the group label, and total stitches.
-    private func groupRow(_ id: UUID, first: Int, members: [RunObject], label: String?, count: Int) -> some View {
+    private func groupRow(_ id: UUID, first: Int, members: [RunObject], label: String?, count: Int, warned: Bool) -> some View {
         let open = opened.contains(id), selected = members.allSatisfy { state.selection.contains($0.id) }
         let lettering = members.first?.lettering
         let title = lettering.map { "“\($0.lines.joined(separator: " / "))”" } ?? "\(members.count) objects"
@@ -247,7 +253,7 @@ struct ProSewingOrder: View {
         return Button { state.listClick(members[0].id) } label: {
             row(number: "\(first + 1)", swatch: colors.count == 1 ? Color(nsColor: members[0].color.nsColor) : nil, symbol: nil,
                 name: groupName(title, label: lettering == nil ? label : nil),
-                stitches: count.formatted(), flags: "")
+                stitches: count.formatted(), flags: "", warned: warned)
                 .frame(height: 22)
                 .background(selected ? Theme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 4))
                 .contentShape(Rectangle())

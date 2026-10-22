@@ -1,6 +1,7 @@
 // The Review section at the top of Properties while reviewing the sewing order (View › Review Sewing Order): which
 // step this is, how the needle gets here from the step before, and where it starts and ends, with buttons to set them.
-// Switched to Route, it sums up the whole route instead and explains the canvas's lines.
+// Switched to Route, it sums up the whole route instead, explains the canvas's lines and lists the moves worth a
+// second look.
 import SwiftUI
 import EmbroideryCore
 
@@ -44,6 +45,10 @@ struct ReviewSection: View {
                 if let travel = step.travel {
                     Text("Before it: " + travel.summary(unit: Preferences.shared.unit)).font(Theme.body(12, weight: .semibold))
                     Text("From the end of \(state.stepName(steps[index - 1])) (faint ×) to this start (+)").font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
+                    if let warning = state.sewingWarnings[index] {
+                        Label { Text(warning.advice(after: state.stepName(steps[index - 1]), unit: Preferences.shared.unit)) } icon: { Image(systemName: "exclamationmark.triangle.fill") }
+                            .font(Theme.body(11, weight: .semibold)).foregroundStyle(Theme.primaryAction).padding(.top, 4)
+                    }
                 } else {
                     Text("The first step: the machine starts sewing here.").font(Theme.body(12, weight: .semibold))
                 }
@@ -71,8 +76,43 @@ struct ReviewSection: View {
             legend("Trim, then on to the next start", color: Color(nsColor: Theme.Canvas.handle), width: 1.5, dash: [5, 3])
             legend("Thread change", color: Color(nsColor: Theme.Canvas.label), width: 1.4, dash: [1, 3.5])
             legend("Jump, not trimmed", color: Color(nsColor: Theme.Canvas.handle), width: 1, dash: [])
+            legend("A move with a warning (below)", color: Color(nsColor: Theme.Canvas.exit), width: 2.3, dash: [5, 3])
         }
         hint("Each step's number sits at its start. Click an object, or a step in Sewing order, to pick it out.")
+        warnings
+    }
+
+    /// The moves worth a second look, each a button that shows its step.
+    @ViewBuilder private var warnings: some View {
+        let steps = state.sewingSteps, warnings = state.sewingWarnings.sorted { $0.key < $1.key }
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Warnings · \(warnings.count)").textCase(.uppercase).font(Theme.caption).tracking(0.8)
+                .foregroundStyle(warnings.isEmpty ? Theme.inkSecondary : Theme.primaryAction)
+            if warnings.isEmpty {
+                hint("None: every move is shorter than \(Preferences.shared.unit.short(SewingTravel.longMove)) or changes thread, and every long jump is trimmed.")
+            } else {
+                ForEach(warnings, id: \.key) { index, warning in
+                    Button { state.showStep(index) } label: {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Theme.primaryAction)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("\(index + 1) · \(state.stepName(steps[index]))").font(Theme.body(12, weight: .semibold))
+                                Text(warning.summary(after: state.stepName(steps[index - 1]), unit: Preferences.shared.unit)).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 8).padding(.vertical, 6).frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Theme.card, in: RoundedRectangle(cornerRadius: 6))
+                        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.controlBorder))
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Show step \(index + 1)")
+                }
+                hint("Moves of \(Preferences.shared.unit.short(SewingTravel.longMove)) or more in the same thread, and jumps left untrimmed. Click one to look at its step.")
+            }
+        }
+        .padding(.top, 4)
     }
 
     /// A count in a small card, such as "16 trims".
@@ -122,6 +162,25 @@ struct ReviewSection: View {
 
     private func hint(_ text: String) -> some View {
         Text(text).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+extension SewingWarning {
+    /// The warning in a few words for the route's list, such as "starts 18.6 mm from where Petal 1 ended".
+    func summary(after previous: String, unit: LengthUnit) -> String {
+        switch self {
+        case .longMove(let length): return "starts \(unit.text(length)) from where \(previous) ended"
+        case .untrimmedJump(let length): return "jumps \(unit.text(length)) from \(previous) without a trim"
+        }
+    }
+    /// The warning with what to do about it, for the step's details.
+    func advice(after previous: String, unit: LengthUnit) -> String {
+        switch self {
+        case .longMove(let length):
+            return "A long move (\(unit.text(length))). Moving this start or \(previous)'s end nearer the other, or sewing them in another order, makes it shorter."
+        case .untrimmedJump(let length):
+            return "A \(unit.text(length)) jump with no trim: the thread lies across the fabric. Set Trim after for \(previous), or snip it after sewing."
+        }
     }
 }
 

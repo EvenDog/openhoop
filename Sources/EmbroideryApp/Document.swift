@@ -213,10 +213,22 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     func stepReview(by delta: Int) {
         let steps = sewingSteps
         guard !steps.isEmpty else { status = "Nothing to review yet: the design has no stitches."; return }
-        let index = reviewStep.map { min(max($0.index + delta, 0), steps.count - 1) } ?? (delta > 0 ? 0 : steps.count - 1)
+        showStep(reviewStep.map { min(max($0.index + delta, 0), steps.count - 1) } ?? (delta > 0 ? 0 : steps.count - 1))
+    }
+    /// Shows step `index` (as one step, not the route) by selecting what it sews.
+    func showStep(_ index: Int) {
+        let steps = sewingSteps
+        guard steps.indices.contains(index) else { return }
         selection = Set(steps[index].objects)
-        reviewShowsRoute = false   // stepping shows the step
+        reviewShowsRoute = false
         status = "Step \(index + 1) of \(steps.count): \(stepName(steps[index]))."
+    }
+    /// The moves worth a second look (SewingReview.swift), by step index.
+    var sewingWarnings: [Int: SewingWarning] { design.sewingWarnings(sewingSteps) }
+    /// The objects sewn by steps with a warning, which Sewing order marks while reviewing.
+    var warnedObjects: Set<UUID> {
+        let steps = sewingSteps
+        return Set(sewingWarnings.keys.flatMap { steps[$0].objects })
     }
     /// A step's name: the object's, or the text of a piece of lettering.
     func stepName(_ step: SewingStep) -> String {

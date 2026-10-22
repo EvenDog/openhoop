@@ -1,6 +1,6 @@
 // Checks Review Sewing Order: stepping selects each step in turn, a drawing tool finishes the review, the canvas
-// draws the steps still to sew faded or not at all, the route draws everything and its numbers never overlap, and
-// the travel label reads as intended.
+// draws the steps still to sew faded or not at all, the route draws everything and its numbers never overlap,
+// warnings mark their steps, and the travel label and warnings read as intended.
 import XCTest
 import AppKit
 @testable import EmbroideryCore   // for SewingTravel's memberwise initializer
@@ -94,6 +94,23 @@ final class ReviewModeTests: XCTestCase {
         for i in badges.indices { for j in badges.indices where j > i {
             XCTAssertGreaterThanOrEqual(hypot(badges[i].x - badges[j].x, badges[i].y - badges[j].y), radius * 2, "badges \(i + 1) and \(j + 1) overlap")
         } }
+    }
+
+    @MainActor func testWarningsMarkTheirStepsAndShowingOneShowsItsStep() throws {
+        _ = NSApplication.shared
+        let state = EditorState()
+        // Two lines in one thread with 20 mm between them: a long move.
+        state.design.objects = [-40.0, -10.0].map { x in RunObject(name: "Line", nodes: [PathNode(Point(x, 0)), PathNode(Point(x + 10, 0))]) }
+        state.plan = try StitchEngine.compile(state.design)
+        let second = state.design.objects[1].id
+        XCTAssertEqual(Array(state.sewingWarnings.keys), [1])
+        XCTAssertEqual(state.warnedObjects, [second])
+        state.reviewing = true; state.reviewShowsRoute = true
+        state.showStep(1)   // clicking the warning in the route's list
+        XCTAssertEqual(state.selection, [second])
+        XCTAssertFalse(state.reviewShowsRoute, "it shows that step")
+        XCTAssertEqual(SewingWarning.longMove(18.6).summary(after: "Petal 1", unit: .millimeters), "starts 18.6 mm from where Petal 1 ended")
+        XCTAssertEqual(SewingWarning.untrimmedJump(6).summary(after: "Petal 1", unit: .millimeters), "jumps 6.0 mm from Petal 1 without a trim")
     }
 
     func testTravelSummaries() {

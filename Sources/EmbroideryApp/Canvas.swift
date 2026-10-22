@@ -536,7 +536,9 @@ final class DesignCanvas: NSView {
         if threadView && showStitches { context.setStrokeColor(NSColor.white.withAlphaComponent(0.85).cgColor); context.setLineWidth(0.8); context.addPath(needles); context.strokePath() }
         context.setFillColor(Theme.Canvas.needle.cgColor); context.addPath(needles); context.fillPath()
         if state.showDensity { drawDensityMap(context) }
-        if let review, let travel = review.travel { drawTravel(travel, to: review.start) }
+        if let review, let travel = review.travel, let index = state.reviewStep?.index {
+            drawTravel(travel, to: review.start, warned: state.sewingWarnings[index] != nil)
+        }
         let sewn = sewnEnds()
         let unplaced = Set(state.hoopingAssignment?.unplaced ?? [])
         for object in design.objects where state.isShown(object) {
@@ -905,11 +907,12 @@ final class DesignCanvas: NSView {
     }
     /// While reviewing: the way from where the step before ended (a faint ×) to this step's start, dashed, with what
     /// happens on the way beside it, such as "Trim, then 18.6 mm".
-    private func drawTravel(_ travel: SewingTravel, to start: Point) {
+    private func drawTravel(_ travel: SewingTravel, to start: Point, warned: Bool) {
+        let color = warned ? Theme.Canvas.exit : Theme.Canvas.handle   // terracotta for a move worth a second look
         let a = screen(travel.from), b = screen(start)
         let line = NSBezierPath(); line.move(to: a); line.line(to: b); line.lineCapStyle = .round
         Theme.Canvas.ruler.withAlphaComponent(0.7).setStroke(); line.lineWidth = 3.5; line.stroke()   // keeps it clear on any thread, light or dark
-        Theme.Canvas.handle.setStroke(); line.lineWidth = 1.5; line.setLineDash([5, 4], count: 2, phase: 0); line.stroke()
+        color.setStroke(); line.lineWidth = warned ? 2 : 1.5; line.setLineDash([5, 4], count: 2, phase: 0); line.stroke()
         NSGraphicsContext.saveGraphicsState(); NSGraphicsContext.current?.cgContext.setAlpha(0.5)
         drawEndMarker(travel.from)
         NSGraphicsContext.restoreGraphicsState()
@@ -918,8 +921,8 @@ final class DesignCanvas: NSView {
         let middle = CGPoint(x: (a.x + b.x) / 2 + 10, y: (a.y + b.y) / 2 - 9)
         Theme.Canvas.ruler.withAlphaComponent(0.92).setFill()
         let backing = NSBezierPath(roundedRect: CGRect(x: middle.x, y: middle.y, width: width + 12, height: 18), xRadius: 9, yRadius: 9)
-        backing.fill(); Theme.Canvas.handle.setStroke(); backing.lineWidth = 0.75; backing.stroke()
-        drawLabel(text, at: CGPoint(x: middle.x + 6, y: middle.y + 2), size: 11, color: Theme.Canvas.handle)
+        backing.fill(); color.setStroke(); backing.lineWidth = 0.75; backing.stroke()
+        drawLabel(text, at: CGPoint(x: middle.x + 6, y: middle.y + 2), size: 11, color: color)
     }
     /// True while Review shows the whole route.
     private var routeShown: Bool { state.reviewing && state.reviewShowsRoute }
@@ -948,9 +951,11 @@ final class DesignCanvas: NSView {
     /// Review's route: from each step's end, an arrow to where the next step starts (dashed for a trim, dotted for a
     /// thread change, a thin line for a jump that isn't trimmed; a thread carried straight on has none), and each
     /// step's number in a badge at its start. A badge moved aside has a short line back to its start, marked with a
-    /// green dot. The step being looked at has a bigger badge.
+    /// green dot. The step being looked at has a bigger badge. Moves with a warning, and their steps' badges, are
+    /// terracotta.
     private func drawRoute(_ steps: [SewingStep], current: Int?) {
         let radius = Self.routeBadgeRadius, starts = steps.map { screen($0.start) }, badges = Self.routeBadges(starts)
+        let warnings = state.sewingWarnings
         for (index, step) in steps.enumerated() {
             guard let travel = step.travel, travel.trimmed || travel.jumped || travel.colorChange else { continue }
             let a = screen(travel.from), b = starts[index], length = hypot(b.x - a.x, b.y - a.y)
@@ -960,9 +965,10 @@ final class DesignCanvas: NSView {
             let ux = (b.x - a.x) / length, uy = (b.y - a.y) / length, tip = CGPoint(x: b.x - ux * gap, y: b.y - uy * gap)
             let line = NSBezierPath(); line.move(to: a); line.line(to: tip); line.lineCapStyle = .round
             Theme.Canvas.ruler.withAlphaComponent(0.6).setStroke(); line.lineWidth = 3; line.stroke()   // keeps it clear on any thread, light or dark
-            let color = travel.colorChange ? Theme.Canvas.label : Theme.Canvas.handle
+            let warned = warnings[index] != nil
+            let color = warned ? Theme.Canvas.exit : travel.colorChange ? Theme.Canvas.label : Theme.Canvas.handle
             color.setStroke(); color.setFill()
-            line.lineWidth = travel.colorChange ? 1.4 : travel.trimmed ? 1.5 : 1
+            line.lineWidth = (travel.colorChange ? 1.4 : travel.trimmed ? 1.5 : 1) + (warned ? 0.8 : 0)
             if travel.colorChange { line.setLineDash([1, 3.5], count: 2, phase: 0) } else if travel.trimmed { line.setLineDash([5, 3], count: 2, phase: 0) }
             line.stroke()
             let head = NSBezierPath(); head.move(to: tip)
@@ -977,7 +983,8 @@ final class DesignCanvas: NSView {
             }
             let size = index == current ? radius + 3 : radius
             let badge = NSBezierPath(ovalIn: CGRect(x: spot.x - size, y: spot.y - size, width: size * 2, height: size * 2))
-            Theme.fixed(0x34507A).setFill(); badge.fill()   // denim in light and dark, so the white number always reads
+            // Denim (or terracotta, warned) in light and dark alike, so the white number always reads.
+            Theme.fixed(warnings[index] == nil ? 0x34507A : 0xB0532F).setFill(); badge.fill()
             NSColor.white.setStroke(); badge.lineWidth = index == current ? 2.5 : 1.5; badge.stroke()
             let number = NSAttributedString(string: "\(index + 1)", attributes: [.font: NSFont.systemFont(ofSize: index == current ? 11 : 9.5, weight: .bold), .foregroundColor: NSColor.white])
             number.draw(at: CGPoint(x: spot.x - number.size().width / 2, y: spot.y - number.size().height / 2))
