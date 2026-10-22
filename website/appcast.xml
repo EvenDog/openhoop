@@ -6,6 +6,26 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.7.0</title>
+            <pubDate>Thu, 22 Oct 2026 15:25:10 GMT</pubDate>
+            <sparkle:version>16</sparkle:version>
+            <sparkle:shortVersionString>0.7.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.7.0</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.7.0</h3>
+<ul>
+<li><b>One layout: the Guided view is gone.</b> OpenHoop now always uses the layout that was called Pro: every tool is its own button in two rows across the top (or down the left side, in <b>Settings › Tools &amp; player</b>), with a precision bar for exact position, size and rotation, the sewing order as a table with stitch counts, and live stats in the status bar.</li>
+<li>If you used Guided, OpenHoop opens in this layout with its standard panel arrangement. If you used Pro, your panel arrangement is kept.</li>
+<li>The <b>Guided | Pro</b> switch in the toolbar and <b>View › Pro View</b> (⌥⌘P) are gone; ⌥⌘P is free for a shortcut of your own.</li>
+<li>Rest the pointer on any tool, button or setting to see what it does. These tooltips replace the lines of explanation Guided showed under each setting.</li>
+<li>Nothing else changes: every tool and setting is still here, and projects open as before.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.7.0/OpenHoop-0.7.0.dmg" sparkle:edSignature="1GY7v8dpMM2MpvSuiTRWOSng6X9a3GDTe5Ux/WANAUaANBJMT7PIfgaA6Lp1IsZ4LUqhtAoVr1GC6SnvHWNHDg==" length="22685335" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.6.9</title>
             <pubDate>Thu, 22 Oct 2026 02:40:42 GMT</pubDate>
             <sparkle:version>15</sparkle:version>
