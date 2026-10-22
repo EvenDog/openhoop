@@ -63,6 +63,17 @@ final class WorksheetTests: XCTestCase {
                        WorksheetLayout(summary: content.summary, pageSize: letter).pages.count)
     }
 
+    /// A hooping sheet is each hooping's worksheet, one after another, in one PDF.
+    @MainActor func testHoopingSheetHasEveryHoopingsPages() throws {
+        _ = NSApplication.shared
+        let design = Design.sample()
+        let plan = try StitchEngine.compile(design)
+        let contents = (1...3).map { WorksheetContent(name: "Sample – hooping \($0) of 3", hoop: design.hoop, plan: plan, summary: ProductionSummary(plan: plan, design: design), fabric: 0xF5F0E6) }
+        let document = try XCTUnwrap(PDFDocument(data: try XCTUnwrap(WorksheetPrinter.pdf(contents: contents, pageSize: letter, speed: 600))))
+        XCTAssertEqual(document.pageCount, 3)
+        XCTAssertTrue(document.page(at: 2)?.string?.contains("Sample – hooping 3 of 3") ?? false)
+    }
+
     /// A thread matched to a chart prints its color number and brand, so you know which spool to load.
     @MainActor func testChartThreadsPrintBrandAndNumber() throws {
         _ = NSApplication.shared

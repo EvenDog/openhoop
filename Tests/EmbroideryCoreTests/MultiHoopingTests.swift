@@ -26,6 +26,10 @@ final class MultiHoopingTests: XCTestCase {
         let assignment = design.hoopingAssignment(plan: try StitchEngine.compile(design))
         XCTAssertEqual(assignment.objects, [[left.id, middle.id], [right.id]], "the middle fits both, so it goes to the first")
         XCTAssertEqual(assignment.unplaced, [long.id], "140 mm fits no 100 mm hooping")
+        // Stitches closer than half a millimeter to a hooping's edge don't count as inside it.
+        let atTheEdge = square("At the edge", at: Point(-42, 47), size: 5.6)
+        let edged = twoHoopings([atTheEdge])
+        XCTAssertEqual(edged.hoopingAssignment(plan: try StitchEngine.compile(edged)).unplaced, [atTheEdge.id])
         XCTAssertThrowsError(try design.hoopingPlans(plan: try StitchEngine.compile(design)), "nothing is saved while an object fits no hooping")
     }
 
@@ -57,6 +61,11 @@ final class MultiHoopingTests: XCTestCase {
         XCTAssertEqual(wide[0].center.y, wide[1].center.y, accuracy: 0.001, "one row")
         XCTAssertLessThan(wide[0].center.x, wide[1].center.x, "left to right")
         XCTAssertGreaterThanOrEqual(design.hoop.width - (wide[1].center.x - wide[0].center.x), Design.hoopingOverlap)
+        // The design's outermost stitches stay clear of the edges, so the machine files never round past them.
+        let stitches = try StitchEngine.compile(design).commands.filter { $0.op == .stitch }.map(\.point)
+        XCTAssertEqual(stitches.map(\.x).max()! + Design.hoopingLayoutMargin, wide[1].center.x + design.hoop.width / 2, accuracy: 0.001)
+        design.multiHooping!.hoopings = wide
+        XCTAssertNoThrow(try design.hoopingPlans(plan: try StitchEngine.compile(design)))
 
         design.objects = [square("Small", at: Point(5, 5))]
         let small = design.autoHoopings(plan: try StitchEngine.compile(design))
@@ -113,6 +122,20 @@ final class MultiHoopingTests: XCTestCase {
             XCTAssertTrue(design.hoop.contains(spot - hoopings[0].center) && design.hoop.contains(spot - hoopings[1].center))
         }
         XCTAssertGreaterThan(abs(spots[0].y - spots[1].y), 50, "the two marks are far apart, so turning shows too")
+    }
+
+    func testAMiddleHoopingSewsMarksAtBothEndsAndTheWorksheetNamesThem() throws {
+        var design = twoHoopings([square("Left", at: Point(-100, 0)), square("Middle", at: Point(0, 0)), square("Right", at: Point(100, 0))])
+        design.multiHooping!.hoopings = [Hooping(center: Point(-84, 0)), Hooping(center: Point(0, 0)), Hooping(center: Point(84, 0))]
+        let plans = try design.hoopingPlans(plan: try StitchEngine.compile(design))   // compiling checks every object's ID is its own
+        XCTAssertEqual(plans.count, 3)
+        let middle = plans[1].commands.filter { $0.op == .stitch }
+        XCTAssertTrue(Design.isAlignmentMark(try XCTUnwrap(middle.first?.objectID)), "starts with the marks shared with hooping 1")
+        XCTAssertTrue(Design.isAlignmentMark(try XCTUnwrap(middle.last?.objectID)), "ends with the marks for hooping 3")
+        XCTAssertFalse(Design.isAlignmentMark(design.objects[0].id))
+        let steps = ProductionSummary(plan: plans[1], design: design).steps
+        XCTAssertEqual(steps.first?.parts, ["Alignment marks"])
+        XCTAssertEqual(steps.first?.stopAfter, true, "the machine stops so the marks can be checked")
     }
 
     func testAWarningWhenAHoopingPutsAnObjectOnTop() throws {

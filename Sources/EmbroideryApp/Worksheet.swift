@@ -260,7 +260,8 @@ struct WorksheetPage: View {
 
 /// The preview dialog: the machine speed for the time estimate, and the pages as they'll print.
 struct WorksheetView: View {
-    let content: WorksheetContent
+    /// What to show: one worksheet, or a multi-hooped design's hooping sheet (one worksheet per hooping, in order).
+    let contents: [WorksheetContent]
     let pageSize: CGSize
     /// The speed the dialog starts with; `speedChanged` hears each valid new speed.
     let initialSpeed: Int
@@ -273,10 +274,12 @@ struct WorksheetView: View {
     private var speed: Int { typedSpeed ?? initialSpeed }
 
     var body: some View {
-        let layout = WorksheetLayout(summary: content.summary, pageSize: pageSize)
+        let layouts = contents.map { WorksheetLayout(summary: $0.summary, pageSize: pageSize) }
+        let pages = layouts.reduce(0) { $0 + $1.pages.count }, steps = contents.reduce(0) { $0 + $1.summary.steps.count }
+        let minutes = contents.reduce(0) { $0 + $1.summary.sewingMinutes(speed: speed) }
         let scale = min(1, 600 / pageSize.width)
-        DialogFrame(eyebrow: "Production worksheet", title: content.name,
-                    subtitle: "\(layout.pages.count) \(layout.pages.count == 1 ? "page" : "pages") · \(content.summary.steps.count) thread \(content.summary.steps.count == 1 ? "step" : "steps") · estimated sewing time \(ProductionSummary.duration(content.summary.sewingMinutes(speed: speed))). Print it, or choose PDF › Save as PDF in the print dialog.",
+        DialogFrame(eyebrow: contents.count == 1 ? "Production worksheet" : "Hooping sheet", title: contents.count == 1 ? contents[0].name : "\(contents.count) hoopings",
+                    subtitle: "\(pages) \(pages == 1 ? "page" : "pages") · \(steps) thread \(steps == 1 ? "step" : "steps") · estimated sewing time \(ProductionSummary.duration(minutes)). Print it, or choose PDF › Save as PDF in the print dialog.",
                     primary: "Print…", finish: finish) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 8) {
@@ -292,11 +295,13 @@ struct WorksheetView: View {
                     .font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
                 ScrollView {
                     VStack(spacing: 14) {
-                        ForEach(layout.pages.indices, id: \.self) { index in
-                            WorksheetPage(content: content, layout: layout, index: index, speed: speed)
+                        ForEach(Array(zip(contents, layouts).enumerated()), id: \.offset) { _, sheet in
+                        ForEach(sheet.1.pages.indices, id: \.self) { index in
+                            WorksheetPage(content: sheet.0, layout: sheet.1, index: index, speed: speed)
                                 .scaleEffect(scale, anchor: .topLeading)
                                 .frame(width: pageSize.width * scale, height: pageSize.height * scale, alignment: .topLeading)
                                 .background(Rectangle().fill(Color.white).shadow(color: .black.opacity(0.15), radius: 4, y: 1))   // a shadow on the paper's edge only
+                        }
                         }
                     }.padding(10).frame(maxWidth: .infinity)
                 }
@@ -315,29 +320,33 @@ struct WorksheetView: View {
 
 @MainActor enum WorksheetPrinter {
     /// Draws every page into one PDF document, in memory.
-    static func pdf(content: WorksheetContent, pageSize: CGSize, speed: Int) -> Data? {
-        let layout = WorksheetLayout(summary: content.summary, pageSize: pageSize)
+    static func pdf(content: WorksheetContent, pageSize: CGSize, speed: Int) -> Data? { pdf(contents: [content], pageSize: pageSize, speed: speed) }
+    /// Draws several worksheets' pages, one after another (a hooping sheet), into one PDF document.
+    static func pdf(contents: [WorksheetContent], pageSize: CGSize, speed: Int) -> Data? {
         let data = NSMutableData()
         var box = CGRect(origin: .zero, size: pageSize)
         guard let consumer = CGDataConsumer(data: data as CFMutableData), let pdf = CGContext(consumer: consumer, mediaBox: &box, nil) else { return nil }
-        for index in layout.pages.indices {
-            // ImageRenderer turns a SwiftUI view into drawing commands; `render` hands them a PDF page to draw on.
-            let renderer = ImageRenderer(content: WorksheetPage(content: content, layout: layout, index: index, speed: speed))
-            renderer.render { _, draw in pdf.beginPDFPage(nil); draw(pdf); pdf.endPDFPage() }
+        for content in contents {
+            let layout = WorksheetLayout(summary: content.summary, pageSize: pageSize)
+            for index in layout.pages.indices {
+                // ImageRenderer turns a SwiftUI view into drawing commands; `render` hands them a PDF page to draw on.
+                let renderer = ImageRenderer(content: WorksheetPage(content: content, layout: layout, index: index, speed: speed))
+                renderer.render { _, draw in pdf.beginPDFPage(nil); draw(pdf); pdf.endPDFPage() }
+            }
         }
         pdf.closePDF()
         return data as Data
     }
 
     /// Opens the Mac print dialog for the worksheet. Pages print at 100% so the picture keeps its actual size.
-    static func print(content: WorksheetContent, speed: Int) throws {
+    static func print(contents: [WorksheetContent], speed: Int) throws {
         let info = NSPrintInfo.shared.copy() as! NSPrintInfo   // copy() returns Any; it's always an NSPrintInfo
         info.topMargin = 0; info.bottomMargin = 0; info.leftMargin = 0; info.rightMargin = 0
-        guard let data = pdf(content: content, pageSize: info.paperSize, speed: speed), let document = PDFDocument(data: data),
+        guard let data = pdf(contents: contents, pageSize: info.paperSize, speed: speed), let document = PDFDocument(data: data),
               let operation = document.printOperation(for: info, scalingMode: .pageScaleNone, autoRotate: false) else {
             throw DesignError.invalid("The worksheet couldn't be prepared for printing.")
         }
-        operation.jobTitle = content.name
+        operation.jobTitle = contents[0].name
         operation.run()
     }
 }

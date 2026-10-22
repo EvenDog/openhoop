@@ -40,6 +40,11 @@ public struct HoopingAssignment: Equatable, Sendable {
 extension Design {
     /// The smallest overlap (mm) Auto Layout leaves between neighbouring hoopings: room for the alignment marks.
     public static let hoopingOverlap = 16.0
+    /// How far (mm) inside a hooping's edge its stitches must stay. Machine files round positions to 0.1 mm, and a
+    /// stitch right on the edge can round past it, so the file is refused.
+    public static let hoopingEdgeClearance = 0.5
+    /// How far (mm) inside the hoopings' edges Auto Layout keeps the design.
+    public static let hoopingLayoutMargin = 2.0
     /// Half the width of an alignment mark, in mm (the marks are 5 mm across).
     static let markRadius = 2.5
     /// How close (mm) design stitches may come to an alignment mark's middle before it looks for a clearer spot.
@@ -77,7 +82,8 @@ extension Design {
     }
 
     /// Which hooping sews each object, given the design's stitches (`plan`, compiled from this design): each block of
-    /// `hoopingUnits` goes to the first hooping whose sewing area holds all of its stitches.
+    /// `hoopingUnits` goes to the first hooping whose sewing area holds all of its stitches, at least
+    /// `hoopingEdgeClearance` in from the edge.
     public func hoopingAssignment(plan: StitchPlan) -> HoopingAssignment {
         let hoopings = multiHooping?.hoopings ?? []
         let points = Self.stitchPoints(plan)
@@ -85,7 +91,7 @@ extension Design {
         for unit in hoopingUnits {
             let stitches = unit.flatMap { points[$0] ?? [] }
             guard !stitches.isEmpty else { continue }   // nothing sews (an empty object): no hooping needed
-            if let index = hoopings.firstIndex(where: { hooping in stitches.allSatisfy { hoop.contains($0 - hooping.center) } }) {
+            if let index = hoopings.firstIndex(where: { hooping in stitches.allSatisfy { hoop.contains($0 - hooping.center, tolerance: -Self.hoopingEdgeClearance) } }) {
                 placed[index].formUnion(unit); for id in unit { hoopingOf[id] = index }
             } else { unplaced.formUnion(unit) }
         }
@@ -103,13 +109,14 @@ extension Design {
                                  unplaced: objects.map(\.id).filter(unplaced.contains), warnings: warnings)
     }
 
-    /// Auto Layout: the fewest hoopings, in rows from the top left, that cover everything that sews, each overlapping
-    /// its neighbours by at least `hoopingOverlap` mm. Hoopings left with nothing to sew are dropped. Empty when
-    /// nothing sews.
+    /// Auto Layout: the fewest hoopings, in rows from the top left, that cover everything that sews with
+    /// `hoopingLayoutMargin` to spare, each overlapping its neighbours by at least `hoopingOverlap` mm. Hoopings left
+    /// with nothing to sew are dropped. Empty when nothing sews.
     public func autoHoopings(plan: StitchPlan) -> [Hooping] {
         let stitches = Self.stitchPoints(plan).values.flatMap { $0 }
         guard !stitches.isEmpty else { return [] }
-        let low = Point(stitches.map(\.x).min()!, stitches.map(\.y).min()!), high = Point(stitches.map(\.x).max()!, stitches.map(\.y).max()!)
+        let margin = Self.hoopingLayoutMargin
+        let low = Point(stitches.map(\.x).min()! - margin, stitches.map(\.y).min()! - margin), high = Point(stitches.map(\.x).max()! + margin, stitches.map(\.y).max()! + margin)
         /// Centers along one direction: one in the middle if it fits, otherwise evenly spaced from end to end.
         func centers(_ from: Double, _ to: Double, _ size: Double) -> [Double] {
             let span = to - from
@@ -126,9 +133,11 @@ extension Design {
         return grid.indices.filter { !used[$0].isEmpty }.map { grid[$0] }
     }
 
+    /// True for the IDs alignment marks sew with (they aren't objects of the design, so lists name them by this).
+    public static func isAlignmentMark(_ id: UUID) -> Bool { id.uuidString.hasPrefix("A11C0000-") }
     /// The alignment mark at `center` (mm) as a running line in `color` that starts at the mark's middle, so
-    /// stepping the machine to its first stitch shows where the needle will land.
-    static func alignmentMark(at center: Point, style: AlignmentMarkStyle, color: ThreadColor) -> RunObject {
+    /// stepping the machine to its first stitch shows where the needle will land. `number` makes its ID unique.
+    static func alignmentMark(at center: Point, style: AlignmentMarkStyle, color: ThreadColor, number: Int) -> RunObject {
         let r = markRadius
         let path: [Point]
         switch style {
@@ -139,6 +148,7 @@ extension Design {
             path = [Point(0, 0), Point(r, 0), Point(-r, 0), Point(0, 0), Point(0, r), Point(0, -r)]
         }
         var mark = RunObject(name: "Alignment mark", nodes: path.map { PathNode(center + $0) }, color: color)
+        mark.id = UUID(uuidString: String(format: "A11C0000-0000-4000-8000-%012X", number))!
         mark.stitchLength = 1.5
         return mark
     }
@@ -171,7 +181,7 @@ extension Design {
     /// the alignment marks it shares with an earlier hooping (then a stop, to check they sit on the marks that
     /// hooping sewed), the basting box if it's on, its objects, and the marks it shares with later hoopings.
     /// A hooping's marks are shared with the earlier hooping it overlaps most. `plan` is the whole design compiled.
-    /// Throws when an object fits no hooping.
+    /// Throws when an object fits no hooping, or a hooping's stitches (with its ties and marks) reach past the hoop.
     public func hoopingPlans(plan: StitchPlan) throws -> [StitchPlan] {
         guard let layout = multiHooping, !layout.hoopings.isEmpty else { throw DesignError.invalid("This design has no hoopings.") }
         let assignment = hoopingAssignment(plan: plan)
@@ -204,12 +214,16 @@ extension Design {
             let box = part.bastingBox
             part.basting = nil   // put back in by hand below, after the starting marks
             let style = layout.marks ?? .box
-            var start = (marks[index] ?? []).map { Self.alignmentMark(at: $0 - center, style: style, color: firstColor) }
+            var start = (marks[index] ?? []).enumerated().map { Self.alignmentMark(at: $1 - center, style: style, color: firstColor, number: $0) }
             if !start.isEmpty { start[start.count - 1].stopAfter = true }
             let end = marks.filter { partner[$0.key] == index }.sorted { $0.key < $1.key }.flatMap { $0.value }
-                .map { Self.alignmentMark(at: $0 - center, style: style, color: lastColor) }
+                .enumerated().map { Self.alignmentMark(at: $1 - center, style: style, color: lastColor, number: 1000 + $0) }
             part.objects = start + (box.map { [$0] } ?? []) + part.objects + end
-            return try StitchEngine.compile(part)
+            let sewn = try StitchEngine.compile(part)
+            guard sewn.outsidePoints.allSatisfy({ hoop.contains($0, tolerance: -Self.hoopingEdgeClearance / 2) }) else {
+                throw DesignError.invalid("Hooping \(index + 1)'s stitches reach the edge of the hoop. Move hooping \(index + 1) a little, or use Auto layout.")
+            }
+            return sewn
         }
     }
 }

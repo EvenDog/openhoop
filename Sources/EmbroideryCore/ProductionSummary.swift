@@ -50,6 +50,7 @@ public struct ProductionSummary: Equatable, Sendable {
         let objects = Dictionary(design.objects.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         /// How an object is listed: lettering by its text (once for all its letters), anything else by its name.
         func part(_ id: UUID?) -> String? {
+            if let id, Design.isAlignmentMark(id) { return "Alignment marks" }   // a multi-hooped design's (MultiHooping.swift)
             guard let id, let object = objects[id] else { return nil }
             if let lettering = object.lettering { return "Lettering “\(lettering.lines.joined(separator: " / "))”" }
             return object.name

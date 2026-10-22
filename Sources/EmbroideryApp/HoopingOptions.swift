@@ -1,6 +1,6 @@
 // The Hoopings tool's choices at the top of Properties (ToolOptions.swift): a multi-hooped design's hoopings in
-// sewing order and what each one sews, buttons to add, lay out and remove them, what fits no hooping, and the
-// alignment marks. With multi-hooping off, a button to turn it on.
+// sewing order and what each one sews, buttons to add, lay out and remove them, what fits no hooping, the
+// alignment marks, and saving the hoopings for the machine. With multi-hooping off, a button to turn it on.
 import SwiftUI
 import EmbroideryCore
 
@@ -40,6 +40,10 @@ struct HoopingOptions: View {
                     Text("Small marks where two hoopings overlap. The next hooping sews the same marks first, then stops, so you can check they sit on the first ones before it sews on.")
                         .font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
                 }
+                Divider()
+                Button("Save Hoopings for Machine…") { AppDelegate.shared.perform(.exportMachine) }
+                    .buttonStyle(ThemedButtonStyle(prominent: true)).disabled(!(state.hoopingAssignment?.unplaced.isEmpty ?? false))
+                    .help("Save one machine file per hooping, and a hooping sheet to print (\(preferences.label(.exportMachine)))")
             } else {
                 Text("Sew a design bigger than your hoop in several hoopings, re-hooping the fabric between them.")
                     .font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)

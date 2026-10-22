@@ -266,6 +266,18 @@ Choose your hoop under **Sewing area** in the Design panel:
 
 Hoops are listed upright; **Turn sideways** swaps width and height. You can also type any size or choose an oval. New designs start in the hoop you picked last. Stitches outside the hoop are refused at export.
 
+### Multi-hooping
+
+For a design bigger than your hoop: it's sewn in several hoopings, re-hooping the fabric between them. Tick **Multi-hooping** under **Sewing area** in the Design panel. OpenHoop places enough hoopings to cover the design, overlapping by at least 16 mm, and picks the **Hoopings** tool (**⌥⇧H**, under View).
+
+- **On the canvas** each hooping is a dashed outline in its own color, with its number. Drag one with the Hoopings tool to move it.
+- **In Properties** the Hoopings tool lists the hoopings in the order they're sewn, with the stitches and threads each one sews. Click one to fade what the others sew. **Add ← → ↑ ↓** puts a new hooping beside the picked one, **Auto layout** starts over with the fewest hoopings that cover the design, and **Remove** takes out the picked one.
+- **What goes where:** each object sews in the first hooping that holds all of its stitches. A letter's parts, a group and a branch always stay together, so a word can cross hoopings but a letter can't. Anything that fits no hooping is outlined in red, and saving waits until you move a hooping, add one, or make the object smaller. When a hooping puts an object on top of one it used to sew under, the list says so.
+- **Alignment marks** (on unless you untick them; a box with an X, or a cross): two small marks where a hooping overlaps the one before it. The earlier hooping sews them at its end. The later one starts with the same marks, then stops: after re-hooping, step the machine to the first stitch without sewing and line the needle up over the first mark, sew the marks, and check they landed on the old ones before going on.
+- **Save Hoopings for Machine…** (the button at the bottom of the list, or **Export Machine File** while multi-hooping is on) saves one file per hooping, named after the name you type (*Towel – hooping 1 of 3.pes*), and a **hooping sheet** PDF beside them: each hooping's thread steps, with how to hoop for it at the top of its notes. **File › Production Worksheet** shows the same sheet.
+
+Multi-hooped projects are saved as file version 7, which OpenHoop 0.6.8 and earlier can't open.
+
 ## Checking and saving for the machine
 
 **Thread View.** Press **T** (or the Thread View button under View) to switch between Thread View and the stitch view. Thread View draws each stitch as its own strand of thread, 0.45 mm wide, dark where it dives into the cloth and bright in the middle, so you see roughly how the design will sew out; travel moves between pieces and needle points are hidden. The stitch view draws thin lines and shows travel moves dashed, which is handier for checking the sewing path. The app remembers which one you used last.
@@ -352,6 +364,7 @@ These are the starting keys; every one can be changed. Tools on a function key a
 | | | Zoom to design | 0 |
 | | | Show stitches / outlines / connectors / hide unselected | S / L / ⇧C / ⇧S |
 | | | Measure | M |
+| | | Hoopings | ⌥⇧H |
 | Knife / weld / smooth shapes | ⌥K / ⌥W / ⌥N | | |
 | Laydown | ⌥⇧L | | |
 | Branching | I | | |
