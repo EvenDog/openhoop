@@ -10,7 +10,7 @@ struct ToolOptions: View {
     @ObservedObject var state: EditorState
     @ObservedObject var preferences = Preferences.shared
     /// True for the tools whose choices live in Properties, so picking one opens the panel if it's closed.
-    static func applies(to tool: Tool) -> Bool { NextShapeOptions.shows(tool) || tool == .node || tool == .stitchEdit }
+    static func applies(to tool: Tool) -> Bool { NextShapeOptions.shows(tool) || tool == .node || tool == .stitchEdit || tool == .hooping }
     /// True when Properties shows the next shape's choices: with a shape tool on, while nothing is selected or just
     /// after the tool was picked. They then stand in for the selection's properties.
     static func showsNextShape(_ state: EditorState) -> Bool {
@@ -19,6 +19,8 @@ struct ToolOptions: View {
     var body: some View {
         if Self.showsNextShape(state) {
             NextShapeOptions(state: state)
+        } else if state.tool == .hooping {
+            HoopingOptions(state: state)   // HoopingOptions.swift
         } else if state.tool == .node, let node = state.selectedPathNode {
             // The selected point's type, so it can be seen and switched without knowing the right-click or the key.
             VStack(alignment: .leading, spacing: 6) {
@@ -46,7 +48,7 @@ struct ToolOptions: View {
 }
 
 /// A small accent caption over a tool's choices, like "NEXT SHAPE".
-private struct ToolCaption: View {
+struct ToolCaption: View {
     let text: String
     var body: some View { Text(text).font(Theme.caption).tracking(0.8).foregroundStyle(Theme.accent).lineLimit(1) }
 }

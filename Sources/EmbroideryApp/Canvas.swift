@@ -45,6 +45,7 @@ final class DesignCanvas: NSView {
     /// A letter being moved with Edit Nodes: its lettering, its letter key, and its parts.
     private var letterDrag: (lettering: UUID, key: Int, parts: Set<UUID>)?
     private var artworkDrag: Int?   // adjusting the artwork: -1 moves it, 0…3 resizes from that corner
+    private var hoopingDrag: Int?   // the hooping being dragged with the Hoopings tool
     private var zoomBox: (start: CGPoint, end: CGPoint)?   // the box being dragged with the Zoom Box tool, in canvas points
     private var selectBox: (start: CGPoint, end: CGPoint)?   // a box dragged from empty canvas with Select, in canvas points
     var measurement: (start: Point, end: Point)?   // the Measure tool's line, in mm; shown until the tool changes
@@ -263,9 +264,23 @@ final class DesignCanvas: NSView {
         let millimeters = CGDisplayScreenSize(display).width
         return millimeters > 0 ? screen.frame.width / millimeters : nil
     }
-    func fit() { state.zoom = min(max(1, fitZoom(bounds.size)), 30); pan = .zero; needsDisplay = true }
-    /// The zoom at which the hoop just fits a canvas of `size`, 50 points in from each side; negative when it's tiny.
-    private func fitZoom(_ size: CGSize) -> Double { min((size.width - 100) / state.design.hoop.width, (size.height - 100) / state.design.hoop.height) }
+    func fit() {
+        state.zoom = min(max(1, fitZoom(bounds.size)), 30)
+        let area = Self.sewingArea(state.design), middle = (area.min + area.max) * 0.5
+        pan = CGPoint(x: -middle.x * state.zoom, y: -middle.y * state.zoom); needsDisplay = true
+    }
+    /// Where stitches may go, in mm: the hoop around the center, or every hooping of a multi-hooped design.
+    static func sewingArea(_ design: Design) -> (min: Point, max: Point) {
+        let w = design.hoop.width / 2, h = design.hoop.height / 2, hoopings = design.multiHooping?.hoopings ?? []
+        guard !hoopings.isEmpty else { return (Point(-w, -h), Point(w, h)) }
+        return (Point(hoopings.map(\.center.x).min()! - w, hoopings.map(\.center.y).min()! - h), Point(hoopings.map(\.center.x).max()! + w, hoopings.map(\.center.y).max()! + h))
+    }
+    /// The zoom at which the hoop (or all the hoopings) just fits a canvas of `size`, 50 points in from each side;
+    /// negative when it's tiny.
+    private func fitZoom(_ size: CGSize) -> Double {
+        let area = Self.sewingArea(state.design)
+        return min((size.width - 100) / (area.max.x - area.min.x), (size.height - 100) / (area.max.y - area.min.y))
+    }
     // When the canvas area grows or shrinks (the window is resized, or panels are shown, hidden or resized), the zoom
     // and pan scale by how much the fitted zoom changed, so the view stays framed the same way: a fitted hoop still
     // fits, and a zoomed-in corner stays in view, just bigger or smaller.
@@ -316,6 +331,31 @@ final class DesignCanvas: NSView {
         return brightness < 128 ? NSColor.white.withAlphaComponent(0.25) : Theme.Canvas.gridOnLight
     }
 
+    /// The objects to fade: with the Hoopings tool and a hooping picked in its list, everything the other hoopings sew.
+    private func fadedByHooping(_ design: Design) -> Set<UUID> {
+        guard state.tool == .hooping, let picked = state.selectedHooping, let assignment = state.hoopingAssignment,
+              assignment.objects.indices.contains(picked) else { return [] }
+        return Set(design.objects.map(\.id)).subtracting(assignment.objects[picked])
+    }
+    /// A multi-hooped design's hoopings: each a dashed outline in its own color, with its number in the top left
+    /// corner and a small target at its center. The picked one is drawn bolder.
+    private func drawHoopings(_ design: Design) {
+        let w = design.hoop.width * state.zoom, h = design.hoop.height * state.zoom
+        for (index, hooping) in (design.multiHooping?.hoopings ?? []).enumerated() {
+            let color = Theme.Canvas.hooping(index), picked = state.selectedHooping == index, c = screen(hooping.center)
+            let rect = CGRect(x: c.x - w / 2, y: c.y - h / 2, width: w, height: h)
+            let outline = design.hoop.oval ? NSBezierPath(ovalIn: rect) : NSBezierPath(rect: rect)
+            color.setStroke(); outline.lineWidth = picked ? 3 : 2; outline.setLineDash([9, 6], count: 2, phase: 0); outline.stroke()
+            let target = NSBezierPath(ovalIn: CGRect(x: c.x - 7, y: c.y - 7, width: 14, height: 14))
+            target.move(to: CGPoint(x: c.x - 11, y: c.y)); target.line(to: CGPoint(x: c.x + 11, y: c.y))
+            target.move(to: CGPoint(x: c.x, y: c.y - 11)); target.line(to: CGPoint(x: c.x, y: c.y + 11))
+            target.lineWidth = 1.2; target.stroke()
+            let badge = CGRect(x: rect.minX + 8, y: rect.maxY - 30, width: 22, height: 22)
+            color.setFill(); NSBezierPath(ovalIn: badge).fill()
+            let number = NSAttributedString(string: "\(index + 1)", attributes: [.font: NSFont.systemFont(ofSize: 12, weight: .bold), .foregroundColor: NSColor.white])
+            number.draw(at: CGPoint(x: badge.midX - number.size().width / 2, y: badge.midY - number.size().height / 2))
+        }
+    }
     /// The reference image's rectangle on screen.
     func artworkRect(_ artwork: Artwork) -> CGRect {
         CGRect(x: screen(artwork.center).x - artwork.width * state.zoom / 2, y: screen(artwork.center).y - artwork.height * state.zoom / 2, width: artwork.width * state.zoom, height: artwork.height * state.zoom)
@@ -328,21 +368,26 @@ final class DesignCanvas: NSView {
         let design = preview ?? state.design
         let hoop = CGRect(x: origin.x - design.hoop.width * state.zoom / 2, y: origin.y - design.hoop.height * state.zoom / 2, width: design.hoop.width * state.zoom, height: design.hoop.height * state.zoom)
         let hoopPath = design.hoop.oval ? NSBezierPath(ovalIn: hoop) : NSBezierPath(roundedRect: hoop, xRadius: 3, yRadius: 3)
+        // A multi-hooped design shows one piece of cloth under all its hoopings, with no hoop ring: the hoopings are
+        // drawn as outlines over the stitches (drawHoopings).
+        let multi = !(design.multiHooping?.hoopings ?? []).isEmpty
+        let areaMM = Self.sewingArea(design), area = CGRect(x: screen(areaMM.min).x, y: screen(areaMM.min).y, width: (areaMM.max.x - areaMM.min.x) * state.zoom, height: (areaMM.max.y - areaMM.min.y) * state.zoom)
         // Wooden hoop ring around the cloth, drawn at a fixed on-screen thickness whatever the zoom.
         let ringRect = hoop.insetBy(dx: -16, dy: -16)
         let ring = design.hoop.oval ? NSBezierPath(ovalIn: ringRect) : NSBezierPath(roundedRect: ringRect, xRadius: 20, yRadius: 20)
         NSGraphicsContext.saveGraphicsState()
         let shadow = NSShadow(); shadow.shadowColor = NSColor.black.withAlphaComponent(0.18); shadow.shadowBlurRadius = 18; shadow.shadowOffset = NSSize(width: 0, height: -4); shadow.set()
-        Theme.Canvas.wood.setStroke(); ring.lineWidth = 12; ring.stroke(); NSGraphicsContext.restoreGraphicsState()
         // Linen cloth stretched inside the ring; the ring's inner rim and clasp sit on top of it.
-        let clothRect = hoop.insetBy(dx: -10, dy: -10)
-        let cloth = design.hoop.oval ? NSBezierPath(ovalIn: clothRect) : NSBezierPath(roundedRect: clothRect, xRadius: 14, yRadius: 14)
+        let clothRect = multi ? area.insetBy(dx: -14, dy: -14) : hoop.insetBy(dx: -10, dy: -10)
+        let cloth = design.hoop.oval && !multi ? NSBezierPath(ovalIn: clothRect) : NSBezierPath(roundedRect: clothRect, xRadius: multi ? 10 : 14, yRadius: multi ? 10 : 14)
         // The design's own fabric color if one was chosen, else the default linen.
         let fabric = design.fabricColor.map(Theme.fixed) ?? Theme.Canvas.fabric
+        if multi { fabric.setFill(); cloth.fill() } else { Theme.Canvas.wood.setStroke(); ring.lineWidth = 12; ring.stroke() }   // the shadow falls under the ring, or the bare cloth
+        NSGraphicsContext.restoreGraphicsState()
         fabric.setFill(); cloth.fill()
         drawWeave(in: cloth, color: design.fabricColor == nil ? Theme.Canvas.weave : weaveColor(for: fabric), context: context)
         Theme.Canvas.woodEdge.setStroke(); cloth.lineWidth = 2; cloth.stroke()
-        Theme.Canvas.clasp.setFill(); NSBezierPath(roundedRect: CGRect(x: ringRect.midX - 22, y: ringRect.maxY - 2, width: 44, height: 12), xRadius: 4, yRadius: 4).fill()
+        if !multi { Theme.Canvas.clasp.setFill(); NSBezierPath(roundedRect: CGRect(x: ringRect.midX - 22, y: ringRect.maxY - 2, width: 44, height: 12), xRadius: 4, yRadius: 4).fill() }
         // The reference picture, drawn here under everything unless it's been moved down the sewing order; then it's
         // drawn after the stitches of the objects under it (ArtworkLayer.swift).
         func drawArtwork() {
@@ -362,7 +407,7 @@ final class DesignCanvas: NSView {
         let artworkLayer = design.artworkLayer
         if artworkLayer == 0 { drawArtwork() }
         if state.grid {
-            context.saveGState(); context.addPath(hoopPath.cgPathCopy); context.clip()
+            context.saveGState(); context.addPath(multi ? CGPath(rect: area, transform: nil) : hoopPath.cgPathCopy); context.clip()
             let preferences = Preferences.shared.data
             context.setStrokeColor(Self.gridColor(fabric: design.fabricColor, custom: preferences.gridColor, opacity: preferences.gridOpacity).cgColor); context.setLineWidth(0.5)
             // Millimeters: a line every 10 mm (5 mm zoomed in) from the hoop's edge. Inches: every ½ in (¼ in zoomed in),
@@ -370,13 +415,14 @@ final class DesignCanvas: NSView {
             // size; Settings › Measuring › Grid & snap can make them finer or coarser.)
             let inches = Preferences.shared.unit == .inches
             let spacing = Preferences.shared.unit.gridSpacing(Preferences.shared.gridSize) / (state.zoom < 3 ? 1 : 2)
-            func first(_ size: Double) -> Double { inches ? (-size / 2 / spacing).rounded(.up) * spacing : -size / 2 }
-            for x in stride(from: first(design.hoop.width), through: design.hoop.width / 2, by: spacing) { context.move(to: screen(Point(x, -design.hoop.height / 2))); context.addLine(to: screen(Point(x, design.hoop.height / 2))) }
-            for y in stride(from: first(design.hoop.height), through: design.hoop.height / 2, by: spacing) { context.move(to: screen(Point(-design.hoop.width / 2, y))); context.addLine(to: screen(Point(design.hoop.width / 2, y))) }
+            func first(_ low: Double) -> Double { inches ? (low / spacing).rounded(.up) * spacing : low }
+            let low = areaMM.min, high = areaMM.max
+            for x in stride(from: first(low.x), through: high.x, by: spacing) { context.move(to: screen(Point(x, low.y))); context.addLine(to: screen(Point(x, high.y))) }
+            for y in stride(from: first(low.y), through: high.y, by: spacing) { context.move(to: screen(Point(low.x, y))); context.addLine(to: screen(Point(high.x, y))) }
             context.strokePath(); context.restoreGState()
         }
         // A dashed "stitched" outline marks the sewing area inside the cloth.
-        Theme.Canvas.sewingArea.setStroke(); hoopPath.lineWidth = 1.2; hoopPath.setLineDash([6, 4], count: 2, phase: 0); hoopPath.stroke()
+        if !multi { Theme.Canvas.sewingArea.setStroke(); hoopPath.lineWidth = 1.2; hoopPath.setLineDash([6, 4], count: 2, phase: 0); hoopPath.stroke() }
         let userHidden = Set(design.objects.filter { !state.isShown($0) }.map(\.id))
         // Pointing at a choice in a picture menu (Fill style, Pattern): the selected objects' own stitches give way
         // to the preview's, drawn after the rest (PictureMenu.swift).
@@ -396,7 +442,7 @@ final class DesignCanvas: NSView {
         let unknownThread = [0.95, 0.40].map { NSColor.systemTeal.withAlphaComponent($0).cgColor }
         let commands = plan.commands.prefix(Int(Double(plan.commands.count) * state.playback))
         context.setLineWidth(1.1); context.setLineCap(.round)
-        let needles = CGMutablePath()
+        var needles = CGMutablePath()
         var activeColor: CGColor?
         /// Draws `part` of the stitches (thread or thin lines, and travel moves), carrying on from where the last part ended.
         func drawStitches(_ part: ArraySlice<StitchCommand>) {
@@ -426,6 +472,17 @@ final class DesignCanvas: NSView {
         // first command of an object over the picture splits them.
         let over = Set(design.objects[artworkLayer...].map(\.id))
         let split = artworkLayer == 0 ? commands.startIndex : commands.firstIndex { $0.objectID.map(over.contains) ?? false } ?? commands.endIndex
+        // With a hooping picked in the Hoopings list, what the other hoopings sew is drawn faint first, then the picked
+        // hooping's stitches as usual.
+        let faded = fadedByHooping(design)
+        if !faded.isEmpty {
+            let shown = hidden
+            hidden = shown.union(design.objects.map(\.id).filter { !faded.contains($0) })
+            context.saveGState(); context.setAlpha(0.22); context.beginTransparencyLayer(auxiliaryInfo: nil)
+            drawStitches(commands[...])
+            context.endTransparencyLayer(); context.restoreGState()
+            hidden = shown.union(faded); previous = Point(0, 0); needles = CGMutablePath()
+        }
         drawStitches(commands[..<split])
         if artworkLayer > 0 { drawArtwork() }
         drawStitches(commands[split...])
@@ -438,14 +495,15 @@ final class DesignCanvas: NSView {
         context.setFillColor(Theme.Canvas.needle.cgColor); context.addPath(needles); context.fillPath()
         if state.showDensity { drawDensityMap(context) }
         let sewn = sewnEnds()
+        let unplaced = Set(state.hoopingAssignment?.unplaced ?? [])
         for object in design.objects where state.isShown(object) {
             let selected = state.selection.contains(object.id)
-            if object.kind == .vector || selected || state.showOutlines || state.busy || state.generationError != nil || preview != nil {
+            if object.kind == .vector || selected || state.showOutlines || state.busy || state.generationError != nil || preview != nil || unplaced.contains(object.id) {
                 for points in object.outlinePaths where !points.isEmpty {
                     let path = NSBezierPath(); path.move(to: screen(points[0])); for point in points.dropFirst() { path.line(to: screen(point)) }
                     // Selected objects get a thin dotted outline in one neutral color, so it shows on any thread. One that
                     // can't be sewn (the stitch error), or would be if a node drag let go here, is outlined in red instead.
-                    let broken = state.brokenObjects.contains(object.id) || dragProblem?.object == object.id
+                    let broken = state.brokenObjects.contains(object.id) || dragProblem?.object == object.id || unplaced.contains(object.id)
                     if object.guideFor != nil {
                         // A fill's guide line: long dashes in the handle color, bolder while selected.
                         Theme.Canvas.handle.setStroke(); path.lineWidth = selected ? 2 : 1.5
@@ -513,7 +571,14 @@ final class DesignCanvas: NSView {
                 if state.tool == .satin {drawLabel("\(index/2+1)\(index%2==0 ? "L":"R")",at:CGPoint(x:p.x+5,y:p.y+5),size:9)}
             }
         }
-        drawLabel(Preferences.shared.unit.size(design.hoop.width, design.hoop.height, decimals: Preferences.shared.unit == .inches ? 1 : 0) + "  ·  SEWING AREA", at: CGPoint(x: hoop.minX, y: hoop.minY - 44), size: 10)
+        let hoopSize = Preferences.shared.unit.size(design.hoop.width, design.hoop.height, decimals: Preferences.shared.unit == .inches ? 1 : 0)
+        if multi {
+            drawHoopings(design)
+            let count = design.multiHooping!.hoopings.count
+            drawLabel("\(count) HOOPING\(count == 1 ? "" : "S")  ·  \(hoopSize) HOOP", at: CGPoint(x: area.minX, y: area.minY - 40), size: 10)
+        } else {
+            drawLabel(hoopSize + "  ·  SEWING AREA", at: CGPoint(x: hoop.minX, y: hoop.minY - 44), size: 10)
+        }
         if state.tool == .measure, let line = measurement { drawMeasurement(line) }
         if state.tool == .stitchEdit { drawStitchEdit() }
         if state.tool == .addAngles, let start = state.angleStart { drawAngleLine(start, pointer); drawAngleReading(start, pointer, at: pointer) }   // the line being added follows the pointer
@@ -928,6 +993,16 @@ final class DesignCanvas: NSView {
         // Freehand ignores Snap: a stroke pulled onto grid points would be jagged.
         if state.tool.freehand { freehandStroke = [model(location)]; state.draft = [PathNode(model(location))]; return }
         if state.tool == .pan { screenStart = location; panStart = pan; return }
+        if state.tool == .hooping {
+            // A click picks the hooping under it (where they overlap, the one whose center is nearest) and starts
+            // dragging it; a click outside them all picks none.
+            let p = model(location), hoopings = state.design.multiHooping?.hoopings ?? []
+            let w = state.design.hoop.width / 2, h = state.design.hoop.height / 2
+            let under = hoopings.indices.filter { abs(p.x - hoopings[$0].center.x) <= w && abs(p.y - hoopings[$0].center.y) <= h }
+            state.selectedHooping = under.min { hoopings[$0].center.distance(to: p) < hoopings[$1].center.distance(to: p) }
+            if let picked = state.selectedHooping { hoopingDrag = picked; dragStart = point; dragSnapshot = state.design }
+            needsDisplay = true; return
+        }
         if state.tool == .artwork {
             // A corner handle resizes; anywhere on the image moves it; elsewhere nothing happens.
             guard let artwork = state.design.artwork, artwork.visible else { return }
@@ -1102,6 +1177,10 @@ final class DesignCanvas: NSView {
             state.status = "Size \(Preferences.shared.unit.size(width * sx, height * sy))" + (corner ? " · ⇧ stretches freely" : "")
             needsDisplay = true; return
         }
+        if let index = hoopingDrag, let before = dragSnapshot?.multiHooping?.hoopings, before.indices.contains(index) {
+            next.multiHooping!.hoopings[index].center = before[index].center + (snapped(model(location)) - start)
+            preview = next; needsDisplay = true; return
+        }
         if let corner = artworkDrag, let artwork = next.artwork {
             next.artwork = artwork.adjusted(corner: corner, from: start, to: snapped(model(location)), free: event.modifierFlags.contains(.shift))
             preview = next; needsDisplay = true; return
@@ -1227,7 +1306,7 @@ final class DesignCanvas: NSView {
             else { state.finishShape(state.tool.draggedShape ?? .rectangle) }
             return
         }
-        let action = angleDrag != nil ? "Move Stitch Angle" : fillAngleDrag.map { $0.slideFrom == nil ? "Fill Angle" : "Move Stitch Angle Line" } ?? artworkDrag.map { $0 < 0 ? "Move Artwork" : "Resize Artwork" } ?? draggedMarker.map { $0.kind == .end ? "Move End Point" : $0.kind == .start ? "Move Start Point" : "Move Radial Center" } ?? (draggedHandle != nil ? "Shape Curve" : draggedNode == nil ? "Move Objects" : nodeJustAdded ? "Add Node" : "Move Node")
+        let action = hoopingDrag != nil ? "Move Hooping" : angleDrag != nil ? "Move Stitch Angle" : fillAngleDrag.map { $0.slideFrom == nil ? "Fill Angle" : "Move Stitch Angle Line" } ?? artworkDrag.map { $0 < 0 ? "Move Artwork" : "Resize Artwork" } ?? draggedMarker.map { $0.kind == .end ? "Move End Point" : $0.kind == .start ? "Move Start Point" : "Move Radial Center" } ?? (draggedHandle != nil ? "Shape Curve" : draggedNode == nil ? "Move Objects" : nodeJustAdded ? "Add Node" : "Move Node")
         // A node or handle drag that leaves its object unable to sew (a satin rung crossing a rail, a fill's edge
         // crossing itself) goes back, unless the object was already broken (then any edit may be the fix).
         if let next = preview, let id = draggedNode?.object ?? draggedHandle?.location.object,
@@ -1246,14 +1325,14 @@ final class DesignCanvas: NSView {
         if let preview { state.document?.replace(preview, action: action) }
         if nodeJustAdded, let node = draggedNode { state.selectedNode = node; state.status = "Node added · drag it to reshape · right-click an edge for a curve node" }
         nodeJustAdded = false
-        preview = nil; angleDrag = nil; fillAngleDrag = nil; dragStart = nil; dragSnapshot = nil; draggedNode = nil; draggedHandle = nil; drawingHandle = nil; draggedMarker = nil; artworkDrag = nil; screenStart = nil; dragProblem = nil; needsDisplay = true
+        preview = nil; angleDrag = nil; fillAngleDrag = nil; dragStart = nil; dragSnapshot = nil; draggedNode = nil; draggedHandle = nil; drawingHandle = nil; draggedMarker = nil; artworkDrag = nil; hoopingDrag = nil; screenStart = nil; dragProblem = nil; needsDisplay = true
     }
     /// Cancels a drag of objects, nodes, markers, angle lines, artwork or stitches when the design changed since the
     /// mouse went down (Undo pressed mid-drag). Returns true if it did.
     private func dropDragIfDesignChanged() -> Bool {
         guard state.revision != dragRevision, stitchDrag != nil || dragSnapshot != nil else { return false }
         stitchDrag = nil; stitchPreview = nil; preview = nil; dragSnapshot = nil; dragStart = nil; angleDrag = nil; fillAngleDrag = nil; guideDrag = nil
-        draggedNode = nil; draggedHandle = nil; draggedMarker = nil; artworkDrag = nil; nodeJustAdded = false; dragProblem = nil; resizeDrag = nil; letterDrag = nil; needsDisplay = true
+        draggedNode = nil; draggedHandle = nil; draggedMarker = nil; artworkDrag = nil; hoopingDrag = nil; nodeJustAdded = false; dragProblem = nil; resizeDrag = nil; letterDrag = nil; needsDisplay = true
         state.status = "The design changed during the drag, so the drag was cancelled."
         return true
     }

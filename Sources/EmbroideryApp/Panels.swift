@@ -35,7 +35,7 @@ struct ToolStrip: View {
         ("Stitch", [[.runTool], [.satinTool], [.fillTool, .holeTool, .addStitchAngles, .removeStitchAngles]]),
         ("Shape", [[.openShapeTool, .closedShapeTool], [.freehandOpenTool, .freehandClosedTool], [.rectangleTool, .ellipseTool, .basicShapeTool]]),
         ("Add", [[.lettering, .addMonogram, .satinBorder, .outlinesOffsets, .applique, .autoDigitize, .laydown]]),
-        ("View", [[.panTool, .measureTool], [.grid], [.threadView], [.zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected]])
+        ("View", [[.panTool, .measureTool, .hoopingsTool], [.grid], [.threadView], [.zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected]])
     ]
     /// The Pro view's tools: every one out as an icon button (no shared slots or lists to open), in captioned groups.
     /// Hovering a button shows its name and key.
@@ -44,7 +44,7 @@ struct ToolStrip: View {
         ("Stitch", [.runTool, .satinTool, .fillTool, .holeTool, .addStitchAngles, .removeStitchAngles]),
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool]),
         ("Add", [.lettering, .addMonogram, .satinBorder, .outlinesOffsets, .applique, .autoDigitize, .laydown]),
-        ("View", [.measureTool, .grid, .snap, .threadView]),
+        ("View", [.measureTool, .hoopingsTool, .grid, .snap, .threadView]),
         ("Show", [.showStitches, .showOutlines, .showConnectors, .needles, .showUnderlay, .hideOthers, .showRulers, .densityMap]),
         ("Zoom", [.zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected])
     ]
@@ -167,6 +167,7 @@ struct ToolStrip: View {
         case .rectangle, .basicShape: return ("Shape", "drag · ⌘ keeps it even · ⇧ from the center")
         case .zoomBox: return ("Zoom box", "drag a box to zoom into · click zooms in 2×")
         case .measure: return ("Measure", "drag between two points")
+        case .hooping: return ("Hoopings", "drag one to move it · click to see what it sews")
         case .text: return ("Lettering", "click where it goes, then type in Properties")
         case .knife: return ("Knife", "click points across shapes" + key(.finishPath, "cuts"))
         case .stitchEdit: return ("Edit stitches", "click or box-select points · drag moves" + key(.delete, "deletes") + " · ⌥-click adds")
@@ -698,8 +699,8 @@ struct InspectorPanel: View {
     var pro: Bool { preferences.isPro }
     @ViewBuilder private var propertiesSection: some View {
         ToolOptions(state: state)   // the current tool's choices, such as the next shape's (ToolOptions.swift)
-        if ToolOptions.showsNextShape(state) {
-            // A shape tool was just picked: its choices stand in for the selection's properties.
+        if ToolOptions.showsNextShape(state) || state.tool == .hooping {
+            // A shape tool was just picked, or the Hoopings tool: its choices stand in for the selection's properties.
         } else if pro, let object = state.selected {
             proProperties(object)   // the compact Pro layout (ProViews.swift)
         } else if let object = state.selected {
@@ -912,6 +913,15 @@ struct InspectorPanel: View {
             .help("Swap width and height, for a hoop mounted with its long side left to right")
         toggle("Oval sewing area", value: hoop.oval) { value in setHoop(Hoop(width: hoop.width, height: hoop.height, oval: value), "Hoop Shape") }
             .help("For a hoop whose sewing area is an oval: stitches must stay inside the oval, not just the rectangle.")
+        toggle("Multi-hooping", value: state.design.multiHooping != nil) { on in
+            state.setMultiHooping(on)
+            if on { AppDelegate.shared.perform(.hoopingsTool) }   // the Hoopings tool shows the hoopings in Properties
+        }.help(preferences.hint(.hoopingsTool))
+        if let count = state.design.multiHooping?.hoopings.count {
+            Button { AppDelegate.shared.perform(.hoopingsTool) } label: { Label("\(count) hooping\(count == 1 ? "" : "s") · Edit…", systemImage: CommandID.hoopingsTool.symbol) }
+                .buttonStyle(ThemedButtonStyle(prominent: state.tool == .hooping)).help(preferences.hint(.hoopingsTool))
+        }
+        explain("For a design bigger than the hoop: it's sewn in several hoopings, re-hooping the fabric between them, each saved as its own file.")
         sectionDivider
         SectionLabel(title: "Holding the fabric")
         toggle("Basting box", value: state.design.basting != nil) { on in state.edit("Basting Box") { $0.basting = on ? 5 : nil } }
@@ -1452,8 +1462,9 @@ struct FooterPanel: View {
     @ViewBuilder private var readiness: some View {
         let problems = readinessProblems
         if problems.isEmpty && state.plan.stitchCount > 0 {
-            chip(preferences.isPro ? "Ready" : "Ready to save · fits the hoop", symbol: "checkmark.circle.fill", color: Theme.success)
-                .help("Ready to save: the stitches are up to date and fit the hoop")
+            let hoopings = state.design.multiHooping?.hoopings.count
+            chip(preferences.isPro ? "Ready" : hoopings.map { "Ready to save · fits \($0) hooping\($0 == 1 ? "" : "s")" } ?? "Ready to save · fits the hoop", symbol: "checkmark.circle.fill", color: Theme.success)
+                .help(hoopings == nil ? "Ready to save: the stitches are up to date and fit the hoop" : "Ready to save: the stitches are up to date and everything fits a hooping")
         } else {
             // Resting the pointer on a chip shows the whole story: for a stitch error, the full message (which is often
             // too long for the status line, and ends with how to fix it).
@@ -1472,6 +1483,8 @@ struct FooterPanel: View {
         else if state.busy || state.compiledRevision != state.revision { problems.append("Updating stitches…") }
         // The stitch generator adds this warning whenever stitches land outside the sewing area (AreaEngine.swift).
         if state.plan.warnings.contains(where: { $0.contains("beyond the sewing area") }) { problems.append("Move it inside the sewing area") }
+        // A multi-hooped design instead needs everything to fit a hooping (MultiHooping.swift).
+        if let unplaced = state.hoopingAssignment?.unplaced, !unplaced.isEmpty { problems.append("Something fits no hooping") }
         return problems
     }
     private func chip(_ text: String, symbol: String, color: Color) -> some View {

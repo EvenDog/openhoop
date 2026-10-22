@@ -66,6 +66,10 @@ enum Theme {
         static let woodEdge = nsAdaptive(light: 0xB88A54, dark: 0x6E5032)     // inner rim of the ring
         static let clasp = nsAdaptive(light: 0x9C7444, dark: 0x5E4329)        // tightening clasp at the top
         static let sewingArea = nsAdaptive(light: 0xB9A384, dark: 0x5A4C40)   // dashed outline of where stitches may go
+        /// Each hooping's outline and number, in turn (green, blue, red, purple, orange, teal), repeating after six.
+        static let hoopings = [(0x4E8A4A, 0x8FCB8A), (0x3466B0, 0x8FB2EA), (0xC0463A, 0xEE8F84), (0x7E57B5, 0xC0A6EC), (0xC77A1E, 0xF0B562), (0x23898E, 0x7CCFD3)]
+            .map { nsAdaptive(light: $0.0, dark: $0.1) }
+        static func hooping(_ index: Int) -> NSColor { hoopings[index % hoopings.count] }
         /// Grid lines on light cloth: a deep brown, strong enough to read on white and pale fabrics.
         static let gridOnLight = fixed(0x5C4630).withAlphaComponent(0.35)
         /// Grid lines on the default linen: dark lines in light mode, faint light ones on the dark-mode linen.
