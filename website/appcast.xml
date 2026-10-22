@@ -6,6 +6,23 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.7.3</title>
+            <pubDate>Thu, 22 Oct 2026 19:55:32 GMT</pubDate>
+            <sparkle:version>19</sparkle:version>
+            <sparkle:shortVersionString>0.7.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.7.3</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.7.3</h3>
+<ul>
+<li><b>See the whole sewing route.</b> In Review Sewing Order (<b>⌥⇧R</b>), switch the Review section in Properties from <b>Step</b> to <b>Route</b>. Every step's number sits at its start, and an arrow runs from each step's end to where the next one starts: dashed for a trim, dotted for a thread change, a thin line for a jump that isn't trimmed. Numbers that would cover each other move aside, with a short line back to their start. Route also counts the trims and thread changes. Pressing <b>← →</b> goes back to stepping.</li>
+<li><b>Clearer travel lines in dark mode.</b> The line from one step to the next no longer looks solid on dark fabric.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.7.3/OpenHoop-0.7.3.dmg" sparkle:edSignature="IA3Uo3Cjg7UOwvRi56i7JNz816QIcmF5qrtUFEKEIB05te6FYNSfZaPL6cNqrAhAy/bT+ICPP+lLf0npClfbBw==" length="22782863" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.7.2</title>
             <pubDate>Thu, 22 Oct 2026 19:40:47 GMT</pubDate>
             <sparkle:version>18</sparkle:version>
