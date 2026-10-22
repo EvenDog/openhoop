@@ -1,6 +1,7 @@
-// The sew-out test pack: eight designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
+// The sew-out test pack: nine designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
 // machine side by side (satin widths and compensation, the fill styles, small lettering, a monogram, travel and
-// finishing, the line styles and stipple, and motifs, cross stitch, gradient and raised satin, then wide satin, Remove Overlaps and Outlines & Offsets). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
+// finishing, the line styles and stipple, and motifs, cross stitch, gradient and raised satin, then wide satin, Remove Overlaps and Outlines & Offsets,
+// then moves and jumps of known lengths for Review Sewing Order's warnings). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
 // designs there as OpenHoop projects:
 //   SEWOUT_DIR="$PWD/docs/sewout" swift test --filter SewOutPackTests
 import XCTest
@@ -177,10 +178,61 @@ final class SewOutPackTests: XCTestCase {
         return design
     }
 
+    /// The gaps (mm) between the bars of sheet 9's top two rows: either side of the 15 mm long-move warning, and
+    /// beyond it.
+    static let moveGaps = [6.0, 10, 14, 16, 20, 25]
+    /// 9 · Moves and jumps: one thread per row, so changing rows is a thread change (never warned about). Each mark is
+    /// a 10 mm bean-stitch line (three passes, to show up well). Top: marks with moves of `moveGaps` between them,
+    /// trimmed. Middle: the same with Trim after off, so the thread jumps across untrimmed. Bottom: marks 1, 2, 3, 4
+    /// and 6 mm apart, either side of the 3 mm trim distance (closer ones are stitched across, farther ones trimmed).
+    /// The marks sew up and down in turn, from end to end, so each move runs straight across and is exactly its gap
+    /// long; each is named after the move to it.
+    func movesAndJumpsSheet() -> Design {
+        var design = newDesign()
+        /// One row of marks at `y` (their bottom), `gaps` apart and centred.
+        func row(_ label: String, y: Double, gaps: [Double], color: ThreadColor, trim: TrimRule = .whenFar) -> [RunObject] {
+            var x = -gaps.reduce(0, +) / 2
+            return (0...gaps.count).map { index in
+                if index > 0 { x += gaps[index - 1] }
+                let bottom = PathNode(Point(x, y)), top = PathNode(Point(x, y + 10))
+                let name = index == 0 ? "\(label): first" : "\(label): after \(gaps[index - 1].formatted()) mm"
+                var mark = RunObject(name: name, nodes: index % 2 == 0 ? [bottom, top] : [top, bottom], color: color)
+                mark.digitizing = DigitizingSettings(kind: .run); mark.digitizing?.runPasses = 3
+                mark.trimRule = trim
+                return mark
+            }
+        }
+        design.objects = row("Trimmed", y: 26, gaps: Self.moveGaps, color: threads[0])
+            + row("Not trimmed", y: -2, gaps: Self.moveGaps, color: threads[1], trim: .off)
+            + row("Short move", y: -32, gaps: [1, 2, 3, 4, 6], color: threads[2])
+        return design
+    }
+
+    func testMovesAndJumpsSheetIsWarnedAboutAsIntended() throws {
+        let sheet = movesAndJumpsSheet(), steps = sheet.sewingSteps(plan: try RunningEngine.compile(sheet))
+        let gaps = Self.moveGaps, bars = gaps.count + 1
+        XCTAssertEqual(steps.count, bars * 2 + 6)
+        // Each move is its gap long.
+        for (index, gap) in gaps.enumerated() {
+            XCTAssertEqual(steps[index + 1].travel?.length ?? 0, gap, accuracy: 0.05, "trimmed move \(index + 1)")
+            XCTAssertEqual(steps[bars + index + 1].travel?.length ?? 0, gap, accuracy: 0.05, "untrimmed move \(index + 1)")
+        }
+        let warnings = sheet.sewingWarnings(steps)
+        // Top row: the moves of 16 mm and more. Middle row: every move (each is longer than the 3 mm trim distance).
+        // Bottom row and the row changes: none.
+        let longMoves = gaps.indices.filter { gaps[$0] >= SewingTravel.longMove }.map { $0 + 1 }
+        XCTAssertEqual(Set(warnings.keys), Set(longMoves + (1...gaps.count).map { bars + $0 }))
+        XCTAssertTrue(longMoves.allSatisfy { if case .longMove = warnings[$0] { return true } else { return false } })
+        XCTAssertTrue((1...gaps.count).allSatisfy { if case .untrimmedJump = warnings[bars + $0] { return true } else { return false } })
+        // Bottom row: 1 and 2 mm are stitched across, 3 mm and more trimmed.
+        let shortMoves = steps.suffix(5).map { $0.travel! }
+        XCTAssertEqual(shortMoves.map(\.trimmed), [false, false, true, true, true])
+    }
+
     func testEverySheetSewsAndFitsTheHoop() throws {
         let sheets: [(String, Design)] = [("1 Satin", satinSheet()), ("2 Fills", fillSheet()), ("3 Lettering", try letteringSheet()),
                                           ("4 Monogram", try monogramSheet()), ("5 Travel and finishing", try travelSheet()), ("6 Line styles and stipple", lineStyleSheet()), ("7 Motifs, cross stitch and more", patternSheet()),
-                                          ("8 Wide satin, overlaps and outlines", try wideSatinOverlapsAndOutlinesSheet())]
+                                          ("8 Wide satin, overlaps and outlines", try wideSatinOverlapsAndOutlinesSheet()), ("9 Moves and jumps", movesAndJumpsSheet())]
         for (name, sheet) in sheets {
             var design = sheet
             design.schemaVersion = design.needsSchemaSix ? 6 : design.needsSchemaFive ? 5 : 4
