@@ -431,7 +431,9 @@ import EmbroideryCore
         case .importSVG: importSVG(state)
         case .importMachine: importMachine(state)
         case .productionWorksheet: productionWorksheet(state, name: document.fileURL?.deletingPathExtension().lastPathComponent ?? document.displayName)
-        case .exportMachine, .exportThreadList: exportMachine(state, threadListOnly: command == .exportThreadList)
+        case .exportMachine, .exportThreadList:
+            if command == .exportMachine && state.design.multiHooping != nil { exportHoopings(state, name: document.fileURL?.deletingPathExtension().lastPathComponent ?? document.displayName) }
+            else { exportMachine(state, threadListOnly: command == .exportThreadList) }
         case .zoomBoxTool:
             // Unlike the other tools, Zoom Box works in the middle of drawing a path: the path waits, and the tool
             // it was being drawn with comes back once the box is drawn.
@@ -1013,21 +1015,96 @@ import EmbroideryCore
         }
     }
 
-    /// Opens the production worksheet for the current stitches; Print… hands it to the Mac print dialog.
+    /// Saves a multi-hooped design (MultiHooping.swift): one machine file per hooping, named after the name typed
+    /// ("Towel – hooping 1 of 3.pes"), each encoded and read back like a single export, and the hooping sheet beside
+    /// them as a PDF to print and keep at the machine.
+    private func exportHoopings(_ state: EditorState, name: String) {
+        guard state.draft.isEmpty else { state.status = "Finish or cancel the current path before exporting."; return }
+        if let error = state.generationError { state.status = error; return }
+        guard !state.busy, !state.exporting, !state.hasVersionMismatch, state.compiledRevision == state.revision, state.plan.stitchCount > 0 else { state.status = "Wait for current stitches before exporting."; return }
+        let plans: [StitchPlan]
+        do { plans = try state.design.hoopingPlans(plan: state.plan) } catch { state.status = error.localizedDescription; return }
+        let panel = NSSavePanel(); panel.nameFieldStringValue = name
+        panel.message = "Each hooping is saved as its own file, named after this one, with a hooping sheet to print."
+        let preferences = Preferences.shared
+        let picker = ExportFormatPicker(panel: panel, threadListOnly: false, remembered: preferences.data.exportFormat)
+        panel.accessoryView = picker.accessoryView
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let choice = picker.choice
+        if choice.id != preferences.data.exportFormat { preferences.data.exportFormat = choice.id; preferences.save(announce: false) }
+        let base = url.deletingPathExtension().lastPathComponent, folder = url.deletingLastPathComponent()
+        let urls = plans.indices.map { folder.appendingPathComponent("\(base) – hooping \($0 + 1) of \(plans.count).\(choice.format.rawValue)") }
+        let sheetURL = folder.appendingPathComponent("\(base) – hooping sheet.pdf")
+        let sheet = hoopingSheet(state, plans: plans, name: base)
+        let revision = state.revision, hoop = state.design.hoop, version = choice.pesVersion, target = choice.format
+        state.exporting = true; state.status = "Encoding and checking \(plans.count) \(target.title) files…"
+        Task {
+            do {
+                var responses: [ExportResponse] = []
+                for plan in plans {
+                    responses.append(try await Task.detached(priority: .userInitiated) { try Exporter.prepare(plan: plan, hoop: hoop, pesVersion: version, format: target) }.value)
+                }
+                guard revision == state.revision else { throw DesignError.invalid("The design changed during export. Export the current revision again.") }
+                let omitted = state.design.objects.filter { $0.kind == .vector && $0.guideFor == nil }.count
+                let warnings = responses.enumerated().flatMap { index, response in (response.warnings ?? []).map { "Hooping \(index + 1): \($0)" } }
+                let check = ExportCheck(format: target, stitchCount: responses.reduce(0) { $0 + ($1.stitchCount ?? 0) },
+                                        width: responses.map { $0.width ?? 0 }.max() ?? 0, height: responses.map { $0.height ?? 0 }.max() ?? 0,
+                                        omittedOutlines: omitted, warnings: warnings, threadListOnly: false,
+                                        fileName: "\(plans.count) files (\(urls[0].lastPathComponent)…) and \(sheetURL.lastPathComponent)")
+                if GuidedDialog.run(content: { ExportCheckView(check: check, finish: $0) }) {
+                    guard revision == state.revision else { throw DesignError.invalid("The design changed. Export it again.") }
+                    for (response, url) in zip(responses, urls) { try response.bytes!.write(to: url, options: .atomic) }
+                    guard let pdf = WorksheetPrinter.pdf(contents: sheet, pageSize: NSPrintInfo.shared.paperSize, speed: preferences.data.machineSpeed ?? ProductionSummary.defaultSpeed) else {
+                        throw DesignError.invalid("The hooping files were saved, but the hooping sheet couldn't be made.")
+                    }
+                    try pdf.write(to: sheetURL, options: .atomic)
+                    state.status = "Saved \(plans.count) hooping files and the hooping sheet."
+                } else { state.status = "Export cancelled." }
+            } catch { showError(error); state.status = "Export failed." }
+            state.exporting = false
+        }
+    }
+    /// The hooping sheet: one worksheet per hooping, in sewing order, each starting its notes with how to hoop (or
+    /// re-hoop) the fabric for it.
+    private func hoopingSheet(_ state: EditorState, plans: [StitchPlan], name: String) -> [WorksheetContent] {
+        let marks = state.design.multiHooping?.marks != nil
+        return plans.enumerated().map { index, plan in
+            var summary = ProductionSummary(plan: plan, design: state.design)
+            let notes: [String]
+            if index == 0 {
+                notes = ["Hooping 1 of \(plans.count): hoop the fabric for the first part of the design." + (marks && plans.count > 1 ? " It ends with alignment marks for the next hooping." : "")]
+            } else if marks {
+                notes = ["Hooping \(index + 1) of \(plans.count): re-hoop so the alignment marks already sewn sit inside the hoop. Before sewing, step to the first stitch and line the needle up over the first mark.",
+                         "The marks sew first, then the machine stops: check they landed on the ones already sewn before sewing on."]
+            } else {
+                notes = ["Hooping \(index + 1) of \(plans.count): re-hoop the fabric for this part, lining it up with what's already sewn."]
+            }
+            summary.warnings.insert(contentsOf: notes, at: 0)
+            return WorksheetContent(name: "\(name) – hooping \(index + 1) of \(plans.count)", hoop: state.design.hoop, plan: plan, summary: summary, fabric: state.design.fabricColor ?? 0xF5F0E6)
+        }
+    }
+
+    /// Opens the production worksheet for the current stitches (for a multi-hooped design, the hooping sheet);
+    /// Print… hands it to the Mac print dialog.
     private func productionWorksheet(_ state: EditorState, name: String) {
         guard state.draft.isEmpty else { state.status = "Finish or cancel the current path first."; return }
         if let error = state.generationError { state.status = error; return }
         guard !state.busy, !state.hasVersionMismatch, state.compiledRevision == state.revision, state.plan.stitchCount > 0 else { state.status = "Wait for the current stitches before making a worksheet."; return }
-        let content = WorksheetContent(name: name, hoop: state.design.hoop, plan: state.plan,
-                                       summary: ProductionSummary(plan: state.plan, design: state.design), fabric: state.design.fabricColor ?? 0xF5F0E6)
+        let contents: [WorksheetContent]
+        if state.design.multiHooping != nil {
+            do { contents = hoopingSheet(state, plans: try state.design.hoopingPlans(plan: state.plan), name: name) } catch { state.status = error.localizedDescription; return }
+        } else {
+            contents = [WorksheetContent(name: name, hoop: state.design.hoop, plan: state.plan,
+                                         summary: ProductionSummary(plan: state.plan, design: state.design), fabric: state.design.fabricColor ?? 0xF5F0E6)]
+        }
         let preferences = Preferences.shared
         var speed = preferences.data.machineSpeed ?? ProductionSummary.defaultSpeed
         let printing = GuidedDialog.run(width: 700) { finish in
-            WorksheetView(content: content, pageSize: NSPrintInfo.shared.paperSize, initialSpeed: speed, speedChanged: { speed = $0 }, finish: finish)
+            WorksheetView(contents: contents, pageSize: NSPrintInfo.shared.paperSize, initialSpeed: speed, speedChanged: { speed = $0 }, finish: finish)
         }
         if speed != preferences.data.machineSpeed { preferences.data.machineSpeed = speed; preferences.save() }
         guard printing else { return }
-        do { try WorksheetPrinter.print(content: content, speed: speed) } catch { showError(error) }
+        do { try WorksheetPrinter.print(contents: contents, speed: speed) } catch { showError(error) }
     }
 
     /// The Digitize menu's submenus, one per toolbar group (Pick & Shape, Stitch, Shape, Add): the group's tools in
