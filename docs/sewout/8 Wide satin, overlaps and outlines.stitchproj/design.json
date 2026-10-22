@@ -26,7 +26,7 @@
         "underlay" : "auto",
         "underlaySpacing" : 1.2
       },
-      "id" : "F6E4ECF1-394A-4D03-B7E0-3B8BF9A75D47",
+      "id" : "AA6C863F-866A-478A-9903-D09661847A71",
       "locked" : false,
       "name" : "Satin 6 mm",
       "nodes" : [
@@ -156,7 +156,7 @@
         "underlay" : "auto",
         "underlaySpacing" : 1.2
       },
-      "id" : "FE54FB8E-4B7B-438E-8611-64F102670C46",
+      "id" : "39858581-4939-4657-A29B-88E197931204",
       "locked" : false,
       "name" : "Satin 14 mm, split",
       "nodes" : [
@@ -286,7 +286,7 @@
         "underlay" : "auto",
         "underlaySpacing" : 1.2
       },
-      "id" : "F41B6FFE-C25E-4CB8-AC50-7B3C4CB2845C",
+      "id" : "1C9AEE1B-06E6-414C-8E77-1C558FF8D98F",
       "locked" : false,
       "name" : "Satin 14 mm, not split",
       "nodes" : [
@@ -413,7 +413,7 @@
         "underlay" : "edgeAndSparse",
         "underlaySpacing" : 1.2
       },
-      "id" : "1B7AF1E3-5C0F-4E92-9BD9-B77653C8FAB5",
+      "id" : "5F26332E-6A24-49CA-BE54-94DB5E4EA542",
       "locked" : false,
       "name" : "Star",
       "nodes" : [
@@ -501,7 +501,7 @@
         "hex" : 13411664,
         "name" : "Gold"
       },
-      "id" : "846475D4-296B-46CA-8EB8-4E0500FEEE5C",
+      "id" : "BC4C49B8-219B-496F-973C-9B6C85DDC1C1",
       "locked" : false,
       "name" : "Star outline",
       "nodes" : [
@@ -589,7 +589,7 @@
         "hex" : 13411664,
         "name" : "Gold"
       },
-      "id" : "97237BEB-264D-48E0-8D73-D67B17E6E674",
+      "id" : "AAFC5A80-392B-42D2-AD05-925F144D742E",
       "locked" : false,
       "name" : "Star offset 1",
       "nodes" : [
@@ -677,7 +677,7 @@
         "hex" : 13411664,
         "name" : "Gold"
       },
-      "id" : "6A392582-75E4-4B58-BB65-DAAB3D9A60CB",
+      "id" : "C94C01AF-7E7E-4504-8EB5-1669E1C3F0E3",
       "locked" : false,
       "name" : "Star offset 2",
       "nodes" : [
@@ -777,7 +777,7 @@
         "underlay" : "edgeAndSparse",
         "underlaySpacing" : 1.2
       },
-      "id" : "4FD24CD1-E480-4AA3-8BEF-9D3C6E4CA9AD",
+      "id" : "349121A9-04FD-47F8-ABE0-A323C3B36AAD",
       "locked" : false,
       "name" : "Square, overlaps removed",
       "nodes" : [
@@ -820,6 +820,63 @@
     {
       "closed" : true,
       "color" : {
+        "hex" : 2701122,
+        "name" : "Ink"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edgeAndSparse",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "F843B4A0-11DD-4785-8937-B3C9D6FE99C7",
+      "locked" : false,
+      "name" : "Square, overlaps kept",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 7,
+            "y" : -43
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 41,
+            "y" : -43
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 41,
+            "y" : -9
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 7,
+            "y" : -9
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
         "hex" : 7509611,
         "name" : "Fern"
       },
@@ -834,7 +891,7 @@
         "underlay" : "edgeAndSparse",
         "underlaySpacing" : 1.2
       },
-      "id" : "7DBAD77B-5FAB-42A3-8492-84D2A2D667E5",
+      "id" : "25499862-F0AC-46C6-A945-FB571F496793",
       "locked" : false,
       "name" : "Circle on top, overlaps removed",
       "nodes" : [
@@ -909,63 +966,6 @@
     {
       "closed" : true,
       "color" : {
-        "hex" : 2701122,
-        "name" : "Ink"
-      },
-      "digitizing" : {
-        "angle" : 45,
-        "expansion" : 0.2,
-        "inset" : 0.4,
-        "kind" : "fill",
-        "maximumSatin" : 10,
-        "spacing" : 0.4,
-        "spacingAcrossTwoRows" : true,
-        "underlay" : "edgeAndSparse",
-        "underlaySpacing" : 1.2
-      },
-      "id" : "FBB7AE93-CF46-4C2F-A751-081C5C3CCC35",
-      "locked" : false,
-      "name" : "Square, overlaps kept",
-      "nodes" : [
-        {
-          "point" : {
-            "x" : 7,
-            "y" : -43
-          },
-          "smooth" : false
-        },
-        {
-          "point" : {
-            "x" : 41,
-            "y" : -43
-          },
-          "smooth" : false
-        },
-        {
-          "point" : {
-            "x" : 41,
-            "y" : -9
-          },
-          "smooth" : false
-        },
-        {
-          "point" : {
-            "x" : 7,
-            "y" : -9
-          },
-          "smooth" : false
-        }
-      ],
-      "stitchLength" : 3,
-      "stopAfter" : false,
-      "tieIn" : true,
-      "tieOut" : true,
-      "trimAfter" : true,
-      "visible" : true
-    },
-    {
-      "closed" : true,
-      "color" : {
         "hex" : 7509611,
         "name" : "Fern"
       },
@@ -980,7 +980,7 @@
         "underlay" : "edgeAndSparse",
         "underlaySpacing" : 1.2
       },
-      "id" : "09BCD0A0-54DC-4970-9F60-D526A272AF7B",
+      "id" : "6316750F-6894-487C-8422-D710CDD3F97B",
       "locked" : false,
       "name" : "Circle on top, overlaps kept",
       "nodes" : [

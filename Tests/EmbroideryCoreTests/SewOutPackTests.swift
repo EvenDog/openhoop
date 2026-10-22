@@ -165,11 +165,15 @@ final class SewOutPackTests: XCTestCase {
         let star = fill("Star", ShapeGeometry.nodes(.star, in: box(Point(27, 25), 10), settings: settings), color: threads[1])
         var options = OutlineOptions(); options.offsets = [2.5, 5]
         design.objects += [star] + (try OutlinesOffsets.around(star, options: options, color: threads[3]).objects)
+        // Both squares, then both circles, so each thread is used once.
+        var squares: [RunObject] = [], circles: [RunObject] = []
         for (x, removed) in [(-24.0, true), (24.0, false)] {
             var square = fill("Square, overlaps \(removed ? "removed" : "kept")", ShapeGeometry.nodes(.rectangle, in: box(Point(x, -26), 17)), color: threads[2])
             if removed { square.digitizing?.cutOutOverlaps = true }
-            design.objects += [square, fill("Circle on top, overlaps \(removed ? "removed" : "kept")", ShapeGeometry.nodes(.ellipse, in: box(Point(x, -26), 9)), color: threads[4])]
+            squares.append(square)
+            circles.append(fill("Circle on top, overlaps \(removed ? "removed" : "kept")", ShapeGeometry.nodes(.ellipse, in: box(Point(x, -26), 9)), color: threads[4]))
         }
+        design.objects += squares + circles
         return design
     }
 
