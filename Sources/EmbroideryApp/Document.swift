@@ -194,6 +194,9 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     /// True while reviewing the sewing order: the canvas shows the design sewn up to the selected step and how the
     /// needle got there, and Properties shows the step at its top.
     @Published var reviewing = false
+    /// While reviewing: true shows the whole route at once (each step's number at its start, and the moves between
+    /// steps) instead of one step at a time.
+    @Published var reviewShowsRoute = false
     /// The design's sewing steps, worked out once per design and plan.
     var sewingSteps: [SewingStep] {
         if let stepFacts { return stepFacts }
@@ -205,13 +208,14 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         guard reviewing, !selection.isEmpty, let index = sewingSteps.firstIndex(where: { $0.objects.contains(where: selection.contains) }) else { return nil }
         return (index, sewingSteps[index])
     }
-    /// Moves the review on (`by` 1) or back (-1) a step by selecting what it sews. With nothing selected, on goes to
-    /// the first step and back to the last.
+    /// Moves the review on (`by` 1) or back (-1) a step by selecting what it sews, and shows that step (not the
+    /// route). With nothing selected, on goes to the first step and back to the last.
     func stepReview(by delta: Int) {
         let steps = sewingSteps
         guard !steps.isEmpty else { status = "Nothing to review yet: the design has no stitches."; return }
         let index = reviewStep.map { min(max($0.index + delta, 0), steps.count - 1) } ?? (delta > 0 ? 0 : steps.count - 1)
         selection = Set(steps[index].objects)
+        reviewShowsRoute = false   // stepping shows the step
         status = "Step \(index + 1) of \(steps.count): \(stepName(steps[index]))."
     }
     /// A step's name: the object's, or the text of a piece of lettering.

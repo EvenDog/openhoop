@@ -1,5 +1,6 @@
 // Checks Review Sewing Order: stepping selects each step in turn, a drawing tool finishes the review, the canvas
-// draws the steps still to sew faded or not at all, and the travel label reads as intended.
+// draws the steps still to sew faded or not at all, the route draws everything and its numbers never overlap, and
+// the travel label reads as intended.
 import XCTest
 import AppKit
 @testable import EmbroideryCore   // for SewingTravel's memberwise initializer
@@ -64,6 +65,35 @@ final class ReviewModeTests: XCTestCase {
         let lastFaded = render()
         Preferences.shared.data.reviewHidesUnsewn = true
         XCTAssertEqual(lastFaded, render(), "at the last step nothing is left to sew, so the two look the same")
+    }
+
+    @MainActor func testRouteShowsTheWholeDesignUntilAStepIsTaken() throws {
+        let state = try threeLines()
+        let canvas = DesignCanvas(state: state); canvas.frame = NSRect(x: 0, y: 0, width: 400, height: 400); state.canvas = canvas
+        func render() -> Data {
+            let rep = canvas.bitmapImageRepForCachingDisplay(in: canvas.bounds)!
+            canvas.cacheDisplay(in: canvas.bounds, to: rep); return rep.tiffRepresentation!
+        }
+        state.reviewing = true; state.stepReview(by: 1)
+        let step = render()
+        state.reviewShowsRoute = true
+        XCTAssertNotEqual(step, render(), "the route draws every step and the moves between them")
+        state.stepReview(by: 1)
+        XCTAssertFalse(state.reviewShowsRoute, "stepping shows the step")
+    }
+
+    func testRouteBadgesStayOnTheirStartsUnlessTheyWouldOverlap() {
+        let radius = DesignCanvas.routeBadgeRadius
+        let apart = [CGPoint(x: 0, y: 0), CGPoint(x: 100, y: 0)]
+        XCTAssertEqual(DesignCanvas.routeBadges(apart), apart)
+        // Six starts bunched within a few points of each other, as in the middle of a flower.
+        let bunched = (0..<6).map { CGPoint(x: 200 + Double($0 % 3) * 4, y: 200 + Double($0 / 3) * 4) } + [CGPoint(x: 400, y: 400)]
+        let badges = DesignCanvas.routeBadges(bunched)
+        XCTAssertEqual(badges[0], bunched[0], "the first keeps its place")
+        XCTAssertEqual(badges.last, bunched.last, "one far from the rest keeps its place")
+        for i in badges.indices { for j in badges.indices where j > i {
+            XCTAssertGreaterThanOrEqual(hypot(badges[i].x - badges[j].x, badges[i].y - badges[j].y), radius * 2, "badges \(i + 1) and \(j + 1) overlap")
+        } }
     }
 
     func testTravelSummaries() {

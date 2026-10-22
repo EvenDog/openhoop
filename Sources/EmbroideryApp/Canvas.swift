@@ -471,9 +471,9 @@ final class DesignCanvas: NSView {
         func colors(_ threads: [ThreadColor]) -> [[CGColor]] { threads.map { thread in [0.95, 0.40].map { thread.nsColor.withAlphaComponent($0).cgColor } } }
         var threads = plan.threads, threadColors = colors(threads)
         let unknownThread = [0.95, 0.40].map { NSColor.systemTeal.withAlphaComponent($0).cgColor }
-        // While reviewing the sewing order, the design is sewn up to the end of the step being looked at; otherwise
-        // the stitch player says how much is sewn.
-        let review = state.reviewStep?.step
+        // While reviewing the sewing order one step at a time, the design is sewn up to the end of the step being
+        // looked at; otherwise (and for the whole route) the stitch player says how much is sewn.
+        let review = state.reviewShowsRoute ? nil : state.reviewStep?.step
         let commands = plan.commands.prefix(review?.commands.upperBound ?? Int(Double(plan.commands.count) * state.playback))
         context.setLineWidth(1.1); context.setLineCap(.round)
         var needles = CGMutablePath()
@@ -596,6 +596,7 @@ final class DesignCanvas: NSView {
                 }
             }
         }
+        if routeShown { drawRoute(state.sewingSteps, current: state.reviewStep?.index) }
         if !state.draft.isEmpty {
             var object=RunObject(name:"Draft",nodes:state.draft,color:state.currentColor)
             if state.tool == .satin {object.digitizing=DigitizingSettings(kind:.satin)}
@@ -634,7 +635,8 @@ final class DesignCanvas: NSView {
         }
         if let drag = fillAngleDrag, drag.slideFrom == nil, let object = (preview ?? state.design).objects.first(where: { $0.id == drag.object }),
            let ends = StitchAngleLine.ends(of: object) { drawAngleReading(ends.0, ends.1, at: drag.pointer) }
-        if state.tool == .select && !state.hasVersionMismatch, let box = selectionBox(in: design) { drawResizeHandles(box) }
+        // The route has no resize handles: they'd cover its numbers.
+        if state.tool == .select && !state.hasVersionMismatch && !routeShown, let box = selectionBox(in: design) { drawResizeHandles(box) }
         if state.tool == .node { for letter in letterHandles(in: design) { drawLetterHandle(letter.point, active: letterDrag?.key == letter.key && letterDrag?.lettering == letter.lettering) } }
         if state.tool == .branch, let start = state.branchPoints.first { drawMarker(start, label: "Branch start", color: Theme.Canvas.entry) }
         if let box = zoomBox ?? selectBox {
@@ -906,7 +908,7 @@ final class DesignCanvas: NSView {
     private func drawTravel(_ travel: SewingTravel, to start: Point) {
         let a = screen(travel.from), b = screen(start)
         let line = NSBezierPath(); line.move(to: a); line.line(to: b); line.lineCapStyle = .round
-        NSColor.white.withAlphaComponent(0.7).setStroke(); line.lineWidth = 3.5; line.stroke()   // keeps it clear on any thread
+        Theme.Canvas.ruler.withAlphaComponent(0.7).setStroke(); line.lineWidth = 3.5; line.stroke()   // keeps it clear on any thread, light or dark
         Theme.Canvas.handle.setStroke(); line.lineWidth = 1.5; line.setLineDash([5, 4], count: 2, phase: 0); line.stroke()
         NSGraphicsContext.saveGraphicsState(); NSGraphicsContext.current?.cgContext.setAlpha(0.5)
         drawEndMarker(travel.from)
@@ -918,6 +920,68 @@ final class DesignCanvas: NSView {
         let backing = NSBezierPath(roundedRect: CGRect(x: middle.x, y: middle.y, width: width + 12, height: 18), xRadius: 9, yRadius: 9)
         backing.fill(); Theme.Canvas.handle.setStroke(); backing.lineWidth = 0.75; backing.stroke()
         drawLabel(text, at: CGPoint(x: middle.x + 6, y: middle.y + 2), size: 11, color: Theme.Canvas.handle)
+    }
+    /// True while Review shows the whole route.
+    private var routeShown: Bool { state.reviewing && state.reviewShowsRoute }
+    /// How big a route badge is (its radius, in points on screen).
+    static let routeBadgeRadius: CGFloat = 9
+    /// Where the route's numbered badges go: on each step's start (`starts`, on screen) unless that would cover a badge
+    /// already placed. Then it tries places round the start, first straight out from the middle of all the starts,
+    /// then turning a twelfth of the way round at a time, a little farther out on each ring, and takes the first
+    /// clear one. (If none is clear in six rings, it stays on its start.)
+    static func routeBadges(_ starts: [CGPoint], radius: CGFloat = routeBadgeRadius) -> [CGPoint] {
+        guard !starts.isEmpty else { return [] }
+        let middle = CGPoint(x: starts.map(\.x).reduce(0, +) / CGFloat(starts.count), y: starts.map(\.y).reduce(0, +) / CGFloat(starts.count))
+        var badges: [CGPoint] = []
+        func isClear(_ spot: CGPoint) -> Bool { !badges.contains { hypot($0.x - spot.x, $0.y - spot.y) < radius * 2 + 2 } }
+        for start in starts {
+            let outward = start == middle ? CGFloat.pi / 2 : atan2(start.y - middle.y, start.x - middle.x)
+            let rings = (1...6).lazy.flatMap { ring in (0..<12).lazy.map { turn -> CGPoint in
+                // Turns alternate sides (0, +1, -1, +2, -2…) so the badge stays as near to straight out as it can.
+                let angle = outward + CGFloat((turn + 1) / 2) * (turn % 2 == 0 ? -1 : 1) * .pi / 6, distance = CGFloat(ring) * radius * 1.3
+                return CGPoint(x: start.x + cos(angle) * distance, y: start.y + sin(angle) * distance)
+            } }
+            badges.append(isClear(start) ? start : rings.first(where: isClear) ?? start)
+        }
+        return badges
+    }
+    /// Review's route: from each step's end, an arrow to where the next step starts (dashed for a trim, dotted for a
+    /// thread change, a thin line for a jump that isn't trimmed; a thread carried straight on has none), and each
+    /// step's number in a badge at its start. A badge moved aside has a short line back to its start, marked with a
+    /// green dot. The step being looked at has a bigger badge.
+    private func drawRoute(_ steps: [SewingStep], current: Int?) {
+        let radius = Self.routeBadgeRadius, starts = steps.map { screen($0.start) }, badges = Self.routeBadges(starts)
+        for (index, step) in steps.enumerated() {
+            guard let travel = step.travel, travel.trimmed || travel.jumped || travel.colorChange else { continue }
+            let a = screen(travel.from), b = starts[index], length = hypot(b.x - a.x, b.y - a.y)
+            // The arrow stops at the badge's edge, or just short of the start's dot when the badge moved aside.
+            let gap = badges[index] == b ? radius + 2 : 4
+            guard length > gap + 6 else { continue }
+            let ux = (b.x - a.x) / length, uy = (b.y - a.y) / length, tip = CGPoint(x: b.x - ux * gap, y: b.y - uy * gap)
+            let line = NSBezierPath(); line.move(to: a); line.line(to: tip); line.lineCapStyle = .round
+            Theme.Canvas.ruler.withAlphaComponent(0.6).setStroke(); line.lineWidth = 3; line.stroke()   // keeps it clear on any thread, light or dark
+            let color = travel.colorChange ? Theme.Canvas.label : Theme.Canvas.handle
+            color.setStroke(); color.setFill()
+            line.lineWidth = travel.colorChange ? 1.4 : travel.trimmed ? 1.5 : 1
+            if travel.colorChange { line.setLineDash([1, 3.5], count: 2, phase: 0) } else if travel.trimmed { line.setLineDash([5, 3], count: 2, phase: 0) }
+            line.stroke()
+            let head = NSBezierPath(); head.move(to: tip)
+            head.line(to: CGPoint(x: tip.x - ux * 7 - uy * 3.5, y: tip.y - uy * 7 + ux * 3.5))
+            head.line(to: CGPoint(x: tip.x - ux * 7 + uy * 3.5, y: tip.y - uy * 7 - ux * 3.5)); head.close(); head.fill()
+        }
+        for (index, (start, spot)) in zip(starts, badges).enumerated() {
+            if spot != start {
+                let leader = NSBezierPath(); leader.move(to: start); leader.line(to: spot)
+                Theme.Canvas.handle.setStroke(); leader.lineWidth = 1; leader.stroke()
+                Theme.Canvas.startMarker.setFill(); NSBezierPath(ovalIn: CGRect(x: start.x - 2.5, y: start.y - 2.5, width: 5, height: 5)).fill()
+            }
+            let size = index == current ? radius + 3 : radius
+            let badge = NSBezierPath(ovalIn: CGRect(x: spot.x - size, y: spot.y - size, width: size * 2, height: size * 2))
+            Theme.fixed(0x34507A).setFill(); badge.fill()   // denim in light and dark, so the white number always reads
+            NSColor.white.setStroke(); badge.lineWidth = index == current ? 2.5 : 1.5; badge.stroke()
+            let number = NSAttributedString(string: "\(index + 1)", attributes: [.font: NSFont.systemFont(ofSize: index == current ? 11 : 9.5, weight: .bold), .foregroundColor: NSColor.white])
+            number.draw(at: CGPoint(x: spot.x - number.size().width / 2, y: spot.y - number.size().height / 2))
+        }
     }
     private func drawMarker(_ point: Point?, label: String, color: NSColor) {
         guard let point else { return }
@@ -1077,7 +1141,7 @@ final class DesignCanvas: NSView {
             draggedMarker = marker; dragStart = point; dragSnapshot = state.design; return
         }
         // A resize handle round the selection: dragging it resizes the selection from the opposite side or corner.
-        if state.tool == .select, !state.hasVersionMismatch, let box = selectionBox(in: state.design),
+        if state.tool == .select, !state.hasVersionMismatch, !routeShown, let box = selectionBox(in: state.design),
            let handle = resizeHandles(box).first(where: { hypot($0.point.x - location.x, $0.point.y - location.y) <= 6 }) {
             resizeDrag = (handle.dx, handle.dy, model(CGPoint(x: box.minX, y: box.minY)), model(CGPoint(x: box.maxX, y: box.maxY)))
             dragStart = point; dragSnapshot = state.design; return
