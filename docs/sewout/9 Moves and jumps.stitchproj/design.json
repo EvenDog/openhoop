@@ -1,0 +1,891 @@
+{
+  "engineVersion" : "digitize-3",
+  "hoop" : {
+    "height" : 100,
+    "oval" : false,
+    "width" : 100
+  },
+  "objects" : [
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "01A61621-D879-4620-A5F1-7DAC2D229C07",
+      "locked" : false,
+      "name" : "Trimmed: first",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -45.5,
+            "y" : 26
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -45.5,
+            "y" : 36
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "EF207B24-D742-4463-9F3E-23E19E896A14",
+      "locked" : false,
+      "name" : "Trimmed: after 6 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -39.5,
+            "y" : 36
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -39.5,
+            "y" : 26
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "7AFD5668-26D7-4C8F-9ADD-92BE1CAAD7BC",
+      "locked" : false,
+      "name" : "Trimmed: after 10 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -29.5,
+            "y" : 26
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -29.5,
+            "y" : 36
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "7089E64B-8693-46C8-BEB8-BEF3D416FF2D",
+      "locked" : false,
+      "name" : "Trimmed: after 14 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -15.5,
+            "y" : 36
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.5,
+            "y" : 26
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "33BD0C5F-B4E3-4906-BEDB-9A0D7C0D6602",
+      "locked" : false,
+      "name" : "Trimmed: after 16 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 0.5,
+            "y" : 26
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 0.5,
+            "y" : 36
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "AFDA6934-5F54-4E84-903E-2E72D8793213",
+      "locked" : false,
+      "name" : "Trimmed: after 20 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 20.5,
+            "y" : 36
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 20.5,
+            "y" : 26
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "DC5AE5A8-C17A-45C9-B253-0EAA8DACACF3",
+      "locked" : false,
+      "name" : "Trimmed: after 25 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 45.5,
+            "y" : 26
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 45.5,
+            "y" : 36
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "33ADAE6F-B3BA-40FB-B749-38D95DDA0563",
+      "locked" : false,
+      "name" : "Not trimmed: first",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -45.5,
+            "y" : -2
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -45.5,
+            "y" : 8
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : false,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "70E88F9C-AEA5-49B8-A90A-6186A501C878",
+      "locked" : false,
+      "name" : "Not trimmed: after 6 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -39.5,
+            "y" : 8
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -39.5,
+            "y" : -2
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : false,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "B694874F-0CE6-465C-B6BC-2D3F56F4BAD8",
+      "locked" : false,
+      "name" : "Not trimmed: after 10 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -29.5,
+            "y" : -2
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -29.5,
+            "y" : 8
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : false,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "32F8730B-DC22-4E75-B9F8-6D304CD713E9",
+      "locked" : false,
+      "name" : "Not trimmed: after 14 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -15.5,
+            "y" : 8
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.5,
+            "y" : -2
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : false,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "60E4F828-5404-47F8-817B-700CDC0BEE9C",
+      "locked" : false,
+      "name" : "Not trimmed: after 16 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 0.5,
+            "y" : -2
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 0.5,
+            "y" : 8
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : false,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "B2BB2694-7E8F-42BC-8898-D258AFC57373",
+      "locked" : false,
+      "name" : "Not trimmed: after 20 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 20.5,
+            "y" : 8
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 20.5,
+            "y" : -2
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : false,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "A020B920-4743-4958-802D-DD9CBD7A73D8",
+      "locked" : false,
+      "name" : "Not trimmed: after 25 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 45.5,
+            "y" : -2
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 45.5,
+            "y" : 8
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : false,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 2701122,
+        "name" : "Ink"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "C8E7EF24-F58B-4D8F-AE8E-CC799EC44E3B",
+      "locked" : false,
+      "name" : "Short move: first",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -8,
+            "y" : -32
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -8,
+            "y" : -22
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 2701122,
+        "name" : "Ink"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "1F2FB680-B232-4505-96E4-A5230B8697CC",
+      "locked" : false,
+      "name" : "Short move: after 1 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -7,
+            "y" : -22
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -7,
+            "y" : -32
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 2701122,
+        "name" : "Ink"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "0F3B3CFF-7383-4B47-BA88-159034D4207F",
+      "locked" : false,
+      "name" : "Short move: after 2 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -5,
+            "y" : -32
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -5,
+            "y" : -22
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 2701122,
+        "name" : "Ink"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "522C1E17-FFDE-4A69-A107-FF3DA5E2AC32",
+      "locked" : false,
+      "name" : "Short move: after 3 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -2,
+            "y" : -22
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -2,
+            "y" : -32
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 2701122,
+        "name" : "Ink"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "223364A6-BF61-41EA-9D6E-A5D95838CDFC",
+      "locked" : false,
+      "name" : "Short move: after 4 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 2,
+            "y" : -32
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 2,
+            "y" : -22
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 2701122,
+        "name" : "Ink"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "runPasses" : 3,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "8E18DE32-116F-42FD-98CB-34D6DC880571",
+      "locked" : false,
+      "name" : "Short move: after 6 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 8,
+            "y" : -22
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 8,
+            "y" : -32
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    }
+  ],
+  "schemaVersion" : 5
+}
