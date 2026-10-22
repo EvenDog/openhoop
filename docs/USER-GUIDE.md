@@ -8,7 +8,7 @@ How to digitize with OpenHoop, from artwork to a file your embroidery machine ca
 
 Open `dist/OpenHoop.app` after building it. To look around first, choose **File → Open Sample Design** or **File → Open Satin + Fill Sampler**. The app carries its own file converter, so you don't need to install Python to use it.
 
-> OpenHoop has been built and tested on an Apple Silicon Mac. Its stitches have not yet been sewn on a real machine, so test-sew on scrap fabric first.
+> OpenHoop runs on Apple Silicon Macs with macOS 14 or later, and its designs have been sewn on a Brother SE600. Every machine, fabric and stabilizer behaves a little differently, so test-sew a new design on scrap fabric first.
 
 **The window:**
 - **Tool strip** (under the toolbar): tools grouped as *Pick & shape*, *Stitch*, *Add* and *View*, each with its key. Some tools share a slot (Fill and Hole; Text, Satin border, Appliqué and Auto-digitize); click the slot's arrow to pick one. Tools that can't be used yet are dimmed.
@@ -371,7 +371,7 @@ These are the starting keys; every one can be changed. Tools on a function key a
 
 ## Known limits
 
-**Early machine testing.** PES files load correctly on a Brother SE600 (100 × 100 mm hoop); full sew-out tests are under way. Export checks read each file back with the same library that wrote it; they don't prove a machine will accept it or that the stitches look right. Trim and color behavior varies between machines. Confirm your machine model before the first sew-out. Brother files larger than 100 × 100 mm haven't been sewn yet; JEF can only describe Janome hoops up to 200 × 200 mm (use DST for larger ones).
+**Machine testing.** Designs have been sewn on a Brother SE600 (100 × 100 mm hoop). Export checks read each file back with the same library that wrote it; they don't prove a machine will accept it or that the stitches look right. Trim and color behavior varies between machines. Confirm your machine model before the first sew-out. Brother files larger than 100 × 100 mm haven't been sewn yet; JEF can only describe Janome hoops up to 200 × 200 mm (use DST for larger ones).
 
 **Stitches:**
 - Satin columns with crossing or reversed pairs are refused; split sharp bends into separate columns. Each satin is limited to 5,000 edge pairs.
