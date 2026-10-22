@@ -40,10 +40,6 @@
       </div>
 
       <div class="preview-toolbar">
-        <div class="pill-group" role="group" aria-label="Main view">
-          <button type="button" class="pill-button is-active" data-mode="guided" aria-pressed="true" aria-controls="hero-comparison">Guided</button>
-          <button type="button" class="pill-button" data-mode="pro" aria-pressed="false" aria-controls="hero-comparison">Pro</button>
-        </div>
         <div class="pill-group" role="group" aria-label="Main appearance">
           <button type="button" class="pill-button is-active" data-theme="light" aria-pressed="true" aria-controls="hero-comparison">Light</button>
           <button type="button" class="pill-button" data-theme="dark" aria-pressed="false" aria-controls="hero-comparison">Dark</button>
@@ -52,15 +48,15 @@
       </div>
       <!-- The wooden hoop frame; its clamp at the top shows the current view. -->
       <div class="hoop">
-        <span class="hoop-clamp" data-preview-label>Guided · Light</span>
+        <span class="hoop-clamp" data-preview-label>Light</span>
         <div class="preview-surface" id="hero-comparison" data-preview-surface tabindex="-1" role="group" aria-label="App screenshot. With Inspect stitches enabled, move or tap to magnify; arrow keys move the lens.">
-          <img data-light src="assets/screenshot-guided-light.jpg" width="2048" height="1212" fetchpriority="high" alt="OpenHoop’s Guided view in light mode showing the Garden Flower design.">
-          <img data-dark hidden src="assets/screenshot-guided-dark.jpg" width="2048" height="1212" loading="lazy" alt="The same Garden Flower design in Guided view, dark mode.">
+          <img data-light src="assets/screenshot-pro-light.jpg" width="2048" height="1212" fetchpriority="high" alt="OpenHoop in light mode showing the Garden Flower design.">
+          <img data-dark hidden src="assets/screenshot-pro-dark.jpg" width="2048" height="1212" loading="lazy" alt="The same Garden Flower design in dark mode.">
           <div class="stitch-lens" data-lens hidden aria-hidden="true"><div data-lens-light></div><div data-lens-dark hidden></div><span>THREAD DETAIL</span></div>
         </div>
       </div>
-      <p class="preview-hint" data-hint aria-live="polite">Choose your view and lighting.</p>
-      <div class="image-caption"><span data-preview-caption aria-live="polite">Guided · Light mode · Garden Flower</span><a href="#stitch-preview">Watch it stitch <span aria-hidden="true">↓</span></a></div>
+      <p class="preview-hint" data-hint aria-live="polite">Choose your lighting.</p>
+      <div class="image-caption"><span data-preview-caption aria-live="polite">Light mode · Garden Flower</span><a href="#stitch-preview">Watch it stitch <span aria-hidden="true">↓</span></a></div>
     </section>
 
     <section class="band band-cream" id="how-it-works" aria-labelledby="process-title">
@@ -76,11 +72,11 @@
 
     <section class="band" id="workspace" aria-labelledby="workspace-title">
       <div class="wrap split">
-        <div class="section-heading"><p class="kicker">A workspace that grows with you</p><h2 id="workspace-title">Find your flow.</h2><p>Start with clearly labeled tools and helpful explanations. Switch to Pro when you want more controls close at hand.</p></div>
+        <div class="section-heading"><p class="kicker">A workspace that grows with you</p><h2 id="workspace-title">Find your flow.</h2><p>Every tool and setting sits in plain view, and resting the pointer on any of them explains what it does.</p></div>
         <div class="workspace-list">
-          <article><span class="dot dot-gold" aria-hidden="true">G</span><div><h3>Start with Guided.</h3><p>Clearly labeled tools and plain-English settings help you find your way from artwork to stitches.</p></div></article>
-          <article><span class="dot dot-tomato" aria-hidden="true">P</span><div><h3>Go deeper with Pro.</h3><p>Keep more controls close at hand as you shape curves, set stitch angles, and fine-tune individual needle points.</p></div></article>
-          <article><span class="dot dot-sage" aria-hidden="true">✦</span><div><h3>Make yourself at home.</h3><p>Arrange your panels, customize shortcuts, and switch between Guided and Pro whenever you like.</p></div></article>
+          <article><span class="dot dot-gold" aria-hidden="true">T</span><div><h3>Every tool in reach.</h3><p>Each tool has its own button, with its name and shortcut a hover away, so nothing hides in a menu.</p></div></article>
+          <article><span class="dot dot-tomato" aria-hidden="true">P</span><div><h3>Place it exactly.</h3><p>Type a position, size or angle in the precision bar, and watch stitch counts and sewing time update as you work.</p></div></article>
+          <article><span class="dot dot-sage" aria-hidden="true">✦</span><div><h3>Make yourself at home.</h3><p>Arrange your panels, put the tools across the top or down the side, and customize every shortcut.</p></div></article>
         </div>
       </div>
     </section>

@@ -1,6 +1,6 @@
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-// Workspace and appearance toggles preserve each other’s selection.
+// The light/dark toggle and the stitch lens.
 document.querySelectorAll('[data-preview]').forEach(preview => {
   const surface = preview.querySelector('[data-preview-surface]');
   const light = preview.querySelector('[data-light]');
@@ -11,10 +11,8 @@ document.querySelectorAll('[data-preview]').forEach(preview => {
   const lensDark = preview.querySelector('[data-lens-dark]');
   const hint = preview.querySelector('[data-hint]');
   let theme = 'light';
-  let workspace = 'guided';
   let inspecting = false;
   let point = { x: .42, y: .35 };
-  let modeRequest = 0;
 
   function positionLens() {
     const rect = surface.getBoundingClientRect();
@@ -31,10 +29,9 @@ document.querySelectorAll('[data-preview]').forEach(preview => {
     }
   }
   function updateLabels() {
-    const view = workspace === 'pro' ? 'Pro' : 'Guided';
     const appearance = theme === 'dark' ? 'Dark' : 'Light';
-    preview.querySelector('[data-preview-label]').textContent = `${view} · ${appearance}`;
-    preview.querySelector('[data-preview-caption]').textContent = `${view} · ${appearance} mode · Garden Flower`;
+    preview.querySelector('[data-preview-label]').textContent = appearance;
+    preview.querySelector('[data-preview-caption]').textContent = `${appearance} mode · Garden Flower`;
   }
   function setTheme(value) {
     theme = value;
@@ -54,39 +51,11 @@ document.querySelectorAll('[data-preview]').forEach(preview => {
     surface.classList.toggle('is-inspecting', enabled);
     lens.hidden = !enabled;
     surface.tabIndex = enabled ? 0 : -1;
-    hint.textContent = enabled ? 'Move or tap to explore. Arrow keys move the lens.' : 'Choose your view and lighting.';
+    hint.textContent = enabled ? 'Move or tap to explore. Arrow keys move the lens.' : 'Choose your lighting.';
     positionLens();
-  }
-  async function setMode(mode, button) {
-    const request = ++modeRequest;
-    const urls = ['light', 'dark'].map(theme => `assets/screenshot-${mode}-${theme}.jpg`);
-    surface.setAttribute('aria-busy', 'true');
-    try {
-      // Decode the pair before swapping, so mismatched workspaces never flash.
-      await Promise.all(urls.map(src => { const img = new Image(); img.src = src; return img.decode(); }));
-      if (request !== modeRequest) return;
-      [light.src, dark.src] = urls;
-      lensLight.style.backgroundImage = `url("${urls[0]}")`;
-      lensDark.style.backgroundImage = `url("${urls[1]}")`;
-      const name = mode === 'pro' ? 'Pro' : 'Guided';
-      light.alt = `OpenHoop’s ${name} view in light mode showing the Garden Flower design.`;
-      dark.alt = `The same Garden Flower design in ${name} view, dark mode.`;
-      workspace = mode;
-      updateLabels();
-      preview.querySelectorAll('[data-mode]').forEach(option => {
-        option.classList.toggle('is-active', option === button);
-        option.setAttribute('aria-pressed', String(option === button));
-      });
-      positionLens();
-    } catch {
-      hint.textContent = 'That view could not load. Please try again.';
-    } finally {
-      if (request === modeRequest) surface.removeAttribute('aria-busy');
-    }
   }
   lensLight.style.backgroundImage = `url("${light.getAttribute('src')}")`;
   lensDark.style.backgroundImage = `url("${dark.getAttribute('src')}")`;
-  preview.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => setMode(button.dataset.mode, button)));
   inspect.addEventListener('click', () => setInspect(!inspecting));
   preview.querySelectorAll('[data-theme]').forEach(button => button.addEventListener('click', () => setTheme(button.dataset.theme)));
   function interact(event) {

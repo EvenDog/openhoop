@@ -7,7 +7,7 @@ Digitize logos, patches and lettering into stitch files for your embroidery mach
 
 <p align="center"><a href="https://openhoop.app"><strong>openhoop.app</strong></a> · <a href="https://github.com/EvenDog/openhoop/releases/latest">Download for Mac</a> · <a href="docs/USER-GUIDE.md">User guide</a></p>
 
-![OpenHoop's Guided view: a flower design stitched in the hoop, drawn as real thread, with the sewing order, threads, palette, fabric settings and stitch player around it](docs/screenshot-guided.jpg)
+![OpenHoop: a flower design stitched in the hoop, drawn as real thread, with two rows of tools, a precision bar for the selected petal, the sewing order as a table with stitch counts, threads in sewing order, the petal's satin settings, and stats along the bottom](docs/screenshot-pro.jpg)
 
 > **In active development.** OpenHoop works end to end, from artwork to a machine file, and its designs have been sewn on a Brother SE600. Stitch settings keep improving from version to version. Test-stitch on scrap fabric before using a design on anything that matters.
 
@@ -25,13 +25,7 @@ Digitize logos, patches and lettering into stitch files for your embroidery mach
 - **Hoops** for Brother, Janome and Husqvarna Viking / Pfaff machines, or any custom size.
 - **Machine files**: export PES, PEC, DST, EXP, JEF, VP3 and XXX (each one read back and checked before saving), and import them too.
 - **Production worksheet** to print and keep beside the machine: thread steps, stops and an actual-size picture.
-- **Made for the Mac**: Guided and Pro views, dockable panels, copy and paste, undo, millimeters or inches, tooltips that explain every tool, and a keyboard shortcut you can change for every command.
-
-## Guided and Pro
-
-**Guided** (above) shows the everyday tools with their names and a plain-English line under each setting. **Pro** puts every tool one click away, adds a precision bar for exact position, size and rotation, and shows the sewing order as a table with stitch counts and live stats. Switch any time with **⌥⌘P**.
-
-![OpenHoop's Pro view in dark mode: two rows of tools, a precision bar for the selected petal, the sewing order as a table with stitch counts, threads in sewing order, the petal's satin settings, and stats along the bottom](docs/screenshot-pro.jpg)
+- **Made for the Mac**: every tool one click away, a precision bar for exact position, size and rotation, light and dark mode, dockable panels, copy and paste, undo, millimeters or inches, tooltips that explain every tool, and a keyboard shortcut you can change for every command.
 
 ## Download
 
