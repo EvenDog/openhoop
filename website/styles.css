@@ -127,7 +127,7 @@ h1 em { font-style: normal; color: var(--gold); }
 .hero-copy .actions { justify-content: center; margin-top: 36px; }
 .fine-print { margin-top: 20px; font-size: 15px; color: var(--muted); }
 
-/* Guided/Pro and Light/Dark pill toggles */
+/* Light/Dark pill toggle */
 .preview-toolbar { display: flex; flex-wrap: wrap; gap: 12px 16px; justify-content: center; align-items: center; margin: 64px 0 40px; }
 .pill-group { display: flex; gap: 4px; padding: 5px; background: var(--denim-light); border-radius: 999px; }
 .pill-button {
