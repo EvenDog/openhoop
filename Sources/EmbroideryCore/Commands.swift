@@ -244,6 +244,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
     public var contexts: Set<CommandContext> {
         if appWide { return [.canvas, .drawing, .list, .text] }
         if [.finishPath, .cancelPath, .removePoint].contains(self) { return [.drawing] }
+        if self == .play { return [.canvas, .list] }   // while drawing, Space finishes the shape instead
         if [.holeTool, .removeHoles, .insertNode, .deleteNode, .toggleNodeType, .breakApartLettering, .renameObject, .convertFill, .convertRun, .convertSatin, .toggleUnderlay, .focusSpacing, .focusAngle, .delete, .selectAll, .sequenceBySelection, .sequenceByColor, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .duplicate, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .closePath, .lockObject, .hideObject, .group, .ungroup, .threadChart, .cutObjects, .copyObjects, .pasteObjects, .clearStartEnd, .lettering, .editLettering, .autoDigitize, .satinBorder, .outlinesOffsets, .applique, .done, .focusLength, .nudgeLeft, .nudgeRight, .nudgeUp, .nudgeDown, .weldObjects, .removeOverlaps, .smoothShapes, .laydown, .branching, .addMonogram, .editMonogram, .useAsFillGuide, .putLetteringOnLine].contains(self) { return [.canvas, .list] }
         return [.canvas, .drawing, .list]
     }
@@ -257,7 +258,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .new: return [.init("n", 1)]; case .open: return [.init("o", 1)]; case .save: return [.init("s", 1)]
         case .saveAs: return [.init("s", 3)]; case .close: return [.init("w", 1)]; case .settings: return [.init(",", 1)]
         case .importImage: return [.init("i", 1)]; case .importSVG: return [.init("i", 3)]; case .importMachine: return [.init("o", 5)]
-        case .exportMachine: return [.init("e", 1), .init("e", 2), .init("e", 3)]
+        case .exportMachine: return [.init("e", 1), .init("e", 2)]
         case .productionWorksheet: return [.init("p", 1)]
         // Digitizing tools
         case .selectTool: return [.init("o")]
@@ -273,7 +274,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .outlinesOffsets: return [.init("o", 3)]
         case .toggleUnderlay: return [.init("u")]
         case .done: return [.init("escape")]   // while drawing, Escape cancels the path instead
-        case .finishPath: return [.init("return")]; case .cancelPath: return [.init("escape")]
+        case .finishPath: return [.init("return"), .init("space")]; case .cancelPath: return [.init("escape")]
         case .removePoint, .delete: return [.init("delete")]
         // More tools, on ⌥ and ⇧⌥ keys
         case .artworkTool: return [.init("d", 4)]; case .holeTool: return [.init("h", 4)]; case .autoDigitize: return [.init("m", 4)]
@@ -283,6 +284,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .freehandOpenTool: return [.init("o", 6)]; case .freehandClosedTool: return [.init("s", 6)]   // ⇧ added to the Open and Closed Shape keys
         case .rectangleTool: return [.init("r", 4)]; case .ellipseTool: return [.init("j", 4)]; case .basicShapeTool: return [.init("b", 4)]
         case .knifeTool: return [.init("k", 4)]; case .weldObjects: return [.init("w", 4)]; case .smoothShapes: return [.init("n", 4)]
+        case .removeOverlaps: return [.init("e", 3)]
         case .laydown: return [.init("l", 6)]
         case .addStitchAngles: return [.init("h", 8)]; case .removeStitchAngles: return [.init("h", 10)]   // ⌃H, because ⌘H hides the app on a Mac
         case .branching: return [.init("i")]   // Insert Node moved to ⇧⌥I for it
@@ -295,17 +297,23 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .mirrorH: return [.init("1", 1)]; case .mirrorV: return [.init("1", 4)]
         case .cutObjects: return [.init("x", 1)]; case .copyObjects: return [.init("c", 1)]; case .pasteObjects: return [.init("v", 1)]
         case .nudgeLeft: return [.init("left")]; case .nudgeRight: return [.init("right")]; case .nudgeUp: return [.init("up")]; case .nudgeDown: return [.init("down")]
+        // Wilcom has no keys for these: ⌘[ and ⌘] are the Mac's usual backward and forward keys
+        case .earlier: return [.init("[", 1)]; case .later: return [.init("]", 1)]
+        case .rotateLeft: return [.init("left", 5)]; case .rotateRight: return [.init("right", 5)]; case .hideObject: return [.init("h", 3)]
         // View
         case .zoomIn: return [.init("z"), .init("=", 1)]; case .zoomOut: return [.init("z", 2), .init("-", 1)]; case .zoomFit: return [.init("0", 4)]
         case .zoomBoxTool: return [.init("b")]; case .zoomActual: return [.init("1")]; case .zoomSelected: return [.init("0", 2)]; case .zoomDesign: return [.init("0")]
         case .showStitches: return [.init("s")]; case .showOutlines: return [.init("l")]; case .showConnectors: return [.init("c", 2)]; case .hideOthers: return [.init("s", 2)]
         case .measureTool: return [.init("m")]
         case .hoopingsTool: return [.init("h", 6)]   // ⌥⇧H: Wilcom has no key for its hooping mode
-        case .grid: return [.init("g", 2)]; case .snap: return [.init("g", 3)]; case .needles: return [.init(".")]
+        case .grid: return [.init("g", 2)]; case .snap: return [.init("g", 3)]; case .clearGuides: return [.init("x", 3)]; case .needles: return [.init(".")]
         case .threadView: return [.init("t")]; case .showRulers: return [.init("r", 1)]   // ⌘R, the Mac's usual rulers key (Wilcom gives rulers none)
         case .artwork: return [.init("d")]
         case .play: return [.init("space"), .init("r", 2)]; case .rewind: return [.init("home")]
         case .inspector: return [.init("i", 5)]
+        // Panels: ⇧L and ⌥P are Wilcom's Color-Object List and Design Information keys; ⌥⌘1–4 open the four in order
+        case .panelSewingOrder: return [.init("l", 2), .init("1", 5)]; case .panelDesign: return [.init("p", 4), .init("2", 5)]
+        case .panelReference: return [.init("3", 5)]; case .palette: return [.init("4", 5)]
         // Design tabs, as in Safari: ⌃⇥ / ⌃⇧⇥ or ⇧⌘] / ⇧⌘[
         case .nextTab: return [.init("tab", 8), .init("]", 3)]; case .previousTab: return [.init("tab", 10), .init("[", 3)]
         default: return []
@@ -350,12 +358,13 @@ public struct ShortcutProfile: Codable, Equatable, Identifiable {
     public var bindings: [String: [KeyBinding]]
     /// Which set of default keys this profile was made with: nil for profiles saved with the first default keys, 2
     /// after, 3 once Branching took I from Insert Node, 4 once the export commands became one, 5 once Outlines &
-    /// Offsets took ⇧⌘O from Add Satin Border.
+    /// Offsets took ⇧⌘O from Add Satin Border, 6 once Remove Overlaps took ⇧⌘E from Export Machine File… and Space
+    /// finished drawing.
     public var keySet: Int?
     public init(name: String = "My Shortcuts") {
         self.name = name
         bindings = Dictionary(uniqueKeysWithValues: CommandID.allCases.map { ($0.rawValue, $0.defaults) })
-        keySet = 5
+        keySet = 6
     }
     /// Moves a profile saved with the first default keys onto the second set, once. Only commands still on their old
     /// default key change; keys the person set themselves stay, and a new default that would clash with one of
@@ -407,15 +416,33 @@ public struct ShortcutProfile: Codable, Equatable, Identifiable {
         keySet = 5
         return true
     }
+    /// The second round of matching other embroidery software's keys, once: Export Machine File… lets go of ⇧⌘E
+    /// for Remove Overlaps, Space also finishes a shape while drawing, and commands that had no key get their new
+    /// ones. Only commands still on their old default change, and a new key someone already uses stays theirs.
+    /// Returns whether anything changed.
+    @discardableResult public mutating func updateToWilcomKeys() -> Bool {
+        guard keySet == 5 else { return false }
+        if Set(bindings[CommandID.exportMachine.rawValue] ?? []) == [.init("e", 1), .init("e", 2), .init("e", 3)] {
+            bindings[CommandID.exportMachine.rawValue] = CommandID.exportMachine.defaults
+        }
+        let oldDefaults: [CommandID: [KeyBinding]] = [.finishPath: [.init("return")]]
+        let gaining: [CommandID] = [.removeOverlaps, .clearGuides, .panelSewingOrder, .panelDesign, .panelReference, .palette, .earlier, .later, .rotateLeft, .rotateRight, .hideObject, .finishPath]
+        for command in gaining where bindings[command.rawValue] == oldDefaults[command, default: []] {
+            let old = oldDefaults[command, default: []]
+            bindings[command.rawValue] = old + command.defaults.filter { !old.contains($0) && conflicts($0, for: command).isEmpty }
+        }
+        keySet = 6
+        return true
+    }
     /// Brings a saved profile up to date: the moves above (each once, keeping keys the person set), then commands
     /// added since it was saved get their default keys where they're free. The moves come first, so new commands
     /// can have keys the moves freed. Returns whether any keys moved.
     @discardableResult public mutating func upgrade() -> Bool {
-        let movedToSecondSet = updateToSecondKeySet(), movedForBranching = updateToBranchingKey(), joinedExports = updateToOneExport(), freedForOutlines = updateToOutlinesKey()
+        let movedToSecondSet = updateToSecondKeySet(), movedForBranching = updateToBranchingKey(), joinedExports = updateToOneExport(), freedForOutlines = updateToOutlinesKey(), matchedWilcom = updateToWilcomKeys()
         for command in CommandID.allCases where bindings[command.rawValue] == nil {
             bindings[command.rawValue] = command.defaults.filter { conflicts($0, for: command).isEmpty }
         }
-        return movedToSecondSet || movedForBranching || joinedExports || freedForOutlines
+        return movedToSecondSet || movedForBranching || joinedExports || freedForOutlines || matchedWilcom
     }
     public func conflicts(_ binding: KeyBinding, for command: CommandID) -> [CommandID] {
         CommandID.allCases.filter { $0 != command && !$0.contexts.isDisjoint(with: command.contexts) && (bindings[$0.rawValue] ?? []).contains(binding) }

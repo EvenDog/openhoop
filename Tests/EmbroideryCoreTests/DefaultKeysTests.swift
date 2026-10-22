@@ -18,9 +18,21 @@ final class DefaultKeysTests: XCTestCase {
             (.init("p", 1), .productionWorksheet), (.init("d", 1), .duplicate), (.init("escape"), .done), (.init("delete"), .delete),
             (.init("t"), .threadView), (.init("b"), .zoomBoxTool), (.init("1"), .zoomActual), (.init("0"), .zoomDesign), (.init("0", 2), .zoomSelected),
             (.init("s"), .showStitches), (.init("l"), .showOutlines), (.init("c", 2), .showConnectors), (.init("s", 2), .hideOthers), (.init("m"), .measureTool),
-            (.init("k", 4), .knifeTool), (.init("w", 4), .weldObjects), (.init("n", 4), .smoothShapes), (.init("l", 6), .laydown), (.init("i"), .branching), (.init("i", 6), .insertNode), (.init("h", 8), .addStitchAngles), (.init("h", 10), .removeStitchAngles), (.init("e"), .editStitches), (.init("m", 6), .addMonogram)
+            (.init("k", 4), .knifeTool), (.init("w", 4), .weldObjects), (.init("n", 4), .smoothShapes), (.init("l", 6), .laydown), (.init("i"), .branching), (.init("i", 6), .insertNode), (.init("h", 8), .addStitchAngles), (.init("h", 10), .removeStitchAngles), (.init("e"), .editStitches), (.init("m", 6), .addMonogram),
+            (.init("e", 3), .removeOverlaps), (.init("x", 3), .clearGuides), (.init("l", 2), .panelSewingOrder), (.init("p", 4), .panelDesign),
+            (.init("1", 5), .panelSewingOrder), (.init("2", 5), .panelDesign), (.init("3", 5), .panelReference), (.init("4", 5), .palette),
+            (.init("[", 1), .earlier), (.init("]", 1), .later), (.init("left", 5), .rotateLeft), (.init("right", 5), .rotateRight), (.init("h", 3), .hideObject)
         ]
         for (key, command) in expected { XCTAssertEqual(profile.command(for: key, context: .canvas), command, key.display) }
+    }
+    /// Space plays the stitch player, except while drawing, where it finishes the shape as Return does.
+    func testSpaceFinishesTheShapeWhileDrawing() throws {
+        let profile = ShortcutProfile()
+        XCTAssertEqual(profile.command(for: .init("space"), context: .canvas), .play)
+        XCTAssertEqual(profile.command(for: .init("space"), context: .drawing), .finishPath)
+        XCTAssertEqual(profile.command(for: .init("return"), context: .drawing), .finishPath)
+        XCTAssertEqual(profile.command(for: .init("r", 2), context: .canvas), .play)
+        try profile.validate()
     }
     /// Every function-key tool also has a letter key, because Mac keyboards need fn for F1–F12.
     func testFunctionKeyToolsAlsoHaveALetter() {
@@ -63,7 +75,7 @@ final class DefaultKeysTests: XCTestCase {
     }
     func testProfileKeySetSurvivesSaving() throws {
         let saved = try JSONDecoder().decode(ShortcutProfile.self, from: JSONEncoder().encode(ShortcutProfile()))
-        XCTAssertEqual(saved.keySet, 5)
+        XCTAssertEqual(saved.keySet, 6)
         var old = try JSONSerialization.jsonObject(with: JSONEncoder().encode(ShortcutProfile())) as! [String: Any]
         old.removeValue(forKey: "keySet")
         XCTAssertNil(try JSONDecoder().decode(ShortcutProfile.self, from: JSONSerialization.data(withJSONObject: old)).keySet)
@@ -104,6 +116,7 @@ final class DefaultKeysTests: XCTestCase {
         var profile = ShortcutProfile(); profile.keySet = 3
         profile.bindings[CommandID.exportMachine.rawValue] = [.init("e", 2), .init("e", 3)]
         profile.bindings["exportPES"] = [.init("e", 1)]; profile.bindings["exportDST"] = [.init("d", 5)]
+        profile.bindings[CommandID.removeOverlaps.rawValue] = nil   // it came later
         XCTAssertTrue(profile.upgrade())
         XCTAssertEqual(profile.bindings[CommandID.exportMachine.rawValue], [.init("e", 2), .init("e", 3), .init("e", 1), .init("d", 5)])
         XCTAssertNil(profile.bindings["exportPES"]); XCTAssertNil(profile.bindings["exportDST"])
@@ -141,5 +154,34 @@ final class DefaultKeysTests: XCTestCase {
         profile.upgrade()
         XCTAssertEqual(profile.bindings[CommandID.insertNode.rawValue], [])
         XCTAssertEqual(profile.bindings[CommandID.branching.rawValue], [.init("i")])
+    }
+    func testSavedProfileMovesToTheWilcomKeysOnce() throws {
+        // Saved with key set 5: ⇧⌘E on Export Machine File…, Return alone to finish, and no keys for the commands that
+        // now have them, except one the person gave Clear Guides themselves and ⌘[ they put on Group.
+        var profile = ShortcutProfile(); profile.keySet = 5
+        profile.bindings[CommandID.exportMachine.rawValue] = [.init("e", 1), .init("e", 2), .init("e", 3)]
+        profile.bindings[CommandID.finishPath.rawValue] = [.init("return")]
+        for command in [CommandID.removeOverlaps, .panelSewingOrder, .panelDesign, .panelReference, .palette, .earlier, .later, .rotateLeft, .rotateRight, .hideObject] {
+            profile.bindings[command.rawValue] = []
+        }
+        profile.bindings[CommandID.clearGuides.rawValue] = [.init("j", 12)]
+        profile.bindings[CommandID.group.rawValue] = [.init("g", 1), .init("[", 1)]
+        XCTAssertTrue(profile.upgrade())
+        XCTAssertEqual(profile.bindings[CommandID.exportMachine.rawValue], [.init("e", 1), .init("e", 2)])
+        XCTAssertEqual(profile.command(for: .init("e", 3), context: .canvas), .removeOverlaps)
+        XCTAssertEqual(profile.bindings[CommandID.finishPath.rawValue], [.init("return"), .init("space")])
+        XCTAssertEqual(profile.bindings[CommandID.clearGuides.rawValue], [.init("j", 12)], "their own key stays")
+        XCTAssertEqual(profile.bindings[CommandID.earlier.rawValue], [], "⌘[ is theirs on Group, so Sew Earlier waits")
+        XCTAssertEqual(profile.bindings[CommandID.later.rawValue], [.init("]", 1)])
+        XCTAssertEqual(profile.command(for: .init("4", 5), context: .canvas), .palette)
+        XCTAssertFalse(profile.updateToWilcomKeys(), "only once")
+        try profile.validate()
+
+        // Someone who changed Export Machine File…'s keys keeps all of them, so Remove Overlaps waits.
+        var own = ShortcutProfile(); own.keySet = 5
+        own.bindings[CommandID.exportMachine.rawValue] = [.init("e", 3)]; own.bindings[CommandID.removeOverlaps.rawValue] = []
+        own.upgrade()
+        XCTAssertEqual(own.bindings[CommandID.exportMachine.rawValue], [.init("e", 3)])
+        XCTAssertEqual(own.bindings[CommandID.removeOverlaps.rawValue], [])
     }
 }
