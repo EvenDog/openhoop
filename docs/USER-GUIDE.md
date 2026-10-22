@@ -361,19 +361,20 @@ These are the starting keys; every one can be changed. Tools on a function key a
 | | | Show stitches / outlines / connectors / hide unselected | S / L / ⇧C / ⇧S |
 | | | Measure | M |
 | | | Hoopings | ⌥⇧H |
-| Knife / weld / smooth shapes | ⌥K / ⌥W / ⌥N | | |
-| Laydown | ⌥⇧L | | |
-| Branching | I | | |
-| Add / remove stitch angles | ⌃H / ⌃⇧H | | |
-| Edit stitches | E | | |
+| Knife / weld / smooth shapes | ⌥K / ⌥W / ⌥N | Sew earlier / later | ⌘[ / ⌘] |
+| Remove overlaps | ⇧⌘E | Rotate left / right 90° | ⌥⌘← / ⌥⌘→ |
+| Laydown | ⌥⇧L | Show / hide object | ⇧⌘H |
+| Branching | I | Sewing order / Design panel | ⇧L / ⌥P |
+| Add / remove stitch angles | ⌃H / ⌃⇧H | Sewing order, Design, Reference image, Threads panels | ⌥⌘1 / ⌥⌘2 / ⌥⌘3 / ⌥⌘4 |
+| Edit stitches | E | Clear guides | ⇧⌘X |
 | Add monogram | ⌥⇧M | | |
 | Hole in fill | ⌥H | Grid / snap to grid | ⇧G / ⇧⌘G |
 | | | Rulers & guides | ⌘R |
 | Start & end points | ⌥E | Show needle points | . (period) |
 | Move & size artwork | ⌥D | Show / hide reference image | D |
-| Auto-digitize | ⌥M | Play / pause stitches, back to start | Space or ⇧R, Home |
+| Auto-digitize | ⌥M | Play / pause stitches (Space finishes the shape while drawing), back to start | Space or ⇧R, Home |
 | Choose thread from chart | ⌥T | Settings | ⌘, |
-| Insert / delete node | ⌥⇧I / ⌫ or ⇧⌫ | Finish / cancel path | Return / Esc |
+| Insert / delete node | ⌥⇧I / ⌫ or ⇧⌫ | Finish / cancel path | Return or Space / Esc |
 | Open / closed shape | ⌥O / ⌥S | Freehand open / closed shape | ⌥⇧O / ⌥⇧S |
 | Rectangle / ellipse / basic shapes | ⌥R / ⌥J / ⌥B | | |
 | | | Next / previous design tab | ⌃⇥ / ⌃⇧⇥ |
