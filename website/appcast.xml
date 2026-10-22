@@ -6,6 +6,28 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.6.9</title>
+            <pubDate>Thu, 22 Oct 2026 02:40:42 GMT</pubDate>
+            <sparkle:version>15</sparkle:version>
+            <sparkle:shortVersionString>0.6.9</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.6.9</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.6.9</h3>
+<ul>
+<li><b>Multi-hooping.</b> Sew a design bigger than your hoop in several hoopings, re-hooping the fabric between them. Tick <b>Multi-hooping</b> under <b>Sewing area</b> in the Design panel and OpenHoop places enough hoopings to cover the design.</li>
+<li>Each hooping shows on the canvas as a dashed outline in its own color, with its number. The new <b>Hoopings</b> tool (<b>⌥⇧H</b>) drags them.</li>
+<li>Properties lists the hoopings in sewing order, with what each one sews. Click one to fade the others. Add more beside it, lay them out again automatically, or remove one.</li>
+<li>Each object sews in the first hooping that holds all of it. A letter's parts always stay together, so a word can cross hoopings but a letter can't. Anything that fits no hooping is outlined in red until you fix it.</li>
+<li><b>Alignment marks</b> (a box with an X, or a cross) are sewn where hoopings overlap. The next hooping sews the same marks first and then stops, so you can check the fabric is lined up before it sews on.</li>
+<li><b>Save Hoopings for Machine…</b> saves one file per hooping (*Towel – hooping 1 of 3.pes*) and a printable hooping sheet with each hooping's threads and how to re-hoop for it.</li>
+<li>Try your first multi-hooped design on scrap fabric to get a feel for lining up the marks. Multi-hooped projects are saved as a new file version that 0.6.8 and earlier can't open.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.6.9/OpenHoop-0.6.9.dmg" sparkle:edSignature="b6c7UyKeiWxknChyMebCMBakG3inTvLWtb0nDGTjt4BIV2kAnwm1gWeW1BV9HcplCiqVAnc5x4JHcsLqL+RrCQ==" length="23039819" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.6.8</title>
             <pubDate>Wed, 21 Oct 2026 21:45:57 GMT</pubDate>
             <sparkle:version>14</sparkle:version>
