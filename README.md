@@ -9,7 +9,7 @@ Digitize logos, patches and lettering into stitch files for your embroidery mach
 
 ![OpenHoop's Guided view: a flower design stitched in the hoop, drawn as real thread, with the sewing order, threads, palette, fabric settings and stitch player around it](docs/screenshot-guided.jpg)
 
-> **Early development.** OpenHoop works end to end, from artwork to a machine file, and its PES files load correctly on a Brother SE600. Sew-out testing is under way, so stitch settings may still change. Test-stitch on scrap fabric before using a design on anything that matters.
+> **In active development.** OpenHoop works end to end, from artwork to a machine file, and its designs have been sewn on a Brother SE600. Stitch settings keep improving from version to version. Test-stitch on scrap fabric before using a design on anything that matters.
 
 ## What it does
 
