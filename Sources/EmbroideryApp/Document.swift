@@ -824,7 +824,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         // so selected lettering stays selected by its lettering id.
         let selectedLettering = Set(updated.objects.filter { state.selection.contains($0.id) }.compactMap { $0.lettering?.id })
         let guideProblems = updated.syncGuides(embroideryFonts: EmbroideryFontLibrary.fonts)
-        if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
+        if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaSeven ? 7:updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
         state.design = updated; state.revision += 1
         if !lost.isEmpty { state.status = "\(lost.joined(separator: ", ")): stitches edited by hand were replaced by fresh ones, because the shape or settings changed. Undo (⌘Z) brings them back." }
         if let problem = guideProblems.first { state.status = problem }
