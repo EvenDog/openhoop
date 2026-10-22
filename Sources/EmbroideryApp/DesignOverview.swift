@@ -46,7 +46,16 @@ extension InspectorPanel {
     /// Whether every stitch lands inside the sewing area: the stitch generator warns when one doesn't (AreaEngine.swift).
     @ViewBuilder private var hoopCheck: some View {
         let hoop = preferences.unit.size(state.design.hoop.width, state.design.hoop.height, decimals: preferences.unit == .inches ? 1 : 0)
-        if state.plan.warnings.contains(where: { $0.contains("beyond the sewing area") }) {
+        if let assignment = state.hoopingAssignment {
+            let count = state.design.multiHooping?.hoopings.count ?? 0
+            if assignment.unplaced.isEmpty {
+                Label("Fits \(count) hooping\(count == 1 ? "" : "s") of \(hoop)", systemImage: "checkmark.circle.fill")
+                    .font(Theme.body(11, weight: .semibold)).foregroundStyle(Theme.success)
+            } else {
+                Label("Something fits no hooping. Use the Hoopings tool (\(preferences.key(.hoopingsTool))) to see what.", systemImage: "exclamationmark.circle.fill")
+                    .font(Theme.body(11, weight: .semibold)).foregroundStyle(Color.orange)
+            }
+        } else if state.plan.warnings.contains(where: { $0.contains("beyond the sewing area") }) {
             Label("Some stitches are outside the \(hoop) sewing area", systemImage: "exclamationmark.circle.fill")
                 .font(Theme.body(11, weight: .semibold)).foregroundStyle(Color.orange)
         } else {

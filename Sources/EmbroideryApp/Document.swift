@@ -16,6 +16,7 @@ enum Tool: String, Codable { case select, run, satin, fill, hole, node, pan, ent
     branch,    // Branching: click where the branch starts, then where it ends (Return lets OpenHoop choose)
     zoomBox,   // drag a box to zoom into it, then go back to the tool before
     measure,   // drag to measure a distance and angle
+    hooping,   // Hoopings: drag the hoopings of a multi-hooped design, click one to see what it sews
     text       // Add Lettering: click where the new lettering goes
     /// The tools that place points one click at a time.
     var draws:Bool {[.run,.satin,.fill,.hole,.openShape,.closedShape,.knife].contains(self)}
@@ -36,7 +37,7 @@ enum Tool: String, Codable { case select, run, satin, fill, hole, node, pan, ent
     }
     /// The tool each tool command turns on.
     static let forCommand:[CommandID:Tool]=[.selectTool:.select,.runTool:.run,.satinTool:.satin,.fillTool:.fill,.holeTool:.hole,.nodeTool:.node,.panTool:.pan,
-        .entryExitTool:.entryExit,.artworkTool:.artwork,.openShapeTool:.openShape,.closedShapeTool:.closedShape,.freehandOpenTool:.freehandOpen,.freehandClosedTool:.freehandClosed,.rectangleTool:.rectangle,.ellipseTool:.ellipse,.basicShapeTool:.basicShape,.zoomBoxTool:.zoomBox,.measureTool:.measure,.knifeTool:.knife,.branching:.branch,.addStitchAngles:.addAngles,.removeStitchAngles:.removeAngles,.editStitches:.stitchEdit,.lettering:.text]
+        .entryExitTool:.entryExit,.artworkTool:.artwork,.openShapeTool:.openShape,.closedShapeTool:.closedShape,.freehandOpenTool:.freehandOpen,.freehandClosedTool:.freehandClosed,.rectangleTool:.rectangle,.ellipseTool:.ellipse,.basicShapeTool:.basicShape,.zoomBoxTool:.zoomBox,.measureTool:.measure,.hoopingsTool:.hooping,.knifeTool:.knife,.branching:.branch,.addStitchAngles:.addAngles,.removeStitchAngles:.removeAngles,.editStitches:.stitchEdit,.lettering:.text]
 }
 struct NodeLocation:Equatable {var object:UUID;var ring:Int;var index:Int}
 /// One needle point of an object's stitches, for Edit Stitch: which section (run of stitches) and which point in it.
@@ -47,9 +48,9 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     weak var canvas: DesignCanvas?
     // The summary reads names and the fabric from the design too, so a design change clears it even when the
     // stitches can't be worked out (or aren't ready yet).
-    @Published var design = Design() { didSet { planFacts = nil } }
+    @Published var design = Design() { didSet { planFacts = nil; hoopingFacts = nil } }
     // A choice just made in a picture menu stays previewed until these fresh stitches arrive.
-    @Published var plan = StitchPlan() { didSet { planFacts = nil; if settingsPreview?.kept == true { settingsPreview = nil } } }
+    @Published var plan = StitchPlan() { didSet { planFacts = nil; hoopingFacts = nil; if settingsPreview?.kept == true { settingsPreview = nil } } }
     /// While pointing at a choice in a picture menu (Fill style, Pattern): the selected objects' stitches with it (PictureMenu.swift).
     @Published var settingsPreview: SettingsPreview?
     var settingsPreviewTask: Task<StitchPlan, Error>?
@@ -65,6 +66,17 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     var summary: ProductionSummary { facts.summary }
     /// How many stitches each object sews.
     var stitchCounts: [UUID: Int] { facts.counts }
+    /// Which hooping sews each object (MultiHooping.swift), worked out once per design and plan; nil when the design
+    /// is sewn in one hooping.
+    var hoopingAssignment: HoopingAssignment? {
+        guard design.multiHooping != nil else { return nil }
+        if let hoopingFacts { return hoopingFacts }
+        hoopingFacts = design.hoopingAssignment(plan: plan); return hoopingFacts
+    }
+    private var hoopingFacts: HoopingAssignment?
+    /// The hooping picked in the Hoopings list (an index into the design's hoopings): the canvas fades what the
+    /// others sew. nil when none is picked.
+    @Published var selectedHooping: Int?
     @Published var selection: Set<UUID> = [] {
         didSet {
             // Keep the click order: drop what left the selection, then add what joined it. Objects that joined

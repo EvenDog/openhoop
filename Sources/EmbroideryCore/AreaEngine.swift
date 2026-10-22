@@ -942,7 +942,8 @@ public enum StitchEngine {
             previous=object
         }
         plan.commands.append(.init(.end,last,thread:max(0,plan.threads.count-1)))
-        if plan.outsidePoints.contains(where:{!design.hoop.contains($0)}){plan.warnings.append("The design extends beyond the sewing area after compensation. Resize or reposition it before export.")}
+        // A multi-hooped design is checked hooping by hooping instead (MultiHooping.swift).
+        if design.multiHooping == nil,plan.outsidePoints.contains(where:{!design.hoop.contains($0)}){plan.warnings.append("The design extends beyond the sewing area after compensation. Resize or reposition it before export.")}
         return plan
     }
 }

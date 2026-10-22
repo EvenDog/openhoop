@@ -438,7 +438,7 @@ import EmbroideryCore
             if state.tool != .zoomBox { state.toolBeforeZoom = state.tool }
             state.tool = .zoomBox; state.status = "Drag a box around the part to zoom into · Click to zoom in 2× · Esc cancels"
             state.focusCanvas(); state.canvas?.window?.invalidateCursorRects(for: state.canvas!)
-        case .selectTool, .runTool, .satinTool, .fillTool, .holeTool, .nodeTool, .panTool, .entryExitTool, .artworkTool, .openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool, .measureTool, .knifeTool, .addStitchAngles, .removeStitchAngles, .lettering:
+        case .selectTool, .runTool, .satinTool, .fillTool, .holeTool, .nodeTool, .panTool, .entryExitTool, .artworkTool, .openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool, .hoopingsTool, .measureTool, .knifeTool, .addStitchAngles, .removeStitchAngles, .lettering:
             if !state.draft.isEmpty { state.status = "Finish the current path with Enter, or cancel with Escape, before changing tools."; return }
             if command == .artworkTool {
                 guard let artwork = state.design.artwork else {
@@ -479,6 +479,7 @@ import EmbroideryCore
             case .addAngles:state.status="Add Stitch Angles · Click two points across the fill for each line; the stitches run along it · Esc when done"
             case .removeAngles:state.status="Remove Stitch Angles · Click a line to remove it · Esc when done"
             case .measure:state.status="Drag from one point to another to measure the distance and angle · Esc when done"
+            case .hooping:state.status=state.design.multiHooping == nil ? "Hoopings · Turn on Multi-hooping in Properties to sew a design bigger than the hoop" : "Hoopings · Drag a hooping to move it · Click one to see what it sews · Esc when done"
             case .text:state.status="Add Lettering · Click where the lettering should go; then type it and pick a font in Properties · Esc cancels"
             case .closedShape:state.status="Closed shape · Click corners · Drag or secondary-click for curves · Enter to finish"
             case .freehandOpen:state.status="Freehand open shape · Press and drag; the line follows the pointer · Let go to finish · Esc cancels"
@@ -1052,7 +1053,7 @@ import EmbroideryCore
             ("File", [.new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportMachine, .exportThreadList, .productionWorksheet, .sample, .stitchSampler]),
             ("Edit", [.undo, .redo, .cutObjects, .copyObjects, .pasteObjects, .selectAll, .delete, .duplicate, .group, .ungroup, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .sequenceBySelection, .sequenceByColor, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .closePath, .lockObject, .hideObject, .renameObject, .threadChart]),
             ("Digitize", [.done]),
-            ("View", [.proView, .threadView, .useInches, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .grid, .snap, .showRulers, .clearGuides, .needles, .artwork, .paletteUnderCanvas, .showUnderlay, .densityMap, .play, .rewind]),
+            ("View", [.proView, .threadView, .useInches, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .hoopingsTool, .grid, .snap, .showRulers, .clearGuides, .needles, .artwork, .paletteUnderCanvas, .showUnderlay, .densityMap, .play, .rewind]),
             ("Window", [.nextTab, .previousTab] + PanelID.allCases.map(\.command) + [.saveWorkspace, .restoreWorkspace])]
         for (name, commands) in groups {
             let item = NSMenuItem(); item.submenu = NSMenu(title: name); item.title = name; menu.addItem(item)
