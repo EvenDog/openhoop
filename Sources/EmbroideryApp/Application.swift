@@ -55,6 +55,7 @@ import EmbroideryCore
         addTab(for: document)
         DispatchQueue.main.async { [weak self] in
             self?.addDesignTabsOnce(toolbar)
+            self?.removeImportImageOnce(toolbar)
         }
     }
     required init?(coder: NSCoder) { fatalError("Not used") }
@@ -180,7 +181,8 @@ import EmbroideryCore
     }
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         // The design tabs take the free width; tools live in the docked tool strip, so the rest are document actions.
-        [.designTabs, .init(CommandID.importImage.rawValue), .space, .init(CommandID.undo.rawValue), .init(CommandID.redo.rawValue), .space, .init(CommandID.exportMachine.rawValue)]
+        // (Import Reference Image is left out: it's in the File menu, ⌘I, and the tool strip's artwork button.)
+        [.designTabs, .init(CommandID.undo.rawValue), .init(CommandID.redo.rawValue), .space, .init(CommandID.exportMachine.rawValue)]
     }
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
         if identifier == .designTabs {
@@ -213,6 +215,16 @@ import EmbroideryCore
         guard !toolbar.items.contains(where: { $0.itemIdentifier == .designTabs }) else { return }
         if let spacer = toolbar.items.firstIndex(where: { $0.itemIdentifier == .flexibleSpace }) { toolbar.removeItem(at: spacer) }
         toolbar.insertItem(withItemIdentifier: .designTabs, at: 0)
+    }
+    /// Import Reference Image used to be one of the toolbar's buttons. Toolbars saved then lose it once, with the
+    /// space after it; it can still be added back with Customize Toolbar.
+    private func removeImportImageOnce(_ toolbar: NSToolbar) {
+        let key = "RemovedImportImageToolbarItem"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        guard let index = toolbar.items.firstIndex(where: { $0.itemIdentifier.rawValue == CommandID.importImage.rawValue }) else { return }
+        toolbar.removeItem(at: index)
+        if toolbar.items.indices.contains(index), toolbar.items[index].itemIdentifier == .space { toolbar.removeItem(at: index) }
     }
     func windowWillClose(_ notification: Notification) {
         observers.forEach(NotificationCenter.default.removeObserver)
