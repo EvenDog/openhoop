@@ -349,7 +349,7 @@ import EmbroideryCore
         if [.new, .open, .sample, .stitchSampler, .settings, .restoreWorkspace].contains(command) { return true }
         if command == .close { return NSApp.keyWindow != nil }
         guard let state = active?.state else { return false }
-        let shown: [CommandID: Bool] = [.showStitches: state.showStitches, .showOutlines: state.showOutlines, .showConnectors: state.showsConnectors, .hideOthers: state.hideOthers,
+        let shown: [CommandID: Bool] = [.reviewSewingOrder: state.reviewing, .showStitches: state.showStitches, .showOutlines: state.showOutlines, .showConnectors: state.showsConnectors, .hideOthers: state.hideOthers,
                                         .grid: state.grid, .snap: state.snap, .needles: state.needles, .showUnderlay: state.showUnderlay, .densityMap: state.showDensity]
         if let on = shown[command] { menuItem.state = on ? .on : .off; return true }
         if command == .cutObjects || command == .copyObjects { return !state.selection.isEmpty }
@@ -360,6 +360,10 @@ import EmbroideryCore
         if command.isExport || command == .productionWorksheet { return !state.busy && !state.exporting && !state.hasVersionMismatch && state.generationError == nil && state.compiledRevision == state.revision && state.draft.isEmpty && state.plan.stitchCount > 0 }
         return true
     }
+    /// The commands that step the review of the sewing order, and which way: the arrow keys (also with nothing
+    /// selected, when they'd step the stitch player) and Next and Previous Object.
+    private static let reviewSteps: [CommandID: Int] = [.nudgeRight: 1, .nudgeDown: 1, .stepForward: 1, .nextObject: 1,
+                                                        .nudgeLeft: -1, .nudgeUp: -1, .stepBackward: -1, .previousObject: -1]
     /// Commands that open a dialog and wait for it to close.
     private static let opensDialog: Set<CommandID> = [.laydown, .testSwatches, .addMonogram, .editMonogram, .autoDigitize, .satinBorder, .outlinesOffsets, .applique, .threadChart, .renameObject, .importImage]
     /// `now` is false unless the command was already put off by one beat (see below).
@@ -410,6 +414,12 @@ import EmbroideryCore
         }
         guard let editor = active, let document = editor.document as? DesignDocument else { return }
         let state = editor.state
+        if state.reviewing {
+            // While reviewing the sewing order, the arrow keys and Next and Previous Object step through it; the
+            // stitch player's own commands finish the review first.
+            if let delta = Self.reviewSteps[command] { state.stepReview(by: delta); return }
+            if command == .play || command == .rewind || command.stitchStep != nil { state.reviewing = false }
+        }
         switch command {
         case .save: document.save(nil)
         case .saveAs: document.saveAs(nil)
@@ -480,6 +490,16 @@ import EmbroideryCore
             if state.tool == .closedShape || state.tool == .freehandClosed || state.tool.dragsShape {state.status+=" · Next shape: \(Preferences.shared.shapes.closedSummary) (change it in Properties)"}
             state.focusCanvas(); state.canvas?.window?.invalidateCursorRects(for: state.canvas!)
         case .finishPath: if state.tool != .zoomBox { state.finishPath() }
+        case .reviewSewingOrder:
+            if state.reviewing { state.reviewing = false; state.status = "Review finished."; return }
+            playbackTimer?.invalidate(); state.playing = false; state.playback = 1
+            if ![.select, .entryExit].contains(state.tool) { state.tool = .select }
+            state.reviewing = true
+            if state.reviewStep == nil { state.stepReview(by: 1) }   // nothing selected: start at the first step
+            state.status = "Reviewing the sewing order · ← → step through it · click an object or a step to jump to it · Esc finishes"
+            state.focusCanvas()
+        case .done where state.reviewing && state.tool == .select:
+            state.reviewing = false; state.status = "Review finished."
         case .done where state.tool == .zoomBox, .cancelPath where state.tool == .zoomBox:
             // Escape with Zoom Box on just puts the tool before it back (and keeps a path being drawn).
             state.tool = state.toolBeforeZoom; state.status = "Zoom cancelled."
@@ -1126,7 +1146,7 @@ import EmbroideryCore
             ("File", [.new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportMachine, .exportThreadList, .productionWorksheet, .sample, .stitchSampler]),
             ("Edit", [.undo, .redo, .cutObjects, .copyObjects, .pasteObjects, .selectAll, .delete, .duplicate, .group, .ungroup, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .sequenceBySelection, .sequenceByColor, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .closePath, .lockObject, .hideObject, .renameObject, .threadChart]),
             ("Digitize", [.done]),
-            ("View", [.threadView, .useInches, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .hoopingsTool, .grid, .snap, .showRulers, .clearGuides, .needles, .artwork, .paletteUnderCanvas, .showUnderlay, .densityMap, .play, .rewind, .toEnd, .stepForward, .stepBackward, .stepForward10, .stepBackward10, .nextColor, .previousColor, .nextObject, .previousObject, .nextTrim, .previousTrim]),
+            ("View", [.threadView, .reviewSewingOrder, .useInches, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .hoopingsTool, .grid, .snap, .showRulers, .clearGuides, .needles, .artwork, .paletteUnderCanvas, .showUnderlay, .densityMap, .play, .rewind, .toEnd, .stepForward, .stepBackward, .stepForward10, .stepBackward10, .nextColor, .previousColor, .nextObject, .previousObject, .nextTrim, .previousTrim]),
             ("Window", [.nextTab, .previousTab] + PanelID.allCases.map(\.command) + [.saveWorkspace, .restoreWorkspace])]
         for (name, commands) in groups {
             let item = NSMenuItem(); item.submenu = NSMenu(title: name); item.title = name; menu.addItem(item)

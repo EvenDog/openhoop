@@ -92,6 +92,8 @@ struct PreferenceData: Codable {
     var pauseAtTrims: Bool?
     /// The format last exported with, as an id from ExportFormatPicker ("pes6", "dst"…); nil means PES 6.
     var exportFormat: String?
+    /// True when Review Sewing Order hides the steps still to sew; nil or false fades them.
+    var reviewHidesUnsewn: Bool?
 }
 
 /// The canvas's view choices, remembered across designs and launches. Each is nil until it's first switched, which
@@ -209,6 +211,8 @@ struct ShownItems: Codable, Equatable {
     func setThreadView(_ on: Bool) { data.threadView = on; save(announce: false) }   // the menus show its check mark as they open, so needn't rebuild
     /// The Show list and grid choices new and opened designs start with.
     var shown: ShownItems { data.shown ?? ShownItems() }
+    /// True when Review Sewing Order hides the steps still to sew, rather than fading them.
+    var reviewHidesUnsewn: Bool { data.reviewHidesUnsewn ?? false }
     /// Saves a Show list or grid choice when it's switched.
     func updateShown(_ change: (inout ShownItems) -> Void) {
         var items = shown; change(&items)

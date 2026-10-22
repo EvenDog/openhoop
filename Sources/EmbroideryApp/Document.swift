@@ -48,9 +48,9 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     weak var canvas: DesignCanvas?
     // The summary reads names and the fabric from the design too, so a design change clears it even when the
     // stitches can't be worked out (or aren't ready yet).
-    @Published var design = Design() { didSet { planFacts = nil; hoopingFacts = nil } }
+    @Published var design = Design() { didSet { planFacts = nil; hoopingFacts = nil; stepFacts = nil } }
     // A choice just made in a picture menu stays previewed until these fresh stitches arrive.
-    @Published var plan = StitchPlan() { didSet { planFacts = nil; hoopingFacts = nil; if settingsPreview?.kept == true { settingsPreview = nil } } }
+    @Published var plan = StitchPlan() { didSet { planFacts = nil; hoopingFacts = nil; stepFacts = nil; if settingsPreview?.kept == true { settingsPreview = nil } } }
     /// While pointing at a choice in a picture menu (Fill style, Pattern): the selected objects' stitches with it (PictureMenu.swift).
     @Published var settingsPreview: SettingsPreview?
     var settingsPreviewTask: Task<StitchPlan, Error>?
@@ -98,6 +98,8 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         // would remove a line you can't see).
         didSet {
             if ![.node, .addAngles, .removeAngles].contains(tool) { selectedAngle = nil }; canvas?.toolDidChange()
+            // Reviewing carries on with the tools that look and set start and end points; drawing tools finish it.
+            if reviewing && ![.select, .entryExit, .node, .pan, .zoomBox].contains(tool) { reviewing = false }
             // A tool with choices in Properties (the next shape's, a point's type) opens the panel if it's closed.
             if tool != oldValue, ToolOptions.applies(to: tool), !Preferences.shared.panels.isVisible(.properties) {
                 Preferences.shared.updatePanels { $0.show(.properties) }
@@ -187,6 +189,35 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     }
     func editSelected(_ name: String, _ block: (inout RunObject) -> Void) {
         edit(name) { next in for index in next.objects.indices where selection.contains(next.objects[index].id) && !next.objects[index].locked { block(&next.objects[index]) } }
+    }
+    // MARK: Review Sewing Order (SewingReview.swift, ReviewSection.swift)
+    /// True while reviewing the sewing order: the canvas shows the design sewn up to the selected step and how the
+    /// needle got there, and Properties shows the step at its top.
+    @Published var reviewing = false
+    /// The design's sewing steps, worked out once per design and plan.
+    var sewingSteps: [SewingStep] {
+        if let stepFacts { return stepFacts }
+        let steps = design.sewingSteps(plan: plan); stepFacts = steps; return steps
+    }
+    private var stepFacts: [SewingStep]?
+    /// While reviewing, the step being looked at: the first one that sews something selected (nil with nothing selected).
+    var reviewStep: (index: Int, step: SewingStep)? {
+        guard reviewing, !selection.isEmpty, let index = sewingSteps.firstIndex(where: { $0.objects.contains(where: selection.contains) }) else { return nil }
+        return (index, sewingSteps[index])
+    }
+    /// Moves the review on (`by` 1) or back (-1) a step by selecting what it sews. With nothing selected, on goes to
+    /// the first step and back to the last.
+    func stepReview(by delta: Int) {
+        let steps = sewingSteps
+        guard !steps.isEmpty else { status = "Nothing to review yet: the design has no stitches."; return }
+        let index = reviewStep.map { min(max($0.index + delta, 0), steps.count - 1) } ?? (delta > 0 ? 0 : steps.count - 1)
+        selection = Set(steps[index].objects)
+        status = "Step \(index + 1) of \(steps.count): \(stepName(steps[index]))."
+    }
+    /// A step's name: the object's, or the text of a piece of lettering.
+    func stepName(_ step: SewingStep) -> String {
+        guard let object = design.objects.first(where: { $0.id == step.objects.first }) else { return "Step" }
+        return object.lettering.map { "“\($0.lines.joined(separator: " / "))”" } ?? object.name
     }
     // MARK: Stop at Jumps (JumpStops.swift)
     /// The objects Stop at Jumps works on: the selection, or the whole design when nothing is selected.

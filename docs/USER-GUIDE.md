@@ -170,6 +170,8 @@ Satins with a chosen (not Auto) underlay can have a **second underlay** (in the 
 - **Hide unselected objects (⇧S):** keeps only the selection in view, to work on one part of a busy design. Clicking empty canvas shows everything again until you select something else.
 - **Rulers & guides (⌘R):** hides the rulers and guide lines for a clear canvas. Your guides are kept and come back with the rulers.
 
+**Review Sewing Order (⌥⇧R)** (the list button in the View group, and the View menu) steps through the design in the order it sews, to check where each object starts and ends before you sew it. **→** goes to the next step and **←** back (**↓ ↑**, **⌘T ⇧T** and the arrows at the top of Properties do too); click an object, or a row in Sewing order, to jump to it. Lettering is one step. The canvas shows everything sewn up to and including the step, with its start (+) and end (×). A dashed line runs from where the step before ended (a faint ×) to this start, labelled with what happens on the way, such as **Trim, then 18.6 mm**, **Jump of 6.0 mm, not trimmed** or **Trim and thread change, then 9.0 mm**. What's still to sew is faded; **Settings → Look → Reviewing the sewing order** can hide it instead, like a sew-out paused at that step. The **Review** section at the top of Properties names the step and repeats the move, and says whether its start and end are automatic or set by you. Drag the + or × to move them, or click **Set…** to use the Start & End tool; the line and its label follow the new stitches. **Esc** (or ⌥⇧R again) finishes the review (after **Set…**, the first Esc goes back to Select), and so does picking a drawing tool or playing the stitch player.
+
 **Measure (M)** (in the Pan slot): drag from one point to another to read the distance (in mm or inches) and its angle (counted counterclockwise from pointing right, like Rotate). The line stays until you measure again or change tools. Snap to grid applies.
 
 **Rulers:** a thin line on each ruler follows the pointer, so you can read where it is at a glance.
@@ -361,6 +363,7 @@ These are the starting keys; every one can be changed. Tools on a function key a
 | | | Show stitches / outlines / connectors / hide unselected | S / L / ⇧C / ⇧S |
 | | | Measure | M |
 | | | Hoopings | ⌥⇧H |
+| | | Review sewing order | ⌥⇧R |
 | Knife / weld / smooth shapes | ⌥K / ⌥W / ⌥N | Sew earlier / later | ⌘[ / ⌘] |
 | Remove overlaps | ⇧⌘E | Rotate left / right 90° | ⌥⌘← / ⌥⌘→ |
 | Laydown | ⌥⇧L | Show / hide object | ⇧⌘H |
