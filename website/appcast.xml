@@ -6,6 +6,22 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.7.1</title>
+            <pubDate>Thu, 22 Oct 2026 15:40:02 GMT</pubDate>
+            <sparkle:version>17</sparkle:version>
+            <sparkle:shortVersionString>0.7.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.7.1</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.7.1</h3>
+<ul>
+<li><b>A tidier toolbar.</b> The Import Image button is gone from the top-right of the window, leaving Undo, Redo and Export. Import a reference image with <b>File › Import Reference Image…</b> (<b>⌘I</b>) or the tool strip's Move &amp; Size Artwork button, which imports one while the design has none. To keep the button, add it back with <b>Customize Toolbar…</b> (right-click the toolbar).</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.7.1/OpenHoop-0.7.1.dmg" sparkle:edSignature="+4WddieV4faOQrAyO1sLVJGPusDg3MORw7uH2rDBGA8tocaWZA6wNBIAzYYr/bIsFy3KkpQDNYYpukvVtU5XAQ==" length="22686451" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.7.0</title>
             <pubDate>Thu, 22 Oct 2026 15:25:10 GMT</pubDate>
             <sparkle:version>16</sparkle:version>
