@@ -21,7 +21,9 @@ final class DefaultKeysTests: XCTestCase {
             (.init("k", 4), .knifeTool), (.init("w", 4), .weldObjects), (.init("n", 4), .smoothShapes), (.init("l", 6), .laydown), (.init("i"), .branching), (.init("i", 6), .insertNode), (.init("h", 8), .addStitchAngles), (.init("h", 10), .removeStitchAngles), (.init("e"), .editStitches), (.init("m", 6), .addMonogram),
             (.init("e", 3), .removeOverlaps), (.init("x", 3), .clearGuides), (.init("l", 2), .panelSewingOrder), (.init("p", 4), .panelDesign),
             (.init("1", 5), .panelSewingOrder), (.init("2", 5), .panelDesign), (.init("3", 5), .panelReference), (.init("4", 5), .palette),
-            (.init("[", 1), .earlier), (.init("]", 1), .later), (.init("left", 5), .rotateLeft), (.init("right", 5), .rotateRight), (.init("h", 3), .hideObject)
+            (.init("[", 1), .earlier), (.init("]", 1), .later), (.init("left", 5), .rotateLeft), (.init("right", 5), .rotateRight), (.init("h", 3), .hideObject),
+            (.init("end"), .toEnd), (.init("pagedown"), .nextColor), (.init("pageup"), .previousColor), (.init("t", 1), .nextObject), (.init("t", 2), .previousObject),
+            (.init("right", 4), .nextTrim), (.init("left", 4), .previousTrim)
         ]
         for (key, command) in expected { XCTAssertEqual(profile.command(for: key, context: .canvas), command, key.display) }
     }
@@ -183,5 +185,23 @@ final class DefaultKeysTests: XCTestCase {
         own.upgrade()
         XCTAssertEqual(own.bindings[CommandID.exportMachine.rawValue], [.init("e", 3)])
         XCTAssertEqual(own.bindings[CommandID.removeOverlaps.rawValue], [])
+    }
+    /// With nothing selected, the arrow keys step the stitch player: ← → by a stitch, ↑ ↓ by ten.
+    func testArrowKeysStepThePlayerWithNothingSelected() {
+        XCTAssertEqual(CommandID.nudgeRight.stepWithoutSelection, .stepForward)
+        XCTAssertEqual(CommandID.nudgeLeft.stepWithoutSelection, .stepBackward)
+        XCTAssertEqual(CommandID.nudgeDown.stepWithoutSelection, .stepForward10)
+        XCTAssertEqual(CommandID.nudgeUp.stepWithoutSelection, .stepBackward10)
+        XCTAssertEqual(CommandID.stepForward10.stitchStep, .stitches(10))
+        XCTAssertNil(CommandID.zoomIn.stepWithoutSelection)
+    }
+    /// A profile saved before the stepping commands picks up their keys.
+    func testSavedProfileGetsTheSteppingKeys() throws {
+        var saved = ShortcutProfile()
+        for command in [CommandID.toEnd, .nextColor, .previousColor, .nextObject, .previousObject, .nextTrim, .previousTrim] { saved.bindings[command.rawValue] = nil }
+        saved.upgrade()
+        XCTAssertEqual(saved.command(for: .init("pagedown"), context: .canvas), .nextColor)
+        XCTAssertEqual(saved.command(for: .init("t", 1), context: .canvas), .nextObject)
+        try saved.validate()
     }
 }

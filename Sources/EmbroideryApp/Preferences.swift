@@ -296,7 +296,7 @@ extension Notification.Name { static let preferencesChanged = Notification.Name(
 enum Keyboard {
     static func binding(_ event: NSEvent) -> KeyBinding? {
         let specials: [UInt16: String] = [36:"return", 76:"return", 53:"escape", 51:"delete", 117:"delete", 49:"space", 123:"left", 124:"right", 125:"down", 126:"up", 48:"tab",
-            115:"home", 119:"end", 122:"f1", 120:"f2", 99:"f3", 118:"f4", 96:"f5", 97:"f6", 98:"f7", 100:"f8", 101:"f9", 109:"f10", 103:"f11", 111:"f12"]
+            115:"home", 119:"end", 116:"pageup", 121:"pagedown", 122:"f1", 120:"f2", 99:"f3", 118:"f4", 96:"f5", 97:"f6", 98:"f7", 100:"f8", 101:"f9", 109:"f10", 103:"f11", 111:"f12"]
         let key = specials[event.keyCode] ?? event.characters(byApplyingModifiers: [])?.lowercased()
         guard let key, !key.isEmpty else { return nil }
         let flags = event.modifierFlags

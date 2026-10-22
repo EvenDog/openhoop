@@ -8,7 +8,7 @@ public struct KeyBinding: Codable, Hashable, Sendable {
     public var modifiers: Int
     public init(_ key: String, _ modifiers: Int = 0) { self.key = key.lowercased(); self.modifiers = modifiers & 15 }
     public var display: String {
-        let special = ["escape": "Esc", "return": "↩", "delete": "⌫", "space": "Space", "left": "←", "right": "→", "up": "↑", "down": "↓", "home": "Home", "end": "End", "tab": "⇥"]
+        let special = ["escape": "Esc", "return": "↩", "delete": "⌫", "space": "Space", "left": "←", "right": "→", "up": "↑", "down": "↓", "home": "Home", "end": "End", "pageup": "PgUp", "pagedown": "PgDn", "tab": "⇥"]
         return (modifiers & 8 != 0 ? "⌃" : "") + (modifiers & 4 != 0 ? "⌥" : "") + (modifiers & 2 != 0 ? "⇧" : "") + (modifiers & 1 != 0 ? "⌘" : "") + (special[key] ?? key.uppercased())
     }
     public var valid: Bool { !key.isEmpty && key.count <= 16 && modifiers >= 0 && modifiers <= 15 }
@@ -22,6 +22,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
     case zoomIn, zoomOut, zoomFit, zoomDesign, zoomBoxTool, zoomActual, zoomSelected, showStitches, showOutlines, showConnectors, hideOthers, measureTool, hoopingsTool, grid, snap, clearGuides, needles, threadView, artwork, inspector, palette, restoreWorkspace, saveWorkspace, useInches, showRulers, paletteUnderCanvas
     case panelSewingOrder, panelDesign, panelReference, nextTab, previousTab
     case nudgeLeft, nudgeRight, nudgeUp, nudgeDown, play, rewind, focusLength
+    case stepForward, stepBackward, stepForward10, stepBackward10, nextColor, previousColor, nextObject, previousObject, nextTrim, previousTrim, toEnd
     public var isExport:Bool {self == .exportMachine || self == .exportThreadList}
     public var title: String {
         switch self {
@@ -66,6 +67,9 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .restoreWorkspace: return "Reset Panel Layout"; case .saveWorkspace: return "Save Panel Layout…"
         case .nudgeLeft: return "Nudge Left"; case .nudgeRight: return "Nudge Right"; case .nudgeUp: return "Nudge Up"; case .nudgeDown: return "Nudge Down"
         case .play: return "Play / Pause Stitch Preview"; case .rewind: return "Rewind Stitch Preview"; case .focusLength: return "Focus Stitch Length"
+        case .stepForward: return "Next Stitch"; case .stepBackward: return "Previous Stitch"; case .stepForward10: return "10 Stitches Forward"; case .stepBackward10: return "10 Stitches Back"
+        case .nextColor: return "Next Color"; case .previousColor: return "Previous Color"; case .nextObject: return "Next Object"; case .previousObject: return "Previous Object"
+        case .nextTrim: return "Next Trim"; case .previousTrim: return "Previous Trim"; case .toEnd: return "End of Design"
         }
     }
     /// What the command does, in a sentence, for its hover tooltip on tool strips and toolbar buttons. No `default`
@@ -218,6 +222,11 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .nudgeDown: return "Move the selection a little down."
         case .play: return "Watch the design sew, stitch by stitch, or pause it."
         case .rewind: return "Take the stitch player back to the very first stitch."
+        case .stepForward, .stepBackward, .stepForward10, .stepBackward10: return "Move the stitch player by stitches (with nothing selected, the arrow keys do this: ← → one, ↑ ↓ ten)."
+        case .nextColor, .previousColor: return "Move the stitch player to the start of the next color, or back to the start of this one."
+        case .nextObject, .previousObject: return "Move the stitch player to the start of the next object, or back to the start of this one."
+        case .nextTrim, .previousTrim: return "Move the stitch player to just past the next trim, or back to the one before."
+        case .toEnd: return "Show the whole design, to its last stitch."
         case .focusLength: return "Jump to the stitch length setting."
         }
     }
@@ -226,7 +235,8 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportMachine, .exportThreadList, .productionWorksheet, .sample, .stitchSampler: return "File"
         case .selectTool, .runTool, .satinTool, .fillTool, .holeTool, .nodeTool, .panTool, .entryExitTool, .autoStartPoints, .clearStartEnd, .lettering, .editLettering, .autoDigitize, .satinBorder, .outlinesOffsets, .applique, .done, .artworkTool, .finishPath, .cancelPath, .removePoint, .openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool, .knifeTool, .laydown, .branching, .addStitchAngles, .removeStitchAngles, .useAsFillGuide, .putLetteringOnLine, .editStitches, .addMonogram, .editMonogram: return "Digitizing"
         case .settings, .inspector, .palette, .restoreWorkspace, .saveWorkspace, .panelSewingOrder, .panelDesign, .panelReference, .nextTab, .previousTab: return "Workspace"
-        case .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .hoopingsTool, .grid, .snap, .clearGuides, .needles, .threadView, .artwork, .play, .rewind, .useInches, .showRulers, .paletteUnderCanvas, .densityMap: return "View"
+        case .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .hoopingsTool, .grid, .snap, .clearGuides, .needles, .threadView, .artwork, .play, .rewind, .useInches, .showRulers, .paletteUnderCanvas, .densityMap,
+             .stepForward, .stepBackward, .stepForward10, .stepBackward10, .nextColor, .previousColor, .nextObject, .previousObject, .nextTrim, .previousTrim, .toEnd: return "View"
         default: return "Edit"
         }
     }
@@ -244,11 +254,32 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
     public var contexts: Set<CommandContext> {
         if appWide { return [.canvas, .drawing, .list, .text] }
         if [.finishPath, .cancelPath, .removePoint].contains(self) { return [.drawing] }
-        if self == .play { return [.canvas, .list] }   // while drawing, Space finishes the shape instead
+        if self == .play || stitchStep != nil { return [.canvas, .list] }   // while drawing, Space finishes the shape instead
         if [.holeTool, .removeHoles, .insertNode, .deleteNode, .toggleNodeType, .breakApartLettering, .renameObject, .convertFill, .convertRun, .convertSatin, .toggleUnderlay, .focusSpacing, .focusAngle, .delete, .selectAll, .sequenceBySelection, .sequenceByColor, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .duplicate, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .closePath, .lockObject, .hideObject, .group, .ungroup, .threadChart, .cutObjects, .copyObjects, .pasteObjects, .clearStartEnd, .lettering, .editLettering, .autoDigitize, .satinBorder, .outlinesOffsets, .applique, .done, .focusLength, .nudgeLeft, .nudgeRight, .nudgeUp, .nudgeDown, .weldObjects, .removeOverlaps, .smoothShapes, .laydown, .branching, .addMonogram, .editMonogram, .useAsFillGuide, .putLetteringOnLine].contains(self) { return [.canvas, .list] }
         return [.canvas, .drawing, .list]
     }
-    public var repeats: Bool { [.nudgeLeft, .nudgeRight, .nudgeUp, .nudgeDown, .zoomIn, .zoomOut].contains(self) }
+    public var repeats: Bool { [.nudgeLeft, .nudgeRight, .nudgeUp, .nudgeDown, .zoomIn, .zoomOut].contains(self) || stitchStep != nil }
+    /// The stitch player step a command takes, for the ones that step it.
+    public var stitchStep: StitchStep? {
+        switch self {
+        case .stepForward: return .stitches(1); case .stepBackward: return .stitches(-1)
+        case .stepForward10: return .stitches(10); case .stepBackward10: return .stitches(-10)
+        case .nextColor: return .color(forward: true); case .previousColor: return .color(forward: false)
+        case .nextObject: return .object(forward: true); case .previousObject: return .object(forward: false)
+        case .nextTrim: return .trim(forward: true); case .previousTrim: return .trim(forward: false)
+        case .toEnd: return .end
+        default: return nil
+        }
+    }
+    /// With nothing selected, the nudge keys step the stitch player instead, as in other embroidery software: ← → by
+    /// a stitch, ↑ ↓ by ten.
+    public var stepWithoutSelection: CommandID? {
+        switch self {
+        case .nudgeRight: return .stepForward; case .nudgeLeft: return .stepBackward
+        case .nudgeDown: return .stepForward10; case .nudgeUp: return .stepBackward10
+        default: return nil
+        }
+    }
     /// The keys a command starts with, chosen so people used to other embroidery software find the usual keys.
     /// Function keys get a letter too, because Mac keyboards need fn for F1–F12.
     /// Modifiers add up: 1 = ⌘, 2 = ⇧, 4 = ⌥, 8 = ⌃.
@@ -310,6 +341,10 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .threadView: return [.init("t")]; case .showRulers: return [.init("r", 1)]   // ⌘R, the Mac's usual rulers key (Wilcom gives rulers none)
         case .artwork: return [.init("d")]
         case .play: return [.init("space"), .init("r", 2)]; case .rewind: return [.init("home")]
+        // Stepping the player: the arrow keys with nothing selected (stepWithoutSelection), and these
+        case .toEnd: return [.init("end")]; case .nextColor: return [.init("pagedown")]; case .previousColor: return [.init("pageup")]
+        case .nextObject: return [.init("t", 1)]; case .previousObject: return [.init("t", 2)]
+        case .nextTrim: return [.init("right", 4)]; case .previousTrim: return [.init("left", 4)]
         case .inspector: return [.init("i", 5)]
         // Panels: ⇧L and ⌥P are Wilcom's Color-Object List and Design Information keys; ⌥⌘1–4 open the four in order
         case .panelSewingOrder: return [.init("l", 2), .init("1", 5)]; case .panelDesign: return [.init("p", 4), .init("2", 5)]

@@ -324,6 +324,8 @@ import EmbroideryCore
         guard let command = Preferences.shared.profile.command(for: key, context: context, repeating: event.isARepeat) else { return false }
         // With Edit Nodes and a point selected, the Play key (Space) switches the point between corner and smooth instead.
         if command == .play, editor.state.tool == .node, editor.state.selectedPathNode != nil { perform(.toggleNodeType); return true }
+        // With nothing selected, the nudge keys step the stitch player instead.
+        if let step = command.stepWithoutSelection, editor.state.selection.isEmpty { perform(step); return true }
         perform(command); return true
     }
     @objc func applySavedLayout(_ sender: NSMenuItem) {
@@ -679,6 +681,16 @@ import EmbroideryCore
                 } }
             }
         case .rewind: playbackTimer?.invalidate(); state.playing = false; state.playback = 0
+        case .stepForward, .stepBackward, .stepForward10, .stepBackward10, .nextColor, .previousColor, .nextObject, .previousObject, .nextTrim, .previousTrim, .toEnd:
+            guard let step = command.stitchStep else { break }
+            playbackTimer?.invalidate(); state.playing = false
+            // The canvas shows Int(commands × playback) commands, so a position half way into a command shows
+            // exactly the commands before it, as the player's pauses do.
+            let total = state.plan.commands.count
+            let position = state.plan.position(after: step, from: Int(Double(total) * state.playback))
+            state.playback = position >= total ? 1 : (Double(position) + 0.5) / Double(max(1, total))
+            let shown = state.plan.commands.prefix(position).lazy.filter { $0.op == .stitch }.count
+            state.status = "Stitch \(shown.formatted()) of \(state.plan.stitchCount.formatted())."
         default: break
         }
     }
@@ -1114,7 +1126,7 @@ import EmbroideryCore
             ("File", [.new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportMachine, .exportThreadList, .productionWorksheet, .sample, .stitchSampler]),
             ("Edit", [.undo, .redo, .cutObjects, .copyObjects, .pasteObjects, .selectAll, .delete, .duplicate, .group, .ungroup, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .sequenceBySelection, .sequenceByColor, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .closePath, .lockObject, .hideObject, .renameObject, .threadChart]),
             ("Digitize", [.done]),
-            ("View", [.threadView, .useInches, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .hoopingsTool, .grid, .snap, .showRulers, .clearGuides, .needles, .artwork, .paletteUnderCanvas, .showUnderlay, .densityMap, .play, .rewind]),
+            ("View", [.threadView, .useInches, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .hoopingsTool, .grid, .snap, .showRulers, .clearGuides, .needles, .artwork, .paletteUnderCanvas, .showUnderlay, .densityMap, .play, .rewind, .toEnd, .stepForward, .stepBackward, .stepForward10, .stepBackward10, .nextColor, .previousColor, .nextObject, .previousObject, .nextTrim, .previousTrim]),
             ("Window", [.nextTab, .previousTab] + PanelID.allCases.map(\.command) + [.saveWorkspace, .restoreWorkspace])]
         for (name, commands) in groups {
             let item = NSMenuItem(); item.submenu = NSMenu(title: name); item.title = name; menu.addItem(item)
