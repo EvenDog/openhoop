@@ -6,6 +6,29 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.7.2</title>
+            <pubDate>Thu, 22 Oct 2026 19:40:47 GMT</pubDate>
+            <sparkle:version>18</sparkle:version>
+            <sparkle:shortVersionString>0.7.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.7.2</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.7.2</h3>
+<ul>
+<li><b>Review Sewing Order (⌥⇧R).</b> Step through a design in the order it sews, to check each object's start and end before you sew it. <b>← →</b> step (also ↑ ↓ and ⌘T ⇧T), and clicking an object or a Sewing order row jumps to it. The canvas shows what's sewn so far with the step's start (+) and end (×), and a dashed line from where the step before ended, labelled with what happens on the way: *Trim, then 18.6 mm*, *Jump of 6.0 mm, not trimmed*, *Trim and thread change…*. A Review section at the top of Properties says the same, with <b>Set…</b> buttons, and the + and × can be dragged to move them. What's still to sew is faded, or hidden with <b>Settings › Look › Reviewing the sewing order</b>. The button is at the end of the tool strip's View group. <b>Esc</b> finishes.</li>
+<li><b>Thread View shines.</b> Stitches catch the light from the top left, so they look brighter or darker by which way they run, like thread under a lamp. Satins and fills now show their direction at a glance.</li>
+<li><b>Step the stitch player from the keyboard.</b> With nothing selected, <b>← →</b> step one stitch and <b>↑ ↓</b> ten. <b>PgUp / PgDn</b> go to the previous or next color, <b>⇧T / ⌘T</b> the previous or next object, <b>⌥← / ⌥→</b> the previous or next trim, and <b>End</b> the end of the design. They're in the View menu too.</li>
+<li><b>More default keys, matching common embroidery software:</b></li>
+<li><b>⇧⌘E</b> Remove Overlaps (Export Machine File keeps <b>⌘E</b> and <b>⇧E</b>), <b>⇧⌘X</b> Clear Guides, <b>⌘[ / ⌘]</b> Sew Earlier / Later, <b>⌥⌘← / ⌥⌘→</b> rotate 90°, <b>⇧⌘H</b> show or hide the object.</li>
+<li><b>⇧L</b> Sewing order panel, <b>⌥P</b> Design panel, and <b>⌥⌘1–4</b> Sewing order, Design, Reference image and Threads.</li>
+<li><b>Space</b> finishes a shape while drawing, as Return does.</li>
+<li>Keys you set yourself stay as they are.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.7.2/OpenHoop-0.7.2.dmg" sparkle:edSignature="M1CPw+9qeI0b4o2r5eIAvmB4pLJtBAOD46Z+j6C0EZqun8SEzFDWsrRdGo12rRyBla2klJMKQlOMI+rK6pNEDQ==" length="22769549" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.7.1</title>
             <pubDate>Thu, 22 Oct 2026 15:40:02 GMT</pubDate>
             <sparkle:version>17</sparkle:version>
