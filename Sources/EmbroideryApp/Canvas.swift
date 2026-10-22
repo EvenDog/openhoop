@@ -155,10 +155,12 @@ final class DesignCanvas: NSView {
     }
     /// Thread View: draws each stitch as its own strand of thread `width` points wide (0.45 mm, a 40-weight thread lying
     /// flat), shaded like real thread: darkest where the thread dives into the cloth at each needle hole
-    /// and brightest half way along, so a satin column looks rounded and a fill shows each stitch. A soft shadow lifts
+    /// and brightest half way along, so a fill shows each stitch. Each stitch also shines according to its direction,
+    /// the way thread catches a lamp (`sheenLevel`): brightest running across the light, dullest running along it,
+    /// so a satin column looks rounded where it curves and you can see which way a fill runs. A soft shadow lifts
     /// the stitches off the cloth, and when zoomed in far enough, faint slanted marks show the thread's twist.
     /// Stitches are drawn in sewing order in batches of up to 48 in one thread, so later stitches lie over earlier
-    /// ones while each batch costs only a few fills. Travel moves and needle points aren't drawn: the
+    /// ones while each batch costs only a few fills per sheen level. Travel moves and needle points aren't drawn: the
     /// machine trims the travel, and the needle holes are hidden under the thread. Stitches off screen are skipped.
     /// `start` is where the needle stands before the first command (the end of the stitches drawn before these).
     private func drawThread(_ context: CGContext, _ commands: ArraySlice<StitchCommand>, from start: Point = Point(0, 0), threads: [ThreadColor], hidden: Set<UUID>, showUnderlay: Bool,
@@ -167,31 +169,44 @@ final class DesignCanvas: NSView {
         // which together shade it from dark ends to a bright middle. `tone` darkens (below 0) or lightens (above 0)
         // the thread's color; `breadth` is the layer's width as a fraction of the thread's; `trim` shortens it at each
         // end, as a fraction of the stitch's length.
-        let layers: [(tone: Double, breadth: Double, trim: Double)] = [(-0.45, 1, 0), (-0.2, 0.95, 0.06), (0, 0.9, 0.14), (0.18, 0.8, 0.24), (0.32, 0.6, 0.34)]
-        func shades(_ color: NSColor) -> [CGColor] {
-            layers.map { ($0.tone < 0 ? color.blended(withFraction: -$0.tone, of: .black) : color.blended(withFraction: $0.tone, of: .white)) ?? color }.map(\.cgColor)
-                + [(color.blended(withFraction: 0.35, of: .black) ?? color).withAlphaComponent(0.22).cgColor]   // last: the twist marks
+        // `sheen` is how far the layer's tone moves with the stitch's shine: from half of it below `tone` for a dull stitch
+        // to half of it above for a shiny one, more for the layers nearer the top, so the highlight changes most.
+        let layers: [(tone: Double, breadth: Double, trim: Double, sheen: Double)] = [(-0.45, 1, 0, 0.1), (-0.2, 0.95, 0.06, 0.2), (0, 0.9, 0.14, 0.3), (0.18, 0.8, 0.24, 0.4), (0.32, 0.6, 0.34, 0.5)]
+        /// The layer colors (then the twist marks' color) for a thread `color` at sheen level `level`.
+        func shades(_ color: NSColor, level: Int) -> [CGColor] {
+            let shine = Double(level) / Double(Self.sheenLevels - 1) - 0.5   // -0.5 (dull) to 0.5 (shiny)
+            return layers.map { layer -> CGColor in
+                let tone = layer.tone + layer.sheen * shine
+                return ((tone < 0 ? color.blended(withFraction: -tone, of: .black) : color.blended(withFraction: min(tone, 1), of: .white)) ?? color).cgColor
+            } + [(color.blended(withFraction: 0.35, of: .black) ?? color).withAlphaComponent(0.22).cgColor]   // last: the twist marks
         }
-        let threadShades = threads.map { shades($0.nsColor) }, unknownShades = shades(.systemTeal)
+        func allLevels(_ color: NSColor) -> [[CGColor]] { (0..<Self.sheenLevels).map { shades(color, level: $0) } }
+        let threadShades = threads.map { allLevels($0.nsColor) }, unknownShades = allLevels(.systemTeal)
         let shadowColor = NSColor.black.withAlphaComponent(0.18).cgColor
         let shadowOffset = CGVector(dx: width * 0.25, dy: -width * 0.3)   // down and to the right, away from the top-left light
         let showTwist = width >= 5   // the marks would only blur into the color when the thread is drawn narrower
         let reach = visibleArea.insetBy(dx: -width, dy: -width)
-        // Per layer, the batch's bulging middles (filled) and the lines along them (stroked with round caps, for
-        // rounded ends about 70% as wide as the middle, so neighbouring stitches cover the cloth).
+        // Per sheen level and layer, the batch's bulging middles (filled) and the lines along them (stroked with round
+        // caps, for rounded ends about 70% as wide as the middle, so neighbouring stitches cover the cloth). A batch
+        // keeps its sheen levels apart rather than starting a new batch whenever the level changes: stitches turn
+        // all the time (the short turn at the end of each fill row), and new batches would multiply the drawing.
+        func emptyPaths() -> [[CGMutablePath]] { (0..<Self.sheenLevels).map { _ in layers.map { _ in CGMutablePath() } } }
         var shadows = CGMutablePath(), twists = CGMutablePath()
-        var middles = layers.map { _ in CGMutablePath() }, cores = layers.map { _ in CGMutablePath() }
+        var middles = emptyPaths(), cores = emptyPaths(), levelsUsed = Set<Int>()
         var batchThread: Int?, batchShades = unknownShades, batchCount = 0
         func drawBatch() {
             guard batchCount > 0 else { return }
             context.setFillColor(shadowColor); context.addPath(shadows); context.fillPath()
+            let levels = levelsUsed.sorted()
             for (index, layer) in layers.enumerated() {
-                context.setFillColor(batchShades[index]); context.addPath(middles[index]); context.fillPath()
-                context.setStrokeColor(batchShades[index]); context.setLineWidth(width * layer.breadth * 0.7); context.addPath(cores[index]); context.strokePath()
+                for level in levels {
+                    context.setFillColor(batchShades[level][index]); context.addPath(middles[level][index]); context.fillPath()
+                    context.setStrokeColor(batchShades[level][index]); context.setLineWidth(width * layer.breadth * 0.7); context.addPath(cores[level][index]); context.strokePath()
+                }
             }
-            if showTwist { context.setStrokeColor(batchShades[layers.count]); context.setLineWidth(max(0.6, width * 0.07)); context.addPath(twists); context.strokePath() }
+            if showTwist { context.setStrokeColor(batchShades[0][layers.count]); context.setLineWidth(max(0.6, width * 0.07)); context.addPath(twists); context.strokePath() }
             shadows = CGMutablePath(); twists = CGMutablePath()
-            middles = layers.map { _ in CGMutablePath() }; cores = layers.map { _ in CGMutablePath() }; batchCount = 0
+            middles = emptyPaths(); cores = emptyPaths(); levelsUsed = []; batchCount = 0
         }
         // Adds a lens from `start` to `end`, `breadth` wide at the middle: two curves bowing out on either side. A
         // quadratic curve reaches only half way to its control point, so a control point one full breadth out makes
@@ -210,19 +225,21 @@ final class DesignCanvas: NSView {
             let a = onScreen(previous), b = onScreen(command.point)
             let box = CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y)).insetBy(dx: -0.5, dy: -0.5)
             guard box.intersects(reach) else { continue }
+            // `along` runs from a to b; `across` is at right angles to it.
+            let along = CGVector(dx: b.x - a.x, dy: b.y - a.y), length = max(hypot(along.dx, along.dy), 0.001)
             if batchThread != command.thread || batchCount >= 48 {
                 drawBatch(); batchThread = command.thread
                 batchShades = threadShades.indices.contains(command.thread) ? threadShades[command.thread] : unknownShades
             }
-            // `along` runs from a to b; `across` is at right angles to it.
-            let along = CGVector(dx: b.x - a.x, dy: b.y - a.y), length = max(hypot(along.dx, along.dy), 0.001)
+            let level = Self.sheenLevel(along: along)
+            levelsUsed.insert(level)
             let across = CGVector(dx: -along.dy / length, dy: along.dx / length)
             addLens(shadows, CGPoint(x: a.x + shadowOffset.dx, y: a.y + shadowOffset.dy), CGPoint(x: b.x + shadowOffset.dx, y: b.y + shadowOffset.dy), breadth: width * 1.1, across: across)
             for (index, layer) in layers.enumerated() {
                 let start = CGPoint(x: a.x + along.dx * layer.trim, y: a.y + along.dy * layer.trim)
                 let end = CGPoint(x: b.x - along.dx * layer.trim, y: b.y - along.dy * layer.trim)
-                addLens(middles[index], start, end, breadth: width * layer.breadth, across: across)
-                cores[index].move(to: start); cores[index].addLine(to: end)
+                addLens(middles[level][index], start, end, breadth: width * layer.breadth, across: across)
+                cores[level][index].move(to: start); cores[level][index].addLine(to: end)
             }
             if showTwist {
                 // Short slanted marks across the strand every 0.55 thread widths, shrinking toward the ends.
@@ -239,6 +256,20 @@ final class DesignCanvas: NSView {
             batchCount += 1
         }
         drawBatch()
+    }
+    /// How many steps Thread View's sheen is rounded to, so stitches running nearly the same way share a batch.
+    static let sheenLevels = 6
+    /// How much a stitch running along `along` (on screen, y up) catches a light from the top left, as a level from 0
+    /// (running straight towards the light: dull) to `sheenLevels - 1` (running straight across it: shiny). Thread
+    /// shines most where its fibres face the light side-on, as polyester and rayon do under a lamp. The power curve
+    /// keeps most stitches near dull and saves the brightest levels for those close to square-on.
+    static func sheenLevel(along: CGVector) -> Int {
+        let length = hypot(along.dx, along.dy)
+        guard length > 0 else { return 0 }
+        // Towards the light: up and to the left. The cross product's size is the sine of the angle between the two.
+        let light = CGVector(dx: -1 / 2.0.squareRoot(), dy: 1 / 2.0.squareRoot())
+        let across = abs(along.dx * light.dy - along.dy * light.dx) / length
+        return Int((pow(across, 1.6) * Double(sheenLevels - 1)).rounded())
     }
     /// Zooms to `zoom` (kept within 0.5–60) so the spot under `anchor` (a point in the canvas; its middle if nil)
     /// stays where it is on screen.
