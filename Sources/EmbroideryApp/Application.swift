@@ -494,7 +494,7 @@ import EmbroideryCore
             if state.reviewing { state.reviewing = false; state.status = "Review finished."; return }
             playbackTimer?.invalidate(); state.playing = false; state.playback = 1
             if ![.select, .entryExit].contains(state.tool) { state.tool = .select }
-            state.reviewing = true
+            state.reviewing = true; state.reviewShowsRoute = false
             if state.reviewStep == nil { state.stepReview(by: 1) }   // nothing selected: start at the first step
             state.status = "Reviewing the sewing order · ← → step through it · click an object or a step to jump to it · Esc finishes"
             state.focusCanvas()

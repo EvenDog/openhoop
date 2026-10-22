@@ -1,5 +1,6 @@
 // The Review section at the top of Properties while reviewing the sewing order (View › Review Sewing Order): which
 // step this is, how the needle gets here from the step before, and where it starts and ends, with buttons to set them.
+// Switched to Route, it sums up the whole route instead and explains the canvas's lines.
 import SwiftUI
 import EmbroideryCore
 
@@ -9,13 +10,20 @@ struct ReviewSection: View {
         let steps = state.sewingSteps, current = state.reviewStep
         VStack(alignment: .leading, spacing: 9) {
             HStack(spacing: 6) {
-                Text(current.map { "Review · step \($0.index + 1) of \(steps.count)" } ?? "Review").textCase(.uppercase)
-                    .font(Theme.caption).tracking(0.8).foregroundStyle(Theme.accent)
+                Text(state.reviewShowsRoute ? "Review · \(steps.count) steps" : current.map { "Review · step \($0.index + 1) of \(steps.count)" } ?? "Review")
+                    .textCase(.uppercase).font(Theme.caption).tracking(0.8).foregroundStyle(Theme.accent)
                 Spacer()
                 stepButton(-1, symbol: "chevron.left", label: "Previous step")
                 stepButton(1, symbol: "chevron.right", label: "Next step")
             }
-            if let current { details(current.index, current.step, in: steps) }
+            Picker("Review shows", selection: $state.reviewShowsRoute) {
+                Text("Step").tag(false)
+                Text("Route").tag(true)
+            }
+            .pickerStyle(.segmented).labelsHidden()
+            .help("Step: the design sewn up to one step, and how the needle gets there. Route: every step's number at its start, and every move between steps.")
+            if state.reviewShowsRoute { route }
+            else if let current { details(current.index, current.step, in: steps) }
             else { hint("Click an object, or a step in Sewing order, to see how it sews. → starts at the first step.") }
             hint("← → step through it · Esc finishes")
         }
@@ -48,6 +56,43 @@ struct ReviewSection: View {
             pointRow(end: false, isSet: first.entry != nil, name: state.stepName(step))
             pointRow(end: true, isSet: last.exit != nil, name: state.stepName(step))
             hint("Drag the + or × on the canvas to move them.")
+        }
+    }
+
+    /// The whole route: how many trims and thread changes it has (as the status bar counts them), and what the
+    /// canvas's lines mean.
+    @ViewBuilder private var route: some View {
+        let summary = state.summary
+        HStack(spacing: 8) {
+            tile(summary.trims, "trim", "trims")
+            tile(summary.threadChanges, "thread change", "thread changes")
+        }
+        VStack(alignment: .leading, spacing: 6) {
+            legend("Trim, then on to the next start", color: Color(nsColor: Theme.Canvas.handle), width: 1.5, dash: [5, 3])
+            legend("Thread change", color: Color(nsColor: Theme.Canvas.label), width: 1.4, dash: [1, 3.5])
+            legend("Jump, not trimmed", color: Color(nsColor: Theme.Canvas.handle), width: 1, dash: [])
+        }
+        hint("Each step's number sits at its start. Click an object, or a step in Sewing order, to pick it out.")
+    }
+
+    /// A count in a small card, such as "16 trims".
+    private func tile(_ count: Int, _ one: String, _ many: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(count.formatted()).font(Theme.body(17, weight: .bold))
+            Text(count == 1 ? one : many).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 6).frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.controlBorder))
+    }
+
+    /// One line of the key: a short sample of a line style, and what it means.
+    private func legend(_ text: String, color: Color, width: CGFloat, dash: [CGFloat]) -> some View {
+        HStack(spacing: 8) {
+            Path { path in path.move(to: CGPoint(x: 1, y: 4)); path.addLine(to: CGPoint(x: 29, y: 4)) }
+                .stroke(color, style: StrokeStyle(lineWidth: width * 1.3, lineCap: .round, dash: dash.map { $0 * 1.3 }))
+                .frame(width: 30, height: 8)
+            Text(text).font(Theme.body(12))
         }
     }
 
