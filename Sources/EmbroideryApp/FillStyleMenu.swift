@@ -99,16 +99,15 @@ struct FillStyleThumbnail: View {
 }
 
 /// The Fill style control: a button with the current style's picture and name, which opens the list of styles.
-/// `compact` is the Pro size. `choose` applies a style to the selection (one Undo step).
+/// `choose` applies a style to the selection (one Undo step).
 struct FillStyleMenu: View {
     @ObservedObject var state: EditorState
     let style: EmbroideryCore.FillStyle
     let color: ThreadColor
-    var compact = false
     let choose: (EmbroideryCore.FillStyle) -> Void
 
     var body: some View {
-        PictureListMenu(label: "Fill style", options: EmbroideryCore.FillStyle.allCases, current: style, name: \.title, tagline: \.tagline, help: \.summary, compact: compact,
+        PictureListMenu(label: "Fill style", options: EmbroideryCore.FillStyle.allCases, current: style, name: \.title, tagline: \.tagline, help: \.summary,
                         tryOut: { option in if let option { Self.preview(option, state) } else { state.previewSettings(nil) } },
                         picture: { FillStyleThumbnail(style: $0, color: color) }) { option in
             choose(option)
@@ -129,14 +128,13 @@ struct FillStyleMenu: View {
 struct NewShapeFillMenu: View {
     let current: EmbroideryCore.FillStyle?
     let color: ThreadColor
-    var compact = false
     let choose: (EmbroideryCore.FillStyle?) -> Void
 
     var body: some View {
         // Optional.some wraps each style, so the list can hold None (nil) too.
         let options: [EmbroideryCore.FillStyle?] = [nil] + EmbroideryCore.FillStyle.forNewShapes.map(Optional.some)
         PictureListMenu(label: "Fill", options: options, current: current, name: { $0?.title ?? "None" },
-                        tagline: { $0?.tagline ?? "No fill: just the outline." }, help: { $0?.summary ?? "The shape gets no fill, just its outline." }, compact: compact,
+                        tagline: { $0?.tagline ?? "No fill: just the outline." }, help: { $0?.summary ?? "The shape gets no fill, just its outline." },
                         picture: { option in
                             if let option { FillStyleThumbnail(style: option, color: color) } else { NoStitchPicture() }
                         }, choose: choose)

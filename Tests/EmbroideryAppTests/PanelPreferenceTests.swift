@@ -1,50 +1,35 @@
-// Saved workspaces from before panels could be rearranged turn into the matching panel layout.
+// The panel layout saved in preferences, including settings saved while OpenHoop had both Guided and Pro views.
 import XCTest
 @testable import EmbroideryApp
 import EmbroideryCore
 
 final class PanelPreferenceTests: XCTestCase {
-    func testOlderWorkspaceSettingsBecomeAPanelLayout() throws {
-        // Settings saved by an older version: inspector on the left and hidden, thread palette hidden.
-        let old = #"{"id":"6D7A4C2E-1F1B-4B8F-9C1A-2B3C4D5E6F70","name":"Mine","inspectorVisible":false,"paletteVisible":false,"inspectorOnLeft":true,"objectsWidth":240,"inspectorWidth":300}"#
-        let workspace = try JSONDecoder().decode(Workspace.self, from: Data(old.utf8))
-        XCTAssertNil(workspace.panels)
-        let layout = workspace.panelLayout
-        XCTAssertFalse(layout.isVisible(.properties)); XCTAssertFalse(layout.isVisible(.threads))
-        XCTAssertEqual(layout.right.map(\.panels), [[.sewingOrder]], "The sides swap, as the inspector was on the left")
-        XCTAssertEqual(layout.left.map(\.panels), [[.design, .reference]])
-        XCTAssertEqual(layout.rightWidth, 240)
-        // A fresh workspace is the standard layout, and a saved layout round-trips.
-        XCTAssertEqual(Workspace().panelLayout.left, PanelLayout.standard.left); XCTAssertEqual(Workspace().panelLayout.right, PanelLayout.standard.right)
-        var saved = Workspace(); saved.panels = PanelLayout(left: [PanelGroup([.threads])], right: [PanelGroup([.properties])])
-        XCTAssertEqual(try JSONDecoder().decode(Workspace.self, from: JSONEncoder().encode(saved)).panelLayout.left.map(\.panels), [[.threads]])
+    func testTheProArrangementIsKeptAndTheGuidedOneLeftUnread() throws {
+        // Saved with both views: the Guided arrangement under "panels", the Pro one (threads hidden) under "proPanels".
+        let guided = PanelLayout(left: [PanelGroup([.threads])], right: [PanelGroup([.properties])])
+        var pro = PanelLayout.standard; pro.hide(.threads)
+        let both = #"{"id":"6D7A4C2E-1F1B-4B8F-9C1A-2B3C4D5E6F70","name":"Mine","panels":"# + String(decoding: try JSONEncoder().encode(guided), as: UTF8.self)
+            + #","proPanels":"# + String(decoding: try JSONEncoder().encode(pro), as: UTF8.self) + "}"
+        XCTAssertEqual(try JSONDecoder().decode(Workspace.self, from: Data(both.utf8)).panelLayout, pro)
+        // Only a Guided arrangement (or none, or the oldest settings): the standard layout.
+        let onlyGuided = #"{"id":"6D7A4C2E-1F1B-4B8F-9C1A-2B3C4D5E6F70","name":"Mine","panels":"# + String(decoding: try JSONEncoder().encode(guided), as: UTF8.self) + "}"
+        XCTAssertEqual(try JSONDecoder().decode(Workspace.self, from: Data(onlyGuided.utf8)).panelLayout, .standard)
+        let oldest = #"{"id":"6D7A4C2E-1F1B-4B8F-9C1A-2B3C4D5E6F70","name":"Mine","inspectorVisible":false,"paletteVisible":false,"inspectorOnLeft":true,"objectsWidth":240,"inspectorWidth":300}"#
+        XCTAssertEqual(try JSONDecoder().decode(Workspace.self, from: Data(oldest.utf8)).panelLayout, .standard)
+        XCTAssertEqual(Workspace().panelLayout, .standard)
+        // A changed arrangement saves and reopens.
+        var saved = Workspace(); saved.panels = guided
+        XCTAssertEqual(try JSONDecoder().decode(Workspace.self, from: JSONEncoder().encode(saved)).panelLayout, guided)
     }
 
-    func testGuidedAndProKeepTheirOwnLayouts() throws {
-        var workspace = Workspace()
-        XCTAssertEqual(workspace.proPanelLayout, PanelLayout.pro, "Pro starts with its own standard layout")
-        XCTAssertEqual(workspace.panelLayout.left, PanelLayout.standard.left)
-        // Changing one view's arrangement leaves the other alone.
-        var pro = workspace.proPanelLayout; pro.hide(.threads)
-        workspace.setPanels(pro, pro: true)
-        XCTAssertFalse(workspace.proPanelLayout.isVisible(.threads))
-        XCTAssertTrue(workspace.panelLayout.isVisible(.threads))
-        var guided = workspace.panelLayout; guided.hide(.reference)
-        workspace.setPanels(guided, pro: false)
-        XCTAssertTrue(workspace.proPanelLayout.isVisible(.reference)); XCTAssertFalse(workspace.panelLayout.isVisible(.reference))
-        let reopened = try JSONDecoder().decode(Workspace.self, from: JSONEncoder().encode(workspace))
-        XCTAssertEqual(reopened.proPanelLayout, workspace.proPanelLayout); XCTAssertEqual(reopened.panelLayout, workspace.panelLayout)
-    }
-
-    func testOlderPreferencesOpenInTheGuidedView() throws {
-        // Preferences saved before the Pro view existed have no view or fold settings.
-        let old = try JSONEncoder().encode(PreferenceData())
-        var dictionary = try XCTUnwrap(JSONSerialization.jsonObject(with: old) as? [String: Any])
-        dictionary.removeValue(forKey: "proView"); dictionary.removeValue(forKey: "guidedMoreOpen")
-        let data = try JSONDecoder().decode(PreferenceData.self, from: JSONSerialization.data(withJSONObject: dictionary))
-        XCTAssertNil(data.proView); XCTAssertNil(data.guidedMoreOpen)
-        // The Pro View command's default key doesn't clash with any other default.
-        XCTAssertEqual(CommandID.proView.defaults.first?.display, "⌥⌘P")
+    func testPreferencesFromTheGuidedViewStillOpen() throws {
+        // The view switch, the More settings fold and a Pro View key are left over in older preferences.
+        var dictionary = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(PreferenceData())) as? [String: Any])
+        dictionary["proView"] = false; dictionary["guidedMoreOpen"] = true
+        XCTAssertNoThrow(try JSONDecoder().decode(PreferenceData.self, from: JSONSerialization.data(withJSONObject: dictionary)))
+        var profile = ShortcutProfile(); profile.bindings["proView"] = [.init("p", 5)]
+        XCTAssertNoThrow(try profile.validate())
+        XCTAssertNil(profile.command(for: .init("p", 5), context: .canvas), "⌥⌘P does nothing now")
         XCTAssertNoThrow(try ShortcutProfile().validate())
     }
 

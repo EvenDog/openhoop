@@ -10,7 +10,7 @@ extension InspectorPanel {
         VStack(alignment: .leading, spacing: 2) {
             // The file's name without ".stitchproj" (an unsaved design shows its window title, such as "Untitled").
             Text(state.document.map { $0.fileURL?.deletingPathExtension().lastPathComponent ?? $0.displayName } ?? "This design")
-                .font(Theme.heading(pro ? 15 : 18)).lineLimit(2)
+                .font(Theme.heading(15)).lineLimit(2)
             Text("The whole design · click an object to edit it").font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
         }
         if summary.stitchCount == 0 {
@@ -18,7 +18,7 @@ extension InspectorPanel {
                 .font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
         } else {
             let speed = preferences.data.machineSpeed ?? ProductionSummary.defaultSpeed
-            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: pro ? 6 : 9) {
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
                 GridRow {
                     figure(preferences.unit.size(summary.width, summary.height), "design size")
                     figure(summary.stitchCount.formatted(), "stitches")
@@ -38,7 +38,7 @@ extension InspectorPanel {
     /// One figure: the number large, what it counts small underneath.
     private func figure(_ value: String, _ caption: String) -> some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(value).font(.system(size: pro ? 12 : 13, weight: .semibold, design: .monospaced)).lineLimit(1).minimumScaleFactor(0.8)
+            Text(value).font(.system(size: 12, weight: .semibold, design: .monospaced)).lineLimit(1).minimumScaleFactor(0.8)
             Text(caption).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).lineLimit(1)
         }
     }

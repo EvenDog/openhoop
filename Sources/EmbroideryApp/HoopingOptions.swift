@@ -36,10 +36,6 @@ struct HoopingOptions: View {
                         ForEach(AlignmentMarkStyle.allCases, id: \.self) { Text($0.title).tag($0) }
                     }.pickerStyle(.segmented).fixedSize().font(Theme.body(12))
                 }
-                if !preferences.isPro {
-                    Text("Small marks where two hoopings overlap. The next hooping sews the same marks first, then stops, so you can check they sit on the first ones before it sews on.")
-                        .font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
-                }
                 Divider()
                 Button("Save Hoopings for Machine…") { AppDelegate.shared.perform(.exportMachine) }
                     .buttonStyle(ThemedButtonStyle(prominent: true)).disabled(!(state.hoopingAssignment?.unplaced.isEmpty ?? false))

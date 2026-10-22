@@ -1,5 +1,6 @@
-// Views made for the Pro view: the precision bar under the tool strip, for placing the selection exactly.
-// (The Guided view reaches the same settings under More settings in Properties.)
+// The editor's compact views: the precision bar under the tool strip, for placing the selection exactly; the sewing
+// order table; the Threads panel; the status bar's numbers; and the Properties layout. (Named "Pro" from when OpenHoop
+// also had a Guided view.)
 import AppKit
 import SwiftUI
 import EmbroideryCore
@@ -33,7 +34,7 @@ struct PrecisionBar: View {
                 .accessibilityLabel("Keep proportions").accessibilityAddTraits(keep ? .isSelected : [])
                 field("Rotate", 0, range: -360...360, help: "Type an angle and press Return to turn the selection by it (positive turns counterclockwise)") { state.rotateSelection(by: $0) }
                 field("Skew", 0, range: -60...60, help: "Type an angle and press Return to lean the selection sideways by it (positive leans the top to the right, like italics)") { state.skewSelection(by: $0) }
-                // Only with something to move, as in the Guided view.
+                // Only with something to move.
                 Theme.controlBorder.frame(width: 1, height: 18)
                 field("Nudge", preferences.nudge, range: Preferences.nudgeRange, length: true, help: "How far the arrow keys move the selection") { value in
                     preferences.data.nudgeDistance = value; preferences.save()
@@ -97,7 +98,7 @@ struct PrecisionBar: View {
     }
 }
 
-/// The Pro view's sewing order: a compact table with each object's number, thread, stitch type (as an icon; the
+/// The sewing order: a compact table with each object's number, thread, stitch type (as an icon; the
 /// full name shows on hover), name, stitch count, flags (T = trims after, S = stops after, H = hidden but still sews) and a
 /// lock to click (LayerControls.swift; right-click a line to rename, lock or hide). Objects grouped together in a row of the sewing order
 /// fold under one line for the group (lettering shows its text); the chevron opens it to show each object.
@@ -174,7 +175,7 @@ struct ProSewingOrder: View {
                         case .group(let id, let first, let members):
                             groupRow(id, first: first, members: members, label: labels[id], count: members.compactMap { counts[$0.id] }.reduce(0, +))
                                 .sewingOrderRow(state: state, ids: Set(members.map(\.id)), place: first, target: $dropTarget)
-                        case .picture: PictureRow(state: state, compact: true).padding(.vertical, 2)
+                        case .picture: PictureRow(state: state).padding(.vertical, 2)
                         }
                     }
                     if !state.design.objects.isEmpty { Color.clear.sewingOrderEnd(state: state, target: $dropTarget) }
@@ -299,7 +300,7 @@ struct ProSewingOrder: View {
     }
 }
 
-/// The Pro view's threads: the thread library as a two-column list of swatch, name and number (click to choose the
+/// The Threads panel: the thread library as a two-column list of swatch, name and number (click to choose the
 /// current thread and recolor the selection), then the design's thread steps in sewing order with their stitch counts.
 /// The bar between them drags to make the steps list taller or shorter; double-clicking it lets the list fit its steps again.
 struct ProThreads: View {
@@ -374,7 +375,7 @@ struct ProThreads: View {
     }
 }
 
-/// The Pro view's status bar numbers: stitches, thread steps, trims, stops, size and estimated sewing time, plus
+/// The status bar's numbers: stitches, thread steps, trims, stops, size and estimated sewing time, plus
 /// where the pointer is.
 struct ProStats: View {
     @ObservedObject var state: EditorState
@@ -397,9 +398,8 @@ struct ProStats: View {
     static func count(_ n: Int, _ noun: String) -> String { "\(n.formatted()) \(noun)\(n == 1 ? "" : "s")" }
 }
 
-/// The Pro view's Properties: the same settings as the Guided view, laid out compactly in labeled sections
-/// (FILL / SATIN / RUNNING, UNDERLAY, FINISH, START & END, OBJECT) with a small close-up beside the name.
-/// Explanations show as tooltips instead of text under each setting.
+/// Properties for the selection, laid out compactly in labeled sections (FILL / SATIN / RUNNING, UNDERLAY, FINISH,
+/// START & END, OBJECT) with a small close-up beside the name. Explanations show as tooltips.
 extension InspectorPanel {
     @ViewBuilder func proProperties(_ object: RunObject) -> some View {
         if state.selection.count > 1 && !selectionIsOneLettering { selectionSummary }
@@ -464,7 +464,7 @@ extension InspectorPanel {
         let style = object.settings.fillStyle ?? .tatami, holes = object.holes?.count ?? 0
         return proSection("Fill") {
             proRow("Style", help: style.summary) {
-                FillStyleMenu(state: state, style: style, color: object.color, compact: true) { value in settings(.fill, "Fill Style") { $0.fillStyle = value == .tatami ? nil : value } }
+                FillStyleMenu(state: state, style: style, color: object.color) { value in settings(.fill, "Fill Style") { $0.fillStyle = value == .tatami ? nil : value } }
                     .frame(width: 120)
             }
             // Only where the rows follow it; otherwise the Underlay section shows it as the underlay's angle.

@@ -1,5 +1,5 @@
 // The stitch player at the right end of the tool strip: rewind, play or pause, a bar to scrub through the stitches,
-// the stitch count, and speed buttons (set in Settings › Tools & player). Pro's tool rail down the left shows it stacked at
+// the stitch count, and speed buttons (set in Settings › Tools & player). The tool rail down the left shows it stacked at
 // the bottom instead.
 import SwiftUI
 import EmbroideryCore
@@ -8,10 +8,8 @@ import EmbroideryCore
 struct StripPlayer: View {
     @ObservedObject var state: EditorState
     @ObservedObject var preferences = Preferences.shared
-    /// True for Pro's left rail: everything in one narrow column.
+    /// True for the left rail: everything in one narrow column.
     var stacked = false
-    /// True on Pro's tan tool band, which has its own ink colors; false on Guided's cream strip.
-    var onBand = false
     var body: some View {
         let total = state.plan.stitchCount
         let count = Text("\(Int(state.playback * Double(total)).formatted()) / \(total.formatted())")
@@ -22,22 +20,22 @@ struct StripPlayer: View {
                 HStack(spacing: 4) { rewindButton; playButton; pauseAtTrimsButton }
                 slider
                 count.minimumScaleFactor(0.7)
-                SpeedButtons(stacked: true, onBand: onBand)
+                SpeedButtons(stacked: true)
             }
         } else {
             // Caption and count on top, then the controls, then the speeds: two rows, like the tool groups beside it.
             VStack(alignment: .leading, spacing: 3) {
                 HStack { caption; Spacer(minLength: 8); count }
                 HStack(spacing: 4) { rewindButton; playButton; pauseAtTrimsButton; slider }
-                SpeedButtons(stacked: false, onBand: onBand)
+                SpeedButtons(stacked: false)
             }
             .frame(width: 250)
         }
     }
-    private var secondaryInk: Color { onBand ? Theme.toolBandInkSecondary : Theme.inkSecondary }
+    private var secondaryInk: Color { Theme.toolBandInkSecondary }   // the tool band has its own ink colors
     /// The group's caption, in the same type as the tool groups' captions.
     private var caption: some View {
-        Text("PLAYER").font(onBand ? .system(size: 9, weight: .bold, design: .rounded) : Theme.caption).tracking(0.8)
+        Text("PLAYER").font(.system(size: 9, weight: .bold, design: .rounded)).tracking(0.8)
             .foregroundStyle(secondaryInk).padding(.leading, 3).lineLimit(1).fixedSize()
     }
     private var rewindButton: some View {
@@ -83,7 +81,6 @@ struct StripPlayer: View {
 private struct SpeedButtons: View {
     /// True for the left rail: the buttons two by two, with the unit below.
     let stacked: Bool
-    let onBand: Bool
     @ObservedObject var preferences = Preferences.shared
     @State private var choosingCustomSpeed = false
     var body: some View {
@@ -117,7 +114,7 @@ private struct SpeedButtons: View {
             .font(Theme.body(12)).foregroundStyle(Theme.ink).padding(12)
         }
     }
-    private var secondaryInk: Color { onBand ? Theme.toolBandInkSecondary : Theme.inkSecondary }
+    private var secondaryInk: Color { Theme.toolBandInkSecondary }   // the tool band has its own ink colors
     /// One button per preset speed.
     private func buttons(_ presets: [Double]) -> some View {
         ForEach(Array(presets.enumerated()), id: \.offset) { _, speed in

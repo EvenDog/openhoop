@@ -54,19 +54,18 @@ extension EditorState {
 }
 
 /// The face of a picture menu's button: a small picture, the current choice's name and a down arrow, in a rounded
-/// box. `compact` is the Pro size.
+/// box.
 struct PictureMenuLabel<Picture: View>: View {
     let title: String
-    var compact = false
     @ViewBuilder let picture: Picture
     var body: some View {
-        HStack(spacing: compact ? 6 : 8) {
-            picture.frame(width: compact ? 26 : 46, height: compact ? 17 : 30)
-            Text(title).font(Theme.body(compact ? 11 : 12, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
+        HStack(spacing: 6) {
+            picture.frame(width: 26, height: 17)
+            Text(title).font(Theme.body(11, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
             Spacer(minLength: 0)
-            Image(systemName: "chevron.down").font(.system(size: compact ? 8 : 9, weight: .semibold)).foregroundStyle(Theme.inkSecondary)
+            Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold)).foregroundStyle(Theme.inkSecondary)
         }
-        .padding(compact ? 2 : 4).padding(.trailing, compact ? 4 : 6)
+        .padding(2).padding(.trailing, 4)
         .background(RoundedRectangle(cornerRadius: 7).fill(Theme.card))
         .overlay(RoundedRectangle(cornerRadius: 7).stroke(Theme.controlBorder))
         .contentShape(Rectangle())
@@ -76,7 +75,7 @@ struct PictureMenuLabel<Picture: View>: View {
 /// A picture menu that opens a list: a row for each of `options`, with its picture, name and a line about it (`help`
 /// is the tooltip), and a tick by `current`. With `tryOut`, pointing at a choice shows it on the canvas (it's called
 /// with nil when the pointer leaves the list or the list closes); without, as for Next shape, there's nothing to show
-/// it on. `label` names the menu for VoiceOver; `compact` is the Pro size.
+/// it on. `label` names the menu for VoiceOver.
 struct PictureListMenu<Option: Hashable, Picture: View>: View {
     let label: String
     let options: [Option]
@@ -84,7 +83,6 @@ struct PictureListMenu<Option: Hashable, Picture: View>: View {
     let name: (Option) -> String
     let tagline: (Option) -> String
     let help: (Option) -> String
-    var compact = false
     var tryOut: ((Option?) -> Void)? = nil
     @ViewBuilder let picture: (Option) -> Picture
     let choose: (Option) -> Void
@@ -93,7 +91,7 @@ struct PictureListMenu<Option: Hashable, Picture: View>: View {
 
     var body: some View {
         Button { open.toggle() } label: {
-            PictureMenuLabel(title: name(current), compact: compact) { picture(current) }
+            PictureMenuLabel(title: name(current)) { picture(current) }
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(label): \(name(current))")

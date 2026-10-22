@@ -19,36 +19,15 @@ enum AppAppearance: String, Codable, CaseIterable {
 struct Workspace: Codable, Equatable, Identifiable {
     var id = UUID()
     var name = "Default"
-    var inspectorVisible = true
-    var paletteVisible = true
-    var inspectorOnLeft = false
-    var objectsWidth = 220.0
-    var inspectorWidth = 260.0
-    /// Where every panel is docked, tabbed or floating. nil in settings saved before panels could be rearranged;
-    /// `panelLayout` then builds the equivalent from the older fields above.
+    /// Where every panel is docked, tabbed or floating; nil until it's first changed, which means the standard layout.
     var panels: PanelLayout?
-    /// The Pro view's own panel arrangement; nil until it's first changed, which means the standard Pro layout.
-    var proPanels: PanelLayout?
 
-    /// The Pro view's panel arrangement, repaired if needed.
-    var proPanelLayout: PanelLayout { proPanels?.normalized() ?? .pro }
+    /// `panels` is saved as "proPanels", its name from when OpenHoop also had a Guided view, so arrangements made in
+    /// the Pro view then still open. (A Guided arrangement, saved as "panels", is left unread.)
+    private enum CodingKeys: String, CodingKey { case id, name, panels = "proPanels" }
 
-    /// The Guided view's panel arrangement, repaired if needed.
-    var panelLayout: PanelLayout {
-        if let panels { return panels.normalized() }
-        var layout = PanelLayout.standard
-        if inspectorOnLeft { swap(&layout.left, &layout.right) }
-        if !inspectorVisible { layout.hide(.properties) }
-        if !paletteVisible { layout.hide(.threads) }
-        layout.leftWidth = inspectorOnLeft ? inspectorWidth : objectsWidth
-        layout.rightWidth = inspectorOnLeft ? objectsWidth : inspectorWidth
-        return layout.normalized()
-    }
-}
-
-extension Workspace {
-    /// Stores `layout` as the Pro or the Guided view's arrangement.
-    mutating func setPanels(_ layout: PanelLayout, pro: Bool) { if pro { proPanels = layout } else { panels = layout } }
+    /// The panel arrangement, repaired if needed.
+    var panelLayout: PanelLayout { panels?.normalized() ?? .standard }
 }
 
 struct PreferenceData: Codable {
@@ -65,12 +44,8 @@ struct PreferenceData: Codable {
     var gridOpacity: Double?
     /// The machine speed (stitches per minute) last used for a production worksheet's time estimate; nil until set.
     var machineSpeed: Int?
-    /// True when the app shows the Pro view (everything on screen, compact); nil or false is the Guided view.
-    var proView: Bool?
-    /// Pro view: true puts the tools in a rail down the left side; nil or false keeps them across the top.
+    /// True puts the tools in a rail down the left side; nil or false keeps them across the top.
     var proToolsOnLeft: Bool?
-    /// Guided view: true if "More settings" in Properties was left open.
-    var guidedMoreOpen: Bool?
     /// How far the arrow keys move the selection, in mm; nil means 1 mm.
     var nudgeDistance: Double?
     /// Whether the canvas shows stitches as thread (Thread View: true or nil) or as thin lines (false).
@@ -165,9 +140,7 @@ struct ShownItems: Codable, Equatable {
     }
     var isRecording = false
     var recordHandler: ((KeyBinding) -> Void)?
-    /// True when the Pro view is on. It's app-wide: every design window shows the same view.
-    var isPro: Bool { data.proView ?? false }
-    /// True when the Pro view's tools sit in a rail down the left side rather than in two rows across the top.
+    /// True when the tools sit in a rail down the left side rather than in two rows across the top.
     var proToolsOnLeft: Bool { data.proToolsOnLeft ?? false }
     /// How far the arrow keys move the selection, in mm.
     var nudge: Double { data.nudgeDistance ?? 1 }
@@ -242,17 +215,13 @@ struct ShownItems: Codable, Equatable {
         guard items != shown else { return }
         data.shown = items; save(announce: false)   // each design window already shows its own choice, so nothing needs rebuilding
     }
-    /// Switches between the Guided and Pro views; every window updates, each view with its own panel arrangement.
-    func setPro(_ on: Bool) { guard on != isPro else { return }; data.proView = on; save() }
-    /// The current view's panel arrangement (shared by every design window).
-    var panels: PanelLayout { isPro ? data.workspace.proPanelLayout : data.workspace.panelLayout }
-    /// The current view's standard arrangement, where hidden panels go back to when shown again.
-    var homeLayout: PanelLayout { isPro ? .pro : .standard }
-    /// Changes the current view's panel arrangement and saves it; every window updates.
+    /// The panel arrangement (shared by every design window).
+    var panels: PanelLayout { data.workspace.panelLayout }
+    /// Changes the panel arrangement and saves it; every window updates.
     func updatePanels(_ change: (inout PanelLayout) -> Void) {
         var layout = panels; change(&layout)
-        guard layout != (isPro ? data.workspace.proPanels : data.workspace.panels) else { return }
-        data.workspace.setPanels(layout, pro: isPro); save()
+        guard layout != data.workspace.panels else { return }
+        data.workspace.panels = layout; save()
     }
     private var file: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]

@@ -4,7 +4,7 @@
 import SwiftUI
 import EmbroideryCore
 
-/// The tool's choices at the top of Properties, the same in the Guided and Pro views. Shows nothing for tools
+/// The tool's choices at the top of Properties. Shows nothing for tools
 /// without choices.
 struct ToolOptions: View {
     @ObservedObject var state: EditorState
@@ -102,18 +102,18 @@ struct NextShapeOptions: View {
             caption("Stitches")
             if tool.makesOpenShape {
                 row("Stitch", help: "The stitch the next open shape gets. Change it later in Properties.") {
-                    NewLineStitchMenu(label: "Stitch", current: shapes.openStitch, color: state.currentColor, compact: preferences.isPro) { value in
+                    NewLineStitchMenu(label: "Stitch", current: shapes.openStitch, color: state.currentColor) { value in
                         if let value { setting(\.openStitch).wrappedValue = value }
                     }.frame(width: menuWidth)
                 }
             } else {
                 // Both are optional: nil is "None".
                 row("Fill", help: "The fill the next shape gets, or None for just an outline. Change it later in Properties.") {
-                    NewShapeFillMenu(current: shapes.closedFill, color: state.currentColor, compact: preferences.isPro) { setting(\.closedFill).wrappedValue = $0 }
+                    NewShapeFillMenu(current: shapes.closedFill, color: state.currentColor) { setting(\.closedFill).wrappedValue = $0 }
                         .frame(width: menuWidth)
                 }
                 row("Outline", help: "The stitch sewn along the next shape's edge, after its fill. With a fill, the two are grouped.") {
-                    NewLineStitchMenu(label: "Outline", current: shapes.closedOutline, offersNone: true, color: state.currentColor, compact: preferences.isPro) { setting(\.closedOutline).wrappedValue = $0 }
+                    NewLineStitchMenu(label: "Outline", current: shapes.closedOutline, offersNone: true, color: state.currentColor) { setting(\.closedOutline).wrappedValue = $0 }
                         .frame(width: menuWidth)
                 }
             }
@@ -123,21 +123,17 @@ struct NextShapeOptions: View {
                     stepper("\(width.formatted()) mm") { Stepper("Satin width", value: Binding(get: { width }, set: { preferences.data.satinLineWidth = $0; preferences.save() }), in: SatinLine.widths, step: 0.5) }
                 }
             }
-            // How to draw it (the same hint as the Pro tool strip), then, in Guided, what these choices are for.
+            // How to draw it (the same hint as the tool strip).
             let hint = ToolStrip.hint(for: state)
             Text(hint.how.prefix(1).uppercased() + hint.how.dropFirst())
                 .font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
                 .padding(8).frame(maxWidth: .infinity, alignment: .leading)
                 .background(Theme.ground, in: RoundedRectangle(cornerRadius: 8))
-            if !preferences.isPro {
-                Text("Every new shape starts with these. Select a shape to change it on its own.")
-                    .font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
-            }
         }
         .font(Theme.body(12))
     }
-    /// How wide the stitch picture menus are: as in Properties, narrower in Pro.
-    private var menuWidth: CGFloat { preferences.isPro ? 120 : 150 }
+    /// How wide the stitch picture menus are, as in Properties.
+    private var menuWidth: CGFloat { 120 }
     /// The shape a drag tool draws, for the preview; nil for the tools that trace a path.
     private func dragged(_ tool: Tool, _ shapes: ShapeSettings) -> BasicShape? {
         switch tool {

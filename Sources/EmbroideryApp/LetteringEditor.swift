@@ -1,7 +1,7 @@
 // The Lettering section of Properties: a selected word's text, font, height, letter spacing and baseline, changed
 // right there (the letters rebuild as you go, each change one undoable step), like other digitizing software's
 // lettering properties. New lettering is made here too: Add Lettering's click puts a word on the hoop and this
-// section takes over. Shared by the Guided and Pro layouts.
+// section takes over.
 import SwiftUI
 import AppKit
 import EmbroideryCore
@@ -10,18 +10,17 @@ extension InspectorPanel {
     @ViewBuilder func letteringEditor(_ spec: LetteringSpec) -> some View {
         let objects = state.design.letteringObjects(spec.id)
         let embroideryFont = spec.fontKind == .embroidery ? EmbroideryFontLibrary.font(spec.font) : nil
-        VStack(alignment: .leading, spacing: pro ? 6 : 8) {
-            Label("Lettering", systemImage: CommandID.lettering.symbol).font(Theme.body(pro ? 11 : 13, weight: .semibold))
-            LetteringTextBox(spec: spec, pro: pro, focusRequested: state.letteringTextFocusRequested,
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Lettering", systemImage: CommandID.lettering.symbol).font(Theme.body(11, weight: .semibold))
+            LetteringTextBox(spec: spec, focusRequested: state.letteringTextFocusRequested,
                              focused: { state.letteringTextFocusRequested = false }) { text in
                 var next = spec; next.text = text
                 state.rebuildLettering(next, action: "Edit Text")
             }
             HStack {
-                Text("Font").font(Theme.body(pro ? 11 : 12, weight: pro ? .regular : .semibold)); Spacer()
-                if !pro { Text("Click one, then ↑ ↓").font(Theme.body(10)).foregroundStyle(Theme.inkSecondary) }
+                Text("Font").font(Theme.body(11, weight: .regular)); Spacer()
             }
-            LetteringFontList(spec: spec, color: objects.first?.color ?? state.currentColor, pro: pro) { choice in
+            LetteringFontList(spec: spec, color: objects.first?.color ?? state.currentColor) { choice in
                 // Fonts tried one after another on this lettering undo as one step.
                 state.rebuildLettering(Self.spec(spec, withFont: choice), action: "Lettering Font", run: "font \(spec.id)")
             }
@@ -29,16 +28,16 @@ extension InspectorPanel {
             if spec.fontKind == .system {
                 let family = NSFont(name: spec.font, size: 12)?.familyName ?? spec.font
                 HStack {
-                    Text("Style").font(Theme.body(pro ? 11 : 12, weight: pro ? .regular : .semibold)); Spacer()
+                    Text("Style").font(Theme.body(11, weight: .regular)); Spacer()
                     Picker("Style", selection: Binding(get: { spec.font }, set: { name in var next = spec; next.font = name; state.rebuildLettering(next, action: "Font Style") })) {
                         ForEach(Self.fontStyles(of: family), id: \.name) { Text($0.title).tag($0.name) }
-                    }.labelsHidden().frame(width: pro ? 130 : 150)
+                    }.labelsHidden().frame(width: 130)
                 }
                 HStack {
-                    Text("Stitch").font(Theme.body(pro ? 11 : 12, weight: pro ? .regular : .semibold)); Spacer()
+                    Text("Stitch").font(Theme.body(11, weight: .regular)); Spacer()
                     Picker("Stitch", selection: Binding(get: { spec.stitch }, set: { stitch in var next = spec; next.stitch = stitch; state.rebuildLettering(next, action: "Lettering Stitch") })) {
                         ForEach(LetteringStitch.allCases, id: \.self) { Text($0.title).tag($0) }
-                    }.pickerStyle(.segmented).labelsHidden().frame(width: pro ? 130 : 150)
+                    }.pickerStyle(.segmented).labelsHidden().frame(width: 130)
                 }
             }
             number("Height", value: spec.currentHeight, range: embroideryFont?.heights ?? Lettering.heights, length: true,
@@ -53,7 +52,7 @@ extension InspectorPanel {
             }
             if spec.lines.count > 1 {
                 HStack {
-                    Text("Lines").font(Theme.body(pro ? 11 : 12, weight: pro ? .regular : .semibold)); Spacer()
+                    Text("Lines").font(Theme.body(11, weight: .regular)); Spacer()
                     Picker("Lines", selection: Binding(get: { spec.alignment ?? .center }, set: { alignment in var next = spec; next.alignment = alignment; state.rebuildLettering(next, action: "Line Alignment") })) {
                         ForEach(LetteringAlignment.allCases, id: \.self) { Text($0.title).tag($0) }
                     }.pickerStyle(.segmented).labelsHidden().fixedSize()
@@ -65,13 +64,12 @@ extension InspectorPanel {
                 }
             }
             HStack {
-                Text("Baseline").font(Theme.body(pro ? 11 : 12, weight: pro ? .regular : .semibold)).fixedSize(); Spacer()
+                Text("Baseline").font(Theme.body(11, weight: .regular)).fixedSize(); Spacer()
                 Picker("Baseline", selection: Binding(get: { spec.shape }, set: { shape in var next = spec; next.shape = shape; state.rebuildLettering(next, action: "Lettering Baseline") })) {
                     // On a line shows only while the lettering is on one (Put Lettering on Line puts it there).
                     ForEach(LetteringShape.pickable + (spec.shape == .onLine ? [.onLine] : []), id: \.self) { Text($0.title).tag($0) }
                 }.pickerStyle(.segmented).labelsHidden().fixedSize()
             }
-            if spec.shape == .onLine { explain("The letters sit along the dashed line. Reshape it with Edit Nodes and they follow; choose Straight or an arch to take them off it.") }
             if spec.shape.isArch {
                 number("Arc radius", value: spec.radius, range: Lettering.radii, length: true, help: "The circle the letters follow. Smaller is more curved.") { radius in
                     var next = spec; next.radius = radius
@@ -82,10 +80,6 @@ extension InspectorPanel {
                 Button("Reset letter positions") { var next = spec; next.letterOffsets = nil; state.rebuildLettering(next, action: "Reset Letter Positions") }
                     .buttonStyle(ThemedButtonStyle()).help("Put every letter you moved with Edit Nodes back where the font places it")
             }
-            if !spec.matchesFreshBuild(objects, embroideryFonts: EmbroideryFontLibrary.fonts) {
-                explain("Some letters were changed by hand. Changing these settings rebuilds every letter from the font, which replaces those changes.")
-            }
-            if !pro { explain("With \(preferences.key(.nodeTool)) (Edit Nodes), drag a letter's handle to move just that letter; it stays put when you change the settings above.") }
             HStack {
                 Button("Break apart") { AppDelegate.shared.perform(.breakApartLettering) }.buttonStyle(ThemedButtonStyle())
                     .help(preferences.hint(.breakApartLettering))
@@ -129,7 +123,6 @@ extension InspectorPanel {
 /// box follows the lettering when it changes some other way, such as Undo.
 struct LetteringTextBox: View {
     let spec: LetteringSpec
-    let pro: Bool
     /// True when the box should take the keyboard (new lettering, or Edit Lettering); `focused` is called once it has.
     var focusRequested = false
     var focused: () -> Void = {}
@@ -139,7 +132,7 @@ struct LetteringTextBox: View {
     @FocusState private var editing: Bool
     var body: some View {
         TextField("Text", text: $text, axis: .vertical)
-            .lineLimit(1...4).textFieldStyle(.roundedBorder).font(Theme.body(pro ? 12 : 13))
+            .lineLimit(1...4).textFieldStyle(.roundedBorder).font(Theme.body(12))
             .focused($editing)
             .onAppear { text = spec.text; if focusRequested { takeFocus() } }
             .onChange(of: focusRequested) { _, requested in if requested { takeFocus() } }
@@ -180,7 +173,6 @@ enum LetteringFontChoice: Hashable {
 struct LetteringFontList: View {
     let spec: LetteringSpec
     let color: ThreadColor
-    let pro: Bool
     let choose: (LetteringFontChoice) -> Void
     @ObservedObject private var preferences = Preferences.shared
     @FocusState private var hasKeyboard: Bool
@@ -208,7 +200,7 @@ struct LetteringFontList: View {
                         ForEach(Self.macFamilies, id: \.self) { family in
                             row(.system(family), current: current) {
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text(sample).font(.custom(family, size: pro ? 15 : 17)).foregroundStyle(Theme.ink).lineLimit(1)
+                                    Text(sample).font(.custom(family, size: 15)).foregroundStyle(Theme.ink).lineLimit(1)
                                     Text(family).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).lineLimit(1)
                                 }
                             }
@@ -218,7 +210,7 @@ struct LetteringFontList: View {
                 .padding(4)
             }
             .background(Color(nsColor: .textBackgroundColor))
-            .frame(height: pro ? 190 : 240)
+            .frame(height: 190)
             .clipShape(RoundedRectangle(cornerRadius: 8))
             // The outline turns denim while the list has the keyboard, so it's clear the arrow keys will work.
             .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(hasKeyboard ? Theme.accent : Theme.controlBorder, lineWidth: hasKeyboard ? 2 : 1))
@@ -266,11 +258,11 @@ struct LetteringFontList: View {
     /// digitized for. A font missing some of the letters shows just its name.
     private func embroideryRow(_ font: EmbroideryFont, sample: String) -> some View {
         let objects = FontSamples.objects(font, text: sample, color: color)
-        let rowHeight: Double = pro ? 18 : 22
+        let rowHeight: Double = 18
         return VStack(alignment: .leading, spacing: 2) {
             if let aspect = FontSamples.aspect(objects) {
                 StitchThumbnail(objects: objects, label: "\(sample) in \(font.name)", padding: 1, onFabric: false)
-                    .frame(width: min(rowHeight * aspect, pro ? 170 : 200), height: rowHeight)
+                    .frame(width: min(rowHeight * aspect, 170), height: rowHeight)
             }
             Text("\(font.name) · \(preferences.unit.short(font.heights.lowerBound))–\(preferences.unit.short(font.heights.upperBound))")
                 .font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).lineLimit(1)
