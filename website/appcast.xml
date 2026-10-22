@@ -6,6 +6,25 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.7.4</title>
+            <pubDate>Thu, 22 Oct 2026 20:16:36 GMT</pubDate>
+            <sparkle:version>20</sparkle:version>
+            <sparkle:shortVersionString>0.7.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.7.4</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.7.4</h3>
+<ul>
+<li><b>Review Sewing Order warns about moves worth a second look.</b> While reviewing (<b>⌥⇧R</b>), two kinds of move turn terracotta:</li>
+<li><b>Long moves:</b> the next start is 15 mm or more from where the step before ended, in the same thread. That means time spent travelling, and a long tail to snip.</li>
+<li><b>Untrimmed jumps:</b> a jump isn't trimmed although it's at least the design's trim distance, so the thread lies across the fabric.</li>
+</ul>
+<p>You'll see them on the canvas, in the step's details (with what you could do about it), as a small triangle on the step's row in Sewing order, and in a list under <b>Route</b>: click one to look at its step. Moves where the thread changes are never warned about, since the machine stops and starts afresh there anyway.</p>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.7.4/OpenHoop-0.7.4.dmg" sparkle:edSignature="JnXN3M6gwGxiv58EL5H618s2g13ebnHeVpD3Rsc3SOL68OVmyZnqsFJu27lAgFv3oWnjpiey0ZsW2+vZhLxVBw==" length="22804596" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.7.3</title>
             <pubDate>Thu, 22 Oct 2026 19:55:32 GMT</pubDate>
             <sparkle:version>19</sparkle:version>
