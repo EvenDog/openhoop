@@ -95,7 +95,7 @@ public struct ProductionSummary: Equatable, Sendable {
 }
 
 extension StitchPlan {
-    /// How many stitches each object sews, by object ID (for the Pro view's sewing-order table).
+    /// How many stitches each object sews, by object ID (for the sewing-order table).
     public var stitchCountsByObject: [UUID: Int] {
         var counts: [UUID: Int] = [:]
         for command in commands where command.op == .stitch { if let id = command.objectID { counts[id, default: 0] += 1 } }

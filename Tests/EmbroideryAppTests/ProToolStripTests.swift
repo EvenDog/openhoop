@@ -1,4 +1,4 @@
-// Checks that the Pro view's tools are all one click away: every tool has its own button, in the two-row strip and
+// Checks that the tools are all one click away: every tool has its own button, in the two-row strip and
 // in the left rail alike, and no button appears twice.
 import XCTest
 @testable import EmbroideryApp

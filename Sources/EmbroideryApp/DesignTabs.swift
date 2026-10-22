@@ -50,7 +50,7 @@ import EmbroideryCore
         let statusBar = NSHostingView(rootView: FooterPanel(state: state))
         // The tool strip is docked directly under the title bar and spans the full width.
         let toolStrip = NSHostingView(rootView: ToolStrip(state: state))
-        // Under it, on the left, the Pro view's tool rail when that's picked in Settings (0 wide otherwise). Its
+        // Under it, on the left, the tool rail when that's picked in Settings (0 wide otherwise). Its
         // width comes from SwiftUI; its height is whatever the window gives it, so it never makes the window taller.
         let toolRail = NSHostingView(rootView: ToolStrip(state: state, rail: true))
         toolRail.sizingOptions = [.minSize, .maxSize]

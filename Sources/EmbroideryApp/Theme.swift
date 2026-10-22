@@ -24,7 +24,7 @@ enum Theme {
     static let primaryAction = adaptive(light: 0xB0532F, dark: 0xD7774F)  // terracotta: "Save for machine"
     static let onPrimaryAction = adaptive(light: 0xFFFFFF, dark: 0x1F1A16)
     static let success = adaptive(light: 0x2F5A2B, dark: 0x9FD0A8)        // "fits the hoop" checks
-    // The Pro view's tools sit on a deep walnut band, richer than the panels around them, so they stand out.
+    // The tools sit on a deep walnut band, richer than the panels around them, so they stand out.
     static let toolBand = adaptive(light: 0xE6D6BC, dark: 0x3B2D22)
     static let toolBandEdge = adaptive(light: 0xCDB590, dark: 0x54402F)          // the line where the band meets the window
     static let toolBandDivider = adaptive(light: 0xC2A77E, dark: 0x5E4835)       // between groups of tools
@@ -105,7 +105,7 @@ struct ThemedButtonStyle: ButtonStyle {
         let configuration: ButtonStyleConfiguration
         let prominent: Bool
         @Environment(\.isEnabled) private var isEnabled
-        @Environment(\.controlSize) private var controlSize   // .small in the Pro view's panels
+        @Environment(\.controlSize) private var controlSize   // .small in the docked panels
         var body: some View {
             let small = controlSize == .small || controlSize == .mini
             configuration.label

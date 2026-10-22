@@ -133,11 +133,10 @@ struct LineStyleMenu: View {
     @ObservedObject var state: EditorState
     let style: RunStyle
     let color: ThreadColor
-    var compact = false
     let choose: (RunStyle) -> Void
 
     var body: some View {
-        PictureListMenu(label: "Line style", options: RunStyle.allCases, current: style, name: \.title, tagline: \.tagline, help: \.summary, compact: compact,
+        PictureListMenu(label: "Line style", options: RunStyle.allCases, current: style, name: \.title, tagline: \.tagline, help: \.summary,
                         tryOut: { option in if let option { Self.preview(option, state) } else { state.previewSettings(nil) } },
                         picture: { LineStitchThumbnail(stitch: .style($0), color: color) }) { option in
             choose(option)
@@ -161,13 +160,12 @@ struct NewLineStitchMenu: View {
     let current: OpenShapeStitch?
     var offersNone = false
     let color: ThreadColor
-    var compact = false
     let choose: (OpenShapeStitch?) -> Void
 
     var body: some View {
         let options: [OpenShapeStitch?] = (offersNone ? [nil] : []) + OpenShapeStitch.allCases.map(Optional.some)
         PictureListMenu(label: label, options: options, current: current, name: { $0?.title ?? "None" },
-                        tagline: { $0?.tagline ?? "No outline: just the fill." }, help: { $0?.summary ?? "The shape gets no outline, just its fill." }, compact: compact,
+                        tagline: { $0?.tagline ?? "No outline: just the fill." }, help: { $0?.summary ?? "The shape gets no outline, just its fill." },
                         picture: { option in
                             if let option { LineStitchThumbnail(stitch: .newLine(option), color: color) } else { NoStitchPicture() }
                         }, choose: choose)

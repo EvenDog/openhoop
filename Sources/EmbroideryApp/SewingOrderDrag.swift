@@ -1,4 +1,4 @@
-// Dragging rows of the sewing order lists (Guided's steps and the Pro table) to a new place in the order. While
+// Dragging rows of the sewing order table to a new place in the order. While
 // objects are dragged, a line shows above the row they'd sew before (or at the end, below the last row); letting go
 // moves them there as one undo step (Design.moveInSewingOrder).
 import SwiftUI

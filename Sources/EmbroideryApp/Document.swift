@@ -100,8 +100,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             if ![.node, .addAngles, .removeAngles].contains(tool) { selectedAngle = nil }; canvas?.toolDidChange()
             // A tool with choices in Properties (the next shape's, a point's type) opens the panel if it's closed.
             if tool != oldValue, ToolOptions.applies(to: tool), !Preferences.shared.panels.isVisible(.properties) {
-                let home = Preferences.shared.homeLayout
-                Preferences.shared.updatePanels { $0.show(.properties, home: home) }
+                Preferences.shared.updatePanels { $0.show(.properties) }
             }
         }
     }
@@ -731,7 +730,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     /// Asks Properties (shown if it was hidden) to put the keyboard in the selected lettering's text box, with the
     /// text selected so typing replaces it.
     func focusLetteringText() {
-        Preferences.shared.updatePanels { $0.show(.properties, home: Preferences.shared.homeLayout) }
+        Preferences.shared.updatePanels { $0.show(.properties) }
         letteringTextFocusRequested = true
     }
     /// Rebuilds the lettering with `spec.id` from `spec` (new text, font, size, spacing, baseline or letter nudges),

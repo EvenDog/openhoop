@@ -1,6 +1,6 @@
 // Locking, hiding and renaming objects right in the sewing order, as with layers in a drawing app: each row has a
 // lock (solid when locked, faint while the pointer is over the row) and a right-click menu with Rename, Lock and
-// Hide. Used by the Guided and Pro sewing order alike.
+// Hide. Used by the sewing order table.
 import SwiftUI
 import EmbroideryCore
 

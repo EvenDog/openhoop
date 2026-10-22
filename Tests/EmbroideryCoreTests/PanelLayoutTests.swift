@@ -3,25 +3,28 @@ import XCTest
 @testable import EmbroideryCore
 
 final class PanelLayoutTests: XCTestCase {
-    private var layout = PanelLayout.standard
+    /// A two-dock arrangement for the moves below: sewing order and threads on the left; properties, design and
+    /// reference image (as tabs) on the right.
+    private static let twoDocks = PanelLayout(left: [PanelGroup([.sewingOrder]), PanelGroup([.threads])],
+                                              right: [PanelGroup([.properties]), PanelGroup([.design, .reference])])
+    private var layout = twoDocks
 
     func testStandardLayoutShowsEveryPanelOnce() {
-        for standard in [PanelLayout.standard, .pro] {
-            let all = (standard.left + standard.right).flatMap(\.panels)
-            XCTAssertEqual(Set(all), Set(PanelID.allCases)); XCTAssertEqual(all.count, PanelID.allCases.count)
-            XCTAssertEqual(standard, standard.normalized(), "The standard layouts need no repair")
-        }
+        let standard = PanelLayout.standard
+        let all = (standard.left + standard.right).flatMap(\.panels)
+        XCTAssertEqual(Set(all), Set(PanelID.allCases)); XCTAssertEqual(all.count, PanelID.allCases.count)
+        XCTAssertEqual(standard, standard.normalized(), "The standard layout needs no repair")
     }
 
-    func testPanelsReturnToTheirProHome() {
-        // In the Pro view, the design panel's home is a tab beside the sewing order on the left.
-        var pro = PanelLayout.pro
-        pro.hide(.design); pro.hide(.properties)
-        XCTAssertEqual(pro.left.map(\.panels), [[.sewingOrder, .reference], [.threads]])
-        pro.show(.design, home: .pro)
-        XCTAssertEqual(pro.left.map(\.panels), [[.sewingOrder, .reference, .design], [.threads]])
-        pro.show(.properties, home: .pro)
-        XCTAssertEqual(pro.right.map(\.panels), [[.properties]])
+    func testPanelsReturnToTheirHome() {
+        // The design panel's home is a tab beside the sewing order on the left.
+        var standard = PanelLayout.standard
+        standard.hide(.design); standard.hide(.properties)
+        XCTAssertEqual(standard.left.map(\.panels), [[.sewingOrder, .reference], [.threads]])
+        standard.show(.design)
+        XCTAssertEqual(standard.left.map(\.panels), [[.sewingOrder, .reference, .design], [.threads]])
+        standard.show(.properties)
+        XCTAssertEqual(standard.right.map(\.panels), [[.properties]])
     }
 
     func testDockingAsTabAndAsNewGroup() {
@@ -67,9 +70,9 @@ final class PanelLayoutTests: XCTestCase {
     func testHideAndShowReturnPanelsToTheirHome() {
         layout.hide(.reference); layout.hide(.properties)
         XCTAssertFalse(layout.isVisible(.reference)); XCTAssertEqual(layout.right.map(\.panels), [[.design]])
-        layout.show(.reference)   // its standard neighbor (design) is showing, so it becomes a tab there
+        layout.show(.reference, home: Self.twoDocks)   // its neighbor there (design) is showing, so it becomes a tab there
         XCTAssertEqual(layout.right.map(\.panels), [[.design, .reference]])
-        layout.show(.properties)  // no neighbors: a new group at the bottom of its dock
+        layout.show(.properties, home: Self.twoDocks)  // no neighbors: a new group at the bottom of its dock
         XCTAssertEqual(layout.right.last?.panels, [.properties])
         layout.hide(.sewingOrder); layout.hide(.threads)
         XCTAssertTrue(layout.left.isEmpty, "An empty dock is allowed (the app hides it)")

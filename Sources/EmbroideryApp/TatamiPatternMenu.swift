@@ -32,19 +32,18 @@ struct TatamiPatternThumbnail: View {
 }
 
 /// The Pattern control of a tatami fill: a button with the current pattern's picture and name, which opens the grid
-/// of patterns. `compact` is the Pro size. `choose` applies a pattern to the selection (one Undo step).
+/// of patterns. `choose` applies a pattern to the selection (one Undo step).
 struct TatamiPatternMenu: View {
     @ObservedObject var state: EditorState
     let pattern: TatamiPattern
     let color: ThreadColor
-    var compact = false
     let choose: (TatamiPattern) -> Void
     @State private var open = false
     @State private var pointedAt: TatamiPattern?
 
     var body: some View {
         Button { open.toggle() } label: {
-            PictureMenuLabel(title: pattern.name, compact: compact) { TatamiPatternThumbnail(pattern: pattern, color: color) }
+            PictureMenuLabel(title: pattern.name) { TatamiPatternThumbnail(pattern: pattern, color: color) }
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Pattern: \(pattern.name)")

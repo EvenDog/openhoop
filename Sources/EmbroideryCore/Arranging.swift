@@ -1,4 +1,4 @@
-// Exact arranging for the Pro view's precision bar (and Guided's More settings): the box around some objects,
+// Exact arranging for the precision bar: the box around some objects,
 // moving them by an exact amount, and turning them by any angle with their fill rows turning along. Also sewing
 // objects in the order they were clicked, dragging them to a new place in the sewing order, gathering each thread's
 // objects together, lining them up, and skewing them.

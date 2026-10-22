@@ -24,7 +24,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         switch self {
         case .look: return "How OpenHoop and its canvas look."
         case .measuring: return "Units, the grid, and the steps Snap moves points by."
-        case .tools: return "Where the Pro view's tools sit, and the stitch player's speeds."
+        case .tools: return "Where the tools sit, and the stitch player's speeds."
         case .newDesigns: return "What a blank new design and newly drawn objects start with."
         case .machine: return "Your machine, for time estimates."
         case .updates: return "Getting new versions of OpenHoop."
@@ -252,14 +252,14 @@ private struct MeasuringSettings: View {
     }
 }
 
-/// Tools & player: where the Pro view's tools sit, and the stitch player's four speed buttons.
+/// Tools & player: where the tools sit, and the stitch player's four speed buttons.
 private struct ToolsSettings: View {
     @ObservedObject var preferences = Preferences.shared
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SettingsCard(caption: "Pro view") {
+            SettingsCard(caption: "Tools") {
                 SettingsRow(title: "Tools", hint: "Every tool is one click away either way") {
-                    Picker("Pro view tools", selection: Binding(get: { preferences.proToolsOnLeft },
+                    Picker("Tools", selection: Binding(get: { preferences.proToolsOnLeft },
                                                                 set: { onLeft in preferences.data.proToolsOnLeft = onLeft ? true : nil; preferences.save() })) {
                         Text("Across the top").tag(false)
                         Text("Down the left").tag(true)

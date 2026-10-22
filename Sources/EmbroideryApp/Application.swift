@@ -54,7 +54,6 @@ import EmbroideryCore
         Self.open.append(self)
         addTab(for: document)
         DispatchQueue.main.async { [weak self] in
-            self?.addViewModeSwitchOnce(toolbar)
             self?.addDesignTabsOnce(toolbar)
         }
     }
@@ -81,7 +80,7 @@ import EmbroideryCore
     func select(_ pane: DesignPane) {
         guard pane !== selectedPane, panes.contains(where: { $0 === pane }) else { refreshTabs(); return }
         if let old = selectedPane {
-            Preferences.shared.data.workspace.setPanels(old.capturePanels(), pro: Preferences.shared.isPro)
+            Preferences.shared.data.workspace.panels = old.capturePanels()
             old.view.removeFromSuperview(); old.removeFromParent()
             old.document.removeWindowController(self)
         }
@@ -133,7 +132,7 @@ import EmbroideryCore
         guard let index = panes.firstIndex(where: { $0.document === document }) else { return }
         let pane = panes[index]
         if pane === selectedPane {
-            Preferences.shared.data.workspace.setPanels(pane.capturePanels(), pro: Preferences.shared.isPro)
+            Preferences.shared.data.workspace.panels = pane.capturePanels()
             pane.view.removeFromSuperview(); pane.removeFromParent()
             document.removeWindowController(self)
             selectedPane = nil
@@ -173,15 +172,15 @@ import EmbroideryCore
     /// The workspace with the docks' current widths, for saving.
     func captureWorkspace() -> Workspace {
         var workspace = Preferences.shared.data.workspace
-        workspace.setPanels(selectedPane?.capturePanels() ?? Preferences.shared.panels, pro: Preferences.shared.isPro)
+        workspace.panels = selectedPane?.capturePanels() ?? Preferences.shared.panels
         return workspace
     }
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.designTabs, .flexibleSpace, .space, .viewMode] + CommandID.allCases.filter { ![.finishPath, .cancelPath, .removePoint].contains($0) }.map { .init($0.rawValue) }
+        [.designTabs, .flexibleSpace, .space] + CommandID.allCases.filter { ![.finishPath, .cancelPath, .removePoint].contains($0) }.map { .init($0.rawValue) }
     }
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         // The design tabs take the free width; tools live in the docked tool strip, so the rest are document actions.
-        [.designTabs, .init(CommandID.importImage.rawValue), .space, .init(CommandID.undo.rawValue), .init(CommandID.redo.rawValue), .space, .viewMode, .init(CommandID.exportMachine.rawValue)]
+        [.designTabs, .init(CommandID.importImage.rawValue), .space, .init(CommandID.undo.rawValue), .init(CommandID.redo.rawValue), .space, .init(CommandID.exportMachine.rawValue)]
     }
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
         if identifier == .designTabs {
@@ -194,14 +193,6 @@ import EmbroideryCore
             item.label = "Designs"; item.paletteLabel = "Design Tabs"; item.visibilityPriority = .high
             return item
         }
-        if identifier == .viewMode {
-            // A two-part switch: Guided or Pro. It runs the same command as View > Pro View.
-            let control = NSSegmentedControl(labels: ["Guided", "Pro"], trackingMode: .selectOne, target: self, action: #selector(viewModeChosen(_:)))
-            control.selectedSegment = Preferences.shared.isPro ? 1 : 0
-            let item = NSToolbarItem(itemIdentifier: identifier); item.view = control
-            item.label = "View"; item.paletteLabel = "Guided or Pro View"; item.toolTip = "Guided shows the everyday settings; Pro shows everything  \(Preferences.shared.label(.proView))"
-            return item
-        }
         guard let command = CommandID(rawValue: identifier.rawValue) else { return nil }
         let item = NSToolbarItem(itemIdentifier: identifier); item.label = command.title; item.paletteLabel = command.title
         item.image = NSImage.drawn(command.symbol, size: 14) ?? NSImage(systemSymbolName: command.symbol, accessibilityDescription: command.title)
@@ -211,21 +202,10 @@ import EmbroideryCore
     func updateToolbarHints() {
         for item in window?.toolbar?.items ?? [] {
             if let command = CommandID(rawValue: item.itemIdentifier.rawValue) { item.toolTip = Preferences.shared.hint(command) }
-            if item.itemIdentifier == .viewMode, let control = item.view as? NSSegmentedControl { control.selectedSegment = Preferences.shared.isPro ? 1 : 0 }
         }
     }
-    @objc func viewModeChosen(_ sender: NSSegmentedControl) {
-        if (sender.selectedSegment == 1) != Preferences.shared.isPro { AppDelegate.shared.perform(.proView) }
-    }
-    /// Toolbars remember their items, so the Guided/Pro switch is added once to toolbars saved before it existed.
-    private func addViewModeSwitchOnce(_ toolbar: NSToolbar) {
-        let key = "AddedViewModeToolbarItem"
-        guard !UserDefaults.standard.bool(forKey: key) else { return }
-        UserDefaults.standard.set(true, forKey: key)
-        if !toolbar.items.contains(where: { $0.itemIdentifier == .viewMode }) { toolbar.insertItem(withItemIdentifier: .viewMode, at: max(0, toolbar.items.count - 2)) }
-    }
-    /// The same for the design tabs: toolbars saved before them get the tabs once, at the front, in place of the
-    /// flexible space that used to push the buttons apart.
+    /// Toolbars remember their items, so the design tabs are added once to toolbars saved before them, at the front,
+    /// in place of the flexible space that used to push the buttons apart.
     private func addDesignTabsOnce(_ toolbar: NSToolbar) {
         let key = "AddedDesignTabsToolbarItem"
         guard !UserDefaults.standard.bool(forKey: key) else { return }
@@ -348,7 +328,6 @@ import EmbroideryCore
         if menuItem.action == #selector(textAction(_:)) { return NSApp.keyWindow?.firstResponder is NSTextView }
         guard let raw = menuItem.representedObject as? String, let command = CommandID(rawValue: raw) else { return true }
         if let panel = PanelID(command: command) { menuItem.state = Preferences.shared.panels.isVisible(panel) ? .on : .off; return true }
-        if command == .proView { menuItem.state = Preferences.shared.isPro ? .on : .off; return true }
         if command == .threadView { menuItem.state = Preferences.shared.threadView ? .on : .off; return true }
         if command == .showRulers { menuItem.state = Preferences.shared.showsRulers ? .on : .off; return true }
         if command == .paletteUnderCanvas { menuItem.state = Preferences.shared.paletteUnderCanvas ? .on : .off; return true }
@@ -390,12 +369,6 @@ import EmbroideryCore
         case .nextTab: active?.selectNeighbor(1); return
         case .previousTab: active?.selectNeighbor(-1); return
         case .restoreWorkspace: Preferences.shared.data.workspace = Workspace(); Preferences.shared.save(); return
-        case .proView:
-            let pro = !Preferences.shared.isPro
-            Preferences.shared.setPro(pro)
-            let key = Preferences.shared.label(.proView)
-            active?.state.status = pro ? "Pro view: every tool and setting on screen.\(key.isEmpty ? "" : " \(key) switches back to Guided.")" : "Guided view: the everyday settings, with the rest under More settings."
-            return
         case .paletteUnderCanvas:
             let on = !Preferences.shared.paletteUnderCanvas
             Preferences.shared.setPaletteUnderCanvas(on)
@@ -418,8 +391,7 @@ import EmbroideryCore
         case .inspector, .palette, .panelSewingOrder, .panelDesign, .panelReference:
             // Show or hide a panel; showing a hidden one puts it back where it lives in the standard layout.
             guard let panel = PanelID(command: command) else { return }
-            let home = Preferences.shared.homeLayout
-            Preferences.shared.updatePanels { $0.isVisible(panel) ? $0.hide(panel) : $0.show(panel, home: home) }; return
+            Preferences.shared.updatePanels { $0.isVisible(panel) ? $0.hide(panel) : $0.show(panel) }; return
         default: break
         }
         guard let editor = active, let document = editor.document as? DesignDocument else { return }
@@ -1130,7 +1102,7 @@ import EmbroideryCore
             ("File", [.new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportMachine, .exportThreadList, .productionWorksheet, .sample, .stitchSampler]),
             ("Edit", [.undo, .redo, .cutObjects, .copyObjects, .pasteObjects, .selectAll, .delete, .duplicate, .group, .ungroup, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .sequenceBySelection, .sequenceByColor, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .closePath, .lockObject, .hideObject, .renameObject, .threadChart]),
             ("Digitize", [.done]),
-            ("View", [.proView, .threadView, .useInches, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .hoopingsTool, .grid, .snap, .showRulers, .clearGuides, .needles, .artwork, .paletteUnderCanvas, .showUnderlay, .densityMap, .play, .rewind]),
+            ("View", [.threadView, .useInches, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .hoopingsTool, .grid, .snap, .showRulers, .clearGuides, .needles, .artwork, .paletteUnderCanvas, .showUnderlay, .densityMap, .play, .rewind]),
             ("Window", [.nextTab, .previousTab] + PanelID.allCases.map(\.command) + [.saveWorkspace, .restoreWorkspace])]
         for (name, commands) in groups {
             let item = NSMenuItem(); item.submenu = NSMenu(title: name); item.title = name; menu.addItem(item)
@@ -1183,7 +1155,3 @@ import EmbroideryCore
     }
 }
 
-extension NSToolbarItem.Identifier {
-    /// The Guided/Pro switch in the toolbar.
-    static let viewMode = NSToolbarItem.Identifier("viewMode")
-}

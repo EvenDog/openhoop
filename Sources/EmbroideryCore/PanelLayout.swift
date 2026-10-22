@@ -60,14 +60,9 @@ public struct PanelLayout: Codable, Equatable, Sendable {
     public var leftWidth = 230.0
     public var rightWidth = 280.0
 
-    /// The out-of-the-box arrangement: sewing order and threads on the left; properties, design and reference image
-    /// (as tabs) on the right.
-    public static let standard = PanelLayout(left: [PanelGroup([.sewingOrder]), PanelGroup([.threads])],
-                                             right: [PanelGroup([.properties]), PanelGroup([.design, .reference])])
-
-    /// The Pro view's out-of-the-box arrangement: sewing order, design and reference image (as tabs) above the
-    /// threads on a wider left dock; properties on the right.
-    public static let pro: PanelLayout = {
+    /// The out-of-the-box arrangement: sewing order, design and reference image (as tabs) above the threads on a wide
+    /// left dock; properties on the right.
+    public static let standard: PanelLayout = {
         var layout = PanelLayout(left: [PanelGroup([.sewingOrder, .design, .reference]), PanelGroup([.threads])],
                                  right: [PanelGroup([.properties])])
         layout.leftWidth = 340; layout.rightWidth = 290
@@ -131,7 +126,7 @@ public struct PanelLayout: Codable, Equatable, Sendable {
         }
     }
 
-    /// Shows a hidden panel where it lives in `home` (the standard layout of the current view): as a tab with its
+    /// Shows a hidden panel where it lives in `home` (normally the standard layout): as a tab with its
     /// neighbors there if one of them is showing, else as a new group at the bottom of its dock there.
     public mutating func show(_ panel: PanelID, home: PanelLayout = .standard) {
         guard !isVisible(panel) else { select(panel); return }

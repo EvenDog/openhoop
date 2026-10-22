@@ -23,11 +23,11 @@ struct PanelContent: View {
     @ObservedObject var state: EditorState
     var body: some View {
         switch panel {
-        case .sewingOrder: ObjectPanel(state: state)
+        case .sewingOrder: ProSewingOrder(state: state)
         case .properties: InspectorPanel(state: state, section: .properties)
         case .design: InspectorPanel(state: state, section: .design)
         case .reference: InspectorPanel(state: state, section: .reference)
-        case .threads: ThreadsPanel(state: state)
+        case .threads: ProThreads(state: state)
         }
     }
 }
@@ -42,10 +42,7 @@ struct PanelGroupView: View {
     let group: PanelGroup
     let place: GroupPlace
     @ObservedObject var state: EditorState
-    @ObservedObject var preferences = Preferences.shared
     enum Zone { case tabs, before, after }
-    /// The Pro view draws panels tighter: less padding, a shorter tab bar, smaller corners.
-    private var pro: Bool { preferences.isPro }
     @State private var zone: Zone?
 
     var body: some View {
@@ -54,27 +51,27 @@ struct PanelGroupView: View {
                 tabBar
                 Theme.divider.frame(height: 1)
                 PanelContent(panel: group.selected, state: state)
-                    .controlSize(pro ? .small : .regular)   // smaller buttons, menus and checkboxes in the Pro view
-                    .padding(pro ? 8 : 12).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .controlSize(.small)   // small buttons, menus and checkboxes, so more settings fit
+                    .padding(8).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             .background(Theme.card)
-            .clipShape(RoundedRectangle(cornerRadius: pro ? 7 : 12))
-            .overlay(RoundedRectangle(cornerRadius: pro ? 7 : 12).strokeBorder(zone == nil ? Theme.cardBorder : Theme.accent, lineWidth: zone == nil ? 1 : 2))
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(zone == nil ? Theme.cardBorder : Theme.accent, lineWidth: zone == nil ? 1 : 2))
             // A bar shows where a new group would go.
             .overlay(alignment: .top) { if zone == .before { Capsule().fill(Theme.accent).frame(height: 4).offset(y: -4) } }
             .overlay(alignment: .bottom) { if zone == .after { Capsule().fill(Theme.accent).frame(height: 4).offset(y: 4) } }
             .onDrop(of: [.plainText], delegate: GroupDrop(place: place, height: geometry.size.height, zone: $zone))
         }
-        .padding(pro ? 3 : 6)
+        .padding(3)
     }
 
     private var tabBar: some View {
         HStack(spacing: 2) {
             ForEach(group.panels, id: \.self) { panel in
                 let selected = panel == group.selected
-                Text(pro ? panel.shortTitle : panel.title)
-                    .font(Theme.body(pro ? 11 : 12, weight: selected ? .bold : .semibold)).lineLimit(1)
-                    .padding(.horizontal, pro ? 7 : 9).frame(height: pro ? 20 : 24)
+                Text(panel.shortTitle)
+                    .font(Theme.body(11, weight: selected ? .bold : .semibold)).lineLimit(1)
+                    .padding(.horizontal, 7).frame(height: 20)
                     .background(selected ? Theme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 6))
                     .foregroundStyle(selected ? Theme.ink : Theme.inkSecondary)
                     .contentShape(Rectangle())
@@ -89,7 +86,7 @@ struct PanelGroupView: View {
             .buttonStyle(.plain).foregroundStyle(Theme.inkSecondary)
             .help("Hide \(group.selected.title). Window ▸ Panels brings it back.")
         }
-        .padding(.horizontal, 6).frame(height: pro ? 28 : 34)
+        .padding(.horizontal, 6).frame(height: 28)
         .background(zone == .tabs ? Theme.accentSoft : Color.clear)
     }
 }
@@ -248,7 +245,7 @@ struct DockColumn: View {
 }
 
 extension PanelID {
-    /// A shorter tab title for the Pro view's narrower tabs.
+    /// A shorter tab title for the narrow tabs.
     var shortTitle: String {
         switch self {
         case .reference: return "Reference"
