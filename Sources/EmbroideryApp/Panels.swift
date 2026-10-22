@@ -26,7 +26,7 @@ struct ToolStrip: View {
         ("Stitch", [.runTool, .satinTool, .fillTool, .holeTool, .addStitchAngles, .removeStitchAngles]),
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool]),
         ("Add", [.lettering, .addMonogram, .satinBorder, .outlinesOffsets, .applique, .autoDigitize, .laydown]),
-        ("View", [.measureTool, .hoopingsTool, .grid, .snap, .threadView]),
+        ("View", [.measureTool, .hoopingsTool, .grid, .snap, .threadView, .reviewSewingOrder]),
         ("Show", [.showStitches, .showOutlines, .showConnectors, .needles, .showUnderlay, .hideOthers, .showRulers, .densityMap]),
         ("Zoom", [.zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected])
     ]
@@ -120,6 +120,7 @@ struct ToolStrip: View {
         func key(_ command: CommandID, _ verb: String) -> String {
             let keys = preferences.keys(command).first?.display ?? ""; return keys.isEmpty ? "" : " · \(keys) \(verb)"
         }
+        if state.reviewing && state.tool == .select { return ("Reviewing", "← → step · Esc finishes") }
         switch state.tool {
         case .select: return ("Select", "Shift-click selects more")
         case .node: return ("Edit nodes", "drag nodes and handles" + key(.insertNode, "inserts") + key(.deleteNode, "removes"))
@@ -195,6 +196,7 @@ struct ToolStrip: View {
         case .showUnderlay: return state.showUnderlay
         case .densityMap: return state.showDensity
         case .threadView: return preferences.threadView
+        case .reviewSewingOrder: return state.reviewing
         case .showRulers: return preferences.showsRulers
         case .showStitches: return state.showStitches
         case .showOutlines: return state.showOutlines
@@ -365,6 +367,7 @@ struct InspectorPanel: View {
         return "Lettering · \(font)"
     }
     @ViewBuilder private var propertiesSection: some View {
+        if state.reviewing { ReviewSection(state: state) }   // the step being reviewed, above the rest (ReviewSection.swift)
         ToolOptions(state: state)   // the current tool's choices, such as the next shape's (ToolOptions.swift)
         if ToolOptions.showsNextShape(state) || state.tool == .hooping {
             // A shape tool was just picked, or the Hoopings tool: its choices stand in for the selection's properties.

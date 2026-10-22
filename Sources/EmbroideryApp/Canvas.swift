@@ -440,7 +440,10 @@ final class DesignCanvas: NSView {
         func colors(_ threads: [ThreadColor]) -> [[CGColor]] { threads.map { thread in [0.95, 0.40].map { thread.nsColor.withAlphaComponent($0).cgColor } } }
         var threads = plan.threads, threadColors = colors(threads)
         let unknownThread = [0.95, 0.40].map { NSColor.systemTeal.withAlphaComponent($0).cgColor }
-        let commands = plan.commands.prefix(Int(Double(plan.commands.count) * state.playback))
+        // While reviewing the sewing order, the design is sewn up to the end of the step being looked at; otherwise
+        // the stitch player says how much is sewn.
+        let review = state.reviewStep?.step
+        let commands = plan.commands.prefix(review?.commands.upperBound ?? Int(Double(plan.commands.count) * state.playback))
         context.setLineWidth(1.1); context.setLineCap(.round)
         var needles = CGMutablePath()
         var activeColor: CGColor?
@@ -483,6 +486,14 @@ final class DesignCanvas: NSView {
             context.endTransparencyLayer(); context.restoreGState()
             hidden = shown.union(faded); previous = Point(0, 0); needles = CGMutablePath()
         }
+        // Reviewing with Faded (Settings › Look): the steps still to sew are drawn faint first, under what's sewn.
+        if let review, !Preferences.shared.reviewHidesUnsewn, commands.endIndex < plan.commands.endIndex {
+            previous = review.end
+            context.saveGState(); context.setAlpha(0.22); context.beginTransparencyLayer(auxiliaryInfo: nil)
+            drawStitches(plan.commands[commands.endIndex...])
+            context.endTransparencyLayer(); context.restoreGState()
+            previous = Point(0, 0); needles = CGMutablePath()
+        }
         drawStitches(commands[..<split])
         if artworkLayer > 0 { drawArtwork() }
         drawStitches(commands[split...])
@@ -494,6 +505,7 @@ final class DesignCanvas: NSView {
         if threadView && showStitches { context.setStrokeColor(NSColor.white.withAlphaComponent(0.85).cgColor); context.setLineWidth(0.8); context.addPath(needles); context.strokePath() }
         context.setFillColor(Theme.Canvas.needle.cgColor); context.addPath(needles); context.fillPath()
         if state.showDensity { drawDensityMap(context) }
+        if let review, let travel = review.travel { drawTravel(travel, to: review.start) }
         let sewn = sewnEnds()
         let unplaced = Set(state.hoopingAssignment?.unplaced ?? [])
         for object in design.objects where state.isShown(object) {
@@ -857,6 +869,24 @@ final class DesignCanvas: NSView {
             let square = NSBezierPath(rect: CGRect(x: handle.point.x - 3.5, y: handle.point.y - 3.5, width: 7, height: 7))
             NSColor(white: 0.2, alpha: 1).setFill(); square.fill(); NSColor.white.setStroke(); square.lineWidth = 1; square.stroke()
         }
+    }
+    /// While reviewing: the way from where the step before ended (a faint ×) to this step's start, dashed, with what
+    /// happens on the way beside it, such as "Trim, then 18.6 mm".
+    private func drawTravel(_ travel: SewingTravel, to start: Point) {
+        let a = screen(travel.from), b = screen(start)
+        let line = NSBezierPath(); line.move(to: a); line.line(to: b); line.lineCapStyle = .round
+        NSColor.white.withAlphaComponent(0.7).setStroke(); line.lineWidth = 3.5; line.stroke()   // keeps it clear on any thread
+        Theme.Canvas.handle.setStroke(); line.lineWidth = 1.5; line.setLineDash([5, 4], count: 2, phase: 0); line.stroke()
+        NSGraphicsContext.saveGraphicsState(); NSGraphicsContext.current?.cgContext.setAlpha(0.5)
+        drawEndMarker(travel.from)
+        NSGraphicsContext.restoreGraphicsState()
+        // The label sits beside the line's middle, on a light backing like the other canvas labels.
+        let text = travel.summary(unit: Preferences.shared.unit), width = labelWidth(text, size: 11)
+        let middle = CGPoint(x: (a.x + b.x) / 2 + 10, y: (a.y + b.y) / 2 - 9)
+        Theme.Canvas.ruler.withAlphaComponent(0.92).setFill()
+        let backing = NSBezierPath(roundedRect: CGRect(x: middle.x, y: middle.y, width: width + 12, height: 18), xRadius: 9, yRadius: 9)
+        backing.fill(); Theme.Canvas.handle.setStroke(); backing.lineWidth = 0.75; backing.stroke()
+        drawLabel(text, at: CGPoint(x: middle.x + 6, y: middle.y + 2), size: 11, color: Theme.Canvas.handle)
     }
     private func drawMarker(_ point: Point?, label: String, color: NSColor) {
         guard let point else { return }

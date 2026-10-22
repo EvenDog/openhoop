@@ -157,7 +157,8 @@ struct SettingsRow<Control: View>: View {
     }
 }
 
-/// Look: light or dark, the surface around the hoop, and the grid lines' color.
+/// Look: light or dark, the surface around the hoop, the grid lines' color, and how Review Sewing Order shows the
+/// steps still to sew.
 private struct LookSettings: View {
     @ObservedObject var preferences = Preferences.shared
     var body: some View {
@@ -210,6 +211,15 @@ private struct LookSettings: View {
                         }
                         .pickerStyle(.segmented).labelsHidden().fixedSize()
                     }
+                }
+                RowDivider()
+                SettingsRow(title: "Reviewing the sewing order", hint: "How the steps still to sew look",
+                            help: "In View › Review Sewing Order, Faded keeps the whole design in view; Hidden shows only what's sewn so far, like a sew-out paused at that step.") {
+                    Picker("Steps still to sew", selection: Binding(get: { preferences.reviewHidesUnsewn }, set: { preferences.data.reviewHidesUnsewn = $0 ? true : nil; preferences.save() })) {
+                        Text("Faded").tag(false)
+                        Text("Hidden").tag(true)
+                    }
+                    .pickerStyle(.segmented).labelsHidden().fixedSize()
                 }
             }
             Text("Fabric color is chosen per design: click empty canvas so nothing is selected, then look under Fabric in Properties.")
