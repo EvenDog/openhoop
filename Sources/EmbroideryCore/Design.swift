@@ -536,6 +536,9 @@ public struct Design: Codable, Equatable, Sendable {
     /// new designs until it's changed) means the eight basic colors. Like the guides it never changes the stitches,
     /// so older versions can safely ignore it.
     public var palette: [ThreadColor]?
+    /// The hoopings that sew a design bigger than the hoop (MultiHooping.swift), or nil to sew it in one hooping.
+    /// It decides what each machine file holds, so a design using it is saved as version 7.
+    public var multiHooping: MultiHooping?
     public init() {}
     /// The IDs of every object grouped with `id` (just `id` itself when it isn't grouped).
     public func groupMembers(of id: UUID) -> Set<UUID> {
@@ -572,6 +575,9 @@ public struct Design: Codable, Equatable, Sendable {
             || ($0.kind == .fill && $0.settings.tatamiPattern != nil)
             || $0.guideFor != nil }
     }
+    /// True when a design is sewn in several hoopings, so it's saved as version 7 and older versions of the app,
+    /// which would try to sew it in one hooping, refuse it instead.
+    public var needsSchemaSeven: Bool { multiHooping != nil }
     public var needsSchemaFive: Bool { usesHandles || basting != nil || objects.contains { $0.branchID != nil || $0.stitchEdits != nil || $0.entry != nil || $0.exit != nil || ($0.kind == .satin && ($0.closed || $0.settings.relaxedChecks == true)) || ($0.kind == .fill && ($0.settings.fillStyle ?? .tatami) != .tatami) || ($0.kind == .run && ($0.settings.runPasses ?? 1) > 1) || ($0.kind == .satin && ($0.settings.shortStitches == true || $0.settings.autoSplit == true)) || ($0.kind == .fill && ($0.settings.cutOutOverlaps == true || !($0.settings.angleLines ?? []).isEmpty)) || ($0.kind == .satin && ($0.settings.secondUnderlay != nil || $0.settings.underlay == .auto || $0.settings.pullPercent != nil)) } }
     public static func sample() -> Self {
         var design = Self()
@@ -594,13 +600,14 @@ public struct Design: Codable, Equatable, Sendable {
 
     /// Reject corrupt or unreasonable input before it reaches the renderer or generator.
     public func validate() throws {
-        guard (1...6).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
+        guard (1...7).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }
         guard trimDistance.map(Self.trimDistances.contains) ?? true else { throw DesignError.invalid("The trim distance must be between 0.5 and 20 mm.") }
         guard (guides ?? []).count <= Guide.limit, (guides ?? []).allSatisfy({ $0.position.isFinite && abs($0.position) <= 10_000 }) else { throw DesignError.invalid("The guide lines are invalid or too many.") }
         guard (palette ?? []).count <= Self.paletteLimit, (palette ?? []).allSatisfy(\.isValid) else { throw DesignError.invalid("The design's thread palette is invalid or too long.") }
+        guard multiHooping.map({ $0.hoopings.count <= MultiHooping.limit && $0.hoopings.allSatisfy { $0.center.finite && abs($0.center.x) <= 10_000 && abs($0.center.y) <= 10_000 } }) ?? true else { throw DesignError.invalid("The hoopings are invalid or too many.") }
         guard objects.reduce(0, { $0 + $1.allNodes.count }) <= 100_000 else { throw DesignError.invalid("This design exceeds the 100,000-node limit.") }
         for object in objects {
             if let edits = object.stitchEdits {
