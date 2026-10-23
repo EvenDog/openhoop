@@ -6,6 +6,26 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.7.5</title>
+            <pubDate>Fri, 23 Oct 2026 00:40:25 GMT</pubDate>
+            <sparkle:version>21</sparkle:version>
+            <sparkle:shortVersionString>0.7.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.7.5</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.7.5</h3>
+<ul>
+<li><b>Underlay 1 and Underlay 2, each with its own settings.</b> Satins and fills now have two underlay sections in Properties. Each has its own type and shows only the settings that type uses: <b>Inset</b>, <b>Spacing</b>, <b>Length</b> (new: the underlay's stitch length) and, for tatami, <b>Angle</b>.</li>
+<li><b>Fills get two underlay layers.</b> Each can be an inset edge run or <b>tatami</b> (sparse rows across the shape, now a type of its own). New fills sew an edge run, then tatami rows, the same stitches as the old "Edge + sparse". A tatami underlay's angle is measured from the fill's angle, so 90° runs straight across the top rows.</li>
+<li><b>Crossed tatami.</b> Pick Tatami for both layers and Underlay 2 starts square to Underlay 1: a crosshatch for big fills or stretchy fabric.</li>
+<li><b>Double zigzag underlay for satins.</b> A zigzag down the column and back, crossing itself in X's, for wide satins.</li>
+<li><b>Older designs sew exactly as before.</b> They open with their underlay split into the two layers. Designs that use the new options are saved as a newer file version, so older versions of OpenHoop won't open them.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.7.5/OpenHoop-0.7.5.dmg" sparkle:edSignature="d0usMiz5kgBENunhCyS9xySrR2rDPhTip0cVrryjyqF85FVu3n8ezuIjNbrm5HfhJJif+5d8FYVOJqtk40y1Aw==" length="22807630" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.7.4</title>
             <pubDate>Thu, 22 Oct 2026 20:16:36 GMT</pubDate>
             <sparkle:version>20</sparkle:version>
