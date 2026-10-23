@@ -24,8 +24,8 @@ public enum SwatchSetting: String, CaseIterable, Sendable {
             // Stipple, motif, cross stitch and gradient fills have spacings of their own, and the first three no underlay.
             let ownSpacing = [.stipple, .motif, .crossStitch, .gradient].contains(style), underlay = ![.stipple, .motif, .crossStitch].contains(style)
             return [ownSpacing ? nil : .rowSpacing, style.usesStitchLength ? .stitchLength : nil, .compensation,
-                    StitchAngleLine.applies(to: object) ? .angle : nil, underlay && s.usesUnderlaySpacing(.fill) ? .underlaySpacing : nil].compactMap { $0 }
-        case .satin: return [.rowSpacing, .compensation, .compensationPercent, s.usesUnderlaySpacing(.satin) ? .underlaySpacing : nil].compactMap { $0 }
+                    StitchAngleLine.applies(to: object) ? .angle : nil, underlay && !s.spacedUnderlays.isEmpty ? .underlaySpacing : nil].compactMap { $0 }
+        case .satin: return [.rowSpacing, .compensation, .compensationPercent, !s.spacedUnderlays.isEmpty ? .underlaySpacing : nil].compactMap { $0 }
         case .run: return (s.runStyle ?? .running).usesStitchLength ? [.stitchLength] : []
         default: return []
         }
@@ -45,7 +45,7 @@ public enum SwatchSetting: String, CaseIterable, Sendable {
         let s = object.settings
         switch self {
         case .rowSpacing: return s.spacing; case .stitchLength: return object.stitchLength; case .compensation: return s.expansion
-        case .compensationPercent: return s.pullPercent ?? 0; case .angle: return s.angle; case .underlaySpacing: return s.underlaySpacing
+        case .compensationPercent: return s.pullPercent ?? 0; case .angle: return s.angle; case .underlaySpacing: return s.spacedUnderlays.first.flatMap { s.underlayLayer($0)?.spacing } ?? s.underlaySpacing
         }
     }
     /// `object` with this setting changed to `value`.
@@ -54,7 +54,8 @@ public enum SwatchSetting: String, CaseIterable, Sendable {
         if copy.digitizing == nil && self != .stitchLength { copy.digitizing = object.settings }
         switch self {
         case .rowSpacing: copy.digitizing?.spacing = value; case .stitchLength: copy.stitchLength = value; case .compensation: copy.digitizing?.expansion = value
-        case .compensationPercent: copy.digitizing?.pullPercent = value; case .angle: copy.digitizing?.angle = value; case .underlaySpacing: copy.digitizing?.underlaySpacing = value
+        case .compensationPercent: copy.digitizing?.pullPercent = value; case .angle: copy.digitizing?.angle = value
+        case .underlaySpacing: for number in object.settings.spacedUnderlays { copy.digitizing?.setUnderlay(number, spacing: value) }
         }
         return copy
     }

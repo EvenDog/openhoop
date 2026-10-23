@@ -253,10 +253,37 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
 public enum StitchKind: String, Codable, CaseIterable, Sendable { case run, satin, fill, vector, raw
     public var title:String {self == .raw ? "Imported stitches" : self == .vector ? "Vector · unstitched" : self == .run ? "Running" : self == .satin ? "Satin" : "Tatami Fill"}
 }
-public enum UnderlayStyle: String, Codable, CaseIterable, Sendable {case none, center, edge, zigzag, edgeAndSparse
+public enum UnderlayStyle: String, Codable, CaseIterable, Sendable {case none, center, edge, zigzag
+    /// Fills in older files: an edge run then sparse rows, in one. Opening the file splits it into Underlay 1 (edge
+    /// run) and Underlay 2 (tatami) (Design.splitEdgeAndSparse).
+    case edgeAndSparse
     /// Satins only: picked from the column's width each time it sews (`DigitizingSettings.autoUnderlay`).
     case auto
-    public var title:String {switch self {case .none:return "None";case .center:return "Center run";case .edge:return "Inset edge run";case .zigzag:return "Inset zigzag";case .edgeAndSparse:return "Edge + sparse fill";case .auto:return "Auto (by width)"}}
+    /// Fills only: sparse rows across the shape.
+    case tatami
+    public var title:String {switch self {case .none:return "None";case .center:return "Center run";case .edge:return "Inset edge run";case .zigzag:return "Inset zigzag";case .edgeAndSparse:return "Edge + sparse fill";case .auto:return "Auto (by width)";case .tatami:return "Tatami"}}
+    /// Which of a layer's own settings change its stitches, so Properties shows only those. A center run sews one
+    /// stitch per rung of the column, so its length is how far apart they are; a zigzag swings from edge to edge,
+    /// so only its spacing sets it. Auto uses Underlay 1's inset and spacing for whatever it picks.
+    public var usesInset:Bool {[.edge,.zigzag,.tatami,.auto].contains(self)}
+    public var usesSpacing:Bool {[.zigzag,.tatami,.auto].contains(self)}
+    public var usesLength:Bool {[.center,.edge,.tatami].contains(self)}
+    public var usesAngle:Bool {self == .tatami}
+}
+/// One underlay layer as it sews: its type, how far inside the edge it runs, the spacing between its rows or
+/// zigzags, its stitch length and (tatami rows) its angle.
+public struct UnderlayLayer: Hashable, Sendable {
+    public var style:UnderlayStyle
+    public var inset:Double
+    public var spacing:Double
+    /// nil uses the type's starting length (`stitchLength`).
+    public var length:Double?
+    /// Tatami only: the rows' direction in degrees, measured from the fill's angle (90 is straight across its rows).
+    public var angle:Double
+    public static let defaultAngle=90.0
+    /// The stitch length it sews with: its own, or 2.5 mm. A center run's starts at its spacing (one stitch per rung
+    /// of the column), which is how it sewed before underlay had a length of its own.
+    public var stitchLength:Double {length ?? (style == .center ? spacing : 2.5)}
 }
 /// How a fill lays down its thread: straight rows (tatami), rings that follow the outline inward (contour), rays
 /// fanning out from a center (radial), rows that ripple (wave), one wandering line that never crosses itself (stipple),
@@ -328,17 +355,68 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     /// longer than `longSatinStitch` get a warning instead: they can snag, and machine files can't hold a stitch much
     /// longer than 12 mm (DST: 12.1 mm), so the export splits them all at the same place.
     public static let maximumSatinRange=1.0...1000.0, longSatinStitch=12.0
+    /// Underlay 1's type.
     public var underlay:UnderlayStyle {
         // A second underlay needs a first one, of a different style (the same style twice would just sew it again).
-        // Auto picks its own second underlay.
-        didSet {if underlay == .none || underlay == .auto || underlay == secondUnderlay {secondUnderlay=nil}}
+        // Auto picks its own second underlay. A new type starts with its own stitch length.
+        didSet {
+            if underlay != oldValue {underlayLength=nil}
+            if underlay == .none || underlay == .auto || underlay == secondUnderlay {secondUnderlay=nil}
+        }
     }
+    /// Underlay 1's inset (how far inside the edge it runs) and spacing (between its rows or zigzags), in mm.
     public var inset=0.4
     public var underlaySpacing=1.2
-    /// Satin only: a second underlay layer, sewn after the first and before the top stitches (a second
-    /// underlay, e.g. a center run then a zigzag). It uses the same inset and spacing as the first. nil (the default,
-    /// and in older files) means none.
-    public var secondUnderlay:UnderlayStyle?
+    /// Underlay 1's stitch length and (tatami) angle. nil uses the type's starting values (UnderlayLayer).
+    public var underlayLength:Double?
+    public var underlayAngle:Double?
+    /// Underlay 2: sewn after Underlay 1 and before the top stitches (e.g. a satin's center run then a zigzag, or a
+    /// fill's edge run then tatami rows). nil (the default for satins, and in older files) means none.
+    public var secondUnderlay:UnderlayStyle? {
+        // It starts with Underlay 1's inset and spacing (which it shared before it had its own), and a new type with
+        // its own stitch length.
+        didSet {
+            if secondUnderlay != oldValue {secondLength=nil}
+            if secondUnderlay != nil {secondInset=secondInset ?? inset;secondSpacing=secondSpacing ?? underlaySpacing}
+        }
+    }
+    /// Underlay 2's own inset, spacing, stitch length and angle, as Underlay 1's. A nil inset or spacing (older
+    /// files, where both layers shared them) uses Underlay 1's.
+    public var secondInset:Double?
+    public var secondSpacing:Double?
+    public var secondLength:Double?
+    public var secondAngle:Double?
+    public static let underlayLengthRange=0.5...8.0
+    /// Underlay 1 or 2 (`number`) with the numbers it sews with; nil when that layer is None.
+    public func underlayLayer(_ number:Int)->UnderlayLayer? {
+        if number == 1 {return underlay == .none ? nil : UnderlayLayer(style:underlay,inset:inset,spacing:underlaySpacing,length:underlayLength,angle:underlayAngle ?? UnderlayLayer.defaultAngle)}
+        return secondUnderlay.map{UnderlayLayer(style:$0,inset:secondInset ?? inset,spacing:secondSpacing ?? underlaySpacing,length:secondLength,angle:secondAngle ?? UnderlayLayer.defaultAngle)}
+    }
+    /// Changes Underlay 1's or 2's own numbers; the ones left out stay as they are.
+    public mutating func setUnderlay(_ number:Int,inset:Double?=nil,spacing:Double?=nil,length:Double?=nil,angle:Double?=nil) {
+        if number == 1 {
+            if let inset {self.inset=inset};if let spacing {underlaySpacing=spacing}
+            if let length {underlayLength=length};if let angle {underlayAngle=angle}
+        } else {
+            if let inset {secondInset=inset};if let spacing {secondSpacing=spacing}
+            if let length {secondLength=length};if let angle {secondAngle=angle}
+        }
+    }
+    /// The underlay layers (1 and 2) that have rows or zigzags to space (an edge or center run has none).
+    public var spacedUnderlays:[Int] {[1,2].filter{underlayLayer($0)?.style.usesSpacing == true}}
+    /// The underlay layers a shape sews, in order. For Auto, what it picks for a satin `width` mm wide, with Underlay
+    /// 1's inset and spacing; otherwise Underlay 1 and 2. A fill's Edge + sparse from an older file sews as an edge
+    /// run then tatami rows, as it always did.
+    public func sewnUnderlays(width:Double=0)->[UnderlayLayer] {
+        func layer(_ style:UnderlayStyle)->UnderlayLayer {UnderlayLayer(style:style,inset:inset,spacing:underlaySpacing,length:nil,angle:UnderlayLayer.defaultAngle)}
+        switch underlay {
+        case .auto:
+            let picked=Self.autoUnderlay(width:width,stretchy:stretchyFabric == true)
+            return [picked.first,picked.second].compactMap{$0}.map(layer)
+        case .edgeAndSparse: return [layer(.edge),layer(.tatami)]
+        default: return [underlayLayer(1),underlayLayer(2)].compactMap{$0}
+        }
+    }
     /// Satin only: extra pull compensation for each stitch, as a percentage of its width, on each side (on top of
     /// `expansion`), so wide parts of a column get more. nil (older files, fonts, tack-downs) means none.
     public var pullPercent:Double?
@@ -356,14 +434,6 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
         if width<4 && !stretchy {return (.edge,nil)}
         return (.edge,.zigzag)
     }
-    /// True when the underlay spacing changes something: a fill's sparse rows (Edge + sparse), or a satin's center
-    /// run or zigzag (as first or second underlay, or picked by Auto). An edge run alone has no rows to space.
-    public func usesUnderlaySpacing(_ kind: StitchKind) -> Bool {
-        if kind == .fill { return underlay == .edgeAndSparse }
-        return [underlay, secondUnderlay ?? UnderlayStyle.none].contains { [.center, .zigzag, .auto].contains($0) }
-    }
-    /// True when an underlay layer runs inside the edge, so the underlay inset applies (a center run ignores it).
-    public var usesUnderlayInset:Bool {[underlay,secondUnderlay ?? UnderlayStyle.none].contains{$0 != .none && $0 != .center}}
     /// True for satins converted from embroidery fonts: the satin engine skips the checks meant for hand-drawn
     /// columns (crossing or reversing rungs, rungs leaving the column, touching edges), because font designers
     /// deliberately fan and overlap stitches. nil (the default, and in older files) means the full checks.
@@ -445,7 +515,8 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     /// deleted, so the fill still sews the same way.
     public var guideLine:[Point]?
     public init(kind:StitchKind) {
-        self.kind=kind;spacingAcrossTwoRows=true;underlay=kind == .vector ? .none : kind == .fill ? .edgeAndSparse : kind == .satin ? .auto : .center
+        self.kind=kind;spacingAcrossTwoRows=true;underlay=kind == .vector ? .none : kind == .fill ? .edge : kind == .satin ? .auto : .center
+        if kind == .fill {secondUnderlay = .tatami;secondInset=inset;secondSpacing=underlaySpacing}   // an edge run, then tatami rows
         if kind == .satin {shortStitches=true;autoSplit=true;pullPercent=Self.defaultPullPercent}
     }
 }
@@ -578,6 +649,17 @@ public struct Design: Codable, Equatable, Sendable {
     /// True when a design is sewn in several hoopings, so it's saved as version 7 and older versions of the app,
     /// which would try to sew it in one hooping, refuse it instead.
     public var needsSchemaSeven: Bool { multiHooping != nil }
+    /// True when a design uses underlay added in file version 8 (a fill's Underlay 2 or tatami underlay; an
+    /// underlay's own stitch length or angle; an Underlay 2 inset or spacing apart from Underlay 1's), so it's saved
+    /// as version 8 and older versions of the app, which would sew it differently, refuse it instead.
+    public var needsSchemaEight: Bool {
+        objects.contains { object in
+            guard object.kind == .fill || object.kind == .satin, let s = object.digitizing else { return false }
+            return [s.underlay, s.secondUnderlay].contains(.tatami) || (object.kind == .fill && s.secondUnderlay != nil)
+                || s.underlayLength != nil || s.underlayAngle != nil || s.secondLength != nil || s.secondAngle != nil
+                || (s.secondUnderlay != nil && ((s.secondInset ?? s.inset) != s.inset || (s.secondSpacing ?? s.underlaySpacing) != s.underlaySpacing))
+        }
+    }
     public var needsSchemaFive: Bool { usesHandles || basting != nil || objects.contains { $0.branchID != nil || $0.stitchEdits != nil || $0.entry != nil || $0.exit != nil || ($0.kind == .satin && ($0.closed || $0.settings.relaxedChecks == true)) || ($0.kind == .fill && ($0.settings.fillStyle ?? .tatami) != .tatami) || ($0.kind == .run && ($0.settings.runPasses ?? 1) > 1) || ($0.kind == .satin && ($0.settings.shortStitches == true || $0.settings.autoSplit == true)) || ($0.kind == .fill && ($0.settings.cutOutOverlaps == true || !($0.settings.angleLines ?? []).isEmpty)) || ($0.kind == .satin && ($0.settings.secondUnderlay != nil || $0.settings.underlay == .auto || $0.settings.pullPercent != nil)) } }
     public static func sample() -> Self {
         var design = Self()
@@ -600,7 +682,7 @@ public struct Design: Codable, Equatable, Sendable {
 
     /// Reject corrupt or unreasonable input before it reaches the renderer or generator.
     public func validate() throws {
-        guard (1...7).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
+        guard (1...8).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }
@@ -651,8 +733,11 @@ public struct Design: Codable, Equatable, Sendable {
                 guard object.allNodes.count<=2000,(object.holes?.count ?? 0)<=100,
                       (0.15...10).contains(s.spacing),(0...2).contains(s.expansion),(-180...180).contains(s.angle),
                       DigitizingSettings.maximumSatinRange.contains(s.maximumSatin),s.satinSplit.map(DigitizingSettings.satinSplitRange.contains) ?? true,(0...3).contains(s.inset),(0.5...5).contains(s.underlaySpacing),
-                      object.kind == .fill ? [.none,.edge,.edgeAndSparse].contains(s.underlay) : [.none,.center,.edge,.zigzag,.auto].contains(s.underlay),
-                      s.secondUnderlay.map({object.kind == .satin && s.underlay != .none && s.underlay != .auto && $0 != s.underlay && [.center,.edge,.zigzag].contains($0)}) ?? true,
+                      object.kind == .fill ? [.none,.edge,.edgeAndSparse,.tatami].contains(s.underlay) : [.none,.center,.edge,.zigzag,.auto].contains(s.underlay),
+                      s.secondUnderlay.map({s.underlay != .none && s.underlay != .auto && s.underlay != .edgeAndSparse && $0 != s.underlay && (object.kind == .fill ? [.edge,.tatami] : [.center,.edge,.zigzag]).contains($0)}) ?? true,
+                      s.secondInset.map((0...3).contains) ?? true,s.secondSpacing.map((0.5...5).contains) ?? true,
+                      [s.underlayLength,s.secondLength].allSatisfy({$0.map(DigitizingSettings.underlayLengthRange.contains) ?? true}),
+                      [s.underlayAngle,s.secondAngle].allSatisfy({$0.map((-180...180).contains) ?? true}),
                       s.pullPercent.map({object.kind == .satin && DigitizingSettings.pullPercentRange.contains($0)}) ?? true else {throw DesignError.invalid("Invalid digitizing settings in \(object.name).")}
                 // The fill style's own settings: out-of-range values would make the fill engines overflow or run for ages.
                 guard s.radialCenter.map({ $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 }) ?? true,
@@ -752,6 +837,28 @@ extension Design {
                 objects[i].digitizing!.spacing = min(10, objects[i].digitizing!.spacing * 2)
             }
             objects[i].digitizing!.spacingAcrossTwoRows = true
+            if edited { objects[i].refreshStitchEdits() }
+        }
+    }
+    /// Brings a design saved before each underlay had its own settings up to date, so it sews exactly as before:
+    /// a fill's Edge + sparse becomes Underlay 1, an edge run, and Underlay 2, tatami rows, and an Underlay 2 gets
+    /// its own copy of the inset and spacing it shared with Underlay 1. Hand-edited stitches that matched their
+    /// object still do.
+    public mutating func splitEdgeAndSparse() {
+        for i in objects.indices where objects[i].digitizing != nil {
+            let s = objects[i].digitizing!
+            guard s.underlay == .edgeAndSparse || (s.secondUnderlay != nil && (s.secondInset == nil || s.secondSpacing == nil)) else { continue }
+            let edited = objects[i].hasCurrentStitchEdits
+            if s.underlay == .edgeAndSparse {
+                // Both parts sewed with the one inset and spacing, at the starting length and angle.
+                objects[i].digitizing!.underlay = .edge; objects[i].digitizing!.secondUnderlay = .tatami
+                objects[i].digitizing!.secondInset = s.inset; objects[i].digitizing!.secondSpacing = s.underlaySpacing
+                objects[i].digitizing!.underlayAngle = nil; objects[i].digitizing!.secondLength = nil; objects[i].digitizing!.secondAngle = nil
+            } else {
+                // Choosing Underlay 2 copies Underlay 1's numbers into any it doesn't have; this does it for older ones.
+                objects[i].digitizing!.secondInset = s.secondInset ?? s.inset
+                objects[i].digitizing!.secondSpacing = s.secondSpacing ?? s.underlaySpacing
+            }
             if edited { objects[i].refreshStitchEdits() }
         }
     }

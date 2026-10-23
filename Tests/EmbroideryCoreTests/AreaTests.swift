@@ -52,7 +52,7 @@ final class AreaTests:XCTestCase {
         XCTAssertThrowsError(try AreaEngine.satin(o));XCTAssertThrowsError(try AreaEngine.satin(wide))
     }
     func testCollapsedUnderlayIsReported() throws {
-        var o=rectangle(0.3,10);o.digitizing?.underlay = .edgeAndSparse
+        var o=rectangle(0.3,10);o.digitizing?.underlay = .edge;o.digitizing?.secondUnderlay = .tatami
         let result=try AreaEngine.fill(o)
         XCTAssertTrue(result.warnings.contains{$0.contains("collapsed")});XCTAssertTrue(result.sections.allSatisfy{!$0.underlay})
     }
@@ -63,7 +63,7 @@ final class AreaTests:XCTestCase {
         XCTAssertThrowsError(try AreaEngine.fill(o))
     }
     func testFillUnderlayRespectsHoleAndInset() throws {
-        var o=rectangle();o.holes=[[Point(10,5),Point(20,5),Point(20,15),Point(10,15)].map{PathNode($0)}];o.digitizing?.underlay = .edgeAndSparse
+        var o=rectangle();o.holes=[[Point(10,5),Point(20,5),Point(20,15),Point(10,15)].map{PathNode($0)}];o.digitizing?.underlay = .edge;o.digitizing?.secondUnderlay = .tatami
         let result=try AreaEngine.fill(o),region=try AreaGeometry.offset(([o.nodes]+o.holes!).map{AreaGeometry.ring($0)},by:-0.4)
         assertContained(ObjectStitches(sections:result.sections.filter(\.underlay)),region,length:2.5)
     }

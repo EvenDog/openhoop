@@ -37,15 +37,16 @@ public enum FabricType: String, Codable, CaseIterable, Sendable {
     }
 
     /// The fabric's values: fill row spacing, fill expansion, satin row spacing, satin compensation per side,
-    /// fill and satin underlay, and underlay row spacing (mm). Woven matches the app's long-standing defaults.
+    /// fills' Underlay 2 (after an edge run), satin underlay, and underlay row spacing (mm). Woven matches the app's
+    /// long-standing defaults.
     var values: (fillSpacing: Double, fillExpansion: Double, satinSpacing: Double, satinCompensation: Double,
-                 fillUnderlay: UnderlayStyle, satinUnderlay: UnderlayStyle, underlaySpacing: Double) {
+                 fillSecondUnderlay: UnderlayStyle?, satinUnderlay: UnderlayStyle, underlaySpacing: Double) {
         switch self {
-        case .woven: return (0.40, 0.20, 0.40, 0.20, .edgeAndSparse, .center, 1.2)
-        case .knit: return (0.45, 0.35, 0.40, 0.35, .edgeAndSparse, .zigzag, 1.0)   // lighter top, more underlay and pull
-        case .towel: return (0.35, 0.30, 0.35, 0.30, .edgeAndSparse, .zigzag, 0.9)  // denser top so pile doesn't poke through
-        case .heavy: return (0.40, 0.15, 0.40, 0.15, .edgeAndSparse, .center, 1.2)  // stable: little pull
-        case .felt: return (0.40, 0.10, 0.40, 0.10, .edge, .center, 1.2)            // very stable: light underlay
+        case .woven: return (0.40, 0.20, 0.40, 0.20, .tatami, .center, 1.2)
+        case .knit: return (0.45, 0.35, 0.40, 0.35, .tatami, .zigzag, 1.0)   // lighter top, more underlay and pull
+        case .towel: return (0.35, 0.30, 0.35, 0.30, .tatami, .zigzag, 0.9)  // denser top so pile doesn't poke through
+        case .heavy: return (0.40, 0.15, 0.40, 0.15, .tatami, .center, 1.2)  // stable: little pull
+        case .felt: return (0.40, 0.10, 0.40, 0.10, nil, .center, 1.2)       // very stable: light underlay
         }
     }
 
@@ -67,11 +68,13 @@ public enum FabricType: String, Codable, CaseIterable, Sendable {
         switch settings.kind {
         case .fill:
             settings.spacing = v.fillSpacing; settings.expansion = v.fillExpansion
-            settings.underlay = v.fillUnderlay; settings.underlaySpacing = v.underlaySpacing
+            settings.underlay = .edge; settings.underlaySpacing = v.underlaySpacing
+            settings.secondUnderlay = v.fillSecondUnderlay; if settings.secondUnderlay != nil { settings.secondSpacing = v.underlaySpacing }
         case .satin:
             settings.spacing = v.satinSpacing; settings.expansion = v.satinCompensation; settings.underlaySpacing = v.underlaySpacing
             // Auto underlay stays on Auto, with more support on fabrics that stretch; a chosen underlay gets the fabric's.
             if settings.underlay != .auto { settings.underlay = v.satinUnderlay }
+            if settings.secondUnderlay != nil { settings.secondSpacing = v.underlaySpacing }
             settings.stretchyFabric = self == .knit || self == .towel ? true : nil
         default: break
         }

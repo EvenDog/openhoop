@@ -627,7 +627,7 @@ import EmbroideryCore
                 else{object.digitizing=nil;object.holes=nil}
             }
         case .removeHoles:state.editSelected(command.title){if $0.kind == .fill{$0.holes=[]}}
-        case .toggleUnderlay:state.editSelected(command.title){object in if object.kind == .satin || object.kind == .fill{var settings=object.settings;settings.underlay=settings.underlay == .none ? (object.kind == .fill ? .edgeAndSparse:.auto):.none;object.digitizing=settings}}
+        case .toggleUnderlay:state.editSelected(command.title){object in if object.kind == .satin || object.kind == .fill{var settings=object.settings;if settings.underlay == .none {settings.underlay=object.kind == .fill ? .edge:.auto;if object.kind == .fill {settings.secondUnderlay = .tatami}} else {settings.underlay = .none};object.digitizing=settings}}
         case .showUnderlay:state.showUnderlay.toggle()
         case .densityMap:
             state.showDensity.toggle()

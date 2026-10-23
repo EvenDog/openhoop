@@ -19,7 +19,7 @@ final class FabricPresetTests: XCTestCase {
     func testKnitChangesFillsAndSatins() {
         var design = Design(); design.fabricType = .knit
         let fill = design.withFabric(shape(.fill)).settings, satin = design.withFabric(shape(.satin)).settings
-        XCTAssertEqual(fill.spacing, 0.45); XCTAssertEqual(fill.expansion, 0.35); XCTAssertEqual(fill.underlay, .edgeAndSparse); XCTAssertEqual(fill.underlaySpacing, 1.0)
+        XCTAssertEqual(fill.spacing, 0.45); XCTAssertEqual(fill.expansion, 0.35); XCTAssertEqual(fill.underlay, .edge); XCTAssertEqual(fill.secondUnderlay, .tatami); XCTAssertEqual(fill.secondSpacing, 1.0)
         XCTAssertEqual(satin.expansion, 0.35); XCTAssertEqual(satin.underlay, .auto); XCTAssertEqual(satin.stretchyFabric, true)
         var manual = shape(.satin); manual.digitizing?.underlay = .center
         XCTAssertEqual(design.withFabric(manual).settings.underlay, .zigzag, "A chosen underlay gets the fabric's")

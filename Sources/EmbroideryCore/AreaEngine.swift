@@ -32,21 +32,28 @@ public enum AreaEngine {
         let entry=reachable(object.entry),exit=reachable(object.exit)
         let style=s.fillStyle ?? .tatami
         // Stipple, motif and cross stitch fills are open, decorative stitches, sewn without underlay.
-        if s.underlay != .none && ![.stipple,.motif,.crossStitch].contains(style) {
-            // Underlay is inset from the source, never expanded a second time.
-            let inset=try AreaGeometry.offset(original,by:-s.inset)
-            if inset.isEmpty {result.warnings.append("Underlay collapsed at the chosen inset; no underlay was generated.")}
-            else {
-                // With a start point, each underlay outline begins at its corner nearest that point.
-                func startNearEntry(_ ring:[Point])->[Point] {
-                    guard let entry,let k=ring.indices.min(by:{ring[$0].distance(to:entry)<ring[$1].distance(to:entry)}) else{return ring}
-                    return Array(ring[k...]+ring[..<k])
-                }
-                result.sections += inset.map{startNearEntry($0)}.map{StitchSection(AreaGeometry.sampled($0+Array($0.prefix(1)),length:2.5),underlay:true)}
-                if s.underlay == .edgeAndSparse {
-                    result.sections += try rows(in:inset,angle:s.angle+90,spacing:s.underlaySpacing,length:2.5).filter(isLongEnough).map{StitchSection($0,underlay:true)}
+        if ![.stipple,.motif,.crossStitch].contains(style) {
+            let layers=s.sewnUnderlays()
+            var collapsed=0
+            for layer in layers {
+                // Underlay is inset from the source, never expanded a second time.
+                let inset=try AreaGeometry.offset(original,by:-layer.inset)
+                if inset.isEmpty {collapsed+=1;continue}
+                switch layer.style {
+                case .edge:
+                    // Each outline begins at its corner nearest the needle: the start point, or where Underlay 1 ended.
+                    let needle=result.sections.last?.points.last ?? entry
+                    func startNearNeedle(_ ring:[Point])->[Point] {
+                        guard let needle,let k=ring.indices.min(by:{ring[$0].distance(to:needle)<ring[$1].distance(to:needle)}) else{return ring}
+                        return Array(ring[k...]+ring[..<k])
+                    }
+                    result.sections += inset.map{startNearNeedle($0)}.map{StitchSection(AreaGeometry.sampled($0+Array($0.prefix(1)),length:layer.stitchLength),underlay:true)}
+                case .tatami:
+                    result.sections += try rows(in:inset,angle:s.angle+layer.angle,spacing:layer.spacing,length:layer.stitchLength).filter(isLongEnough).map{StitchSection($0,underlay:true)}
+                default: break
                 }
             }
+            if collapsed>0 {result.warnings.append("Underlay collapsed at the chosen inset; "+(collapsed == layers.count ? "no underlay was generated." : "one layer was left out."))}
         }
         // The top rows, in parts sewn one after another (tatami and wave fills with an end point come in two).
         var parts:[[[Point]]]
@@ -505,7 +512,8 @@ public enum AreaEngine {
         let allowed=(try? AreaGeometry.offset(regionRings,by:strayAllowance)) ?? regionRings
         let usableArea=abs(AreaGeometry.area(regionRings[0]))-regionRings.dropFirst().reduce(0){$0+abs(AreaGeometry.area($1))}
         guard usableArea>0.01 else{throw DesignError.invalid("Satin rails have no usable area.")}
-        var pairs:[(Point,Point)]=[],underPairs:[(Point,Point)]=[],warningNarrow=false,warningCrowded=false
+        var pairs:[(Point,Point)]=[],warningNarrow=false,warningCrowded=false
+        var spans:[(index:Int,a:Arc,b:Arc,advance:Double)]=[]   // the column's spans, for the underlay's rungs
         var lastRung:(Point,Point)?   // the stitch before, rail to rail, without compensation
         var widthTotal=0.0,widthCount=0   // for the column's average width
         for span in leftSegments.indices {
@@ -535,15 +543,27 @@ public enum AreaEngine {
                 lastRung=(l,r)
                 pairs.append((cl,cr))
             }
-            let underCount=max(1,Int(ceil(advance/s.underlaySpacing)))
-            for i in 0...underCount where span==0 || i>0 {underPairs.append((a.at(Double(i)/Double(underCount)),b.at(Double(i)/Double(underCount))))}
+            spans.append((span,a,b,advance))
         }
         guard pairs.count>=2 else{throw DesignError.invalid("Satin rails have no usable area.")}
         // A closed column (a border) starts at the stitch pair nearest its start point (or its end point, when that's
         // the only one), and so does its underlay, wherever that falls between the border's corners.
         if object.closed,let start=object.entry ?? object.exit {
-            pairs=rotatedRing(pairs,toward:start);underPairs=rotatedRing(underPairs,toward:start)
+            pairs=rotatedRing(pairs,toward:start)
         }
+        /// The rungs underlay follows across the column, about `spacing` mm apart. A closed column's start at the
+        /// pair nearest its start point, as its stitches do.
+        func rungs(spacing:Double)->[(Point,Point)] {
+            var rungs:[(Point,Point)]=[]
+            for span in spans {
+                let count=max(1,Int(ceil(span.advance/spacing)))
+                for i in 0...count where span.index==0 || i>0 {rungs.append((span.a.at(Double(i)/Double(count)),span.b.at(Double(i)/Double(count))))}
+            }
+            if object.closed,let start=object.entry ?? object.exit {rungs=rotatedRing(rungs,toward:start)}
+            return rungs
+        }
+        // Raised padding and the lead-in from a start point follow rungs at Underlay 1's spacing.
+        let underPairs=rungs(spacing:s.underlaySpacing)
         // The compensated column, which every top stitch must stay inside (give or take the same hair as above).
         let compensated=object.closed ? [deduplicated(pairs.map{$0.0}),deduplicated(pairs.map{$0.1})] : [pairs.map{$0.0}+pairs.reversed().map{$0.1}]
         let allowedCompensated=(try? AreaGeometry.offset(compensated,by:strayAllowance)) ?? compensated
@@ -578,17 +598,18 @@ public enum AreaEngine {
         if warningCrowded{result.warnings.append("Satin inner-edge points are crowded. Reshape or split tight corners.")}
         // The first underlay, then the second (if any), then the top stitches. The second sews backwards, so the
         // needle goes along the column, back, and along again for the top, with no long travel in between.
-        // Auto picks them from the column's average width.
-        let underlays=s.underlay == .auto ? DigitizingSettings.autoUnderlay(width:widthTotal/Double(max(1,widthCount)),stretchy:s.stretchyFabric == true) : (first:s.underlay,second:s.secondUnderlay)
-        for (layer,style) in [underlays.first,underlays.second ?? UnderlayStyle.none].enumerated() {
+        // Each sews with its own inset, spacing and length. Auto picks them from the column's average width.
+        for (number,layer) in s.sewnUnderlays(width:widthTotal/Double(max(1,widthCount))).enumerated() {
             let sectionsBefore=result.sections.count
-            switch style {
+            switch layer.style {
             case .center:
-                let center=AreaGeometry.sampled(underPairs.map{($0.0+$0.1)*0.5},length:2.5)
+                // One stitch per rung, its length apart. Only a step that bends round a curve is split (at 2.5 mm,
+                // or a little over a longer length), as before center runs had a length of their own.
+                let center=AreaGeometry.sampled(rungs(spacing:layer.stitchLength).map{($0.0+$0.1)*0.5},length:layer.length.map{max(2.5,$0*1.25)} ?? 2.5)
                 if relaxed || zip(center,center.dropFirst()).allSatisfy({AreaGeometry.segmentInside($0,$1,rings:regionRings)}) {result.sections.append(StitchSection(center,underlay:true))}
                 else{result.warnings.append("Center underlay could not stay inside the column and was omitted.")}
             case .edge:
-                let inset=try AreaGeometry.offset(regionRings,by:-s.inset)
+                let inset=try AreaGeometry.offset(regionRings,by:-layer.inset)
                 if inset.isEmpty{result.warnings.append("Inset edge underlay collapsed and was omitted.")}
                 // Each ring starts at its point nearest the needle: the start of the column, or where the first
                 // underlay ended (so the edge run begins at the end the satin sews from).
@@ -604,11 +625,11 @@ public enum AreaEngine {
                     }
                     return Array(ring[k...]+ring[..<k])
                 }
-                result.sections += inset.map{startNearNeedle($0)}.map{StitchSection(AreaGeometry.sampled($0+Array($0.prefix(1)),length:2.5),underlay:true)}
+                result.sections += inset.map{startNearNeedle($0)}.map{StitchSection(AreaGeometry.sampled($0+Array($0.prefix(1)),length:layer.stitchLength),underlay:true)}
             case .zigzag:
-                let inset=try AreaGeometry.offset(regionRings,by:-s.inset)
+                let inset=try AreaGeometry.offset(regionRings,by:-layer.inset)
                 var zig:[Point]=[],skippedInterior=false,pendingGap=false
-                for pair in underPairs {
+                for pair in rungs(spacing:layer.spacing) {
                     try Task.checkCancellation()
                     let intervals=AreaGeometry.clippedSegment(pair.0,pair.1,rings:inset)
                     // End rungs may lie outside the inset. A split rung is ambiguous;
@@ -624,7 +645,7 @@ public enum AreaEngine {
                 else{result.warnings.append("Inset zigzag underlay collapsed or left the column and was omitted.")}
             default:break
             }
-            if layer==1 {for i in sectionsBefore..<result.sections.count {result.sections[i].points.reverse()}}
+            if number==1 {for i in sectionsBefore..<result.sections.count {result.sections[i].points.reverse()}}
         }
         // Raised satin: padding under the top stitches, lanes of running stitch along the column about 0.7 mm apart
         // (inside its middle 80%), sewn back and forth, so the satin stands up over them.
