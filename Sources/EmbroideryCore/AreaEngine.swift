@@ -626,26 +626,38 @@ public enum AreaEngine {
                     return Array(ring[k...]+ring[..<k])
                 }
                 result.sections += inset.map{startNearNeedle($0)}.map{StitchSection(AreaGeometry.sampled($0+Array($0.prefix(1)),length:layer.stitchLength),underlay:true)}
-            case .zigzag:
+            case .zigzag,.doubleZigzag:
                 let inset=try AreaGeometry.offset(regionRings,by:-layer.inset)
-                var zig:[Point]=[],skippedInterior=false,pendingGap=false
+                // Each rung's two ends, inside the inset.
+                var ends:[(Point,Point)]=[],skippedInterior=false,pendingGap=false
                 for pair in rungs(spacing:layer.spacing) {
                     try Task.checkCancellation()
                     let intervals=AreaGeometry.clippedSegment(pair.0,pair.1,rings:inset)
                     // End rungs may lie outside the inset. A split rung is ambiguous;
                     // omit this underlay rather than sew across disconnected regions.
-                    if intervals.isEmpty {if !zig.isEmpty{pendingGap=true};continue}
+                    if intervals.isEmpty {if !ends.isEmpty{pendingGap=true};continue}
                     if pendingGap {skippedInterior=true;pendingGap=false}
-                    guard intervals.count==1 else{zig=[];break}
-                    let clipped=intervals[0]
-                    zig.append(zig.count%2==0 ? clipped.0:clipped.1)
+                    guard intervals.count==1 else{ends=[];break}
+                    ends.append(intervals[0])
                 }
-                if skippedInterior {result.warnings.append("Zigzag underlay skips a narrow interior region; inspect coverage or split the column.")}
+                // A zigzag swings from one end of each rung to the other end of the next.
+                var zig=ends.enumerated().map{$0.offset%2==0 ? $0.element.0:$0.element.1}
+                if layer.style == .doubleZigzag {
+                    // Down the column and back over the same rungs from their other ends, so the passes cross in
+                    // X's. It starts at the end nearest the needle and comes back there.
+                    if let needle=result.sections.last?.points.last,let first=zig.first,let last=zig.last,needle.distance(to:last)<needle.distance(to:first) {
+                        ends.reverse();zig=ends.enumerated().map{$0.offset%2==0 ? $0.element.0:$0.element.1}
+                    }
+                    zig+=ends.indices.reversed().map{$0%2==0 ? ends[$0].1:ends[$0].0}
+                }
+                let double=layer.style == .doubleZigzag,name=double ? "Double zigzag" : "Inset zigzag"
+                if skippedInterior {result.warnings.append("\(double ? "Double zigzag" : "Zigzag") underlay skips a narrow interior region; inspect coverage or split the column.")}
                 if zig.count>=2,zip(zig,zig.dropFirst()).allSatisfy({AreaGeometry.segmentInside($0,$1,rings:inset)}) {result.sections.append(StitchSection(AreaGeometry.sampled(zig,length:2.5),underlay:true))}
-                else{result.warnings.append("Inset zigzag underlay collapsed or left the column and was omitted.")}
+                else{result.warnings.append("\(name) underlay collapsed or left the column and was omitted.")}
             default:break
             }
-            if number==1 {for i in sectionsBefore..<result.sections.count {result.sections[i].points.reverse()}}
+            // Underlay 2 sews back along the column (a double zigzag already comes back by itself).
+            if number==1 && layer.style != .doubleZigzag {for i in sectionsBefore..<result.sections.count {result.sections[i].points.reverse()}}
         }
         // Raised satin: padding under the top stitches, lanes of running stitch along the column about 0.7 mm apart
         // (inside its middle 80%), sewn back and forth, so the satin stands up over them.

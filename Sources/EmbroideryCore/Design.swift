@@ -261,12 +261,14 @@ public enum UnderlayStyle: String, Codable, CaseIterable, Sendable {case none, c
     case auto
     /// Fills only: sparse rows across the shape.
     case tatami
-    public var title:String {switch self {case .none:return "None";case .center:return "Center run";case .edge:return "Inset edge run";case .zigzag:return "Inset zigzag";case .edgeAndSparse:return "Edge + sparse fill";case .auto:return "Auto (by width)";case .tatami:return "Tatami"}}
+    /// Satins only: a zigzag down the column and back, crossing itself in X's, for wide columns.
+    case doubleZigzag
+    public var title:String {switch self {case .none:return "None";case .center:return "Center run";case .edge:return "Inset edge run";case .zigzag:return "Inset zigzag";case .edgeAndSparse:return "Edge + sparse fill";case .auto:return "Auto (by width)";case .tatami:return "Tatami";case .doubleZigzag:return "Double zigzag"}}
     /// Which of a layer's own settings change its stitches, so Properties shows only those. A center run sews one
     /// stitch per rung of the column, so its length is how far apart they are; a zigzag swings from edge to edge,
     /// so only its spacing sets it. Auto uses Underlay 1's inset and spacing for whatever it picks.
-    public var usesInset:Bool {[.edge,.zigzag,.tatami,.auto].contains(self)}
-    public var usesSpacing:Bool {[.zigzag,.tatami,.auto].contains(self)}
+    public var usesInset:Bool {[.edge,.zigzag,.doubleZigzag,.tatami,.auto].contains(self)}
+    public var usesSpacing:Bool {[.zigzag,.doubleZigzag,.tatami,.auto].contains(self)}
     public var usesLength:Bool {[.center,.edge,.tatami].contains(self)}
     public var usesAngle:Bool {self == .tatami}
 }
@@ -357,11 +359,13 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     public static let maximumSatinRange=1.0...1000.0, longSatinStitch=12.0
     /// Underlay 1's type.
     public var underlay:UnderlayStyle {
-        // A second underlay needs a first one, of a different style (the same style twice would just sew it again).
-        // Auto picks its own second underlay. A new type starts with its own stitch length.
+        // A second underlay needs a first one, of a different style (the same style twice would just sew it again,
+        // except a fill's tatami rows, which cross the first at another angle). Auto picks its own second underlay.
+        // A new type starts with its own stitch length.
         didSet {
             if underlay != oldValue {underlayLength=nil}
-            if underlay == .none || underlay == .auto || underlay == secondUnderlay {secondUnderlay=nil}
+            if underlay == .none || underlay == .auto || (underlay == secondUnderlay && !crossesTatami) {secondUnderlay=nil}
+            if crossesTatami && oldValue != .tatami {crossFirstTatami()}
         }
     }
     /// Underlay 1's inset (how far inside the edge it runs) and spacing (between its rows or zigzags), in mm.
@@ -378,8 +382,16 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
         didSet {
             if secondUnderlay != oldValue {secondLength=nil}
             if secondUnderlay != nil {secondInset=secondInset ?? inset;secondSpacing=secondSpacing ?? underlaySpacing}
+            if crossesTatami && oldValue != .tatami {crossFirstTatami()}
         }
     }
+    /// Crossed tatami starts with Underlay 2's rows square to Underlay 1's (90° and 0° by default: a first guess, to
+    /// tune after a sew-out), so the two don't sew the same rows.
+    private mutating func crossFirstTatami() {
+        let angle=(underlayAngle ?? UnderlayLayer.defaultAngle)-90;secondAngle=angle < -180 ? angle+360:angle
+    }
+    /// True for a fill with tatami rows as both underlays, crossing at different angles.
+    public var crossesTatami:Bool {kind == .fill && underlay == .tatami && secondUnderlay == .tatami}
     /// Underlay 2's own inset, spacing, stitch length and angle, as Underlay 1's. A nil inset or spacing (older
     /// files, where both layers shared them) uses Underlay 1's.
     public var secondInset:Double?
@@ -655,7 +667,7 @@ public struct Design: Codable, Equatable, Sendable {
     public var needsSchemaEight: Bool {
         objects.contains { object in
             guard object.kind == .fill || object.kind == .satin, let s = object.digitizing else { return false }
-            return [s.underlay, s.secondUnderlay].contains(.tatami) || (object.kind == .fill && s.secondUnderlay != nil)
+            return [s.underlay, s.secondUnderlay].contains { $0 == .tatami || $0 == .doubleZigzag } || (object.kind == .fill && s.secondUnderlay != nil)
                 || s.underlayLength != nil || s.underlayAngle != nil || s.secondLength != nil || s.secondAngle != nil
                 || (s.secondUnderlay != nil && ((s.secondInset ?? s.inset) != s.inset || (s.secondSpacing ?? s.underlaySpacing) != s.underlaySpacing))
         }
@@ -733,8 +745,8 @@ public struct Design: Codable, Equatable, Sendable {
                 guard object.allNodes.count<=2000,(object.holes?.count ?? 0)<=100,
                       (0.15...10).contains(s.spacing),(0...2).contains(s.expansion),(-180...180).contains(s.angle),
                       DigitizingSettings.maximumSatinRange.contains(s.maximumSatin),s.satinSplit.map(DigitizingSettings.satinSplitRange.contains) ?? true,(0...3).contains(s.inset),(0.5...5).contains(s.underlaySpacing),
-                      object.kind == .fill ? [.none,.edge,.edgeAndSparse,.tatami].contains(s.underlay) : [.none,.center,.edge,.zigzag,.auto].contains(s.underlay),
-                      s.secondUnderlay.map({s.underlay != .none && s.underlay != .auto && s.underlay != .edgeAndSparse && $0 != s.underlay && (object.kind == .fill ? [.edge,.tatami] : [.center,.edge,.zigzag]).contains($0)}) ?? true,
+                      object.kind == .fill ? [.none,.edge,.edgeAndSparse,.tatami].contains(s.underlay) : [.none,.center,.edge,.zigzag,.doubleZigzag,.auto].contains(s.underlay),
+                      s.secondUnderlay.map({s.underlay != .none && s.underlay != .auto && s.underlay != .edgeAndSparse && ($0 != s.underlay || s.crossesTatami) && (object.kind == .fill ? [.edge,.tatami] : [.center,.edge,.zigzag,.doubleZigzag]).contains($0)}) ?? true,
                       s.secondInset.map((0...3).contains) ?? true,s.secondSpacing.map((0.5...5).contains) ?? true,
                       [s.underlayLength,s.secondLength].allSatisfy({$0.map(DigitizingSettings.underlayLengthRange.contains) ?? true}),
                       [s.underlayAngle,s.secondAngle].allSatisfy({$0.map((-180...180).contains) ?? true}),
