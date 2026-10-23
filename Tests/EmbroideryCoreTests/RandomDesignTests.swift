@@ -219,7 +219,7 @@ final class RandomDesignTests: XCTestCase {
             var s = object.settings
             s.spacing = .random(in: 0.25...1.2, using: &r); s.angle = .random(in: -180...180, using: &r)
             s.expansion = .random(in: 0...1, using: &r); s.underlay = [.none, .edge, .tatami].randomElement(using: &r)!
-            s.secondUnderlay = s.underlay == .none ? nil : [nil, UnderlayStyle.edge, .tatami].filter { $0 != s.underlay }.randomElement(using: &r)!
+            s.secondUnderlay = s.underlay == .none ? nil : [nil, UnderlayStyle.edge, .tatami].filter { $0 != s.underlay || $0 == .tatami }.randomElement(using: &r)!
             s.inset = .random(in: 0...1.5, using: &r); s.underlaySpacing = .random(in: 0.5...5, using: &r)
             randomizeUnderlay(&s, &r)
             s.waveHeight = .random(in: DigitizingSettings.waveHeightRange, using: &r); s.waveLength = .random(in: DigitizingSettings.waveLengthRange, using: &r)
@@ -240,10 +240,10 @@ final class RandomDesignTests: XCTestCase {
         case .satin:
             var s = object.settings
             s.spacing = .random(in: 0.25...1, using: &r); s.expansion = .random(in: 0...1, using: &r)
-            s.underlay = [.none, .center, .edge, .zigzag, .auto].randomElement(using: &r)!
+            s.underlay = [.none, .center, .edge, .zigzag, .doubleZigzag, .auto].randomElement(using: &r)!
             // The second underlay is set after the first, which clears it when it isn't allowed.
             if ![.none, .auto].contains(s.underlay), Bool.random(using: &r) {
-                s.secondUnderlay = [UnderlayStyle.center, .edge, .zigzag].filter { $0 != s.underlay }.randomElement(using: &r)
+                s.secondUnderlay = [UnderlayStyle.center, .edge, .zigzag, .doubleZigzag].filter { $0 != s.underlay }.randomElement(using: &r)
             }
             s.inset = .random(in: 0...1.5, using: &r); s.underlaySpacing = .random(in: 0.5...5, using: &r)
             randomizeUnderlay(&s, &r)

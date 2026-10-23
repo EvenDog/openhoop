@@ -60,12 +60,12 @@ final class SettingsMatterTests: XCTestCase {
     }
 
     func testUnderlayNumbersAreOfferedWhereTheyMatter() throws {
-        for (underlay, second) in [(UnderlayStyle.edge, nil), (.edge, UnderlayStyle.tatami), (.tatami, nil), (.tatami, .edge)] {
+        for (underlay, second) in [(UnderlayStyle.edge, nil), (.edge, UnderlayStyle.tatami), (.tatami, nil), (.tatami, .edge), (.tatami, .tatami)] {
             try checkUnderlayNumbers(fill(.tatami, underlay: underlay, second: second), "fill \(underlay) + \(second.map { "\($0)" } ?? "nothing")")
         }
         let rungs = stride(from: 0.0, through: 30, by: 3).flatMap { x -> [PathNode] in let y = 3 * sin(x / 10); return [PathNode(Point(x, y)), PathNode(Point(x, y + 5))] }
-        for underlay in [UnderlayStyle.auto, .center, .edge, .zigzag] {
-            for second in [nil, UnderlayStyle.center, .edge, .zigzag] where underlay != .auto || second == nil {
+        for underlay in [UnderlayStyle.auto, .center, .edge, .zigzag, .doubleZigzag] {
+            for second in [nil, UnderlayStyle.center, .edge, .zigzag, .doubleZigzag] where underlay != .auto || second == nil {
                 guard second != underlay else { continue }
                 var satin = RunObject(name: "Satin", nodes: rungs); satin.digitizing = DigitizingSettings(kind: .satin)
                 satin.digitizing?.underlay = underlay; satin.digitizing?.secondUnderlay = second

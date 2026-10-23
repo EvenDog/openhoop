@@ -581,11 +581,11 @@ extension InspectorPanel {
     /// Underlay 1 or 2 (`layerNumber`): its type, then only the settings that type uses.
     private func proUnderlayLayer(_ object: RunObject, _ layerNumber: Int) -> some View {
         let s = object.settings, layer = s.underlayLayer(layerNumber), style = layer?.style ?? .none, name = "Underlay \(layerNumber)"
-        let types: [UnderlayStyle] = object.kind == .fill ? [.none, .edge, .tatami] : layerNumber == 1 ? [.auto, .none, .center, .edge, .zigzag] : [.none, .center, .edge, .zigzag]
+        let types: [UnderlayStyle] = object.kind == .fill ? [.none, .edge, .tatami] : layerNumber == 1 ? [.auto, .none, .center, .edge, .zigzag, .doubleZigzag] : [.none, .center, .edge, .zigzag, .doubleZigzag]
         let typeHelp = layerNumber == 1
             ? "A quick first layer under the stitches. It holds the fabric still so the top stitches lie smooth." + (object.kind == .satin ? " Auto picks from the satin's average width: a center run under 2 mm, an edge run up to 4 mm, an edge run then a zigzag above that (from 2 mm on knit and towel). It updates as you reshape the satin." : "")
-            : object.kind == .satin ? "Sewn after Underlay 1, back along the column. Common pairs: center run then zigzag, or edge run then zigzag for wide satins."
-            : "Sewn after Underlay 1. The usual pair is an edge run, then tatami rows."
+            : object.kind == .satin ? "Sewn after Underlay 1, back along the column. Common pairs: center run then zigzag, or edge run then zigzag (or double zigzag) for wide satins."
+            : "Sewn after Underlay 1. The usual pair is an edge run, then tatami rows; tatami twice, at different angles, crosses for firm support on big or stretchy fills."
         // A fill whose own rows don't follow an angle shows the underlay rows' direction itself; otherwise it's
         // measured from the fill's angle, so turning the fill turns the underlay too.
         let fillHasAngle = StitchAngleLine.applies(to: object)
@@ -593,8 +593,8 @@ extension InspectorPanel {
         return proSection(name) {
             proRow("Type", help: typeHelp) {
                 Picker("Type", selection: Binding(get: { style }, set: { value in settings(object.kind, name) { if layerNumber == 1 { $0.underlay = value } else { $0.secondUnderlay = value == .none ? nil : value } } })) {
-                    // The same type twice would just sew it again.
-                    ForEach(layerNumber == 1 ? types : types.filter { $0 != s.underlay }, id: \.self) { Text($0.title).tag($0) }
+                    // The same type twice would just sew it again, except tatami rows, which can cross at another angle.
+                    ForEach(layerNumber == 1 ? types : types.filter { $0 != s.underlay || $0 == .tatami }, id: \.self) { Text($0.title).tag($0) }
                 }
                 .labelsHidden().frame(width: 120)
             }
@@ -603,7 +603,7 @@ extension InspectorPanel {
                     number("Inset", value: layer.inset, range: 0...3, help: "How far inside the edge this underlay runs.") { value in settings(object.kind, "\(name) Inset") { $0.setUnderlay(layerNumber, inset: value) } }
                 }
                 if style.usesSpacing {
-                    number("Spacing", value: layer.spacing, range: 0.5...5, help: style == .zigzag ? "How far apart the zigzag's points are along the column." : "Gap between this underlay's rows.") { value in settings(object.kind, "\(name) Spacing") { $0.setUnderlay(layerNumber, spacing: value) } }
+                    number("Spacing", value: layer.spacing, range: 0.5...5, help: style == .zigzag || style == .doubleZigzag ? "How far apart the zigzag's points are along the column." : "Gap between this underlay's rows.") { value in settings(object.kind, "\(name) Spacing") { $0.setUnderlay(layerNumber, spacing: value) } }
                 }
                 if style.usesAngle {
                     // On fills with no angle of their own, Focus Fill Angle reaches the first tatami underlay's angle.
