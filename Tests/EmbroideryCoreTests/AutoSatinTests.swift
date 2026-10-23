@@ -56,7 +56,7 @@ final class AutoSatinTests: XCTestCase {
         var s = DigitizingSettings(kind: .satin)
         s.underlay = .center; s.secondUnderlay = .zigzag; s.underlay = .auto
         XCTAssertNil(s.secondUnderlay, "Auto picks the second underlay itself")
-        XCTAssertTrue(s.usesUnderlayInset, "Auto may pick an edge run")
+        XCTAssertTrue(s.underlay.usesInset, "Auto may pick an edge run")
 
         var design = Design(); design.objects = [column(3)]
         XCTAssertNoThrow(try design.validate())

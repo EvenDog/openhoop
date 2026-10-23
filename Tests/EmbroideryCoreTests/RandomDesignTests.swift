@@ -200,6 +200,14 @@ final class RandomDesignTests: XCTestCase {
         }
     }
 
+    /// Each underlay layer's own numbers, sometimes left at their starting values.
+    private func randomizeUnderlay(_ s: inout DigitizingSettings, _ r: inout SeededGenerator) {
+        for number in [1, 2] where Bool.random(using: &r) {
+            s.setUnderlay(number, inset: .random(in: 0...1.5, using: &r), spacing: .random(in: 0.5...5, using: &r),
+                          length: .random(in: DigitizingSettings.underlayLengthRange, using: &r), angle: .random(in: -180...180, using: &r))
+        }
+    }
+
     /// Random settings (within what Properties allows), node edits, a hole, and start and end points.
     private func randomize(_ object: inout RunObject, _ r: inout SeededGenerator) {
         let box = outlineBox(object)
@@ -210,8 +218,10 @@ final class RandomDesignTests: XCTestCase {
         case .fill:
             var s = object.settings
             s.spacing = .random(in: 0.25...1.2, using: &r); s.angle = .random(in: -180...180, using: &r)
-            s.expansion = .random(in: 0...1, using: &r); s.underlay = [.none, .edge, .edgeAndSparse].randomElement(using: &r)!
+            s.expansion = .random(in: 0...1, using: &r); s.underlay = [.none, .edge, .tatami].randomElement(using: &r)!
+            s.secondUnderlay = s.underlay == .none ? nil : [nil, UnderlayStyle.edge, .tatami].filter { $0 != s.underlay }.randomElement(using: &r)!
             s.inset = .random(in: 0...1.5, using: &r); s.underlaySpacing = .random(in: 0.5...5, using: &r)
+            randomizeUnderlay(&s, &r)
             s.waveHeight = .random(in: DigitizingSettings.waveHeightRange, using: &r); s.waveLength = .random(in: DigitizingSettings.waveLengthRange, using: &r)
             if Int.random(in: 0..<3, using: &r) == 0 { s.radialCenter = anywhere(&r) }
             if (s.fillStyle ?? .tatami) == .tatami, Int.random(in: 0..<3, using: &r) == 0 {
@@ -236,6 +246,7 @@ final class RandomDesignTests: XCTestCase {
                 s.secondUnderlay = [UnderlayStyle.center, .edge, .zigzag].filter { $0 != s.underlay }.randomElement(using: &r)
             }
             s.inset = .random(in: 0...1.5, using: &r); s.underlaySpacing = .random(in: 0.5...5, using: &r)
+            randomizeUnderlay(&s, &r)
             s.pullPercent = Bool.random(using: &r) ? .random(in: DigitizingSettings.pullPercentRange, using: &r) : nil
             s.maximumSatin = .random(in: 4...10, using: &r)
             s.shortStitches = Bool.random(using: &r); s.autoSplit = Int.random(in: 0..<4, using: &r) > 0

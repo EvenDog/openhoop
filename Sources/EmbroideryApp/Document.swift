@@ -882,7 +882,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         // so selected lettering stays selected by its lettering id.
         let selectedLettering = Set(updated.objects.filter { state.selection.contains($0.id) }.compactMap { $0.lettering?.id })
         let guideProblems = updated.syncGuides(embroideryFonts: EmbroideryFontLibrary.fonts)
-        if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaSeven ? 7:updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
+        if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaEight ? 8:updated.needsSchemaSeven ? 7:updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
         state.design = updated; state.revision += 1
         if !lost.isEmpty { state.status = "\(lost.joined(separator: ", ")): stitches edited by hand were replaced by fresh ones, because the shape or settings changed. Undo (⌘Z) brings them back." }
         if let problem = guideProblems.first { state.status = problem }
@@ -945,6 +945,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         guard let bytes = fileWrapper.fileWrappers?["design.json"]?.regularFileContents, bytes.count < 100_000_000 else { throw DesignError.invalid("The project is missing its design data or is too large.") }
         var design = try JSONDecoder().decode(Design.self, from: bytes)
         design.measureSpacingAcrossTwoRows()   // older files: tatami row spacing is now measured across two rows
+        design.splitEdgeAndSparse()   // older files: each underlay now has its own settings
         if design.artwork != nil {
             guard let image = fileWrapper.fileWrappers?["artwork.bin"]?.regularFileContents else { throw DesignError.invalid("The project is missing its reference artwork.") }
             design.artwork?.data = image

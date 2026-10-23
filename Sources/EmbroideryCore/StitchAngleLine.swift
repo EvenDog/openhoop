@@ -18,11 +18,11 @@ public enum StitchAngleLine {
         }
     }
 
-    /// True for fills whose Angle steers only their sparse underlay rows (Edge + sparse underlay) because their own
-    /// rows don't follow it: contour, radial and guided fills, and tatami or satin steered by stitch angle lines. Properties
-    /// shows it as Underlay angle for them.
+    /// True for fills whose Angle steers only their tatami underlay rows because their own rows don't follow it:
+    /// contour, radial and guided fills, and tatami or satin steered by stitch angle lines. Properties shows each
+    /// tatami underlay's angle for them as a direction of its own (from horizontal), not one from the fill's angle.
     public static func steersOnlyUnderlay(_ object: RunObject) -> Bool {
-        object.kind == .fill && !applies(to: object) && object.settings.underlay == .edgeAndSparse
+        object.kind == .fill && !applies(to: object) && object.settings.sewnUnderlays().contains { $0.style == .tatami }
             && ![.stipple, .motif, .crossStitch].contains(object.settings.fillStyle ?? .tatami)   // these sew without underlay
     }
 

@@ -1,5 +1,6 @@
-// Second underlay: a satin can have two underlay layers (a first and a second underlay), such as a center
-// run followed by a zigzag. They sew in that order, before the top stitches.
+// Underlay 1 and 2: satins and fills can have two underlay layers, such as a satin's center run followed by a
+// zigzag, or a fill's edge run followed by tatami rows. They sew in that order, before the top stitches, each with
+// its own inset, spacing, stitch length and (tatami) angle.
 import XCTest
 @testable import EmbroideryCore
 
@@ -38,26 +39,117 @@ final class SecondUnderlayTests: XCTestCase {
         XCTAssertNil(s.secondUnderlay, "No first underlay, no second (so U turns all underlay off)")
     }
 
-    func testUnderlayInsetAppliesWhenEitherLayerRunsInsideTheEdge() {
-        var s = DigitizingSettings(kind: .satin); s.underlay = .center
-        XCTAssertFalse(s.usesUnderlayInset, "A center run ignores the inset")
-        s.secondUnderlay = .zigzag
-        XCTAssertTrue(s.usesUnderlayInset, "The zigzag uses it")
+    /// A 30 × 20 mm rectangle fill.
+    private func patch(_ first: UnderlayStyle, _ second: UnderlayStyle?) -> RunObject {
+        var o = RunObject(name: "Patch", nodes: [Point(0, 0), Point(30, 0), Point(30, 20), Point(0, 20)].map { PathNode($0) })
+        o.closed = true; o.digitizing = DigitizingSettings(kind: .fill); o.digitizing?.underlay = first; o.digitizing?.secondUnderlay = second
+        return o
     }
 
-    func testOnlySatinsAcceptASecondUnderlay() throws {
-        var design = Design(); design.objects = [column(.edge, .zigzag)]
+    func testEachKindAcceptsItsOwnUnderlayTypes() throws {
+        var design = Design(); design.objects = [column(.edge, .zigzag), patch(.edge, .tatami), patch(.tatami, .edge), patch(.tatami, nil)]
         XCTAssertNoThrow(try design.validate())
-        // Styles a satin can't sew, the same style twice, or a second without a first.
-        for (first, second) in [(UnderlayStyle.edge, UnderlayStyle.edgeAndSparse), (.zigzag, .zigzag), (.none, .center)] {
+        // Types a satin can't sew, the same type twice, or a second without a first.
+        for (first, second) in [(UnderlayStyle.edge, UnderlayStyle.edgeAndSparse), (.edge, .tatami), (.tatami, nil), (.zigzag, .zigzag), (.none, .center)] {
             var object = column(.center, nil); object.digitizing?.underlay = first; object.digitizing?.secondUnderlay = second
             design.objects = [object]
-            XCTAssertThrowsError(try design.validate(), "\(first) then \(second)")
+            XCTAssertThrowsError(try design.validate(), "satin \(first) then \(second.map { "\($0)" } ?? "nothing")")
         }
-        var fill = RunObject(name: "Fill", nodes: [Point(0, 0), Point(10, 0), Point(10, 10)].map { PathNode($0) })
-        fill.closed = true; fill.digitizing = DigitizingSettings(kind: .fill); fill.digitizing?.secondUnderlay = .edge
-        design.objects = [fill]
-        XCTAssertThrowsError(try design.validate(), "Fills already have a two-layer choice (edge + sparse fill)")
+        // And the same for fills, which sew only edge runs and tatami rows (and Edge + sparse, in older files, alone).
+        for (first, second) in [(UnderlayStyle.edge, UnderlayStyle.zigzag), (.center, nil), (.edge, .edge), (.none, .tatami), (.edgeAndSparse, .tatami)] {
+            var object = patch(.edge, nil); object.digitizing?.underlay = first; object.digitizing?.secondUnderlay = second
+            design.objects = [object]
+            XCTAssertThrowsError(try design.validate(), "fill \(first) then \(second.map { "\($0)" } ?? "nothing")")
+        }
+        // Each layer's own numbers stay within what Properties offers.
+        for change in [{ (s: inout DigitizingSettings) in s.secondInset = 4 }, { $0.secondSpacing = 0.1 }, { $0.underlayLength = 20 }, { $0.secondLength = 0.1 }, { $0.underlayAngle = 400 }] {
+            var object = patch(.edge, .tatami); change(&object.digitizing!)
+            design.objects = [object]
+            XCTAssertThrowsError(try design.validate())
+        }
+    }
+
+    func testEachLayerShowsOnlyTheSettingsItUses() {
+        XCTAssertEqual([UnderlayStyle.center, .edge, .zigzag, .tatami, .auto].map(\.usesInset), [false, true, true, true, true])
+        XCTAssertEqual([UnderlayStyle.center, .edge, .zigzag, .tatami, .auto].map(\.usesSpacing), [false, false, true, true, true])
+        XCTAssertEqual([UnderlayStyle.center, .edge, .zigzag, .tatami, .auto].map(\.usesLength), [true, true, false, true, false])
+        XCTAssertEqual([UnderlayStyle.center, .edge, .zigzag, .tatami, .auto].map(\.usesAngle), [false, false, false, true, false])
+    }
+
+    /// The underlay stitches of `object`, in sewing order.
+    private func underlayPoints(_ object: RunObject) throws -> [Point] { try AreaEngine.fill(object).sections.filter(\.underlay).flatMap(\.points) }
+    /// True for a point on the patch's outline 0.4 mm in (where its edge run sews).
+    private func onInsetEdge(_ p: Point) -> Bool { [p.x - 0.4, 29.6 - p.x, p.y - 0.4, 19.6 - p.y].contains { abs($0) < 0.01 } }
+
+    func testFillsSewAnEdgeRunThenTatamiRows() throws {
+        let both = try underlayPoints(patch(.edge, .tatami))
+        XCTAssertTrue(both.prefix(30).allSatisfy(onInsetEdge), "The edge run goes round first")
+        XCTAssertFalse(both.suffix(30).allSatisfy(onInsetEdge), "Then the tatami rows cross the shape")
+        // The other way round: rows first, then the outline.
+        let rowsFirst = try underlayPoints(patch(.tatami, .edge))
+        XCTAssertFalse(rowsFirst.prefix(30).allSatisfy(onInsetEdge)); XCTAssertTrue(rowsFirst.suffix(30).allSatisfy(onInsetEdge))
+        XCTAssertLessThan(try underlayPoints(patch(.tatami, nil)).count, both.count, "No outline without an edge run")
+    }
+
+    func testEachLayerSewsWithItsOwnNumbers() throws {
+        // Changing Underlay 1's inset moves only Underlay 1's stitches.
+        var satin = column(.edge, .zigzag), wider = satin; wider.digitizing?.setUnderlay(1, inset: 1)
+        var a = try AreaEngine.satin(satin).sections.filter(\.underlay), b = try AreaEngine.satin(wider).sections.filter(\.underlay)
+        XCTAssertNotEqual(a[0].points, b[0].points); XCTAssertEqual(a[1].points, b[1].points)
+        // And Underlay 2's spacing only Underlay 2's.
+        wider = satin; wider.digitizing?.setUnderlay(2, spacing: 3)
+        b = try AreaEngine.satin(wider).sections.filter(\.underlay)
+        XCTAssertEqual(a[0].points, b[0].points); XCTAssertNotEqual(a[1].points, b[1].points)
+        // A fill's tatami rows turn with their own angle, measured from the fill's.
+        // (Its rows' stitches are the long ones: the steps between rows are only the spacing, 1.2 mm.)
+        var fill = patch(.edge, .tatami); fill.digitizing?.angle = 0
+        func rowStitches() throws -> [(Point, Point)] { let rows = try AreaEngine.fill(fill).sections.filter(\.underlay)[1].points; return zip(rows, rows.dropFirst()).filter { $0.distance(to: $1) > 1.3 } }
+        XCTAssertTrue(try rowStitches().allSatisfy { abs($0.x - $1.x) < 0.01 }, "90° from a 0° fill: up and down")
+        fill.digitizing?.setUnderlay(2, angle: 0)
+        XCTAssertTrue(try rowStitches().allSatisfy { abs($0.y - $1.y) < 0.01 }, "0° from a 0° fill: along it")
+        // The stitch length sets how long the edge run's stitches are.
+        fill.digitizing?.setUnderlay(1, length: 1)
+        let ring = try AreaEngine.fill(fill).sections[0].points
+        XCTAssertLessThanOrEqual(zip(ring, ring.dropFirst()).map { $0.distance(to: $1) }.max()!, 1.0001)
+    }
+
+    func testNewLayersStartWithUnderlayOnesNumbersButKeepTheirOwn() {
+        var s = DigitizingSettings(kind: .satin); s.underlay = .edge; s.inset = 0.7; s.underlaySpacing = 2
+        s.secondUnderlay = .zigzag
+        XCTAssertEqual(s.underlayLayer(2)?.inset, 0.7); XCTAssertEqual(s.underlayLayer(2)?.spacing, 2)
+        s.inset = 0.2; s.underlaySpacing = 1
+        XCTAssertEqual(s.underlayLayer(2)?.inset, 0.7, "Underlay 2's numbers are its own once it's chosen")
+        s.secondLength = 3; s.secondUnderlay = .center
+        XCTAssertNil(s.secondLength, "A new type starts with its own stitch length")
+        XCTAssertEqual(s.underlayLayer(2)?.stitchLength, 2, "A center run's starts at its spacing, as it always sewed")
+    }
+
+    func testOlderFilesOpenSewingAsBefore() throws {
+        // A fill's Edge + sparse becomes an edge run then tatami rows, with the same numbers.
+        var old = patch(.edge, nil); old.digitizing?.underlay = .edgeAndSparse; old.digitizing?.inset = 0.8; old.digitizing?.underlaySpacing = 2
+        // A satin's second underlay, before it had numbers of its own, shared Underlay 1's.
+        var satin = column(.center, .zigzag); satin.digitizing?.secondInset = nil; satin.digitizing?.secondSpacing = nil; satin.digitizing?.inset = 0.6
+        var design = Design(); design.objects = [old, satin]
+        let before = try StitchEngine.compile(design)
+        design.splitEdgeAndSparse()
+        XCTAssertEqual(design.objects[0].settings.underlay, .edge); XCTAssertEqual(design.objects[0].settings.secondUnderlay, .tatami)
+        XCTAssertEqual(design.objects[0].settings.underlayLayer(2)?.inset, 0.8); XCTAssertEqual(design.objects[0].settings.underlayLayer(2)?.spacing, 2)
+        XCTAssertEqual(design.objects[1].settings.secondInset, 0.6)
+        XCTAssertEqual(try StitchEngine.compile(design).commands, before.commands)
+        XCTAssertNoThrow(try design.validate())
+    }
+
+    func testOlderVersionsRefuseFilesWithTheirOwnUnderlayNumbers() {
+        var design = Design(); design.objects = [column(.center, .zigzag)]
+        XCTAssertFalse(design.needsSchemaEight, "Two satin layers sharing their numbers sew the same in version 7")
+        design.objects[0].digitizing?.setUnderlay(2, spacing: 3)
+        XCTAssertTrue(design.needsSchemaEight)
+        design.objects = [column(.edge, nil)]; design.objects[0].digitizing?.setUnderlay(1, length: 3)
+        XCTAssertTrue(design.needsSchemaEight)
+        design.objects = [patch(.edge, nil)]
+        XCTAssertFalse(design.needsSchemaEight, "An edge run alone sews the same")
+        design.objects = [patch(.edge, .tatami)]
+        XCTAssertTrue(design.needsSchemaEight, "Version 7 can't read a fill's Underlay 2")
     }
 
     func testOlderVersionsRefuseFilesWithASecondUnderlay() throws {

@@ -572,32 +572,50 @@ extension InspectorPanel {
         }
     }
 
-    private func proUnderlay(_ object: RunObject) -> some View {
-        let underlay = object.settings.underlay
-        return proSection("Underlay") {
-            proRow("Type", help: "A quick first layer under the stitches. It holds the fabric still so the top stitches lie smooth." + (object.kind == .satin ? " Auto picks from the satin's average width: a center run under 2 mm, an edge run up to 4 mm, an edge run then a zigzag above that (from 2 mm on knit and towel). It updates as you reshape the satin." : "")) {
-                Picker("Type", selection: Binding(get: { underlay }, set: { value in settings(object.kind, "Underlay") { $0.underlay = value } })) {
-                    ForEach(object.kind == .fill ? [UnderlayStyle.none, .edge, .edgeAndSparse] : [.auto, .none, .center, .edge, .zigzag], id: \.self) { Text($0.title).tag($0) }
+    /// The Underlay 1 section, and Underlay 2's once there's an Underlay 1 (Auto picks both itself).
+    @ViewBuilder private func proUnderlay(_ object: RunObject) -> some View {
+        proUnderlayLayer(object, 1)
+        if object.settings.underlay != .none && object.settings.underlay != .auto { proUnderlayLayer(object, 2) }
+    }
+
+    /// Underlay 1 or 2 (`layerNumber`): its type, then only the settings that type uses.
+    private func proUnderlayLayer(_ object: RunObject, _ layerNumber: Int) -> some View {
+        let s = object.settings, layer = s.underlayLayer(layerNumber), style = layer?.style ?? .none, name = "Underlay \(layerNumber)"
+        let types: [UnderlayStyle] = object.kind == .fill ? [.none, .edge, .tatami] : layerNumber == 1 ? [.auto, .none, .center, .edge, .zigzag] : [.none, .center, .edge, .zigzag]
+        let typeHelp = layerNumber == 1
+            ? "A quick first layer under the stitches. It holds the fabric still so the top stitches lie smooth." + (object.kind == .satin ? " Auto picks from the satin's average width: a center run under 2 mm, an edge run up to 4 mm, an edge run then a zigzag above that (from 2 mm on knit and towel). It updates as you reshape the satin." : "")
+            : object.kind == .satin ? "Sewn after Underlay 1, back along the column. Common pairs: center run then zigzag, or edge run then zigzag for wide satins."
+            : "Sewn after Underlay 1. The usual pair is an edge run, then tatami rows."
+        // A fill whose own rows don't follow an angle shows the underlay rows' direction itself; otherwise it's
+        // measured from the fill's angle, so turning the fill turns the underlay too.
+        let fillHasAngle = StitchAngleLine.applies(to: object)
+        func wrapped(_ angle: Double) -> Double { let a = angle.truncatingRemainder(dividingBy: 360); return a > 180 ? a - 360 : a < -180 ? a + 360 : a }
+        return proSection(name) {
+            proRow("Type", help: typeHelp) {
+                Picker("Type", selection: Binding(get: { style }, set: { value in settings(object.kind, name) { if layerNumber == 1 { $0.underlay = value } else { $0.secondUnderlay = value == .none ? nil : value } } })) {
+                    // The same type twice would just sew it again.
+                    ForEach(layerNumber == 1 ? types : types.filter { $0 != s.underlay }, id: \.self) { Text($0.title).tag($0) }
                 }
                 .labelsHidden().frame(width: 120)
             }
-            if object.kind == .satin && underlay != .none && underlay != .auto {
-                proRow("Second", help: "Sewn after the first underlay, back along the column. Common pairs: center run then zigzag, or edge run then zigzag for wide satins.") {
-                    Picker("Second", selection: Binding(get: { object.settings.secondUnderlay ?? UnderlayStyle.none }, set: { value in settings(.satin, "Second Underlay") { $0.secondUnderlay = value == UnderlayStyle.none ? nil : value } })) {
-                        ForEach([UnderlayStyle.none, .center, .edge, .zigzag].filter { $0 != underlay }, id: \.self) { Text($0.title).tag($0) }
-                    }
-                    .labelsHidden().frame(width: 120)
+            if let layer {
+                if style.usesInset {
+                    number("Inset", value: layer.inset, range: 0...3, help: "How far inside the edge this underlay runs.") { value in settings(object.kind, "\(name) Inset") { $0.setUnderlay(layerNumber, inset: value) } }
                 }
-            }
-            if StitchAngleLine.steersOnlyUnderlay(object) {
-                number("Angle °", value: object.settings.angle, id: "fillAngle", range: -180...180, help: "The direction of the sparse underlay rows. This fill's own stitches don't follow an angle, so it only turns the underlay.") { value in settings(.fill, "Underlay Angle") { $0.angle = value } }
-            }
-            if object.settings.usesUnderlayInset {
-                number("Inset", value: object.settings.inset, range: 0...3, help: "How far inside the edge the underlay runs.") { value in settings(object.kind, "Underlay Inset") { $0.inset = value } }
-            }
-            // Only underlay with rows to space (not an edge run alone).
-            if object.settings.usesUnderlaySpacing(object.kind) {
-                number("Spacing", value: object.settings.underlaySpacing, range: 0.5...5, help: "Gap between the underlay's rows.") { value in settings(object.kind, "Underlay Spacing") { $0.underlaySpacing = value } }
+                if style.usesSpacing {
+                    number("Spacing", value: layer.spacing, range: 0.5...5, help: style == .zigzag ? "How far apart the zigzag's points are along the column." : "Gap between this underlay's rows.") { value in settings(object.kind, "\(name) Spacing") { $0.setUnderlay(layerNumber, spacing: value) } }
+                }
+                if style.usesAngle {
+                    // On fills with no angle of their own, Focus Fill Angle reaches the first tatami underlay's angle.
+                    let firstTatami = s.underlay == .tatami ? 1 : 2
+                    number("Angle °", value: fillHasAngle ? layer.angle : wrapped(s.angle + layer.angle), id: !fillHasAngle && layerNumber == firstTatami ? "fillAngle" : "", range: -180...180,
+                           help: fillHasAngle ? "The direction of the underlay rows, measured from the fill's angle: 90° runs straight across the top rows." : "The direction of the underlay rows. This fill's own stitches don't follow an angle.") { value in
+                        settings(.fill, "\(name) Angle") { $0.setUnderlay(layerNumber, angle: fillHasAngle ? value : wrapped(value - $0.angle)) }
+                    }
+                }
+                if style.usesLength {
+                    number("Length", value: layer.stitchLength, range: DigitizingSettings.underlayLengthRange, help: style == .center ? "How long the center run's stitches are." : "How long this underlay's stitches are.") { value in settings(object.kind, "\(name) Length") { $0.setUnderlay(layerNumber, length: value) } }
+                }
             }
         }
     }
