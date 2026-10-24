@@ -30,6 +30,8 @@ struct DialogFrame<Content: View>: View {
     var title: String
     var subtitle: String
     var primary: String
+    /// The other button's label; it closes the dialog as Cancel does.
+    var secondary = "Cancel"
     var finish: (Bool) -> Void
     @ViewBuilder var content: Content
     var body: some View {
@@ -44,7 +46,7 @@ struct DialogFrame<Content: View>: View {
             Theme.divider.frame(height: 1)
             HStack {
                 Spacer()
-                Button("Cancel") { finish(false) }.keyboardShortcut(.cancelAction).buttonStyle(ThemedButtonStyle())
+                Button(secondary) { finish(false) }.keyboardShortcut(.cancelAction).buttonStyle(ThemedButtonStyle())
                 Button(primary) { finish(true) }.keyboardShortcut(.defaultAction).buttonStyle(ThemedButtonStyle(prominent: true))
             }.padding(.horizontal, 28).padding(.vertical, 16)
         }

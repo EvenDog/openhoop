@@ -6,16 +6,18 @@ How to digitize with OpenHoop, from artwork to a file your embroidery machine ca
 
 ## Getting started
 
-**Install:** download OpenHoop from [openhoop.app](https://openhoop.app), open the downloaded file and drag **OpenHoop** onto **Applications**, then open it from there. It's signed and notarized by Apple, so it opens like any other app, and it updates itself (see [Updates](#making-it-yours)). Nothing else needs installing. To look around first, choose **File → Open Sample Design** or **File → Open Satin + Fill Sampler**.
+**Install:** download OpenHoop from [openhoop.app](https://openhoop.app), open the downloaded file and drag **OpenHoop** onto **Applications**, then open it from there. It's signed and notarized by Apple, so it opens like any other app, and it updates itself (see [Updates](#making-it-yours)). Nothing else needs installing.
+
+The first time it opens, OpenHoop asks **which machine you sew on**: the brand, the hoop new designs should start in, and whether the machine cuts the thread between parts by itself. New designs then start in that hoop, exports start in your machine's format, and if it doesn't cut threads, exporting reminds you about [Stop at Jumps](#stop-at-jumps). **Open the Sample Design** finishes by opening a small design to look around in; **Start Blank** leaves an empty one. **Help › Set Up Your Machine…** asks again any time. (The sample is also under **File → Open Sample Design**, beside **File → Open Satin + Fill Sampler**.)
 
 ### Your first sew-out
 
-1. **Pick your hoop:** with nothing selected, Properties shows the design. Under **Sewing area**, choose your machine's hoop (for example **Brother · 4 × 4 in**). [More about hoops](#hoops).
+1. **Check the hoop:** with nothing selected, Properties shows the design. **Sewing area** shows the hoop it's in, the one you picked when OpenHoop first opened; choose another there for this design (for example **Brother · 4 × 4 in**). [More about hoops](#hoops).
 2. **Pick the fabric:** **Fabric type** just above it. **Woven** (quilting cotton, a shirt) is the easiest to start on.
 3. **Make something:** open the sample design (**File → Open Sample Design**), type a word (press **A**, click in the hoop, type), or draw a shape from the **Shape** group.
 4. **Look before you sew:** press **T** for [Thread View](#checking-and-saving-for-the-machine) and **Space** to watch the stitch player sew it. **⌥⇧R** reviews the sewing order and points out long moves.
 5. **No thread cutter?** Many home machines (such as the Brother SE600) can't cut the thread between parts, so the thread is left lying across the fabric. Click **Stop at Jumps** in the **Threads** panel: the machine then pauses after each jump so you can snip it. [Details](#stop-at-jumps).
-6. **Save the machine file:** **File → Export Machine File…** (**⌘E**) and pick your machine's format (see the table below). Save it to a USB stick, or however your machine takes designs.
+6. **Save the machine file:** **File → Export Machine File…** (**⌘E**). The format starts as your machine's (see the table below). Save it to a USB stick, or however your machine takes designs.
 7. **Sew it on scrap first:** hoop the same kind of fabric with the stabilizer **Fabric type** suggests, drum-tight, and sew. Compare it with Thread View. If something looks off, see [When something sews wrong](#when-something-sews-wrong).
 
 **Which format for my machine?**
@@ -314,7 +316,7 @@ Multi-hooped projects are saved as file version 7, which OpenHoop 0.6.8 and earl
 
 ### Stop at Jumps
 
-Machines without a thread cutter, such as the Brother SE600, can't cut the thread when the needle moves to the next part: the thread is left lying across the fabric (a jump), to snip by hand afterwards, and on the way it can catch. **Stop at Jumps** (the button beside **In sewing order** in the **Threads** panel) gives each object that ends in a jump **Stop after**, so the machine pauses there as it would for a thread change. Snip the loose thread, keep the same thread on, and press Start to carry on. It works on the selection, or on the whole design with nothing selected. Click it again (it now says **Remove Jump Stops**) to take those stops off; stops you set yourself stay. Each stop counts as a thread step on the machine's screen and worksheet, and machine files hold at most 255.
+Machines without a thread cutter, such as the Brother SE600, can't cut the thread when the needle moves to the next part: the thread is left lying across the fabric (a jump), to snip by hand afterwards, and on the way it can catch. **Stop at Jumps** (the button beside **In sewing order** in the **Threads** panel) gives each object that ends in a jump **Stop after**, so the machine pauses there as it would for a thread change. Snip the loose thread, keep the same thread on, and press Start to carry on. It works on the selection, or on the whole design with nothing selected. Click it again (it now says **Remove Jump Stops**) to take those stops off; stops you set yourself stay. Each stop counts as a thread step on the machine's screen and worksheet, and machine files hold at most 255. If you told **Set Up Your Machine** that your machine doesn't cut threads, the export check lists any jumps still without a stop.
 
 To see where the machine will stop before you sew, turn on **Pause at trims** (the scissors button beside the stitch player): playing then stops at every trim, stop and thread change, as the machine would. Press Play to carry on.
 

@@ -94,6 +94,10 @@ struct PreferenceData: Codable {
     var exportFormat: String?
     /// True when Review Sewing Order hides the steps still to sew; nil or false fades them.
     var reviewHidesUnsewn: Bool?
+    /// The machine brand picked in Set Up Your Machine (a MachineBrand), and whether that machine cuts the thread
+    /// between parts by itself (nil: not sure, or never asked). MachineSetup.swift.
+    var machineBrand: String?
+    var cutsThreads: Bool?
 }
 
 /// The canvas's view choices, remembered across designs and launches. Each is nil until it's first switched, which
@@ -113,6 +117,9 @@ struct ShownItems: Codable, Equatable {
     static let shared = Preferences()
     @Published var data = PreferenceData()
     @Published var error: String?
+    /// True when there were no saved preferences at launch: OpenHoop's first launch on this Mac, which starts with
+    /// Set Up Your Machine.
+    private(set) var isFirstLaunch = false
     /// How fast the stitch player sews, in stitches per second (a machine sews about 12). It sits outside `data`,
     /// so it isn't saved: every launch starts at the second speed button again.
     @Published var playbackSpeed = 120.0
@@ -232,6 +239,7 @@ struct ShownItems: Codable, Equatable {
             .appendingPathComponent("Embroidery", isDirectory: true).appendingPathComponent("preferences.json")
     }
     init() {
+        isFirstLaunch = !FileManager.default.fileExists(atPath: file.path)
         do {
             if FileManager.default.fileExists(atPath: file.path) {
                 var loaded = try JSONDecoder().decode(PreferenceData.self, from: Data(contentsOf: file))
