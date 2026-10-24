@@ -1,9 +1,9 @@
-// Smart corners: sharp corners of satin lines, satin outlines and satin borders are sewn the way EmbroideryStudio
-// sews them instead of being rounded off. A mitre: each leg's stitches stay square to the leg and stop at the seam
-// running from the inside corner to the outside point, the two legs overlapping a little across it. A cap, for very
-// sharp corners: the legs stop at a line across the corner and the point beyond is sewn as a small piece of its own,
-// its stitches running across the corner. The corner's edge pair lies along the seam (from the inside corner to the
-// outside point), which is how the stitch engine finds it.
+// Smart corners: sharp corners of satin lines, satin outlines and satin borders are sewn the way professional
+// digitizing software sews them instead of being rounded off. A mitre: each leg's stitches stay square to the leg and
+// stop at the seam running from the inside corner to the outside point, the two legs overlapping a little across it.
+// A cap, for very sharp corners: the legs stop at a line across the corner and the point beyond is sewn as a small
+// piece of its own, its stitches running across the corner. The corner's edge pair lies along the seam (from the
+// inside corner to the outside point), which is how the stitch engine finds it.
 import Foundation
 
 public enum SmartCorners {

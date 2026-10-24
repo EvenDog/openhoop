@@ -1,12 +1,35 @@
 # OpenHoop user guide
 
-How to digitize with OpenHoop, from artwork to a file your embroidery machine can sew. For an overview and how to build the app, see the [README](../README.md).
+How to digitize with OpenHoop, from artwork to a file your embroidery machine can sew. In the app, **Help › OpenHoop User Guide** (**⌘?**) opens this page. For an overview, see the [README](../README.md).
 
-**Contents:** [Getting started](#getting-started) · [Bringing in artwork](#bringing-in-artwork) · [Drawing stitches](#drawing-stitches) · [Editing shapes](#editing-shapes) · [Viewing and measuring](#viewing-and-measuring) · [Lettering](#lettering) · [Patches: borders and appliqué](#patches-borders-and-appliqué) · [Threads and fabric](#threads-and-fabric) · [Hoops](#hoops) · [Checking and saving for the machine](#checking-and-saving-for-the-machine) · [Importing machine files](#importing-machine-files) · [Making it yours](#making-it-yours) · [Keyboard shortcuts](#keyboard-shortcuts) · [Known limits](#known-limits)
+**Contents:** [Getting started](#getting-started) · [Bringing in artwork](#bringing-in-artwork) · [Drawing stitches](#drawing-stitches) · [Editing shapes](#editing-shapes) · [Viewing and measuring](#viewing-and-measuring) · [Lettering](#lettering) · [Patches: borders and appliqué](#patches-borders-and-appliqué) · [Threads and fabric](#threads-and-fabric) · [Hoops](#hoops) · [Checking and saving for the machine](#checking-and-saving-for-the-machine) · [Importing machine files](#importing-machine-files) · [Making it yours](#making-it-yours) · [Keyboard shortcuts](#keyboard-shortcuts) · [When something sews wrong](#when-something-sews-wrong) · [Known limits](#known-limits)
 
 ## Getting started
 
-Open `dist/OpenHoop.app` after building it. To look around first, choose **File → Open Sample Design** or **File → Open Satin + Fill Sampler**. The app carries its own file converter, so you don't need to install Python to use it.
+**Install:** download OpenHoop from [openhoop.app](https://openhoop.app), open the downloaded file and drag **OpenHoop** onto **Applications**, then open it from there. It's signed and notarized by Apple, so it opens like any other app, and it updates itself (see [Updates](#making-it-yours)). Nothing else needs installing. To look around first, choose **File → Open Sample Design** or **File → Open Satin + Fill Sampler**.
+
+### Your first sew-out
+
+1. **Pick your hoop:** with nothing selected, Properties shows the design. Under **Sewing area**, choose your machine's hoop (for example **Brother · 4 × 4 in**). [More about hoops](#hoops).
+2. **Pick the fabric:** **Fabric type** just above it. **Woven** (quilting cotton, a shirt) is the easiest to start on.
+3. **Make something:** open the sample design (**File → Open Sample Design**), type a word (press **A**, click in the hoop, type), or draw a shape from the **Shape** group.
+4. **Look before you sew:** press **T** for [Thread View](#checking-and-saving-for-the-machine) and **Space** to watch the stitch player sew it. **⌥⇧R** reviews the sewing order and points out long moves.
+5. **No thread cutter?** Many home machines (such as the Brother SE600) can't cut the thread between parts, so the thread is left lying across the fabric. Click **Stop at Jumps** in the **Threads** panel: the machine then pauses after each jump so you can snip it. [Details](#stop-at-jumps).
+6. **Save the machine file:** **File → Export Machine File…** (**⌘E**) and pick your machine's format (see the table below). Save it to a USB stick, or however your machine takes designs.
+7. **Sew it on scrap first:** hoop the same kind of fabric with the stabilizer **Fabric type** suggests, drum-tight, and sew. Compare it with Thread View. If something looks off, see [When something sews wrong](#when-something-sews-wrong).
+
+**Which format for my machine?**
+
+| Machine | Format |
+| --- | --- |
+| Brother, Baby Lock | **PES 6** (the default). If an older machine doesn't list the file, try **PES 1** |
+| Janome, Elna | **JEF** |
+| Husqvarna Viking, Pfaff | **VP3** |
+| Commercial and multi-needle machines | **DST** (stores no colors: print the thread list or worksheet) |
+| Melco and others that ask for EXP | **EXP** |
+| Singer (older models) | **XXX** |
+
+Your machine's manual lists the formats it reads; if in doubt, it's the one its own designs come in.
 
 > OpenHoop runs on Apple Silicon Macs with macOS 14 or later, and its designs have been sewn on a Brother SE600. Every machine, fabric and stabilizer behaves a little differently, so test-sew a new design on scrap fabric first.
 
@@ -141,12 +164,12 @@ Each layer shows only the settings its type uses: **Inset** (how far inside the 
 - **Stitch errors:** if an object can't be sewn, it's outlined in red and the status bar says why. Everything else keeps showing up-to-date stitches, but export waits until the error is fixed.
 - **Arrange:** mirror, rotate, resize, duplicate (**⌘D**), sew earlier or later, hide and lock (**K**). Hidden objects still sew; hiding only declutters the canvas.
 - **Wreath / Kaleidoscope (⌥⇧W)** (in the Add group, or **Digitize › Add**): select what to repeat (a leaf, a flower, a word), press **⌥⇧W** and click the center. Dashed outlines show the copies going all the way round it, each turned a further step; click again to move the center. In Properties, set **Copies** (2–100, counting the selection itself) and tick **Mirror every other** for a kaleidoscope, where every other copy is a mirror image so neighbours face each other in pairs (the count then stays even). **Apply** (or Return) makes it as one step to undo; Esc leaves it unmade. Fill rows turn (and mirror) with each copy. The selection and its copies become one group, sewn one thread color at a time all the way round the circle: a green leaf under a red flower sews every leaf, then every flower, so the wreath changes thread no more often than the selection did, and what lay on top still does. Copied lettering stays editable, each copy on its own.
-- **Sequence by selection order:** Shift-click objects on the canvas (or ⌘-click them in the sewing order list) in the order they should sew, then choose **Sew in click order** (Properties, with several selected), the numbered-list button in Pro's precision bar, or **Edit → Sequence by Selection Order**. They sew one after another in that order, starting where the earliest of them sewed; everything else keeps its place.
+- **Sequence by selection order:** Shift-click objects on the canvas (or ⌘-click them in the sewing order list) in the order they should sew, then choose **Sew in click order** (Properties, with several selected), the numbered-list button in the precision bar, or **Edit → Sequence by Selection Order**. They sew one after another in that order, starting where the earliest of them sewed; everything else keeps its place.
 - **Skew:** type an angle in **Skew** in the precision bar and press Return to lean the selection sideways, like italics: positive leans the top to the right. Fill rows lean along.
 - **Align and space:** with several objects selected, the row of small buttons in Properties lines them up by their left edges, centers or right edges, tops, centers or bottoms, or both centers. They line up with **the object you select last**, which stays put. **Space evenly across / down** (three or more) leaves the outer two in place and makes the gaps between neighbours equal. A group moves as one block, and locked objects stay put. These are in the Edit menu too.
-- **Group (⌘G / ⇧⌘G):** groups move, turn, resize and recolor together. Option-click picks one member.
+- **Group (⌘G) and Ungroup (⌘U):** groups move, turn, resize and recolor together. Option-click picks one member.
 - **Rename:** double-click an object's name in the sewing order (or right-click it and choose **Rename**), or click its name (with the ✎) at the top of Properties, and type a new one. Return keeps it, Esc keeps the old name, and Undo puts it back. **Edit › Rename Object…** does the same. Until you rename it, an object is called after its stitch and a number, and the name follows the stitch: change Zigzag 2's Line style to Ripple and it becomes Ripple 2. A name you've typed stays as it is. Lettering shows its text instead of a name; change the text in Properties.
-- **Lock and hide from the sewing order:** each row has a lock at its right: solid when the object is locked, faint while the pointer is over the row. Click it to lock or unlock. Right-click a row for **Rename**, **Lock / Unlock** and **Hide / Show**. On a group's row (Pro) or lettering, these act on all its objects. Each is one step to undo.
+- **Lock and hide from the sewing order:** each row has a lock at its right: solid when the object is locked, faint while the pointer is over the row. Click it to lock or unlock. Right-click a row for **Rename**, **Lock / Unlock** and **Hide / Show**. On a group's row or lettering, these act on all its objects. Each is one step to undo.
 - **Copy, cut and paste (⌘C, ⌘X, ⌘V):** within a design or into another. Pasted objects go at the end of the sewing order, where they were copied from; pasting again into the same design shifts each copy 3 mm.
 - **Convert:** turn a running outline into a fill, or outlines back into running stitch.
 - **Edit Stitches (E)** (in the Edit nodes slot): select one line, satin or fill and press **E**. Its needle points show as small squares, and the top of the **Properties** panel says you're in Edit Stitches (its **Done** button, or Escape, leaves it). Click one to select it (Shift- or ⌘-click adds more, or drag a box around several), drag to move them, press **Delete** to remove them, and Option-click on a stitch to add a needle point there. Escape when done. The object keeps its settings and Properties says **Stitches edited by hand**. The edits sew until you change its shape or a setting: then fresh stitches replace them and the status bar says so (Undo brings them back). Moving, turning, mirroring, resizing or skewing the object keeps them. **Regenerate** in Properties throws them away on purpose.
@@ -289,6 +312,12 @@ Multi-hooped projects are saved as file version 7, which OpenHoop 0.6.8 and earl
 
 **Stitch player.** The player sits at the right end of the tool strip, under the caption **Player** (at the bottom of the tool rail when the tools are down the left side). Press **Space** or **⇧R** (or ▶) to watch the design sew, and **Home** (or ⏮) to go back to the start; drag the slider to step through it. From the keyboard, with nothing selected: **←** / **→** step back or on one stitch and **↑** / **↓** ten (hold them down to keep going), **PgUp** / **PgDn** go to the previous or next color, **⇧T** / **⌘T** the previous or next object, **⌥←** / **⌥→** the previous or next trim, and **End** shows the whole design again. These are also in the View menu. **.** (period) shows the needle points. The speed buttons set how many stitches it sews per second (12, 120, 500 and 2,000 to start; a machine sews about 12), and you can switch between them while it plays. Change the four speeds in **Settings › Tools & player**. For a one-off speed, right-click the buttons and choose **Custom Speed…** (1–5,000). Each time the app opens, the player starts on the second button.
 
+### Stop at Jumps
+
+Machines without a thread cutter, such as the Brother SE600, can't cut the thread when the needle moves to the next part: the thread is left lying across the fabric (a jump), to snip by hand afterwards, and on the way it can catch. **Stop at Jumps** (the button beside **In sewing order** in the **Threads** panel) gives each object that ends in a jump **Stop after**, so the machine pauses there as it would for a thread change. Snip the loose thread, keep the same thread on, and press Start to carry on. It works on the selection, or on the whole design with nothing selected. Click it again (it now says **Remove Jump Stops**) to take those stops off; stops you set yourself stay. Each stop counts as a thread step on the machine's screen and worksheet, and machine files hold at most 255.
+
+To see where the machine will stop before you sew, turn on **Pause at trims** (the scissors button beside the stitch player): playing then stops at every trim, stop and thread change, as the machine would. Press Play to carry on.
+
 **Density map.** Turn on **View → Density Map** (or **Density** in the Show list) to color the spots that lay too much thread, in 1 mm squares. They show in both views and update as you edit.
 - **Yellow** is heavy: more than about 2 layers of fill (for example, two satins crossing). One layer is an ordinary tatami fill at 0.40 mm.
 - **Red** is too dense: more than about 3 layers, or 6 or more needle holes inside a quarter of a millimetre. Expect stiff patches there, broken thread, or holes cut in the fabric.
@@ -342,7 +371,7 @@ Print it, or choose **PDF** in the print dialog to save it.
 
 **Millimeters or inches:** **Settings → Measuring**, or **View → Use Inches**, switches how sizes and positions are shown and typed: object, design and hoop sizes, positions, start and end points, the rulers, guides, Measure, nudge, lettering and monogram height, and the worksheet. In inches the grid draws a line every ½ in (¼ in zoomed in) and Snap rounds to 0.05 in, unless Grid & snap is set finer or coarser. Stitch settings (stitch length, row spacing, satin and border widths, underlay, compensation) always stay in millimeters, as digitizers usually give them. Designs are saved the same either way, so switching never changes a design.
 
-**Updates:** OpenHoop looks for a new version once a day while it's open, and **OpenHoop → Check for Updates…** looks right away. When there is one, a window shows what's new: **Install Update** downloads it, installs it and reopens OpenHoop, **Remind Me Later** asks again another day, and **Skip This Version** waits for the one after. Only updates signed by OpenHoop's maker are installed. Nothing about you or your designs is sent; it only reads the list of versions on openhoop.app. **Settings → Updates** switches the daily check off, or checks now. (This starts with the version after 0.6.0; to get it, download it from openhoop.app once.)
+**Updates:** OpenHoop looks for a new version once a day while it's open, and **OpenHoop → Check for Updates…** looks right away. When there is one, a window shows what's new: **Install Update** downloads it, installs it and reopens OpenHoop, **Remind Me Later** asks again another day, and **Skip This Version** waits for the one after. Only updates signed by OpenHoop's maker are installed. Nothing about you or your designs is sent; it only reads the list of versions on openhoop.app. **Settings → Updates** switches the daily check off, or checks now.
 
 **Toolbar:** secondary-click it to customize.
 
@@ -389,6 +418,20 @@ These are the starting keys; every one can be changed. Tools on a function key a
 | | | Previous / next color, object, trim | PgUp / PgDn, ⇧T / ⌘T, ⌥← / ⌥→ |
 | | | End of design | End |
 | | | Next / previous design tab | ⌃⇥ / ⌃⇧⇥ |
+
+## When something sews wrong
+
+| What you see | What to try |
+| --- | --- |
+| The machine doesn't list the file, or shows a blank | Check the format against [the table above](#your-first-sew-out). On an older Brother or Baby Lock, export as **PES 1**. Check the machine's manual for where on the USB stick it looks for designs |
+| "Too large for the hoop", or the machine refuses the size | The hoop under **Sewing area** must match the hoop on the machine. A design bigger than your hoop can be sewn in parts: [Multi-hooping](#multi-hooping) |
+| Loose threads across the fabric between parts | Your machine doesn't cut them: use [Stop at Jumps](#stop-at-jumps), or snip them after. **Review Sewing Order** (**⌥⇧R**) shows every move and warns about long ones |
+| The fabric puckers or ripples around a fill | Use the stabilizer **Fabric type** suggests, hooped drum-tight. Set the right **Fabric type** for the design. For big fills, a tatami **Underlay 2** (crossed tatami) holds the fabric better |
+| A gap between a fill and its outline, or satins come out narrower than drawn | Thread pulls the fabric in. Raise the satin's **Compensation** or **% of width**, or the fill's **Expansion**. [Test swatches](#checking-and-saving-for-the-machine) sew several values side by side so you can pick |
+| Thread breaks, or stiff, bulletproof patches | Too many stitches in one place. Turn on **View → Density Map**, and open up the red areas (wider row spacing, or **Remove Overlaps** so a fill isn't sewn under a shape on top) |
+| Satin columns look thin or show fabric | Make **Row spacing** smaller (denser), or check that underlay is on |
+| Small lettering is unreadable | Use an embroidery font at a size it was made for, not a Mac font under 10 mm |
+| Something else | **Help › Report a Problem…** opens a form on GitHub. A photo of the sew-out and the design file help a lot |
 
 ## Known limits
 

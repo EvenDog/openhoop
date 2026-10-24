@@ -157,7 +157,7 @@ final class DefaultKeysTests: XCTestCase {
         XCTAssertEqual(profile.bindings[CommandID.insertNode.rawValue], [])
         XCTAssertEqual(profile.bindings[CommandID.branching.rawValue], [.init("i")])
     }
-    func testSavedProfileMovesToTheWilcomKeysOnce() throws {
+    func testSavedProfileMovesToTheMoreCommonKeysOnce() throws {
         // Saved with key set 5: ⇧⌘E on Export Machine File…, Return alone to finish, and no keys for the commands that
         // now have them, except one the person gave Clear Guides themselves and ⌘[ they put on Group.
         var profile = ShortcutProfile(); profile.keySet = 5
@@ -176,7 +176,7 @@ final class DefaultKeysTests: XCTestCase {
         XCTAssertEqual(profile.bindings[CommandID.earlier.rawValue], [], "⌘[ is theirs on Group, so Sew Earlier waits")
         XCTAssertEqual(profile.bindings[CommandID.later.rawValue], [.init("]", 1)])
         XCTAssertEqual(profile.command(for: .init("4", 5), context: .canvas), .palette)
-        XCTAssertFalse(profile.updateToWilcomKeys(), "only once")
+        XCTAssertFalse(profile.updateToMoreCommonKeys(), "only once")
         try profile.validate()
 
         // Someone who changed Export Machine File…'s keys keeps all of them, so Remove Overlaps waits.
