@@ -291,8 +291,12 @@ Choose your hoop under **Sewing area** in the Design panel:
 | Brand | Hoops |
 | --- | --- |
 | Brother | 4 × 4, 5 × 7, 6 × 10, 8 × 8, 8 × 12, 9.5 × 14 in |
+| Baby Lock | 4 × 4, 5 × 7, 6 × 10, 8 × 8, 7 × 12, 8 × 12, 9.5 × 9.5, 9.5 × 14 in |
 | Janome | SQ14, RE20b, SQ20b, SQ23, RE28b, RE36b |
-| Husqvarna Viking / Pfaff | 100 × 100, 115 × 120, 200 × 200, 150 × 240, 200 × 260, 200 × 360 mm |
+| Elna | SQ14, RE20b, RE20a, SQ20b, RE28b, RE36b |
+| Husqvarna Viking / Pfaff | 80 × 80, 100 × 100, 115 × 120, 120 × 120, 150 × 150, 100 × 180, 200 × 200, 150 × 240, 200 × 260, 260 × 260, 200 × 360, 260 × 360, 350 × 360 mm |
+| Bernina | Small, Medium, Large Oval, Midi, Mega, Maxi, Jumbo |
+| Singer | 100 × 100, 100 × 170, 100 × 180, 130 × 180, 150 × 260, 160 × 260 mm |
 
 Hoops are listed upright; **Turn sideways** swaps width and height. You can also type any size or choose an oval. New designs start in the hoop you picked last. Stitches outside the hoop are refused at export.
 

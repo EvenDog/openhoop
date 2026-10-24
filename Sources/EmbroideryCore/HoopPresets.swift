@@ -15,6 +15,8 @@ public struct HoopPreset: Hashable, Sendable, Identifiable {
     /// The hoop menu's line for it, e.g. "5 × 7 in · 130 × 180 mm" (a size-named hoop is just its size).
     public var menuTitle: String { name.hasSuffix("mm") ? name : "\(name) · \(Hoop.mm(width)) × \(Hoop.mm(height)) mm" }
 
+    /// Sewing areas from the makers' own pages and catalogs where possible (checked 2026-10-24). Hoops whose size
+    /// sources disagree are left out; anything else can be added in Settings › New designs › My hoops.
     public static let all: [HoopPreset] = [
         .init(brand: "Brother", name: "4 × 4 in", width: 100, height: 100),
         .init(brand: "Brother", name: "5 × 7 in", width: 130, height: 180),
@@ -22,18 +24,57 @@ public struct HoopPreset: Hashable, Sendable, Identifiable {
         .init(brand: "Brother", name: "8 × 8 in", width: 200, height: 200),
         .init(brand: "Brother", name: "8 × 12 in", width: 200, height: 300),
         .init(brand: "Brother", name: "9.5 × 14 in", width: 240, height: 360),
+        // Baby Lock shares Brother's hoops (Baby Lock accessory catalog 2026), plus two of its own sizes.
+        .init(brand: "Baby Lock", name: "4 × 4 in", width: 100, height: 100),
+        .init(brand: "Baby Lock", name: "5 × 7 in", width: 130, height: 180),
+        .init(brand: "Baby Lock", name: "6 × 10 in", width: 160, height: 260),
+        .init(brand: "Baby Lock", name: "8 × 8 in", width: 200, height: 200),
+        .init(brand: "Baby Lock", name: "7 × 12 in", width: 180, height: 300),
+        .init(brand: "Baby Lock", name: "8 × 12 in", width: 200, height: 300),
+        .init(brand: "Baby Lock", name: "9.5 × 9.5 in", width: 240, height: 240),
+        .init(brand: "Baby Lock", name: "9.5 × 14 in", width: 240, height: 360),
         .init(brand: "Janome", name: "SQ14", width: 140, height: 140),
         .init(brand: "Janome", name: "RE20b", width: 140, height: 200),
         .init(brand: "Janome", name: "SQ20b", width: 200, height: 200),
         .init(brand: "Janome", name: "SQ23", width: 230, height: 230),
         .init(brand: "Janome", name: "RE28b", width: 200, height: 280),
         .init(brand: "Janome", name: "RE36b", width: 200, height: 360),
+        // Elna machines take Janome's hoops (Elna eXpressive data sheets).
+        .init(brand: "Elna", name: "SQ14", width: 140, height: 140),
+        .init(brand: "Elna", name: "RE20b", width: 140, height: 200),
+        .init(brand: "Elna", name: "RE20a", width: 170, height: 200),
+        .init(brand: "Elna", name: "SQ20b", width: 200, height: 200),
+        .init(brand: "Elna", name: "RE28b", width: 200, height: 280),
+        .init(brand: "Elna", name: "RE36b", width: 200, height: 360),
+        // Pfaff creative and Husqvarna Viking hoops share sizes (Singer's hoop store, which sells both).
+        .init(brand: "Husqvarna Viking / Pfaff", name: "80 × 80 mm", width: 80, height: 80),
         .init(brand: "Husqvarna Viking / Pfaff", name: "100 × 100 mm", width: 100, height: 100),
         .init(brand: "Husqvarna Viking / Pfaff", name: "115 × 120 mm", width: 115, height: 120),
+        .init(brand: "Husqvarna Viking / Pfaff", name: "120 × 120 mm", width: 120, height: 120),
+        .init(brand: "Husqvarna Viking / Pfaff", name: "150 × 150 mm", width: 150, height: 150),
+        .init(brand: "Husqvarna Viking / Pfaff", name: "100 × 180 mm", width: 100, height: 180),
         .init(brand: "Husqvarna Viking / Pfaff", name: "200 × 200 mm", width: 200, height: 200),
         .init(brand: "Husqvarna Viking / Pfaff", name: "150 × 240 mm", width: 150, height: 240),
         .init(brand: "Husqvarna Viking / Pfaff", name: "200 × 260 mm", width: 200, height: 260),
+        .init(brand: "Husqvarna Viking / Pfaff", name: "260 × 260 mm", width: 260, height: 260),
         .init(brand: "Husqvarna Viking / Pfaff", name: "200 × 360 mm", width: 200, height: 360),
+        .init(brand: "Husqvarna Viking / Pfaff", name: "260 × 360 mm", width: 260, height: 360),
+        .init(brand: "Husqvarna Viking / Pfaff", name: "350 × 360 mm", width: 350, height: 360),
+        // Bernina's hoops by name (bernina.com). Large Oval is Bernina's name; its sewing area is rectangular.
+        .init(brand: "Bernina", name: "Small", width: 50, height: 72),
+        .init(brand: "Bernina", name: "Medium", width: 100, height: 130),
+        .init(brand: "Bernina", name: "Large Oval", width: 145, height: 255),
+        .init(brand: "Bernina", name: "Midi", width: 165, height: 265),
+        .init(brand: "Bernina", name: "Mega", width: 150, height: 400),
+        .init(brand: "Bernina", name: "Maxi", width: 210, height: 400),
+        .init(brand: "Bernina", name: "Jumbo", width: 260, height: 400),
+        // Singer (singer.com; Futura sizes from retailers): SE9180/SE9185, Legacy SE300/SE340 and Futura hoops.
+        .init(brand: "Singer", name: "100 × 100 mm", width: 100, height: 100),
+        .init(brand: "Singer", name: "100 × 170 mm", width: 100, height: 170),
+        .init(brand: "Singer", name: "100 × 180 mm", width: 100, height: 180),
+        .init(brand: "Singer", name: "130 × 180 mm", width: 130, height: 180),
+        .init(brand: "Singer", name: "150 × 260 mm", width: 150, height: 260),
+        .init(brand: "Singer", name: "160 × 260 mm", width: 160, height: 260),
     ]
     /// The brands in list order, for grouping the hoop menu.
     public static var brands: [String] { all.map(\.brand).reduce(into: []) { if !$0.contains($1) { $0.append($1) } } }

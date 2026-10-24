@@ -9,7 +9,12 @@ final class HoopPresetTests: XCTestCase {
             XCTAssertLessThanOrEqual(preset.width, preset.height, "\(preset.id) is listed upright")
             XCTAssertTrue((50...400).contains(preset.width) && (50...400).contains(preset.height), preset.id)
         }
-        XCTAssertEqual(HoopPreset.brands, ["Brother", "Janome", "Husqvarna Viking / Pfaff"])
+        XCTAssertEqual(HoopPreset.brands, ["Brother", "Baby Lock", "Janome", "Elna", "Husqvarna Viking / Pfaff", "Bernina", "Singer"])
+        // Names saved in older designs must keep naming the same hoop.
+        for (id, size) in [("Brother 5 × 7 in", (130.0, 180.0)), ("Janome RE20b", (140, 200)), ("Husqvarna Viking / Pfaff 150 × 240 mm", (150, 240))] {
+            let preset = HoopPreset.all.first { $0.id == id }
+            XCTAssertEqual(preset?.width, size.0, id); XCTAssertEqual(preset?.height, size.1, id)
+        }
     }
 
     func testPresetHoopIsRecognizedEitherWayRound() throws {
