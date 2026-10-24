@@ -10,7 +10,7 @@ struct ToolOptions: View {
     @ObservedObject var state: EditorState
     @ObservedObject var preferences = Preferences.shared
     /// True for the tools whose choices live in Properties, so picking one opens the panel if it's closed.
-    static func applies(to tool: Tool) -> Bool { NextShapeOptions.shows(tool) || tool == .node || tool == .stitchEdit || tool == .hooping }
+    static func applies(to tool: Tool) -> Bool { NextShapeOptions.shows(tool) || tool == .node || tool == .stitchEdit || tool == .hooping || tool == .wreath }
     /// True when Properties shows the next shape's choices: with a shape tool on, while nothing is selected or just
     /// after the tool was picked. They then stand in for the selection's properties.
     static func showsNextShape(_ state: EditorState) -> Bool {
@@ -19,6 +19,8 @@ struct ToolOptions: View {
     var body: some View {
         if Self.showsNextShape(state) {
             NextShapeOptions(state: state)
+        } else if state.tool == .wreath {
+            WreathOptions(state: state)
         } else if state.tool == .hooping {
             HoopingOptions(state: state)   // HoopingOptions.swift
         } else if state.tool == .node, let node = state.selectedPathNode {
@@ -44,6 +46,38 @@ struct ToolOptions: View {
             }
             Divider()
         }
+    }
+}
+
+/// Wreath's choices: how many copies go round and whether every other one is mirrored, then Apply. The canvas shows the
+/// result as dashed outlines while these change.
+struct WreathOptions: View {
+    @ObservedObject var state: EditorState
+    @ObservedObject var preferences = Preferences.shared
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ToolCaption(text: state.wreathMirrored ? "KALEIDOSCOPE" : "WREATH")
+            HStack(spacing: 8) {
+                Text("Copies")
+                Spacer(minLength: 8)
+                Text("\(state.wreathCopies)").monospacedDigit()
+                // A kaleidoscope steps by 2, so its mirrored copies always pair up.
+                Stepper("Copies", value: $state.wreathCopies, in: Design.wreathCopies, step: state.wreathMirrored ? 2 : 1).labelsHidden()
+            }
+            .help("How many go round the circle, counting the selection itself")
+            Toggle("Mirror every other (kaleidoscope)", isOn: $state.wreathMirrored)
+                .help("Every other copy is a mirror image, so neighbours face each other in pairs")
+            HStack {
+                Button("Apply") { state.applyWreath() }.disabled(state.wreathCenter == nil)
+                    .help("Make the wreath (\(preferences.key(.finishPath)))")
+                Button("Cancel") { AppDelegate.shared.perform(.done) }.help("Leave the wreath unmade (\(preferences.key(.done)))")
+            }
+            .controlSize(.small)
+            Text(state.wreathCenter == nil ? "Click the center on the canvas." : "Click again to move the center.")
+                .font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
+        }
+        .font(Theme.body(12))
+        Divider()
     }
 }
 

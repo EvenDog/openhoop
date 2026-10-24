@@ -14,6 +14,7 @@ enum Tool: String, Codable { case select, run, satin, fill, hole, node, pan, ent
     stitchEdit,   // Edit Stitch: select, move, delete and add one object's needle points
     addAngles, removeAngles,   // add stitch angle lines to a fill (two clicks each), or click one to remove it
     branch,    // Branching: click where the branch starts, then where it ends (Return lets OpenHoop choose)
+    wreath,    // Wreath: click the center, then set the copies in Properties and apply
     zoomBox,   // drag a box to zoom into it, then go back to the tool before
     measure,   // drag to measure a distance and angle
     hooping,   // Hoopings: drag the hoopings of a multi-hooped design, click one to see what it sews
@@ -37,7 +38,7 @@ enum Tool: String, Codable { case select, run, satin, fill, hole, node, pan, ent
     }
     /// The tool each tool command turns on.
     static let forCommand:[CommandID:Tool]=[.selectTool:.select,.runTool:.run,.satinTool:.satin,.fillTool:.fill,.holeTool:.hole,.nodeTool:.node,.panTool:.pan,
-        .entryExitTool:.entryExit,.artworkTool:.artwork,.openShapeTool:.openShape,.closedShapeTool:.closedShape,.freehandOpenTool:.freehandOpen,.freehandClosedTool:.freehandClosed,.rectangleTool:.rectangle,.ellipseTool:.ellipse,.basicShapeTool:.basicShape,.zoomBoxTool:.zoomBox,.measureTool:.measure,.hoopingsTool:.hooping,.knifeTool:.knife,.branching:.branch,.addStitchAngles:.addAngles,.removeStitchAngles:.removeAngles,.editStitches:.stitchEdit,.lettering:.text]
+        .entryExitTool:.entryExit,.artworkTool:.artwork,.openShapeTool:.openShape,.closedShapeTool:.closedShape,.freehandOpenTool:.freehandOpen,.freehandClosedTool:.freehandClosed,.rectangleTool:.rectangle,.ellipseTool:.ellipse,.basicShapeTool:.basicShape,.zoomBoxTool:.zoomBox,.measureTool:.measure,.hoopingsTool:.hooping,.knifeTool:.knife,.branching:.branch,.wreath:.wreath,.addStitchAngles:.addAngles,.removeStitchAngles:.removeAngles,.editStitches:.stitchEdit,.lettering:.text]
 }
 struct NodeLocation:Equatable {var object:UUID;var ring:Int;var index:Int}
 /// One needle point of an object's stitches, for Edit Stitch: which section (run of stitches) and which point in it.
@@ -487,6 +488,36 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             guard edit("Branching", { $0 = next }) else { return }
             selection = Set(ids); selectedNode = nil
             status = "Branched \(ids.count) objects in \(next.objects.first { $0.id == ids[0] }?.color.name ?? "one thread"). Where they touch, the needle travels inside them instead of trimming. Ungroup to undo the branch."
+        } catch { status = error.localizedDescription }
+    }
+    /// Wreath: the objects being repeated, the center clicked on the canvas (nil until the first click), how many
+    /// copies go round (counting the originals) and whether every other one is mirrored (kaleidoscope).
+    var wreathTargets: Set<UUID> = []
+    @Published var wreathCenter: Point?
+    @Published var wreathCopies = 8
+    @Published var wreathMirrored = false { didSet { if wreathMirrored && wreathCopies % 2 == 1 { wreathCopies += 1 } } }   // mirrored copies pair up
+    /// Starts the Wreath tool on the selection: next comes the click for its center.
+    func startWreath() {
+        let targets = editableSelection
+        guard !targets.isEmpty else { status = "Select the objects to repeat round the wreath."; return }
+        wreathTargets = targets; wreathCenter = nil; tool = .wreath
+        status = "Wreath · Click the center to repeat the selection round · Esc cancels"
+    }
+    /// The design as the wreath would leave it, for the preview on the canvas; nil before the center is clicked.
+    var wreathPreview: Design? {
+        guard tool == .wreath, let center = wreathCenter else { return nil }
+        var next = design
+        return (try? next.wreath(wreathTargets, copies: wreathCopies, around: center, mirrored: wreathMirrored)) == nil ? nil : next
+    }
+    /// Makes the wreath as one undoable edit, selects it and goes back to Select.
+    func applyWreath() {
+        guard let center = wreathCenter else { status = "Click the wreath's center on the canvas first."; return }
+        var next = design
+        do {
+            let ids = try next.wreath(wreathTargets, copies: wreathCopies, around: center, mirrored: wreathMirrored)
+            guard edit(wreathMirrored ? "Kaleidoscope" : "Wreath", { $0 = next }) else { return }
+            selection = Set(ids); selectedNode = nil; wreathCenter = nil; tool = .select
+            status = "\(wreathMirrored ? "Kaleidoscope" : "Wreath") of \(wreathCopies), grouped. It sews one thread color at a time round the circle, so it changes thread no more often than the original."
         } catch { status = error.localizedDescription }
     }
     /// Knife: cuts the selected objects (or, with nothing selected, everything on show) along the line just drawn,

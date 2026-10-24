@@ -25,7 +25,7 @@ struct ToolStrip: View {
         ("Pick & shape", [.selectTool, .nodeTool, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .removeOverlaps, .branching, .entryExitTool, .panTool, .artworkTool]),
         ("Stitch", [.runTool, .satinTool, .fillTool, .holeTool, .addStitchAngles, .removeStitchAngles]),
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool]),
-        ("Add", [.lettering, .addMonogram, .satinBorder, .outlinesOffsets, .applique, .autoDigitize, .laydown]),
+        ("Add", [.lettering, .addMonogram, .satinBorder, .outlinesOffsets, .applique, .autoDigitize, .laydown, .wreath]),
         ("View", [.measureTool, .hoopingsTool, .grid, .snap, .threadView, .reviewSewingOrder]),
         ("Show", [.showStitches, .showOutlines, .showConnectors, .needles, .showUnderlay, .hideOthers, .showRulers, .densityMap]),
         ("Zoom", [.zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected])
@@ -145,6 +145,7 @@ struct ToolStrip: View {
         case .stitchEdit: return ("Edit stitches", "click or box-select points · drag moves" + key(.delete, "deletes") + " · ⌥-click adds")
         case .addAngles: return ("Stitch angles", state.angleStart == nil ? "click two points across the fill" : "click the other side")
         case .removeAngles: return ("Remove angles", "click a line to remove it")
+        case .wreath: return ("Wreath", state.wreathCenter == nil ? "click the center" : "click to move the center" + key(.finishPath, "makes it"))
         case .branch: return ("Branching", state.branchPoints.isEmpty ? "click where it starts · ↩ chooses for you" : "click where it ends · ↩ chooses for you")
         }
     }

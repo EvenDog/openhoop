@@ -17,7 +17,7 @@ public struct KeyBinding: Codable, Hashable, Sendable {
 public enum CommandID: String, Codable, CaseIterable, Sendable {
     case new, open, save, saveAs, close, importImage, importSVG, importMachine, exportMachine, exportThreadList, productionWorksheet, sample, stitchSampler, settings
     case selectTool, artworkTool, runTool, satinTool, fillTool, holeTool, removeHoles, nodeTool, panTool, entryExitTool, autoStartPoints, clearStartEnd, lettering, editLettering, autoDigitize, satinBorder, outlinesOffsets, applique, done, finishPath, cancelPath, removePoint, insertNode, deleteNode, toggleNodeType, breakApartLettering, densityMap, testSwatches, useAsFillGuide, putLetteringOnLine, renameObject, convertFill, convertRun, convertSatin, toggleUnderlay, showUnderlay, focusSpacing, focusAngle
-    case openShapeTool, closedShapeTool, freehandOpenTool, freehandClosedTool, rectangleTool, ellipseTool, basicShapeTool, knifeTool, weldObjects, removeOverlaps, smoothShapes, laydown, branching, addStitchAngles, removeStitchAngles, editStitches, addMonogram, editMonogram
+    case openShapeTool, closedShapeTool, freehandOpenTool, freehandClosedTool, rectangleTool, ellipseTool, basicShapeTool, knifeTool, weldObjects, removeOverlaps, smoothShapes, laydown, wreath, branching, addStitchAngles, removeStitchAngles, editStitches, addMonogram, editMonogram
     case undo, redo, delete, selectAll, sequenceBySelection, sequenceByColor, alignLeft, alignCentersVertically, alignRight, alignTop, alignCentersHorizontally, alignBottom, alignCenters, spaceAcross, spaceDown, duplicate, mirrorH, mirrorV, rotateLeft, rotateRight, earlier, later, closePath, lockObject, hideObject, tieIn, tieOut, trimAfter, stopAfter, group, ungroup, threadChart, cutObjects, copyObjects, pasteObjects
     case zoomIn, zoomOut, zoomFit, zoomDesign, zoomBoxTool, zoomActual, zoomSelected, showStitches, showOutlines, showConnectors, hideOthers, measureTool, hoopingsTool, grid, snap, clearGuides, needles, threadView, reviewSewingOrder, artwork, inspector, palette, restoreWorkspace, saveWorkspace, useInches, showRulers, paletteUnderCanvas
     case panelSewingOrder, panelDesign, panelReference, nextTab, previousTab
@@ -46,7 +46,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .openShapeTool: return "Digitize Open Shape"; case .closedShapeTool: return "Digitize Closed Shape"
         case .freehandOpenTool: return "Freehand Open Shape"; case .freehandClosedTool: return "Freehand Closed Shape"
         case .rectangleTool: return "Rectangle"; case .ellipseTool: return "Ellipse"; case .basicShapeTool: return "Basic Shapes"
-        case .knifeTool: return "Knife"; case .weldObjects: return "Weld"; case .removeOverlaps: return "Remove Overlaps"; case .smoothShapes: return "Smooth Shapes"; case .laydown: return "Add Laydown…"; case .branching: return "Branching"; case .addStitchAngles: return "Add Stitch Angles"; case .removeStitchAngles: return "Remove Stitch Angles"; case .editStitches: return "Edit Stitches"; case .addMonogram: return "Add Monogram…"; case .editMonogram: return "Edit Monogram…"
+        case .knifeTool: return "Knife"; case .weldObjects: return "Weld"; case .removeOverlaps: return "Remove Overlaps"; case .smoothShapes: return "Smooth Shapes"; case .laydown: return "Add Laydown…"; case .wreath: return "Wreath / Kaleidoscope"; case .branching: return "Branching"; case .addStitchAngles: return "Add Stitch Angles"; case .removeStitchAngles: return "Remove Stitch Angles"; case .editStitches: return "Edit Stitches"; case .addMonogram: return "Add Monogram…"; case .editMonogram: return "Edit Monogram…"
         case .removePoint: return "Remove Last Point"; case .undo: return "Undo"; case .redo: return "Redo"; case .delete: return "Delete Selection"
         case .selectAll: return "Select All"; case .duplicate: return "Duplicate"; case .mirrorH: return "Mirror Horizontally"
         case .mirrorV: return "Mirror Vertically"; case .rotateLeft: return "Rotate Left 90°"; case .rotateRight: return "Rotate Right 90°"
@@ -142,6 +142,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .removeOverlaps: return "Leave out the parts of fills that shapes on top cover, so they aren't sewn twice. Choose again to sew them in full."
         case .smoothShapes: return "Remove points that barely shape the selected outlines, to tidy them."
         case .laydown: return "Add a light, open fill under the design that flattens towel, fleece or velvet pile."
+        case .wreath: return "Repeat the selection all the way round a center point, like petals; a kaleidoscope mirrors every other copy."
         case .branching: return "Sew touching objects in one go: the needle travels inside them instead of trimming between them."
         case .addStitchAngles: return "Draw lines across a fill to set which way its stitches run; they turn smoothly between lines."
         case .removeStitchAngles: return "Click a fill's stitch angle line to remove it."
@@ -234,7 +235,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
     public var category: String {
         switch self {
         case .new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportMachine, .exportThreadList, .productionWorksheet, .sample, .stitchSampler: return "File"
-        case .selectTool, .runTool, .satinTool, .fillTool, .holeTool, .nodeTool, .panTool, .entryExitTool, .autoStartPoints, .clearStartEnd, .lettering, .editLettering, .autoDigitize, .satinBorder, .outlinesOffsets, .applique, .done, .artworkTool, .finishPath, .cancelPath, .removePoint, .openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool, .knifeTool, .laydown, .branching, .addStitchAngles, .removeStitchAngles, .useAsFillGuide, .putLetteringOnLine, .editStitches, .addMonogram, .editMonogram: return "Digitizing"
+        case .selectTool, .runTool, .satinTool, .fillTool, .holeTool, .nodeTool, .panTool, .entryExitTool, .autoStartPoints, .clearStartEnd, .lettering, .editLettering, .autoDigitize, .satinBorder, .outlinesOffsets, .applique, .done, .artworkTool, .finishPath, .cancelPath, .removePoint, .openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool, .knifeTool, .laydown, .wreath, .branching, .addStitchAngles, .removeStitchAngles, .useAsFillGuide, .putLetteringOnLine, .editStitches, .addMonogram, .editMonogram: return "Digitizing"
         case .settings, .inspector, .palette, .restoreWorkspace, .saveWorkspace, .panelSewingOrder, .panelDesign, .panelReference, .nextTab, .previousTab: return "Workspace"
         case .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .hoopingsTool, .grid, .snap, .clearGuides, .needles, .threadView, .reviewSewingOrder, .artwork, .play, .rewind, .useInches, .showRulers, .paletteUnderCanvas, .densityMap,
              .stepForward, .stepBackward, .stepForward10, .stepBackward10, .nextColor, .previousColor, .nextObject, .previousObject, .nextTrim, .previousTrim, .toEnd: return "View"
@@ -246,7 +247,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
     public var needsSelection: Bool {
         [.holeTool, .removeHoles, .clearStartEnd, .editLettering, .breakApartLettering, .testSwatches, .useAsFillGuide, .putLetteringOnLine,
          .renameObject, .convertFill, .convertRun, .convertSatin, .toggleUnderlay, .focusSpacing, .focusAngle, .focusLength, .satinBorder, .outlinesOffsets, .applique,
-         .insertNode, .deleteNode, .toggleNodeType, .weldObjects, .smoothShapes, .branching, .addStitchAngles, .removeStitchAngles, .editStitches, .editMonogram,
+         .insertNode, .deleteNode, .toggleNodeType, .weldObjects, .smoothShapes, .wreath, .branching, .addStitchAngles, .removeStitchAngles, .editStitches, .editMonogram,
          .delete, .sequenceBySelection, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters,
          .spaceAcross, .spaceDown, .duplicate, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .closePath, .lockObject, .hideObject,
          .tieIn, .tieOut, .trimAfter, .stopAfter, .group, .ungroup, .cutObjects, .copyObjects, .zoomSelected, .nudgeLeft, .nudgeRight, .nudgeUp, .nudgeDown].contains(self)
@@ -256,7 +257,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         if appWide { return [.canvas, .drawing, .list, .text] }
         if [.finishPath, .cancelPath, .removePoint].contains(self) { return [.drawing] }
         if self == .play || stitchStep != nil { return [.canvas, .list] }   // while drawing, Space finishes the shape instead
-        if [.holeTool, .removeHoles, .insertNode, .deleteNode, .toggleNodeType, .breakApartLettering, .renameObject, .convertFill, .convertRun, .convertSatin, .toggleUnderlay, .focusSpacing, .focusAngle, .delete, .selectAll, .sequenceBySelection, .sequenceByColor, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .duplicate, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .closePath, .lockObject, .hideObject, .group, .ungroup, .threadChart, .cutObjects, .copyObjects, .pasteObjects, .clearStartEnd, .lettering, .editLettering, .autoDigitize, .satinBorder, .outlinesOffsets, .applique, .done, .focusLength, .nudgeLeft, .nudgeRight, .nudgeUp, .nudgeDown, .weldObjects, .removeOverlaps, .smoothShapes, .laydown, .branching, .addMonogram, .editMonogram, .useAsFillGuide, .putLetteringOnLine, .reviewSewingOrder].contains(self) { return [.canvas, .list] }
+        if [.holeTool, .removeHoles, .insertNode, .deleteNode, .toggleNodeType, .breakApartLettering, .renameObject, .convertFill, .convertRun, .convertSatin, .toggleUnderlay, .focusSpacing, .focusAngle, .delete, .selectAll, .sequenceBySelection, .sequenceByColor, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .duplicate, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .closePath, .lockObject, .hideObject, .group, .ungroup, .threadChart, .cutObjects, .copyObjects, .pasteObjects, .clearStartEnd, .lettering, .editLettering, .autoDigitize, .satinBorder, .outlinesOffsets, .applique, .done, .focusLength, .nudgeLeft, .nudgeRight, .nudgeUp, .nudgeDown, .weldObjects, .removeOverlaps, .smoothShapes, .laydown, .wreath, .branching, .addMonogram, .editMonogram, .useAsFillGuide, .putLetteringOnLine, .reviewSewingOrder].contains(self) { return [.canvas, .list] }
         return [.canvas, .drawing, .list]
     }
     public var repeats: Bool { [.nudgeLeft, .nudgeRight, .nudgeUp, .nudgeDown, .zoomIn, .zoomOut].contains(self) || stitchStep != nil }
@@ -318,6 +319,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .knifeTool: return [.init("k", 4)]; case .weldObjects: return [.init("w", 4)]; case .smoothShapes: return [.init("n", 4)]
         case .removeOverlaps: return [.init("e", 3)]
         case .laydown: return [.init("l", 6)]
+        case .wreath: return [.init("w", 6)]   // ⌥⇧W: Wilcom has no key for its Wreath
         case .addStitchAngles: return [.init("h", 8)]; case .removeStitchAngles: return [.init("h", 10)]   // ⌃H, because ⌘H hides the app on a Mac
         case .branching: return [.init("i")]   // Insert Node moved to ⇧⌥I for it
         case .editStitches: return [.init("e")]
@@ -381,7 +383,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .redo: return "arrow.uturn.forward"; case .grid: return "grid"; case .snap: return "scope"; case .needles: return "circle.dotted"; case .threadView: return "eye"; case .reviewSewingOrder: return "checklist"; case .showRulers: return "rectangle.topthird.inset.filled"
         case .play: return "play.fill"; case .showUnderlay: return "square.stack"; case .group: return "square.on.square"; case .ungroup: return "square.dashed"; case .threadChart: return "swatchpalette"
         case .openShapeTool: return "scribble"; case .closedShapeTool: return "lasso"; case .freehandOpenTool: return "pencil.line"; case .freehandClosedTool: return "pencil.and.scribble"; case .rectangleTool: return "rectangle"; case .ellipseTool: return "oval"; case .basicShapeTool: return "star"
-        case .knifeTool: return "square.split.diagonal"; case .weldObjects: return "square.on.circle"; case .removeOverlaps: return "square.on.square.dashed"; case .smoothShapes: return "point.topleft.down.curvedto.point.bottomright.up"; case .laydown: return "square.grid.3x3"; case .branching: return "arrow.triangle.branch"; case .addStitchAngles: return "angle"; case .removeStitchAngles: return "eraser.line.dashed"; case .editStitches: return "point.3.filled.connected.trianglepath.dotted"; case .addMonogram: return "openhoop.monogram"; case .editMonogram: return "pencil.and.outline"
+        case .knifeTool: return "square.split.diagonal"; case .weldObjects: return "square.on.circle"; case .removeOverlaps: return "square.on.square.dashed"; case .smoothShapes: return "point.topleft.down.curvedto.point.bottomright.up"; case .laydown: return "square.grid.3x3"; case .wreath: return "camera.aperture"; case .branching: return "arrow.triangle.branch"; case .addStitchAngles: return "angle"; case .removeStitchAngles: return "eraser.line.dashed"; case .editStitches: return "point.3.filled.connected.trianglepath.dotted"; case .addMonogram: return "openhoop.monogram"; case .editMonogram: return "pencil.and.outline"
         case .paletteUnderCanvas: return "rectangle.bottomthird.inset.filled"
         default: return "circle"
         }
