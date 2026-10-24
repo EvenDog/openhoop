@@ -14,15 +14,21 @@ public enum SatinLine {
     }
 
     /// `object` turned into a satin column `width` mm wide centered on its path, keeping its name, id, thread and
-    /// place. Sharp turns are rounded just enough for the satin to turn. Throws, with a reason, if it can't sew.
-    public static func column(from object: RunObject, width: Double) throws -> RunObject {
+    /// place. Turns are rounded just enough for the satin to turn; with `smartCorners`, sharp ones are mitred or capped
+    /// instead (SmartCorners.swift). Throws, with a reason, if it can't sew.
+    public static func column(from object: RunObject, width: Double, smartCorners: Bool = true) throws -> RunObject {
         guard canConvert(object) else { throw DesignError.invalid("‘\(object.name)’ isn't a line. Satin from a center line needs a running stitch or outline.") }
         guard widths.contains(width) else { throw DesignError.invalid("Satin width must be between 0.8 and 1,000 mm.") }
         var satin = object
         satin.nodes = object.closed
-            ? try SatinBorder.edgePairs(around: AreaGeometry.ring(object.nodes), width: width, name: object.name)
-            : try openPairs(along: RunningEngine.flatten(object.nodes).flatMap { $0 }, width: width, name: object.name)
+            ? try SatinBorder.edgePairs(around: AreaGeometry.ring(object.nodes), width: width, name: object.name, smartCorners: smartCorners)
+            : try openPairs(along: RunningEngine.flatten(object.nodes).flatMap { $0 }, width: width, name: object.name, smartCorners: smartCorners)
         satin.digitizing = DigitizingSettings(kind: .satin)
+        if smartCorners {
+            satin.digitizing?.smartCorners = true
+            // Smart corners never make a line fail that sews with rounded ones: if it won't sew, it's rounded instead.
+            if (try? AreaEngine.satin(satin)) == nil { return try column(from: object, width: width, smartCorners: false) }
+        }
         satin.holes = nil; satin.entry = nil; satin.exit = nil
         do { _ = try AreaEngine.satin(satin) } catch {
             throw DesignError.invalid("A \(width.formatted()) mm satin doesn't fit along ‘\(object.name)’: \(error.localizedDescription) Try a narrower width or smoother turns.")
@@ -32,13 +38,22 @@ public enum SatinLine {
 
     /// Edge pairs (left rail first in each pair) for an open center line: corners rounded to at least half the width
     /// plus 0.6 mm (so stitches on the inside of a turn can't cross), then a pair wherever the line bends (within
-    /// 0.1 mm) and at least every 10 mm, so the column has few pairs to drag when reshaping it.
-    static func openPairs(along path: [Point], width: Double, name: String) throws -> [PathNode] {
+    /// 0.1 mm) and at least every 10 mm, so the column has few pairs to drag when reshaping it. With `smartCorners`,
+    /// sharp corners stay sharp, each with a pair right along its seam, from the inside corner to the outside point.
+    static func openPairs(along path: [Point], width: Double, name: String, smartCorners: Bool = false) throws -> [PathNode] {
         var line: [Point] = []
         for p in path where line.last.map({ $0.distance(to: p) > 0.01 }) ?? true { line.append(p) }
         guard line.count >= 2, AreaGeometry.pathLength(line) >= 1 else { throw DesignError.invalid("‘\(name)’ is too short for a satin column.") }
         let half = width / 2
-        let center = limited(simplified(evenlySpaced(filleted(line, radius: half + 0.6), spacing: 0.4), tolerance: 0.1), spacing: 10)
+        // The line is shaped piece by piece between its sharp corners (with smart corners), so each sharp corner stays
+        // exactly where it is; without them it's one piece.
+        let ends = [0] + (smartCorners ? SmartCorners.fittingCorners(line, closed: false, half: half) : []) + [line.count - 1]
+        var center: [Point] = []
+        for (from, to) in zip(ends, ends.dropFirst()) {
+            let piece = limited(simplified(evenlySpaced(filleted(Array(line[from...to]), radius: half + 0.6), spacing: 0.4), tolerance: 0.1), spacing: 10)
+            center += center.isEmpty ? piece : Array(piece.dropFirst())
+        }
+        if smartCorners { center = SmartCorners.clearedAroundCorners(center, closed: false, half: half) }
         var nodes: [PathNode] = []
         func normal(_ a: Point, _ b: Point) -> Point { let d = b - a, l = hypot(d.x, d.y); return l > 0 ? Point(-d.y / l, d.x / l) : Point(0, 1) }
         for i in center.indices {
@@ -49,7 +64,9 @@ public enum SatinLine {
             let length = hypot(direction.x, direction.y)
             direction = length > 1e-9 ? direction * (1 / length) : (before ?? after!)
             let reference = before ?? after!
-            let stretch = 1 / max(0.5, direction.x * reference.x + direction.y * reference.y)
+            // A smart corner's pair reaches right into the inside corner and out to the point.
+            let sharp = smartCorners && i > 0 && i < center.count - 1 && SmartCorners.isSharp(center[i - 1], center[i], center[i + 1])
+            let stretch = 1 / max(sharp ? 0.05 : 0.5, direction.x * reference.x + direction.y * reference.y)
             nodes.append(PathNode(center[i] + direction * (half * stretch)))   // left rail
             nodes.append(PathNode(center[i] - direction * (half * stretch)))   // right rail
         }
@@ -136,7 +153,10 @@ extension SatinLine {
     public static func evenWidth(of object: RunObject) -> Double? {
         guard object.kind == .satin, object.rawStitches == nil, object.lettering == nil, object.monogram == nil,
               object.nodes.count >= 4, object.nodes.count % 2 == 0 else { return nil }
-        let across = stride(from: 0, to: object.nodes.count, by: 2).map { object.nodes[$0].point.distance(to: object.nodes[$0 + 1].point) }
+        // A smart corner's pair runs along its seam, so it's longer than the width and isn't counted.
+        let pairs = stride(from: 0, to: object.nodes.count, by: 2).map { (object.nodes[$0].point, object.nodes[$0 + 1].point) }
+        let corners = object.settings.smartCorners == true ? SmartCorners.corners(pairs, closed: object.closed) : []
+        let across = pairs.indices.filter { !corners.contains($0) }.map { pairs[$0].0.distance(to: pairs[$0].1) }
         // Within 8% (plus a hair for rounding) counts as even: borders and satin lines stay well inside that.
         guard let narrowest = across.min(), let widest = across.max(), narrowest > 0.1, widest <= narrowest * 1.08 + 0.05 else { return nil }
         return narrowest
@@ -146,13 +166,24 @@ extension SatinLine {
     /// pair), the way a border or a satin line is first made, so corners are rounded to suit the new width. Everything
     /// else about it stays. Throws, with a reason, if it isn't an even-width satin or can't sew that wide.
     public static func rewidth(_ object: RunObject, to width: Double) throws -> RunObject {
-        guard evenWidth(of: object) != nil else { throw DesignError.invalid("‘\(object.name)’ isn't an even-width satin, so it has no single width to change.") }
+        try rebuilt(object, width: width, smartCorners: object.settings.smartCorners == true)
+    }
+
+    /// `object`, an even-width satin, rebuilt `width` mm wide around the same center line with smart corners on or
+    /// off. Turning them on finds the corners again where they were rounded (SmartCorners.restoredCorners); turning
+    /// them off rounds them. Throws, with a reason, if it isn't an even-width satin or can't sew that way.
+    public static func rebuilt(_ object: RunObject, width: Double, smartCorners: Bool) throws -> RunObject {
+        guard let current = evenWidth(of: object) else { throw DesignError.invalid("‘\(object.name)’ isn't an even-width satin, so it has no single width to change.") }
         guard widths.contains(width) else { throw DesignError.invalid("Satin width must be between 0.8 and 1,000 mm.") }
-        let center = stride(from: 0, to: object.nodes.count, by: 2).map { (object.nodes[$0].point + object.nodes[$0 + 1].point) * 0.5 }
+        var center = stride(from: 0, to: object.nodes.count, by: 2).map { (object.nodes[$0].point + object.nodes[$0 + 1].point) * 0.5 }
+        if smartCorners { center = SmartCorners.restoredCorners(center, closed: object.closed, width: current) }
+        // Points lying on a straight stretch (the extra pairs every 10 mm) would leave a corner too little room to round.
+        if !object.closed { center = simplified(center, tolerance: 0.001) }
         var satin = object
         satin.nodes = object.closed
-            ? try SatinBorder.edgePairs(around: center, width: width, name: object.name)
-            : try openPairs(along: center, width: width, name: object.name)
+            ? try SatinBorder.edgePairs(around: center, width: width, name: object.name, smartCorners: smartCorners)
+            : try openPairs(along: center, width: width, name: object.name, smartCorners: smartCorners)
+        satin.digitizing?.smartCorners = smartCorners ? true : nil
         do { _ = try AreaEngine.satin(satin) } catch {
             throw DesignError.invalid("A \(width.formatted()) mm satin doesn't fit along ‘\(object.name)’: \(error.localizedDescription) Try a narrower width.")
         }

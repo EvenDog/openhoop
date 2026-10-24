@@ -499,6 +499,9 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     /// Satin only: padding sewn lengthwise inside the column before the satin, so it stands up off the fabric.
     /// nil (the default, and in older files) means flat.
     public var raised:Bool?
+    /// Smart corners (satin lines, outlines and borders): sharp corners are mitred or capped (SmartCorners.swift)
+    /// instead of rounded. nil (older files too) leaves them rounded.
+    public var smartCorners:Bool?
     public static let runWidthRange=0.3...10.0, runSpacingRange=0.5...10.0
     /// Stipple fills: how far apart the wandering line's neighbouring passes are, in mm (nil uses the default). It's
     /// separate from the row spacing, which fabric types set for dense fills.
@@ -675,6 +678,16 @@ public struct Design: Codable, Equatable, Sendable {
     /// True when a design has lettering bent by an envelope, added in file version 9, so it's saved as version 9 and
     /// older versions of the app, which would lose the envelope the next time the text is edited, refuse it instead.
     public var needsSchemaNine: Bool { objects.contains { $0.lettering?.envelope != nil } }
+    /// True when a design has satins with smart corners (added in file version 10) that actually have a sharp corner,
+    /// so it's saved as version 10 and older versions of the app, which would sew those corners fanned round the seam,
+    /// refuse it instead. A satin with the setting but no sharp corner sews the same in older versions.
+    public var needsSchemaTen: Bool {
+        objects.contains { object in
+            guard object.kind == .satin, object.settings.smartCorners == true else { return false }
+            let pairs = stride(from: 0, to: object.nodes.count - 1, by: 2).map { (object.nodes[$0].point, object.nodes[$0 + 1].point) }
+            return !SmartCorners.corners(pairs, closed: object.closed).isEmpty
+        }
+    }
     public var needsSchemaFive: Bool { usesHandles || basting != nil || objects.contains { $0.branchID != nil || $0.stitchEdits != nil || $0.entry != nil || $0.exit != nil || ($0.kind == .satin && ($0.closed || $0.settings.relaxedChecks == true)) || ($0.kind == .fill && ($0.settings.fillStyle ?? .tatami) != .tatami) || ($0.kind == .run && ($0.settings.runPasses ?? 1) > 1) || ($0.kind == .satin && ($0.settings.shortStitches == true || $0.settings.autoSplit == true)) || ($0.kind == .fill && ($0.settings.cutOutOverlaps == true || !($0.settings.angleLines ?? []).isEmpty)) || ($0.kind == .satin && ($0.settings.secondUnderlay != nil || $0.settings.underlay == .auto || $0.settings.pullPercent != nil)) } }
     public static func sample() -> Self {
         var design = Self()
@@ -697,7 +710,7 @@ public struct Design: Codable, Equatable, Sendable {
 
     /// Reject corrupt or unreasonable input before it reaches the renderer or generator.
     public func validate() throws {
-        guard (1...9).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
+        guard (1...10).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }

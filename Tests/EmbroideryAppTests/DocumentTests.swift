@@ -100,6 +100,29 @@ final class DocumentTests: XCTestCase {
         document.close(); loaded.close()
     }
 
+    /// The Smart corners checkbox rebuilds the selected satin line with rounded or sharp corners, one undo step each,
+    /// and a design with smart corners saves as file version 10.
+    @MainActor func testSmartCornersCheckboxRebuildsAndSavesAsVersionTen() throws {
+        _ = NSApplication.shared
+        let document = DesignDocument(); let state = document.state
+        let line = RunObject(name: "V", nodes: [Point(-8, 13), Point(0, 0), Point(8, 13)].map { PathNode($0) })
+        var design = Design(); design.objects = [try SatinLine.column(from: line, width: 3)]
+        state.design = design   // set directly: changes made in one go in a test would undo as one step
+        state.selection = [design.objects[0].id]
+        XCTAssertEqual(state.design.objects[0].settings.smartCorners, true)
+        state.setSmartCorners(false)
+        XCTAssertNil(state.design.objects[0].settings.smartCorners)
+        XCTAssertNotEqual(state.design.objects[0].nodes, design.objects[0].nodes, "The corner is rounded")
+        document.undoManager?.undo()
+        XCTAssertEqual(state.design.objects[0].nodes, design.objects[0].nodes, "One undo puts the sharp corner back")
+        document.replace(state.design, action: "Save")
+        let loaded = DesignDocument()
+        try loaded.read(from: try document.fileWrapper(ofType: "Embroidery Project"), ofType: "Embroidery Project")
+        XCTAssertEqual(loaded.state.design.schemaVersion, 10)
+        XCTAssertEqual(loaded.state.design.objects[0].settings.smartCorners, true)
+        document.close(); loaded.close()
+    }
+
     @MainActor func testBezierHandlesSaveAsSchemaFiveAndReopen() throws {
         _ = NSApplication.shared
         let document = DesignDocument()

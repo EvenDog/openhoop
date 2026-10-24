@@ -440,10 +440,11 @@ public enum AreaEngine {
     /// Short stitches: on the inside of a curve the stitch ends crowd together, which piles thread into a hard
     /// ridge. Where one rail's ends are less than 60% as far apart as the other's, every other stitch stops a third
     /// of the way short of the crowded edge. Returns the rungs with those ends moved; the first and last never move.
-    static func shortened(_ pairs:[(Point,Point)])->[(Point,Point)] {
+    /// Stitches marked in `keeping` (a smart corner's) are left as they are, and so are their neighbours.
+    static func shortened(_ pairs:[(Point,Point)],keeping:[Bool]=[])->[(Point,Point)] {
         var result=pairs
         guard pairs.count>2 else{return result}
-        for i in stride(from:1,to:pairs.count-1,by:2) {
+        for i in stride(from:1,to:pairs.count-1,by:2) where !(keeping.indices.contains(i) && (keeping[i-1] || keeping[i] || keeping[i+1])) {
             let leftGap=pairs[i-1].0.distance(to:pairs[i].0)+pairs[i].0.distance(to:pairs[i+1].0)
             let rightGap=pairs[i-1].1.distance(to:pairs[i].1)+pairs[i].1.distance(to:pairs[i+1].1)
             guard max(leftGap,rightGap)>0, min(leftGap,rightGap)<0.6*max(leftGap,rightGap) else{continue}
@@ -513,6 +514,17 @@ public enum AreaEngine {
         let usableArea=abs(AreaGeometry.area(regionRings[0]))-regionRings.dropFirst().reduce(0){$0+abs(AreaGeometry.area($1))}
         guard usableArea>0.01 else{throw DesignError.invalid("Satin rails have no usable area.")}
         var pairs:[(Point,Point)]=[],warningNarrow=false,warningCrowded=false
+        // Smart corners (satin lines, outlines and borders): the edge pairs lying along a sharp corner's seam, and how
+        // each is sewn. The stitches made at them keep their ends (no short stitches), and are marked here.
+        let pairPoints=zip(left,right).map{($0.0.point,$0.1.point)}
+        var corners:[Int:SmartCorners.Corner]=[:]
+        if s.smartCorners == true && !relaxed {
+            for c in SmartCorners.corners(pairPoints,closed:object.closed) {
+                let n=pairPoints.count
+                corners[c]=SmartCorners.corner(previous:pairPoints[(c+n-1)%n],pair:pairPoints[c],next:pairPoints[(c+1)%n],spacing:s.spacing)
+            }
+        }
+        var fixed:[Bool]=[],widest=0.0
         var spans:[(index:Int,a:Arc,b:Arc,advance:Double)]=[]   // the column's spans, for the underlay's rungs
         var lastRung:(Point,Point)?   // the stitch before, rail to rail, without compensation
         var widthTotal=0.0,widthCount=0   // for the column's average width
@@ -521,6 +533,29 @@ public enum AreaEngine {
             let a=Arc(leftSegments[span]),b=Arc(rightSegments[span]),advance=(a.length+b.length)/2
             if relaxed && max(a.length,b.length)<0.000001 {continue}   // both rails stand still here: nothing to sew
             guard relaxed || min(a.length,b.length)>0.05 else{throw DesignError.invalid("Satin has a zero-length rail span. Move or remove that edge pair.")}
+            let next=(span+1)%pairPoints.count
+            if !corners.isEmpty,corners[span] != nil || corners[next] != nil {
+                // Beside a smart corner: stitches square to the leg, cut off at the corner (SmartCorners.rungs).
+                for rung in SmartCorners.rungs(from:pairPoints[span],to:pairPoints[next],startCorner:corners[span],endCorner:corners[next],spacing:s.spacing,includeStart:span==0) {
+                    let width=rung.left.distance(to:rung.right),direction=(rung.right-rung.left)*(1/width)
+                    widthTotal+=width;widthCount+=1;widest=max(widest,width)
+                    // Only ends on the column's edge are pushed out; ends on a seam or cut line stay put.
+                    let pull=s.expansion+width*(s.pullPercent ?? 0)/100
+                    pairs.append((rung.leftOnEdge ? rung.left-direction*pull:rung.left,rung.rightOnEdge ? rung.right+direction*pull:rung.right));fixed.append(true)
+                }
+                // Into a cap: the needle runs out to the point, under where the cap goes, then the cap sews back over it.
+                if let corner=corners[next],corner.kind == .cap,let from=pairs.last?.1 {
+                    for p in AreaGeometry.sampled([from,corner.outer-corner.tip*0.3],length:2).dropFirst() {pairs.append((p,p));fixed.append(true)}
+                    for (p,q) in corner.cap {
+                        let width=p.distance(to:q),direction=(q-p)*(1/width),pull=s.expansion+width*(s.pullPercent ?? 0)/100
+                        widest=max(widest,width)
+                        pairs.append((p-direction*pull,q+direction*pull));fixed.append(true)
+                    }
+                }
+                lastRung=nil
+                spans.append((span,a,b,advance))
+                continue
+            }
             let count=max(1,Int(ceil(advance/s.spacing)))
             guard pairs.count+count<5000 else{throw DesignError.invalid("This satin column exceeds 5,000 edge pairs. Split it into shorter columns.")}
             for i in 0...count where span==0 || i>0 {
@@ -541,7 +576,7 @@ public enum AreaEngine {
                 }
                 if let prior=pairs.last {warningCrowded = warningCrowded || min(prior.0.distance(to:cl),prior.1.distance(to:cr))<0.15}
                 lastRung=(l,r)
-                pairs.append((cl,cr))
+                pairs.append((cl,cr));fixed.append(false);widest=max(widest,width)
             }
             spans.append((span,a,b,advance))
         }
@@ -549,7 +584,7 @@ public enum AreaEngine {
         // A closed column (a border) starts at the stitch pair nearest its start point (or its end point, when that's
         // the only one), and so does its underlay, wherever that falls between the border's corners.
         if object.closed,let start=object.entry ?? object.exit {
-            pairs=rotatedRing(pairs,toward:start)
+            fixed=rotatedRing(fixed,along:pairs,toward:start);pairs=rotatedRing(pairs,toward:start)
         }
         /// The rungs underlay follows across the column, about `spacing` mm apart. A closed column's start at the
         /// pair nearest its start point, as its stitches do.
@@ -565,12 +600,15 @@ public enum AreaEngine {
         // Raised padding and the lead-in from a start point follow rungs at Underlay 1's spacing.
         let underPairs=rungs(spacing:s.underlaySpacing)
         // The compensated column, which every top stitch must stay inside (give or take the same hair as above).
-        let compensated=object.closed ? [deduplicated(pairs.map{$0.0}),deduplicated(pairs.map{$0.1})] : [pairs.map{$0.0}+pairs.reversed().map{$0.1}]
+        // With smart corners the stitch ends no longer trace the column's outline (they stop at seams), so the column
+        // itself, pushed out by the most compensation any stitch got, stands in for it.
+        let compensated = !corners.isEmpty ? ((try? AreaGeometry.offset(regionRings,by:s.expansion+widest*(s.pullPercent ?? 0)/100)) ?? regionRings)
+            : object.closed ? [deduplicated(pairs.map{$0.0}),deduplicated(pairs.map{$0.1})] : [pairs.map{$0.0}+pairs.reversed().map{$0.1}]
         let allowedCompensated=(try? AreaGeometry.offset(compensated,by:strayAllowance)) ?? compensated
         // Font satins always get short stitches (as Ink/Stitch, which the fonts were made for, does by default): on
         // their tight curves and fanned ends the needle holes otherwise pile up. Measured over every bundled font,
         // this cut needle-hole pile-ups by about a quarter.
-        if s.shortStitches == true || relaxed {pairs=shortened(pairs)}
+        if s.shortStitches == true || relaxed {pairs=shortened(pairs,keeping:fixed)}
         // An end point part way along an open column: a single pass can only finish at an end, so the column is sewn
         // in two halves that meet there. The first runs from the start up to the end point; then the needle runs
         // hidden through the unsewn half to the far end, and the second half sews back to meet the first.
@@ -582,7 +620,7 @@ public enum AreaEngine {
         var tops:[[Point]]=[]
         for half in halves {
             var top:[Point]=[]
-            for pair in half {top += [pair.0,pair.1]}
+            for pair in half {top += pair.0.distance(to:pair.1)<1e-9 ? [pair.0]:[pair.0,pair.1]}   // a run's points are pairs of one point
             if s.autoSplit == true {top=splitLong(top,maximum:s.maximumSatin)}
             guard zip(top,top.dropFirst()).allSatisfy({$0.distance(to:$1)<=s.maximumSatin+0.0001}) else{throw DesignError.invalid("Satin exceeds the \(String(format:"%.1f",s.maximumSatin)) mm stitch limit after compensation. Narrow or split the column, turn on Split wide satin, or use fill.")}
             for (index,segment) in zip(top,top.dropFirst()).enumerated() {
@@ -705,11 +743,13 @@ extension AreaEngine {
     /// column then simply starts at its end, as it always did.
     /// A closed column's stitch pairs (its last pair repeats its first, closing the ring) turned to begin at the pair
     /// whose middle is nearest `point`, and still closed.
-    static func rotatedRing(_ pairs:[(Point,Point)],toward point:Point) -> [(Point,Point)] {
+    static func rotatedRing(_ pairs:[(Point,Point)],toward point:Point) -> [(Point,Point)] {rotatedRing(pairs,along:pairs,toward:point)}
+    /// `items`, one for each of `pairs`, turned round the ring the same way `rotatedRing` turns the pairs.
+    static func rotatedRing<Item>(_ items:[Item],along pairs:[(Point,Point)],toward point:Point) -> [Item] {
         let closes=pairs.count>2 && pairs[0].0.distance(to:pairs.last!.0)<1e-6 && pairs[0].1.distance(to:pairs.last!.1)<1e-6
-        let ring=closes ? Array(pairs.dropLast()):pairs
-        guard let k=ring.indices.min(by:{((ring[$0].0+ring[$0].1)*0.5).distance(to:point)<((ring[$1].0+ring[$1].1)*0.5).distance(to:point)}),k>0 else{return pairs}
-        let turned=Array(ring[k...]+ring[..<k])
+        let ring=closes ? Array(pairs.dropLast()):pairs,list=closes ? Array(items.dropLast()):items
+        guard let k=ring.indices.min(by:{((ring[$0].0+ring[$0].1)*0.5).distance(to:point)<((ring[$1].0+ring[$1].1)*0.5).distance(to:point)}),k>0 else{return items}
+        let turned=Array(list[k...]+list[..<k])
         return closes ? turned+[turned[0]]:turned
     }
     /// A closed column (its pairs starting at the start point and closing back there) split into two halves that both
