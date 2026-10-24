@@ -6,6 +6,26 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.7.7</title>
+            <pubDate>Sat, 24 Oct 2026 03:33:25 GMT</pubDate>
+            <sparkle:version>23</sparkle:version>
+            <sparkle:shortVersionString>0.7.7</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.7.7</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.7.7</h3>
+<ul>
+<li><b>Smart corners for satin lines, satin outlines and satin borders.</b> A corner sharper than 75° gets a <b>mitre</b>: a sharp point with a seam from the inside corner out to the tip, each side's stitches square to its own side and overlapping 0.5 mm across the seam, so no gap shows.</li>
+<li><b>Caps for very sharp corners.</b> Below 45°, the sides stop at a line across the corner and the point is sewn as a small piece of its own, its stitches running across the corner. The needle runs out to the point first, hidden under the cap. A cap whose stitches would be longer than 8 mm becomes a mitre.</li>
+<li><b>Sharp points that used to be refused now sew</b>, such as a 4 mm satin line with a 30° corner, or a border around a star.</li>
+<li><b>On for new satin lines, outlines and borders.</b> Untick <b>Smart corners</b> in Properties (under Width) to round the corners instead; tick it again to bring them back. Corners of 75° or more stay rounded.</li>
+<li><b>Older designs keep their rounded corners</b> and sew exactly as before. Designs with a smart corner are saved as a newer file version, so older versions of OpenHoop won't open them.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.7.7/OpenHoop-0.7.7.dmg" sparkle:edSignature="h0s0Fo6oN9otQtXKEtorR02e06KOE0RLionQ8wQdDk3TG//6jEXbkhctA6Q9dCaXIjNIUvSB8H8pwIbPz1UxAw==" length="23071325" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.7.6</title>
             <pubDate>Sat, 24 Oct 2026 02:24:01 GMT</pubDate>
             <sparkle:version>22</sparkle:version>
