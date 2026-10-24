@@ -106,20 +106,49 @@ func tabToSelect(afterClosing closed: Int, count: Int) -> Int? {
 }
 
 /// The design tabs in the title bar: one rounded tab per design (an orange dot means unsaved changes, × closes
-/// it), then + for a new design.
+/// it), then + for a new design. The tabs share the room the toolbar leaves, each between `narrowest` and `widest`
+/// points; past that the strip scrolls sideways (the chosen tab scrolls into view), so any number of designs fits
+/// without the strip outgrowing the window, which used to push every toolbar item, tabs included, out of sight.
 struct TabStripView: View {
     @ObservedObject var model: TabStripModel
+    static let narrowest: CGFloat = 96, widest: CGFloat = 200
+    private static let spacing: CGFloat = 4, plusWidth: CGFloat = 26
     var body: some View {
-        HStack(spacing: 4) {
-            ForEach(model.tabs) { tab in TabButton(tab: tab, selected: tab.id == model.selected, model: model) }
-            Button { AppDelegate.shared.perform(.new) } label: {
-                Image(systemName: "plus").font(.system(size: 12, weight: .semibold)).frame(width: 26, height: 26).contentShape(Rectangle())
+        GeometryReader { space in
+            let count = CGFloat(max(model.tabs.count, 1))
+            // Each tab's share of the room, after the + button and the gaps.
+            let share = (space.size.width - Self.plusWidth - Self.spacing * count) / count
+            let width = min(Self.widest, max(Self.narrowest, share))
+            // Once the tabs scroll, + stays put at the end of the strip instead of scrolling away with them.
+            let scrolls = share < Self.narrowest
+            HStack(spacing: Self.spacing) {
+                ScrollViewReader { reader in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: Self.spacing) {
+                            ForEach(model.tabs) { tab in
+                                TabButton(tab: tab, selected: tab.id == model.selected, model: model).frame(width: width).id(tab.id)
+                            }
+                            if !scrolls { newDesignButton }
+                        }
+                        .frame(height: space.size.height)
+                    }
+                    .onAppear { if let id = model.selected { reader.scrollTo(id) } }
+                    .onChange(of: model.selected) { _, id in if let id { withAnimation(.easeOut(duration: 0.2)) { reader.scrollTo(id) } } }
+                }
+                if scrolls { newDesignButton }
             }
-            .buttonStyle(.plain).foregroundStyle(Theme.inkSecondary)
-            .help("New design  \(Preferences.shared.label(.new))").accessibilityLabel("New design")
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // The width the strip asks the toolbar for, whatever the number of tabs. The toolbar stretches it to the
+        // room it has; asking for every tab's full width hid the whole toolbar behind » once enough were open.
+        .frame(idealWidth: 200, maxWidth: .infinity)
         .accessibilityElement(children: .contain).accessibilityLabel("Open designs")
+    }
+    private var newDesignButton: some View {
+        Button { AppDelegate.shared.perform(.new) } label: {
+            Image(systemName: "plus").font(.system(size: 12, weight: .semibold)).frame(width: Self.plusWidth, height: 26).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain).foregroundStyle(Theme.inkSecondary)
+        .help("New design  \(Preferences.shared.label(.new))").accessibilityLabel("New design")
     }
 }
 
