@@ -1102,7 +1102,10 @@ final class DesignCanvas: NSView {
         if state.tool == .measure { let point = snapped(model(location)); measurement = (point, point); measuring = true; needsDisplay = true; return }
         if state.tool == .text { state.addLettering(at: snapped(model(location))); return }
         if state.tool == .branch { state.addBranchPoint(snapped(model(location))); return }
-        if state.tool == .wreath { state.wreathCenter = snapped(model(location)); return }
+        if state.tool == .wreath {
+            state.wreathCenter = snapped(model(location))
+            state.status = "Wreath · Click again to move the center · Return or Apply makes it · Esc cancels"; return
+        }
         if state.tool == .stitchEdit { stitchEditDown(location, event: event); return }
         // Clicking a stitch angle line (with Edit nodes or the angle tools) selects it, so Delete removes it. While a
         // new line is half drawn, the click finishes it instead.
