@@ -6,6 +6,25 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.7.9</title>
+            <pubDate>Sat, 24 Oct 2026 16:51:19 GMT</pubDate>
+            <sparkle:version>25</sparkle:version>
+            <sparkle:shortVersionString>0.7.9</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.7.9</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.7.9</h3>
+<ul>
+<li><b>Auto-digitize traces detailed pictures</b> instead of giving up. A traced part with more points or holes than one fill can hold used to stop the whole trace; now tiny holes (smaller than the smallest part you keep) are filled in, only the 100 largest holes stay, and outlines are smoothed just enough to fit. The result says how many holes were filled in.</li>
+<li><b>Very large designs always reopen.</b> When the stitches a project stores to open quickly would make the file too big to open, they're left out and worked out again when it opens. A design too big even without them is refused when you save, with the reason, instead of being saved as a file that won't open.</li>
+<li><b>Saving hoopings names an empty hooping</b> ("Hooping 2 has nothing to sew…") and what to do about it, instead of failing with "There are no stitches to export".</li>
+<li><b>Saving hoopings asks before replacing files.</b> If hooping files or a hooping sheet with the same names are already in the folder, OpenHoop asks before replacing them.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.7.9/OpenHoop-0.7.9.dmg" sparkle:edSignature="GzeiSekN09E/cRQREwFztiexjbcUXEstkIEcJXohZ4T6L4JJFc0Kf2ZRykRuGH0Ee+tTzrwMd8FqMbtINCiCBg==" length="22949038" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.7.8</title>
             <pubDate>Sat, 24 Oct 2026 16:38:48 GMT</pubDate>
             <sparkle:version>24</sparkle:version>
