@@ -321,6 +321,8 @@ import EmbroideryCore
         if isText && key.modifiers & 1 == 0 { return false }
         // While Branching waits for its start and end, Return lets OpenHoop choose the point.
         if editor.state.tool == .branch, key == KeyBinding("return") { editor.state.addBranchPoint(nil); return true }
+        // With Wreath, Return makes it.
+        if editor.state.tool == .wreath, key == KeyBinding("return") { editor.state.applyWreath(); return true }
         guard let command = Preferences.shared.profile.command(for: key, context: context, repeating: event.isARepeat) else { return false }
         // With Edit Nodes and a point selected, the Play key (Space) switches the point between corner and smooth instead.
         if command == .play, editor.state.tool == .node, editor.state.selectedPathNode != nil { perform(.toggleNodeType); return true }
@@ -583,6 +585,9 @@ import EmbroideryCore
         case .branching:
             guard state.draft.isEmpty else { state.status = "Finish the current path with Enter, or cancel with Escape, first."; return }
             state.startBranching(); state.focusCanvas(); state.canvas?.window?.invalidateCursorRects(for: state.canvas!)
+        case .wreath:
+            guard state.draft.isEmpty else { state.status = "Finish the current path with Enter, or cancel with Escape, first."; return }
+            state.startWreath(); state.focusCanvas(); state.canvas?.window?.invalidateCursorRects(for: state.canvas!)
         case .removeOverlaps:
             guard state.draft.isEmpty else { state.status = "Finish the current path with Enter, or cancel with Escape, first."; return }
             state.removeOverlaps()
@@ -1132,7 +1137,7 @@ import EmbroideryCore
                     .convertRun, .convertSatin, .convertFill, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool,
                    .finishPath, .removePoint, .cancelPath]),
-        ("Add", [.lettering, .editLettering, .breakApartLettering, .putLetteringOnLine, .addMonogram, .editMonogram, .satinBorder, .outlinesOffsets, .applique, .autoDigitize, .laydown, .testSwatches])
+        ("Add", [.lettering, .editLettering, .breakApartLettering, .putLetteringOnLine, .addMonogram, .editMonogram, .satinBorder, .outlinesOffsets, .applique, .autoDigitize, .laydown, .wreath, .testSwatches])
     ]
     private func makeMenu() {
         let menu = NSMenu()

@@ -294,6 +294,31 @@ final class DocumentTests: XCTestCase {
         loaded.close()
     }
 
+    /// Wreath: the tool waits for the center, previews the copies without changing the design, and makes them as
+    /// one undoable step; a kaleidoscope keeps an even count.
+    @MainActor func testWreathPreviewsThenMakesOneUndoableGroup() {
+        _ = NSApplication.shared
+        let document = DesignDocument(); let state = document.state
+        state.design = Design.sample()
+        let original = state.design, first = original.objects[0]
+        state.selection = [first.id]
+        state.startWreath()
+        XCTAssertEqual(state.tool, .wreath); XCTAssertNil(state.wreathPreview, "No preview before the center is clicked")
+        state.wreathCopies = 5; state.wreathMirrored = true
+        XCTAssertEqual(state.wreathCopies, 6, "A kaleidoscope rounds up to an even count")
+        state.wreathCenter = Point(0, 0)
+        XCTAssertEqual(state.wreathPreview?.objects.count, original.objects.count + 5)
+        XCTAssertEqual(state.design, original, "Previewing changes nothing")
+        state.applyWreath()
+        XCTAssertEqual(state.tool, .select)
+        XCTAssertEqual(state.design.objects.count, original.objects.count + 5)
+        XCTAssertEqual(state.selection.count, 6, "The whole wreath is selected")
+        XCTAssertEqual(Set(state.design.objects.filter { state.selection.contains($0.id) }.map(\.groupID)).count, 1)
+        document.undoManager?.undo()
+        XCTAssertEqual(state.design, original, "One undo takes the whole wreath away")
+        document.close()
+    }
+
     func testEveryMachineSaveTypeHasItsExpectedExtension() {
         for format in MachineFormat.allCases {
             XCTAssertEqual(UTType(filenameExtension:format.rawValue)?.preferredFilenameExtension,format.rawValue)

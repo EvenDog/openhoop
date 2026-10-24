@@ -338,7 +338,7 @@ final class DesignCanvas: NSView {
     }
     /// The pointer the current tool uses on the canvas.
     private var toolCursor: NSCursor {
-        state.tool == .pan || state.tool == .artwork ? .openHand : state.tool == .text ? .iBeam : state.tool.draws || state.tool.dragsShape || state.tool.freehand || state.tool == .entryExit || state.tool == .zoomBox || state.tool == .measure || state.tool == .branch || state.tool == .addAngles || state.tool == .removeAngles || state.tool == .stitchEdit ? .crosshair : .arrow
+        state.tool == .pan || state.tool == .artwork ? .openHand : state.tool == .text ? .iBeam : state.tool.draws || state.tool.dragsShape || state.tool.freehand || state.tool == .entryExit || state.tool == .zoomBox || state.tool == .measure || state.tool == .branch || state.tool == .wreath || state.tool == .addAngles || state.tool == .removeAngles || state.tool == .stitchEdit ? .crosshair : .arrow
     }
     /// ↔ for an up-and-down guide, ↕ for a side-to-side one.
     private func guideCursor(vertical: Bool) -> NSCursor { vertical ? .resizeLeftRight : .resizeUpDown }
@@ -641,6 +641,7 @@ final class DesignCanvas: NSView {
         if state.tool == .select && !state.hasVersionMismatch && !routeShown, let box = selectionBox(in: design) { drawResizeHandles(box) }
         if state.tool == .node { for letter in letterHandles(in: design) { drawLetterHandle(letter.point, active: letterDrag?.key == letter.key && letterDrag?.lettering == letter.lettering) } }
         if state.tool == .branch, let start = state.branchPoints.first { drawMarker(start, label: "Branch start", color: Theme.Canvas.entry) }
+        if state.tool == .wreath { drawWreathPreview() }
         if let box = zoomBox ?? selectBox {
             let rect = NSBezierPath(rect: CGRect(x: min(box.start.x, box.end.x), y: min(box.start.y, box.end.y), width: abs(box.end.x - box.start.x), height: abs(box.end.y - box.start.y)))
             Theme.Canvas.handle.setStroke(); rect.lineWidth = 1; rect.setLineDash([4, 3], count: 2, phase: 0); rect.stroke()
@@ -990,6 +991,20 @@ final class DesignCanvas: NSView {
             number.draw(at: CGPoint(x: spot.x - number.size().width / 2, y: spot.y - number.size().height / 2))
         }
     }
+    /// Wreath: the copies it would add, as dashed outlines, and its center.
+    private func drawWreathPreview() {
+        guard let center = state.wreathCenter else { return }
+        if let preview = state.wreathPreview {
+            let made = Set(state.design.objects.map(\.id))
+            for object in preview.objects where !made.contains(object.id) {
+                for points in object.outlinePaths where points.count >= 2 {
+                    let line = NSBezierPath(); line.move(to: screen(points[0])); for p in points.dropFirst() { line.line(to: screen(p)) }
+                    object.color.nsColor.withAlphaComponent(0.7).setStroke(); line.lineWidth = 1.5; line.setLineDash([4, 3], count: 2, phase: 0); line.stroke()
+                }
+            }
+        }
+        drawMarker(center, label: "Center", color: Theme.Canvas.handle)
+    }
     private func drawMarker(_ point: Point?, label: String, color: NSColor) {
         guard let point else { return }
         let p = screen(point), dot = NSBezierPath(ovalIn: CGRect(x: p.x - 6, y: p.y - 6, width: 12, height: 12))
@@ -1087,6 +1102,10 @@ final class DesignCanvas: NSView {
         if state.tool == .measure { let point = snapped(model(location)); measurement = (point, point); measuring = true; needsDisplay = true; return }
         if state.tool == .text { state.addLettering(at: snapped(model(location))); return }
         if state.tool == .branch { state.addBranchPoint(snapped(model(location))); return }
+        if state.tool == .wreath {
+            state.wreathCenter = snapped(model(location))
+            state.status = "Wreath · Click again to move the center · Return or Apply makes it · Esc cancels"; return
+        }
         if state.tool == .stitchEdit { stitchEditDown(location, event: event); return }
         // Clicking a stitch angle line (with Edit nodes or the angle tools) selects it, so Delete removes it. While a
         // new line is half drawn, the click finishes it instead.
