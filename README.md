@@ -22,7 +22,7 @@ Digitize logos, patches and lettering into stitch files for your embroidery mach
 - **Fabric presets** for woven, knit, towel, denim and felt, with the stabilizer to use, plus a basting box and laydown to hold the fabric.
 - **See it before it sews**: Thread View draws every stitch as real thread, a stitch player sews it on screen (and can pause at each trim, like the machine), Review Sewing Order steps through every start, end and move and flags long ones, and a density map shows where thread piles up. Test swatches sew a setting at several values side by side.
 - **Real threads**: Brother, Janome and Husqvarna Viking machine palettes and 21 thread-brand charts (Madeira, Isacord, Sulky, Robison-Anton, Floriani and more) built in, or import any chart.
-- **Hoops** for Brother, Janome and Husqvarna Viking / Pfaff machines, or any custom size, and **multi-hooping** for designs bigger than your hoop, with alignment marks and a hooping sheet.
+- **Hoops** for Brother, Baby Lock, Janome, Elna, Husqvarna Viking / Pfaff, Bernina and Singer machines, plus hoops of your own saved by name, and **multi-hooping** for designs bigger than your hoop, with alignment marks and a hooping sheet.
 - **Machine files**: export PES, PEC, DST, EXP, JEF, VP3 and XXX (each one read back and checked before saving), and import them too.
 - **Production worksheet** to print and keep beside the machine: thread steps, stops and an actual-size picture.
 - **Made for the Mac**: every tool one click away, a precision bar for exact position, size and rotation, light and dark mode, dockable panels, copy and paste, undo, millimeters or inches, tooltips that explain every tool, a keyboard shortcut you can change for every command, and automatic updates.
