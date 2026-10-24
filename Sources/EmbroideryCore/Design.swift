@@ -718,7 +718,7 @@ public struct Design: Codable, Equatable, Sendable {
         guard (guides ?? []).count <= Guide.limit, (guides ?? []).allSatisfy({ $0.position.isFinite && abs($0.position) <= 10_000 }) else { throw DesignError.invalid("The guide lines are invalid or too many.") }
         guard (palette ?? []).count <= Self.paletteLimit, (palette ?? []).allSatisfy(\.isValid) else { throw DesignError.invalid("The design's thread palette is invalid or too long.") }
         guard multiHooping.map({ $0.hoopings.count <= MultiHooping.limit && $0.hoopings.allSatisfy { $0.center.finite && abs($0.center.x) <= 10_000 && abs($0.center.y) <= 10_000 } }) ?? true else { throw DesignError.invalid("The hoopings are invalid or too many.") }
-        guard objects.reduce(0, { $0 + $1.allNodes.count }) <= 100_000 else { throw DesignError.invalid("This design exceeds the 100,000-node limit.") }
+        guard objects.reduce(0, { $0 + $1.allNodes.count }) <= 100_000 else { throw DesignError.invalid("The design has more than 100,000 points, the most one design can hold.") }
         for object in objects {
             if let edits = object.stitchEdits {
                 guard edits.sections.count <= 10_000, edits.sections.reduce(0, { $0 + $1.points.count }) <= 1_000_000,
@@ -764,8 +764,8 @@ public struct Design: Codable, Equatable, Sendable {
             }
             if object.kind == .satin || object.kind == .fill {
                 let s=object.settings
-                guard object.allNodes.count<=2000,(object.holes?.count ?? 0)<=100,
-                      (0.15...10).contains(s.spacing),(0...2).contains(s.expansion),(-180...180).contains(s.angle),
+                guard object.allNodes.count<=2000,(object.holes?.count ?? 0)<=100 else {throw DesignError.invalid("‘\(object.name)’ has more than 2,000 points or 100 holes, the most one shape can have.")}
+                guard (0.15...10).contains(s.spacing),(0...2).contains(s.expansion),(-180...180).contains(s.angle),
                       DigitizingSettings.maximumSatinRange.contains(s.maximumSatin),s.satinSplit.map(DigitizingSettings.satinSplitRange.contains) ?? true,(0...3).contains(s.inset),(0.5...5).contains(s.underlaySpacing),
                       object.kind == .fill ? [.none,.edge,.edgeAndSparse,.tatami].contains(s.underlay) : [.none,.center,.edge,.zigzag,.doubleZigzag,.auto].contains(s.underlay),
                       s.secondUnderlay.map({s.underlay != .none && s.underlay != .auto && s.underlay != .edgeAndSparse && ($0 != s.underlay || s.crossesTatami) && (object.kind == .fill ? [.edge,.tatami] : [.center,.edge,.zigzag,.doubleZigzag]).contains($0)}) ?? true,

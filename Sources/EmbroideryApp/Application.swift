@@ -1038,13 +1038,32 @@ import EmbroideryCore
 
     /// Saves a multi-hooped design (MultiHooping.swift): one machine file per hooping, named after the name typed
     /// ("Towel – hooping 1 of 3.pes"), each encoded and read back like a single export, and the hooping sheet beside
-    /// them as a PDF to print and keep at the machine.
+    /// them as a PDF to print and keep at the machine. The hoopings are worked out first, in the background, so a
+    /// problem with one shows before choosing where to save.
     private func exportHoopings(_ state: EditorState, name: String) {
         guard state.draft.isEmpty else { state.status = "Finish or cancel the current path before exporting."; return }
         if let error = state.generationError { state.status = error; return }
         guard !state.busy, !state.exporting, !state.hasVersionMismatch, state.compiledRevision == state.revision, state.plan.stitchCount > 0 else { state.status = "Wait for current stitches before exporting."; return }
-        let plans: [StitchPlan]
-        do { plans = try state.design.hoopingPlans(plan: state.plan) } catch { state.status = error.localizedDescription; return }
+        Task {
+            guard let plans = await hoopingPlans(state) else { return }
+            saveHoopings(state, name: name, plans: plans)
+        }
+    }
+    /// Works out each hooping's stitches (MultiHooping.swift) off the main thread, so the app stays responsive on a
+    /// big design. Nil, with the reason in the status line, if they can't be made or the design changed meanwhile.
+    private func hoopingPlans(_ state: EditorState) async -> [StitchPlan]? {
+        let design = state.design, plan = state.plan, revision = state.revision
+        state.exporting = true; state.status = "Working out the hoopings…"
+        defer { state.exporting = false }
+        do {
+            let plans = try await Task.detached(priority: .userInitiated) { try design.hoopingPlans(plan: plan) }.value
+            guard revision == state.revision else { state.status = "The design changed while the hoopings were worked out. Try again."; return nil }
+            state.status = "\(plans.count) hooping\(plans.count == 1 ? "" : "s") worked out."
+            return plans
+        } catch { state.status = error.localizedDescription; return nil }
+    }
+    /// The rest of `exportHoopings`, once the hoopings are worked out: where to save, then encoding and checking.
+    private func saveHoopings(_ state: EditorState, name: String, plans: [StitchPlan]) {
         let panel = NSSavePanel(); panel.nameFieldStringValue = name
         panel.message = "Each hooping is saved as its own file, named after this one, with a hooping sheet to print."
         let preferences = Preferences.shared
@@ -1111,13 +1130,19 @@ import EmbroideryCore
         guard state.draft.isEmpty else { state.status = "Finish or cancel the current path first."; return }
         if let error = state.generationError { state.status = error; return }
         guard !state.busy, !state.hasVersionMismatch, state.compiledRevision == state.revision, state.plan.stitchCount > 0 else { state.status = "Wait for the current stitches before making a worksheet."; return }
-        let contents: [WorksheetContent]
+        guard !state.exporting else { state.status = "Wait for the export to finish."; return }
         if state.design.multiHooping != nil {
-            do { contents = hoopingSheet(state, plans: try state.design.hoopingPlans(plan: state.plan), name: name) } catch { state.status = error.localizedDescription; return }
+            Task {
+                guard let plans = await hoopingPlans(state) else { return }
+                showWorksheet(hoopingSheet(state, plans: plans, name: name))
+            }
         } else {
-            contents = [WorksheetContent(name: name, hoop: state.design.hoop, plan: state.plan,
-                                         summary: ProductionSummary(plan: state.plan, design: state.design), fabric: state.design.fabricColor ?? 0xF5F0E6)]
+            showWorksheet([WorksheetContent(name: name, hoop: state.design.hoop, plan: state.plan,
+                                            summary: ProductionSummary(plan: state.plan, design: state.design), fabric: state.design.fabricColor ?? 0xF5F0E6)])
         }
+    }
+    /// Shows the worksheet (one page per hooping, or just one), and prints it if asked.
+    private func showWorksheet(_ contents: [WorksheetContent]) {
         let preferences = Preferences.shared
         var speed = preferences.data.machineSpeed ?? ProductionSummary.defaultSpeed
         let printing = GuidedDialog.run(width: 700) { finish in

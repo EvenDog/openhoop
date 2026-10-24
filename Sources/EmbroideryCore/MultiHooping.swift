@@ -111,19 +111,31 @@ extension Design {
 
     /// Auto Layout: the fewest hoopings, in rows from the top left, that cover everything that sews with
     /// `hoopingLayoutMargin` to spare, each overlapping its neighbours by at least `hoopingOverlap` mm. Hoopings left
-    /// with nothing to sew are dropped. Empty when nothing sews.
-    public func autoHoopings(plan: StitchPlan) -> [Hooping] {
+    /// with nothing to sew are dropped. Empty when nothing sews. Throws, saying why, when the hoop is too small for
+    /// hoopings to overlap (under twice `hoopingOverlap` across) or the design would need more than `MultiHooping.limit`.
+    public func autoHoopings(plan: StitchPlan) throws -> [Hooping] {
         let stitches = Self.stitchPoints(plan).values.flatMap { $0 }
         guard !stitches.isEmpty else { return [] }
+        let smallest = 2 * Self.hoopingOverlap
+        guard hoop.width >= smallest, hoop.height >= smallest else {
+            throw DesignError.invalid("Multi-hooping needs a hoop at least \(smallest.formatted()) mm across, so that hoopings can overlap by \(Self.hoopingOverlap.formatted()) mm. Check the hoop size in Design › Sewing area.")
+        }
         let margin = Self.hoopingLayoutMargin
         let low = Point(stitches.map(\.x).min()! - margin, stitches.map(\.y).min()! - margin), high = Point(stitches.map(\.x).max()! + margin, stitches.map(\.y).max()! + margin)
-        /// Centers along one direction: one in the middle if it fits, otherwise evenly spaced from end to end.
+        /// How many hoopings fit along one direction: one if it fits, otherwise enough to overlap by `hoopingOverlap`.
+        func count(_ span: Double, _ size: Double) -> Int {
+            span > size ? Int(ceil((span - Self.hoopingOverlap) / (size - Self.hoopingOverlap))) : 1
+        }
+        /// Centers along one direction: one in the middle if it fits, otherwise `count` evenly spaced from end to end.
         func centers(_ from: Double, _ to: Double, _ size: Double) -> [Double] {
-            let span = to - from
-            guard span > size else { return [(from + to) / 2] }
-            let count = Int(ceil((span - Self.hoopingOverlap) / (size - Self.hoopingOverlap)))
+            let span = to - from, count = count(span, size)
+            guard count > 1 else { return [(from + to) / 2] }
             let step = (span - size) / Double(count - 1)
             return (0..<count).map { from + size / 2 + step * Double($0) }
+        }
+        // Counted before any are made, so a huge design in a small hoop can't make the app work out thousands.
+        guard count(high.x - low.x, hoop.width) * count(high.y - low.y, hoop.height) <= MultiHooping.limit else {
+            throw DesignError.invalid("This design would need more than \(MultiHooping.limit) hoopings in a \(hoop.width.formatted()) × \(hoop.height.formatted()) mm hoop. Use a bigger hoop, or make the design smaller.")
         }
         let xs = centers(low.x, high.x, hoop.width), ys = centers(low.y, high.y, hoop.height)
         let grid = ys.reversed().flatMap { y in xs.map { x in Hooping(center: Point(x, y)) } }   // top row first

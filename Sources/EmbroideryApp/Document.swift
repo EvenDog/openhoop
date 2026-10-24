@@ -180,11 +180,13 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         if value != design.artwork?.opacity { edit("Artwork Opacity") { $0.artwork?.opacity = value } }
     }
     /// Changes the design as one step you can undo. Returns false (and says why) in an older project, which must be
-    /// regenerated before it can be edited, so callers don't report a change that didn't happen.
+    /// regenerated before it can be edited, or when the change would make a design that can't be saved, so callers
+    /// don't report a change that didn't happen.
     /// Edits sharing a `run` name in a row (such as fonts tried one after another on one lettering) undo as one step.
     @discardableResult func edit(_ name: String, run: String? = nil, _ block: (inout Design) -> Void) -> Bool {
         guard !hasVersionMismatch else { status = "Regenerate this older project before editing."; return false }
-        var next = design; block(&next); document?.replace(next, action: name, run: run)
+        var next = design; block(&next)
+        guard document?.replace(next, action: name, run: run) ?? true else { return false }
         if !playing { playback = 1 }   // after an edit, show the whole design rather than a paused part of it
         return true
     }
@@ -904,17 +906,12 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     /// The `run` of the last change, when it had one. A change in the same run straight after it adds no undo step
     /// of its own, so Undo goes back to before the whole run.
     private var lastRun: String?
-    /// Replace a snapshot once per gesture, so dragging creates one useful undo step.
-    func replace(_ next: Design, action: String, run: String? = nil) {
-        guard next != state.design else { return }
+    /// Replace a snapshot once per gesture, so dragging creates one useful undo step. Returns false, changing
+    /// nothing and saying why, when the result couldn't be saved (too many points in a shape, say), so the app never
+    /// holds a design that its own Save would refuse.
+    @discardableResult func replace(_ next: Design, action: String, run: String? = nil) -> Bool {
+        guard next != state.design else { return true }
         let previous = state.design
-        if run != nil && run == lastRun && undoManager?.canUndo == true {
-            if !isDocumentEdited { updateChangeCount(.changeDone) }   // saved during the run: it's edited again
-        } else {
-            undoManager?.registerUndo(withTarget: self) { doc in doc.replace(previous, action: action) }
-            undoManager?.setActionName(action)
-        }
-        lastRun = run
         // Schema 5 marks projects using Bézier handles or start/end points, so older versions refuse them instead of losing them.
         var updated=next
         // Stitches edited by hand last only while their object stays as it was; a new shape or setting means fresh
@@ -927,12 +924,27 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         let selectedLettering = Set(updated.objects.filter { state.selection.contains($0.id) }.compactMap { $0.lettering?.id })
         let guideProblems = updated.syncGuides(embroideryFonts: EmbroideryFontLibrary.fonts)
         if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaTen ? 10:updated.needsSchemaNine ? 9:updated.needsSchemaEight ? 8:updated.needsSchemaSeven ? 7:updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
+        // The same check Save makes, before anything is recorded.
+        do { try updated.validate() } catch {
+            state.status = "\(action) can't be done: \(error.localizedDescription) Nothing was changed."
+            return false
+        }
+        if run != nil && run == lastRun && undoManager?.canUndo == true {
+            if !isDocumentEdited { updateChangeCount(.changeDone) }   // saved during the run: it's edited again
+        } else {
+            undoManager?.registerUndo(withTarget: self) { doc in doc.replace(previous, action: action) }
+            undoManager?.setActionName(action)
+        }
+        lastRun = run
         state.design = updated; state.revision += 1
         if !lost.isEmpty { state.status = "\(lost.joined(separator: ", ")): stitches edited by hand were replaced by fresh ones, because the shape or settings changed. Undo (⌘Z) brings them back." }
         if let problem = guideProblems.first { state.status = problem }
         state.selection.formIntersection(Set(updated.objects.map(\.id)))
         state.selection.formUnion(updated.objects.filter { $0.lettering.map { selectedLettering.contains($0.id) } ?? false }.map(\.id))
+        // A picked point this change took away (Undo of an added point, say) is forgotten, so Delete can't reach for it.
+        if state.selectedPathNode == nil { state.selectedNode = nil }
         regenerate()
+        return true
     }
     func regenerate() {
         generation?.cancel()

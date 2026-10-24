@@ -1695,7 +1695,7 @@ final class DesignCanvas: NSView {
         return nearest(selected: true) ?? nearest(selected: false)
     }
     func deleteNode() {
-        guard state.tool == .node,let location=state.selectedNode,let object=state.design.objects.first(where:{$0.id==location.object}),!object.locked else{state.status="Select a node with N first.";return}
+        guard state.tool == .node,let location=state.selectedNode,state.selectedPathNode != nil,let object=state.design.objects.first(where:{$0.id==location.object}),!object.locked else{state.status="Select a node with N first.";return}
         if object.kind == .satin {
             guard object.nodes.count>4 else{state.status="Satin requires at least two pairs.";return}
             let pair=location.index/2*2
