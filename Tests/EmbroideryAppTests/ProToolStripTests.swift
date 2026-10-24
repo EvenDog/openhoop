@@ -39,6 +39,23 @@ final class ProToolStripTests: XCTestCase {
         XCTAssertEqual(Set(all).count, all.count, "no command twice in the Digitize menu")
     }
 
+    /// Sorting the menus into groups and submenus loses nothing: every command is in exactly one menu, except
+    /// Settings (in the OpenHoop menu) and the ones that only have keys or buttons.
+    @MainActor func testEveryCommandIsInTheMenusOnce() {
+        var listed: [CommandID] = []
+        for (_, groups) in AppDelegate.menuLayout {
+            for entry in groups.joined() {
+                switch entry {
+                case .command(let command): listed.append(command)
+                case .submenu(_, let commandGroups): listed += commandGroups.joined()
+                }
+            }
+        }
+        XCTAssertEqual(Set(listed).count, listed.count, "no command twice in the menus")
+        let keysOrButtonsOnly: Set<CommandID> = [.settings, .tieIn, .tieOut, .trimAfter, .stopAfter, .nudgeLeft, .nudgeRight, .nudgeUp, .nudgeDown]
+        XCTAssertEqual(Set(CommandID.allCases).subtracting(listed), keysOrButtonsOnly)
+    }
+
     /// Move & Size Artwork shows a + while there's no image to move, because clicking it imports one.
     func testArtworkButtonShowsAPlusUntilThereIsAnImage() {
         XCTAssertEqual(ToolStrip.symbol(.artworkTool, hasArtwork: false), CommandID.importImage.symbol)

@@ -1196,6 +1196,46 @@ import EmbroideryCore
                    .finishPath, .removePoint, .cancelPath]),
         ("Add", [.lettering, .editLettering, .breakApartLettering, .putLetteringOnLine, .addMonogram, .editMonogram, .satinBorder, .outlinesOffsets, .applique, .autoDigitize, .laydown, .wreath, .testSwatches])
     ]
+    /// One line of a menu: a command, or a submenu of commands (its groups split by dividers).
+    enum MenuEntry { case command(CommandID), submenu(String, [[CommandID]]) }
+    /// Shorthand for a group of plain command lines.
+    static func items(_ commands: CommandID...) -> [MenuEntry] { commands.map(MenuEntry.command) }
+    /// The File, Edit, Digitize, View and Window menus. Each menu is a list of groups with a divider between them;
+    /// long runs of related commands (aligning, zooming, the stitch player) sit in submenus so the menus stay short.
+    static let menuLayout: [(title: String, groups: [[MenuEntry]])] = [
+        ("File", [items(.new, .open, .sample, .stitchSampler), items(.close, .save, .saveAs),
+                  items(.importImage, .importSVG, .importMachine), items(.exportMachine, .exportThreadList, .productionWorksheet)]),
+        ("Edit", [items(.undo, .redo), items(.cutObjects, .copyObjects, .pasteObjects, .duplicate, .delete, .selectAll), items(.group, .ungroup),
+                  [.submenu("Flip & Rotate", [[.mirrorH, .mirrorV], [.rotateLeft, .rotateRight]]),
+                   .submenu("Align & Space", [[.alignLeft, .alignCentersVertically, .alignRight], [.alignTop, .alignCentersHorizontally, .alignBottom], [.alignCenters], [.spaceAcross, .spaceDown]]),
+                   .submenu("Sewing Order", [[.earlier, .later], [.sequenceBySelection, .sequenceByColor]])],
+                  items(.closePath, .lockObject, .hideObject, .renameObject, .threadChart)]),
+        // One submenu per toolbar group, then a divider before Done.
+        ("Digitize", [digitizeSections.map { .submenu($0.title, [$0.commands]) }, items(.done)]),
+        ("View", [items(.threadView, .reviewSewingOrder),
+                  [.submenu("Zoom", [[.zoomIn, .zoomOut], [.zoomFit, .zoomDesign, .zoomSelected, .zoomActual], [.zoomBoxTool]]),
+                   .submenu("Show", [[.showStitches, .showOutlines, .showConnectors, .showUnderlay, .needles], [.artwork, .densityMap], [.hideOthers]]),
+                   .submenu("Grid & Rulers", [[.grid, .snap], [.showRulers, .clearGuides], [.useInches]]),
+                   .submenu("Stitch Player", [[.play, .rewind, .toEnd], [.stepForward, .stepBackward, .stepForward10, .stepBackward10],
+                                              [.nextColor, .previousColor], [.nextObject, .previousObject], [.nextTrim, .previousTrim]])],
+                  items(.measureTool, .hoopingsTool)]),
+        ("Window", [items(.nextTab, .previousTab), PanelID.allCases.map { .command($0.command) } + items(.paletteUnderCanvas), items(.saveWorkspace, .restoreWorkspace)])
+    ]
+    /// Adds a menu's groups to it, with a divider between groups; a submenu entry becomes an item that opens to the side.
+    private func addGroups(_ groups: [[MenuEntry]], to menu: NSMenu) {
+        for (index, group) in groups.enumerated() {
+            if index > 0 { menu.addItem(.separator()) }
+            for entry in group {
+                switch entry {
+                case .command(let command): menu.addItem(commandItem(command))
+                case .submenu(let title, let commandGroups):
+                    let item = NSMenuItem(title: title, action: nil, keyEquivalent: ""); item.submenu = NSMenu(title: title)
+                    addGroups(commandGroups.map { $0.map(MenuEntry.command) }, to: item.submenu!)
+                    menu.addItem(item)
+                }
+            }
+        }
+    }
     private func makeMenu() {
         let menu = NSMenu()
         let app = NSMenuItem(); app.submenu = NSMenu(title: "OpenHoop"); menu.addItem(app)
@@ -1204,24 +1244,9 @@ import EmbroideryCore
         app.submenu?.addItem(commandItem(.settings)); app.submenu?.addItem(.separator())
         app.submenu?.addItem(withTitle: "Hide OpenHoop", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         app.submenu?.addItem(withTitle: "Quit OpenHoop", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        let groups: [(String, [CommandID])] = [
-            ("File", [.new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportMachine, .exportThreadList, .productionWorksheet, .sample, .stitchSampler]),
-            ("Edit", [.undo, .redo, .cutObjects, .copyObjects, .pasteObjects, .selectAll, .delete, .duplicate, .group, .ungroup, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .sequenceBySelection, .sequenceByColor, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .closePath, .lockObject, .hideObject, .renameObject, .threadChart]),
-            ("Digitize", [.done]),
-            ("View", [.threadView, .reviewSewingOrder, .useInches, .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .hoopingsTool, .grid, .snap, .showRulers, .clearGuides, .needles, .artwork, .paletteUnderCanvas, .showUnderlay, .densityMap, .play, .rewind, .toEnd, .stepForward, .stepBackward, .stepForward10, .stepBackward10, .nextColor, .previousColor, .nextObject, .previousObject, .nextTrim, .previousTrim]),
-            ("Window", [.nextTab, .previousTab] + PanelID.allCases.map(\.command) + [.saveWorkspace, .restoreWorkspace])]
-        for (name, commands) in groups {
+        for (name, groups) in Self.menuLayout {
             let item = NSMenuItem(); item.submenu = NSMenu(title: name); item.title = name; menu.addItem(item)
-            if name == "Digitize" {
-                // One submenu per toolbar group, then a divider before Done.
-                for section in Self.digitizeSections {
-                    let sectionItem = NSMenuItem(title: section.title, action: nil, keyEquivalent: ""); sectionItem.submenu = NSMenu(title: section.title)
-                    for command in section.commands { sectionItem.submenu?.addItem(commandItem(command)) }
-                    item.submenu?.addItem(sectionItem)
-                }
-                item.submenu?.addItem(.separator())
-            }
-            for command in commands { item.submenu?.addItem(commandItem(command)) }
+            addGroups(groups, to: item.submenu!)
             if name == "Window" {
                 // Saved layouts, then the standard window items (Minimize, Zoom) that macOS adds to the Window menu.
                 let saved = Preferences.shared.data.workspaces.filter { $0.panels != nil }
@@ -1235,12 +1260,14 @@ import EmbroideryCore
             }
             if name == "Edit" {
                 item.submenu?.addItem(.separator())
-                // Text fields' own Cut, Copy and Paste (the Cut/Copy/Paste commands above work on design objects).
-                for (title, selector, key) in [("Cut Text", "cut:", "x"), ("Copy Text", "copy:", "c"), ("Paste Text", "paste:", "v")] { item.submenu?.addItem(withTitle: title, action: Selector(selector), keyEquivalent: key) }
+                // Text fields' own Cut, Copy and Paste (the Cut/Copy/Paste commands above work on design objects), in a
+                // submenu: their keyboard shortcuts still work there, since macOS searches submenus for shortcuts too.
+                let text = NSMenuItem(title: "Text Fields", action: nil, keyEquivalent: ""); text.submenu = NSMenu(title: "Text Fields"); item.submenu?.addItem(text)
+                for (title, selector, key) in [("Cut Text", "cut:", "x"), ("Copy Text", "copy:", "c"), ("Paste Text", "paste:", "v")] { text.submenu?.addItem(withTitle: title, action: Selector(selector), keyEquivalent: key) }
                 // Native text editing keeps Cmd-Z even if the document shortcut is customized.
                 for (title, selector, key, modifiers) in [("Undo Text Edit", "undo:", "z", NSEvent.ModifierFlags.command), ("Redo Text Edit", "redo:", "z", [.command, .shift]), ("Select All Text", "selectAll:", "a", .command)] {
                     let textItem = NSMenuItem(title: title, action: #selector(textAction(_:)), keyEquivalent: key)
-                    textItem.keyEquivalentModifierMask = modifiers; textItem.target = self; textItem.representedObject = selector; item.submenu?.addItem(textItem)
+                    textItem.keyEquivalentModifierMask = modifiers; textItem.target = self; textItem.representedObject = selector; text.submenu?.addItem(textItem)
                 }
             }
         }
