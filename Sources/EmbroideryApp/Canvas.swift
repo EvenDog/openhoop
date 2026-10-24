@@ -44,6 +44,8 @@ final class DesignCanvas: NSView {
     private var resizeDrag: (dx: Int, dy: Int, low: Point, high: Point)?
     /// A letter being moved with Edit Nodes: its lettering, its letter key, and its parts.
     private var letterDrag: (lettering: UUID, key: Int, parts: Set<UUID>)?
+    /// An envelope handle being dragged with Edit Nodes: the lettering's recipe as the drag began, and the handle.
+    private var envelopeDrag: (spec: LetteringSpec, handle: EnvelopeHandle)?
     private var artworkDrag: Int?   // adjusting the artwork: -1 moves it, 0…3 resizes from that corner
     private var hoopingDrag: Int?   // the hooping being dragged with the Hoopings tool
     private var zoomBox: (start: CGPoint, end: CGPoint)?   // the box being dragged with the Zoom Box tool, in canvas points
@@ -639,6 +641,7 @@ final class DesignCanvas: NSView {
            let ends = StitchAngleLine.ends(of: object) { drawAngleReading(ends.0, ends.1, at: drag.pointer) }
         // The route has no resize handles: they'd cover its numbers.
         if state.tool == .select && !state.hasVersionMismatch && !routeShown, let box = selectionBox(in: design) { drawResizeHandles(box) }
+        if state.tool == .node { for envelope in envelopes(in: design) { drawEnvelope(envelope.spec) } }
         if state.tool == .node { for letter in letterHandles(in: design) { drawLetterHandle(letter.point, active: letterDrag?.key == letter.key && letterDrag?.lettering == letter.lettering) } }
         if state.tool == .branch, let start = state.branchPoints.first { drawMarker(start, label: "Branch start", color: Theme.Canvas.entry) }
         if state.tool == .wreath { drawWreathPreview() }
@@ -891,6 +894,65 @@ final class DesignCanvas: NSView {
             }
         }
         return handles
+    }
+    /// The selected, unlocked straight lettering that has an envelope, each once (its first letter's recipe).
+    private func envelopes(in design: Design) -> [(id: UUID, spec: LetteringSpec)] {
+        var seen = Set<UUID>(), found: [(id: UUID, spec: LetteringSpec)] = []
+        for object in design.objects where state.selection.contains(object.id) && !object.locked && object.visible {
+            guard let spec = object.lettering, spec.shape == .straight, spec.envelope?.box?.count == 2, seen.insert(spec.id).inserted else { continue }
+            found.append((spec.id, spec))
+        }
+        return found
+    }
+    /// Where a point of the lettering's own frame (mm, as it was built) is on the design: placed by its markers, as the
+    /// letters were.
+    private func placed(_ p: Point, _ spec: LetteringSpec) -> Point {
+        spec.anchor + (spec.alongMarker - spec.anchor) * (p.x / 10) + (spec.upMarker - spec.anchor) * (p.y / 10)
+    }
+    /// The reverse of `placed`: where a design point is in the lettering's own frame.
+    private func unplaced(_ q: Point, _ spec: LetteringSpec) -> Point {
+        let a = (spec.alongMarker - spec.anchor) * 0.1, b = (spec.upMarker - spec.anchor) * 0.1, d = q - spec.anchor
+        let det = a.x * b.y - a.y * b.x
+        guard abs(det) > 1e-12 else { return Point(0, 0) }
+        return Point((d.x * b.y - d.y * b.x) / det, (a.x * d.y - a.y * d.x) / det)
+    }
+    /// The recipe with the dragged envelope handle under the pointer at `target` (only up and down, or for Perspective
+    /// only sideways). Shift moves its partner the opposite way, ⌘ the same way. Moves stay within the allowed range.
+    private func bentEnvelope(_ drag: (spec: LetteringSpec, handle: EnvelopeHandle), to target: Point, flags: NSEvent.ModifierFlags) -> LetteringSpec? {
+        guard var envelope = drag.spec.envelope, let box = envelope.box, box.count == 2, drag.spec.height > 0 else { return nil }
+        var still = envelope; still.setMove(drag.handle, 0)
+        let base = still.spot(drag.handle, low: box[0], high: box[1], height: drag.spec.height), here = unplaced(target, drag.spec)
+        let moved = (envelope.kind.slides ? here.x - base.x : here.y - base.y) / drag.spec.height
+        let clamp = { (value: Double) in min(max(value, LetteringEnvelope.moves.lowerBound), LetteringEnvelope.moves.upperBound) }
+        let change = clamp(moved) - envelope.move(drag.handle)
+        envelope.setMove(drag.handle, clamp(moved))
+        let partner = envelope.kind.partner(of: drag.handle)
+        if flags.contains(.shift) { envelope.setMove(partner, clamp(envelope.move(partner) - change)) }
+        else if flags.contains(.command) { envelope.setMove(partner, clamp(envelope.move(partner) + change)) }
+        var spec = drag.spec; spec.envelope = envelope
+        return spec
+    }
+    /// Each of the lettering's envelope handles, on screen.
+    private func envelopeHandles(_ spec: LetteringSpec) -> [(handle: EnvelopeHandle, point: CGPoint)] {
+        guard let envelope = spec.envelope, let box = envelope.box, box.count == 2 else { return [] }
+        return envelope.kind.handles.map { ($0, screen(placed(envelope.spot($0, low: box[0], high: box[1], height: spec.height), spec))) }
+    }
+    /// An envelope: its bent box as a thin dashed outline, and its handles as small rings.
+    private func drawEnvelope(_ spec: LetteringSpec) {
+        guard let envelope = spec.envelope, let box = envelope.box, box.count == 2 else { return }
+        let steps = 32
+        func edge(_ top: Bool) -> [CGPoint] { (0...steps).map { screen(placed(envelope.warp(Point(box[0].x + (box[1].x - box[0].x) * Double($0) / Double(steps), top ? box[1].y : box[0].y), low: box[0], high: box[1], height: spec.height), spec)) } }
+        let top = edge(true), bottom = edge(false)
+        let outline = NSBezierPath(); outline.move(to: top[0])
+        for p in top.dropFirst() { outline.line(to: p) }
+        for p in bottom.reversed() { outline.line(to: p) }
+        outline.close()
+        Theme.Canvas.selection.setStroke(); outline.lineWidth = 1; outline.setLineDash([4, 3], count: 2, phase: 0); outline.stroke()
+        for (handle, p) in envelopeHandles(spec) {
+            let ring = NSBezierPath(ovalIn: CGRect(x: p.x - 4.5, y: p.y - 4.5, width: 9, height: 9))
+            (envelopeDrag?.spec.id == spec.id && envelopeDrag?.handle == handle ? Theme.Canvas.selection : NSColor.white).setFill(); ring.fill()
+            Theme.Canvas.selection.setStroke(); ring.lineWidth = 1.5; ring.stroke()
+        }
     }
     /// A letter's handle: a small diamond in the accent color (filled while it's being dragged).
     private func drawLetterHandle(_ p: CGPoint, active: Bool) {
@@ -1174,6 +1236,12 @@ final class DesignCanvas: NSView {
         }
         if state.tool == .entryExit { setEntryOrExit(at: point, exit: event.modifierFlags.contains(.option)); return }
         pointer=point
+        // With Edit Nodes, an envelope's handle bends the lettering's envelope.
+        if state.tool == .node, !state.hasVersionMismatch,
+           let found = envelopes(in: state.design).lazy.compactMap({ envelope in self.envelopeHandles(envelope.spec).first { hypot($0.point.x - location.x, $0.point.y - location.y) <= 7 }.map { (envelope.spec, $0.handle) } }).first {
+            envelopeDrag = (found.0, found.1); dragStart = point; dragSnapshot = state.design
+            state.status = "Drag to bend the envelope · Shift bends the \(found.0.envelope!.kind.slides ? "other end" : "opposite edge") the other way · ⌘ the same way"; return
+        }
         // With Edit Nodes, a letter's handle moves just that letter (lettering has no nodes to drag).
         if state.tool == .node, !state.hasVersionMismatch, let letter = letterHandles(in: state.design).first(where: { hypot($0.point.x - location.x, $0.point.y - location.y) <= 7 }) {
             letterDrag = (letter.lettering, letter.key, letter.parts); dragStart = point; dragSnapshot = state.design
@@ -1336,6 +1404,13 @@ final class DesignCanvas: NSView {
             next.artwork = artwork.adjusted(corner: corner, from: start, to: snapped(model(location)), free: event.modifierFlags.contains(.shift))
             preview = next; needsDisplay = true; return
         }
+        if let drag = envelopeDrag {
+            if let spec = bentEnvelope(drag, to: snapped(model(location)), flags: event.modifierFlags),
+               let color = next.letteringObjects(spec.id).first?.color, let letters = try? spec.build(color: color, embroideryFonts: EmbroideryFontLibrary.fonts) {
+                next.replaceLettering(spec.id, with: letters); preview = next
+            }
+            needsDisplay = true; return
+        }
         if let letter = letterDrag {
             let delta = snapped(model(location)) - start
             for index in next.objects.indices where letter.parts.contains(next.objects[index].id) { next.objects[index].transform { $0 + delta } }
@@ -1384,6 +1459,12 @@ final class DesignCanvas: NSView {
     override func mouseUp(with event: NSEvent) {
         if measuring { measuring = false; return }
         if dropDragIfDesignChanged() { return }
+        if let drag = envelopeDrag {
+            if let spec = bentEnvelope(drag, to: snapped(model(convert(event.locationInWindow, from: nil))), flags: event.modifierFlags), spec != drag.spec {
+                state.rebuildLettering(spec, action: "Shape Envelope")
+            }
+            envelopeDrag = nil; preview = nil; dragStart = nil; dragSnapshot = nil; needsDisplay = true; return
+        }
         if let letter = letterDrag {
             // The move becomes the letter's nudge, measured along the lettering's baseline and up, as a share of its
             // height; rebuilding puts it there (and keeps it there through later changes).
@@ -1483,7 +1564,7 @@ final class DesignCanvas: NSView {
     private func dropDragIfDesignChanged() -> Bool {
         guard state.revision != dragRevision, stitchDrag != nil || dragSnapshot != nil else { return false }
         stitchDrag = nil; stitchPreview = nil; preview = nil; dragSnapshot = nil; dragStart = nil; angleDrag = nil; fillAngleDrag = nil; guideDrag = nil
-        draggedNode = nil; draggedHandle = nil; draggedMarker = nil; artworkDrag = nil; hoopingDrag = nil; nodeJustAdded = false; dragProblem = nil; resizeDrag = nil; letterDrag = nil; needsDisplay = true
+        draggedNode = nil; draggedHandle = nil; draggedMarker = nil; artworkDrag = nil; hoopingDrag = nil; nodeJustAdded = false; dragProblem = nil; resizeDrag = nil; letterDrag = nil; envelopeDrag = nil; needsDisplay = true
         state.status = "The design changed during the drag, so the drag was cancelled."
         return true
     }

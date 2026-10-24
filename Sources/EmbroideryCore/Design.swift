@@ -672,6 +672,9 @@ public struct Design: Codable, Equatable, Sendable {
                 || (s.secondUnderlay != nil && ((s.secondInset ?? s.inset) != s.inset || (s.secondSpacing ?? s.underlaySpacing) != s.underlaySpacing))
         }
     }
+    /// True when a design has lettering bent by an envelope, added in file version 9, so it's saved as version 9 and
+    /// older versions of the app, which would lose the envelope the next time the text is edited, refuse it instead.
+    public var needsSchemaNine: Bool { objects.contains { $0.lettering?.envelope != nil } }
     public var needsSchemaFive: Bool { usesHandles || basting != nil || objects.contains { $0.branchID != nil || $0.stitchEdits != nil || $0.entry != nil || $0.exit != nil || ($0.kind == .satin && ($0.closed || $0.settings.relaxedChecks == true)) || ($0.kind == .fill && ($0.settings.fillStyle ?? .tatami) != .tatami) || ($0.kind == .run && ($0.settings.runPasses ?? 1) > 1) || ($0.kind == .satin && ($0.settings.shortStitches == true || $0.settings.autoSplit == true)) || ($0.kind == .fill && ($0.settings.cutOutOverlaps == true || !($0.settings.angleLines ?? []).isEmpty)) || ($0.kind == .satin && ($0.settings.secondUnderlay != nil || $0.settings.underlay == .auto || $0.settings.pullPercent != nil)) } }
     public static func sample() -> Self {
         var design = Self()
@@ -694,7 +697,7 @@ public struct Design: Codable, Equatable, Sendable {
 
     /// Reject corrupt or unreasonable input before it reaches the renderer or generator.
     public func validate() throws {
-        guard (1...8).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
+        guard (1...9).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }
@@ -714,6 +717,12 @@ public struct Design: Codable, Equatable, Sendable {
             }
             guard object.lettering?.path.map({ path in path.count <= 20_000 && path.allSatisfy { $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 } }) ?? true else {
                 throw DesignError.invalid("Invalid lettering line in \(object.name).")
+            }
+            if let envelope = object.lettering?.envelope {
+                guard envelope.top.count == 3, envelope.bottom.count == 3, (envelope.top + envelope.bottom).allSatisfy({ $0.isFinite && LetteringEnvelope.moves.contains($0) }),
+                      (envelope.box ?? []).count <= 2, (envelope.box ?? []).allSatisfy({ $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 }) else {
+                    throw DesignError.invalid("Invalid lettering envelope in \(object.name).")
+                }
             }
             guard [object.entry, object.exit].allSatisfy({ $0.map { $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 } ?? true }) else {
                 throw DesignError.invalid("Invalid start or end point in \(object.name).")

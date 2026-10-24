@@ -41,6 +41,9 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
     /// Lettering on a line: the path (mm) of its guide line, which the baseline follows. It's copied from the guide
     /// (an unstitched line whose `guideFor` is this lettering's id) whenever that's reshaped (Design.syncGuides).
     public var path: [Point]?
+    /// An envelope the straight lettering is bent into (Bridge, Pennant, Perspective or Diamond), or nil. Arched
+    /// lettering and lettering on a line keep it but aren't bent by it.
+    public var envelope: LetteringEnvelope?
     public static let defaultLineSpacing = 1.4, lineSpacings = 0.8...4.0, maximumLines = 10
     /// Placement markers, in mm. Freshly made lettering is centered on `anchor` = (0, 0), with `alongMarker`
     /// 10 mm to the right (the reading direction) and `upMarker` 10 mm up. They move, turn and mirror with the
@@ -72,6 +75,12 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
     public func build(color: ThreadColor, embroideryFonts: [EmbroideryFont]) throws -> LetteringResult {
         if shape == .onLine { return try builtOnLine(color: color, embroideryFonts: embroideryFonts) }
         var result = try stackedLines(color: color, embroideryFonts: embroideryFonts)
+        // An envelope bends the straight lettering before it's placed, and remembers the box it filled.
+        var envelopeBox: [Point]?
+        if shape == .straight, let envelope {
+            let bent = try envelope.bent(result.objects, height: height)
+            result.objects = bent.objects; envelopeBox = bent.box
+        }
         // The placement: `along` is the reading direction; `up` is a quarter turn to its left, or to its right
         // when the markers have been mirrored. A point (x, y) of the centered lettering lands at anchor + x·along + y·up.
         let along = unit(alongMarker - anchor) ?? Point(1, 0)
@@ -80,6 +89,7 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
         let turn = atan2(along.y, along.x) * 180 / .pi
         var spec = self
         spec.anchor = anchor; spec.alongMarker = anchor + along * 10; spec.upMarker = anchor + up * 10
+        if envelopeBox != nil { spec.envelope?.box = envelopeBox }
         for i in result.objects.indices {
             result.objects[i].transform { p in anchor + along * p.x + up * p.y }
             // Fill rows turn with the letters; mirroring also reflects them.
