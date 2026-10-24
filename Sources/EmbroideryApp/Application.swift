@@ -272,7 +272,25 @@ import EmbroideryCore
         }
         preferenceObserver = NotificationCenter.default.addObserver(forName: .preferencesChanged, object: nil, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.makeMenu() } }
         NSApp.activate(ignoringOtherApps: true)
+        // The first launch on this Mac asks about the machine, once the blank design has opened behind it.
+        if Preferences.shared.isFirstLaunch { DispatchQueue.main.async { MainActor.assumeIsolated { self.showMachineSetup(firstLaunch: true) } } }
     }
+    /// Set Up Your Machine (MachineSetup.swift). After the first launch's welcome, the blank design that opened
+    /// starts in the chosen hoop, or makes way for the sample design, which starts in that hoop too.
+    func showMachineSetup(firstLaunch: Bool) {
+        let openSample = GuidedDialog.machineSetup(firstLaunch: firstLaunch)
+        guard firstLaunch else { return }
+        let blanks = NSDocumentController.shared.documents.compactMap { $0 as? DesignDocument }
+            .filter { $0.fileURL == nil && !$0.isDocumentEdited && $0.state.design.objects.isEmpty }
+        if openSample {
+            let sample = newDocument(sample: true)
+            if let hoop = Preferences.shared.data.newDesignHoop { sample.state.design.hoop = hoop; sample.state.canvas?.fit() }
+            for blank in blanks { blank.close() }
+        } else {
+            for blank in blanks { Preferences.shared.startNewDesign(&blank.state.design); blank.state.canvas?.fit() }
+        }
+    }
+    @objc func setUpMachine(_ sender: Any?) { showMachineSetup(firstLaunch: false) }
     // AppKit asks for a blank design only when the app launches with no files to open (or the Dock icon is
     // clicked with no windows), so double-clicking a project no longer leaves an extra "Untitled" tab behind.
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { true }
@@ -299,12 +317,13 @@ import EmbroideryCore
         document.updateChangeCount(.changeDone)
         document.state.status = "\(design.objects.count) test swatches, sewn in order. Each is named after its value."
     }
-    func newDocument(sample: Bool, areaSampler:Bool=false) {
+    @discardableResult func newDocument(sample: Bool, areaSampler:Bool=false) -> DesignDocument {
         let document = DesignDocument(); if sample { document.state.design = Design.sample() };if areaSampler {document.state.design=Design.stitchSampler()}
         // A blank design starts with the hoop and fabric for new designs (sample designs keep the ones they were made for).
         if !sample && !areaSampler { Preferences.shared.startNewDesign(&document.state.design) }
         NSDocumentController.shared.addDocument(document); document.makeWindowControllers(); document.showWindows()
         if sample || areaSampler { document.updateChangeCount(.changeDone) }
+        return document
     }
     /// A window-scoped event route prevents canvas shortcuts from stealing normal text input.
     func route(_ event: NSEvent) -> Bool {
@@ -1023,7 +1042,9 @@ import EmbroideryCore
                 let response=try await Task.detached(priority:.userInitiated){try Exporter.prepare(plan:plan,hoop:hoop,pesVersion:version,format:target)}.value
                 guard revision==state.revision else{throw DesignError.invalid("The design changed during export. Export the current revision again.")}
                 let omitted=state.design.objects.filter{$0.kind == .vector && $0.guideFor == nil}.count
-                let check=ExportCheck(format:target,stitchCount:response.stitchCount ?? 0,width:response.width ?? 0,height:response.height ?? 0,omittedOutlines:omitted,warnings:response.warnings ?? [],threadListOnly:threadListOnly,fileName:url.lastPathComponent)
+                // A machine that doesn't cut threads (Set Up Your Machine) gets a reminder about Stop at Jumps.
+                let tip=threadListOnly ? nil:MachineSetup.jumpStopTip(cutsThreads:preferences.data.cutsThreads,design:state.design,plan:plan)
+                let check=ExportCheck(format:target,stitchCount:response.stitchCount ?? 0,width:response.width ?? 0,height:response.height ?? 0,omittedOutlines:omitted,warnings:(response.warnings ?? [])+(tip.map{[$0]} ?? []),threadListOnly:threadListOnly,fileName:url.lastPathComponent)
                 if GuidedDialog.run(content: { ExportCheckView(check: check, finish: $0) }) {
                     guard revision==state.revision else{throw DesignError.invalid("The design changed. Export it again.")}
                     let data:Data
@@ -1222,6 +1243,9 @@ import EmbroideryCore
             let entry = NSMenuItem(title: title, action: #selector(openHelpLink(_:)), keyEquivalent: key)
             entry.target = self; entry.representedObject = address; help.submenu?.addItem(entry)
         }
+        help.submenu?.addItem(.separator())
+        let setup = NSMenuItem(title: "Set Up Your Machine…", action: #selector(setUpMachine(_:)), keyEquivalent: ""); setup.target = self
+        help.submenu?.addItem(setup)
         NSApp.helpMenu = help.submenu
         NSApp.mainMenu = menu
     }
