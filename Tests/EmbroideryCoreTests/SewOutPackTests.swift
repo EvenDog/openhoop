@@ -1,7 +1,7 @@
-// The sew-out test pack: nine designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
+// The sew-out test pack: ten designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
 // machine side by side (satin widths and compensation, the fill styles, small lettering, a monogram, travel and
 // finishing, the line styles and stipple, and motifs, cross stitch, gradient and raised satin, then wide satin, Remove Overlaps and Outlines & Offsets,
-// then moves and jumps of known lengths for Review Sewing Order's warnings). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
+// then moves and jumps of known lengths for Review Sewing Order's warnings, then smart corners beside rounded ones). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
 // designs there as OpenHoop projects:
 //   SEWOUT_DIR="$PWD/docs/sewout" swift test --filter SewOutPackTests
 import XCTest
@@ -208,6 +208,66 @@ final class SewOutPackTests: XCTestCase {
         return design
     }
 
+    /// 10 · Smart corners: each shape twice, smart corners on (first thread) beside off, i.e. rounded (second
+    /// thread). Top: satin lines in a V, 4 mm wide at 60° (mitred) and 3 mm wide at 30° (capped). Middle: a 3 mm
+    /// border round a triangle (three mitres). Bottom: a 3 mm border round a star (five capped points).
+    func smartCornersSheet() throws -> Design {
+        var design = newDesign()
+        /// A V-shaped line with 16 mm legs and `angle` degrees between them, its point at `point`, opening upward.
+        func vee(_ angle: Double, at point: Point) -> RunObject {
+            let half = angle / 2 * .pi / 180
+            return RunObject(name: "V", nodes: [Point(-16 * sin(half), 16 * cos(half)), Point(0, 0), Point(16 * sin(half), 16 * cos(half))].map { PathNode($0 + point) })
+        }
+        func shape(_ points: [Point]) -> RunObject {
+            var object = RunObject(name: "Shape", nodes: points.map { PathNode($0) }, color: threads[0])
+            object.closed = true; object.digitizing = DigitizingSettings(kind: .fill)
+            return object
+        }
+        var on: [RunObject] = [], off: [RunObject] = []
+        /// The same satin built with smart corners on (left of the pair) and off.
+        func both(_ name: String, _ make: (Bool) throws -> RunObject) throws {
+            var smart = try make(true), rounded = try make(false)
+            smart.name = "\(name), smart corners"; smart.color = threads[0]
+            rounded.name = "\(name), rounded"; rounded.color = threads[1]
+            on.append(smart); off.append(rounded)
+        }
+        for (x, angle, width) in [(-36.0, 60.0, 4.0), (12, 30, 3)] {
+            try both("Satin \(width.formatted()) mm, \(Int(angle))° V") { smart in
+                try SatinLine.column(from: vee(angle, at: Point(smart ? x : x + 24, 29)), width: width, smartCorners: smart)
+            }
+        }
+        try both("Triangle, 3 mm border") { smart in
+            let x = smart ? -24.0 : 24
+            return try SatinBorder.around(shape([Point(x - 12, -6), Point(x + 12, -6), Point(x, 16)]), width: 3, color: threads[0], smartCorners: smart).object
+        }
+        try both("Star, 3 mm border") { smart in
+            let center = Point(smart ? -24 : 24, -28)
+            let star = (0..<10).map { k -> Point in let r = k % 2 == 0 ? 13.0 : 5.7, a = Double(k) * .pi / 5 + .pi / 2; return center + Point(r * cos(a), r * sin(a)) }
+            return try SatinBorder.around(shape(star), width: 3, color: threads[0], smartCorners: smart).object
+        }
+        design.objects = on + off
+        return design
+    }
+
+    func testSmartCornersSheetHasTheCornersItSaysItHas() throws {
+        let sheet = try smartCornersSheet()
+        func kinds(_ name: String) throws -> [SmartCorners.Kind] {
+            let object = try XCTUnwrap(sheet.objects.first { $0.name == name }, name)
+            let p = stride(from: 0, to: object.nodes.count, by: 2).map { (object.nodes[$0].point, object.nodes[$0 + 1].point) }
+            return SmartCorners.corners(p, closed: object.closed).map { c in
+                SmartCorners.corner(previous: p[(c + p.count - 1) % p.count], pair: p[c], next: p[(c + 1) % p.count], spacing: 0.4).kind
+            }
+        }
+        XCTAssertEqual(try kinds("Satin 4 mm, 60° V, smart corners"), [.mitre])
+        XCTAssertEqual(try kinds("Satin 3 mm, 30° V, smart corners"), [.cap])
+        XCTAssertEqual(try kinds("Triangle, 3 mm border, smart corners"), [.mitre, .mitre, .mitre])
+        XCTAssertEqual(try kinds("Star, 3 mm border, smart corners"), Array(repeating: .cap, count: 5))
+        for name in ["Satin 4 mm, 60° V", "Satin 3 mm, 30° V", "Triangle, 3 mm border", "Star, 3 mm border"] {
+            XCTAssertEqual(try kinds("\(name), rounded"), [], name)
+        }
+        XCTAssertTrue(sheet.needsSchemaTen)
+    }
+
     func testMovesAndJumpsSheetIsWarnedAboutAsIntended() throws {
         let sheet = movesAndJumpsSheet(), steps = sheet.sewingSteps(plan: try RunningEngine.compile(sheet))
         let gaps = Self.moveGaps, bars = gaps.count + 1
@@ -232,7 +292,8 @@ final class SewOutPackTests: XCTestCase {
     func testEverySheetSewsAndFitsTheHoop() throws {
         let sheets: [(String, Design)] = [("1 Satin", satinSheet()), ("2 Fills", fillSheet()), ("3 Lettering", try letteringSheet()),
                                           ("4 Monogram", try monogramSheet()), ("5 Travel and finishing", try travelSheet()), ("6 Line styles and stipple", lineStyleSheet()), ("7 Motifs, cross stitch and more", patternSheet()),
-                                          ("8 Wide satin, overlaps and outlines", try wideSatinOverlapsAndOutlinesSheet()), ("9 Moves and jumps", movesAndJumpsSheet())]
+                                          ("8 Wide satin, overlaps and outlines", try wideSatinOverlapsAndOutlinesSheet()), ("9 Moves and jumps", movesAndJumpsSheet()),
+                                          ("10 Smart corners", try smartCornersSheet())]
         for (name, sheet) in sheets {
             var design = sheet
             design.schemaVersion = design.needsSchemaTen ? 10 : design.needsSchemaNine ? 9 : design.needsSchemaEight ? 8 : design.needsSchemaSeven ? 7 : design.needsSchemaSix ? 6 : design.needsSchemaFive ? 5 : 4
