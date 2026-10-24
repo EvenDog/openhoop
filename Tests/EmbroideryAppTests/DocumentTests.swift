@@ -484,4 +484,23 @@ final class DocumentTests: XCTestCase {
         XCTAssertTrue(state.edit("Rename") { $0.objects[0].name = "Still editable" })
         document.close()
     }
+
+    @MainActor func testABigDesignSavesWithoutItsStitchesRatherThanTooBigToOpen() throws {
+        // Saving keeps the finished stitches in the file; on a huge design they could push it past the size opening
+        // accepts. They're left out instead (opening works them out again), and a design too big even without them
+        // is refused at save time.
+        var design = Design.sample()
+        design.cachedPlan = try StitchEngine.compile(design)
+        let full = try DesignDocument.designData(design, canDropPlan: true)
+        var bare = design; bare.cachedPlan = nil
+        let withoutPlan = try DesignDocument.designData(bare, canDropPlan: true).count
+        XCTAssertGreaterThan(full.count, withoutPlan, "the stitches are saved when there's room")
+        let limit = withoutPlan + (full.count - withoutPlan) / 2
+        let trimmed = try JSONDecoder().decode(Design.self, from: try DesignDocument.designData(design, canDropPlan: true, limit: limit))
+        XCTAssertNil(trimmed.cachedPlan); XCTAssertEqual(trimmed.objects, design.objects)
+        XCTAssertThrowsError(try DesignDocument.designData(design, canDropPlan: false, limit: limit), "an older project keeps its preview stitches")
+        XCTAssertThrowsError(try DesignDocument.designData(design, canDropPlan: true, limit: withoutPlan / 2)) { error in
+            XCTAssertTrue(error.localizedDescription.contains("too large to save"), error.localizedDescription)
+        }
+    }
 }
