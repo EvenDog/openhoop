@@ -312,6 +312,7 @@ private struct NewDesignSettings: View {
                 RowDivider()
                 SettingsRow(title: "Hoop", hint: "The one you used last, unless you pick one here") { hoopMenu }
             }
+            MyHoopsCard()
             SettingsCard(caption: "New objects") {
                 number("Line stitch length", hint: "Running stitches and outlines", unit: "mm", value: preferences.data.lineStitchLength ?? Preferences.builtInLineStitchLength, range: 0.3...10) { preferences.data.lineStitchLength = $0 }
                 RowDivider()
@@ -330,13 +331,7 @@ private struct NewDesignSettings: View {
     private var hoopMenu: some View {
         Menu {
             Button("The one I used last") { preferences.data.newDesignHoopPinned = nil; preferences.save() }
-            ForEach(HoopPreset.brands, id: \.self) { brand in
-                Section(brand) {
-                    ForEach(HoopPreset.all.filter { $0.brand == brand }) { preset in
-                        Button(preset.menuTitle) { preferences.data.newDesignHoop = preset.hoop; preferences.data.newDesignHoopPinned = true; preferences.save() }
-                    }
-                }
-            }
+            HoopMenuItems { hoop in preferences.data.newDesignHoop = hoop; preferences.data.newDesignHoopPinned = true; preferences.save() }
         } label: {
             let hoop = preferences.data.newDesignHoop ?? Hoop()
             Text(preferences.data.newDesignHoopPinned == true ? hoop.label : "Last used (now \(hoop.label))").font(Theme.body(12, weight: .semibold))

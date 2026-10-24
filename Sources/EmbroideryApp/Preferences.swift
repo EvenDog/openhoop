@@ -100,6 +100,9 @@ struct PreferenceData: Codable {
     var cutsThreads: Bool?
     /// The tool band as rearranged in View › Customize Tools…; nil means the built-in layout. CustomizeTools.swift.
     var toolLayout: ToolLayout?
+    /// Hoops of your own, named in Settings › New designs › My hoops (each has a `name`); nil until one is added.
+    /// MyHoops.swift.
+    var myHoops: [Hoop]?
 }
 
 /// The canvas's view choices, remembered across designs and launches. Each is nil until it's first switched, which
@@ -158,6 +161,20 @@ struct ShownItems: Codable, Equatable {
     var toolArrangement: ToolArrangement { ToolLayout.arrangement(data.toolLayout) }
     /// Saves a new tool band arrangement; the band redraws at once, since it watches these preferences.
     func setToolArrangement(_ arrangement: ToolArrangement) { data.toolLayout = ToolLayout(arrangement); save(announce: false) }
+    /// Your own hoops, in the order they were added.
+    var myHoops: [Hoop] { data.myHoops ?? [] }
+    /// Saves the list of your own hoops (an empty list saves as nothing).
+    func setMyHoops(_ hoops: [Hoop]) { data.myHoops = hoops.isEmpty ? nil : hoops; save(announce: false) }
+    /// `name` tidied for a hoop of your own: trimmed, and with a number added if another of your hoops (or a built-in
+    /// one) already has it. Empty gives nil.
+    static func uniqueHoopName(_ name: String, among taken: [String]) -> String? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let used = Set(taken + HoopPreset.all.map(\.id))
+        var candidate = trimmed, number = 2
+        while used.contains(candidate) { candidate = "\(trimmed) \(number)"; number += 1 }
+        return candidate
+    }
     /// How far the arrow keys move the selection, in mm.
     var nudge: Double { data.nudgeDistance ?? 1 }
     /// The unit sizes and positions are shown and typed in (designs themselves always stay in millimeters).

@@ -441,14 +441,11 @@ struct InspectorPanel: View {
             ForEach(TrimRule.allCases, id: \.self) { rule in Text(rule == .whenFar ? "When far (\(distance))" : rule.title).tag(rule) }
         }.font(Theme.body(12, weight: .semibold))
     }
-    /// The hoop menu: the common hoops grouped by brand. Its button shows the current hoop, e.g. "Brother 5 × 7 in · 130 × 180 mm".
+    /// The hoop menu: your own hoops, then the common hoops grouped by brand. Its button shows the current hoop, e.g.
+    /// "Brother 5 × 7 in · 130 × 180 mm".
     private var hoopMenu: some View {
         Menu {
-            ForEach(HoopPreset.brands, id: \.self) { brand in
-                Section(brand) {
-                    ForEach(HoopPreset.all.filter { $0.brand == brand }) { preset in Button(preset.menuTitle) { setHoop(preset.hoop, "Choose Hoop") } }
-                }
-            }
+            HoopMenuItems { setHoop($0, "Choose Hoop") }
         } label: { Text(state.design.hoop.label).font(Theme.body(12, weight: .semibold)) }
         .help("Choose your machine's hoop")
     }

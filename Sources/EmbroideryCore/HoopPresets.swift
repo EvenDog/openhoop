@@ -45,15 +45,22 @@ extension Hoop {
         guard let name, !oval, let preset = HoopPreset.all.first(where: { $0.id == name }) else { return nil }
         return (width, height) == (preset.width, preset.height) || (width, height) == (preset.height, preset.width) ? preset : nil
     }
+    /// The name of a hoop of your own (Settings › New designs › My hoops): a name that isn't a preset's. A preset's
+    /// name on a changed size is just a custom size.
+    public var ownName: String? {
+        guard let name, !name.isEmpty, !HoopPreset.all.contains(where: { $0.id == name }) else { return nil }
+        return name
+    }
     /// True when a preset hoop has been turned sideways (its long side now runs left to right).
     public var isSideways: Bool { preset.map { $0.width != $0.height && width == $0.height } ?? false }
     /// The hoop turned a quarter turn: width and height swap, and a preset keeps its name.
     public var turned: Hoop { Hoop(width: height, height: width, oval: oval, name: name) }
-    /// "Brother 5 × 7 in · 130 × 180 mm", "Husqvarna Viking / Pfaff · 240 × 150 mm (sideways)", or
-    /// "Custom · 110 × 90 mm (oval)". The size is always the hoop's current width × height.
+    /// "Brother 5 × 7 in · 130 × 180 mm", "Husqvarna Viking / Pfaff · 240 × 150 mm (sideways)", a hoop of your own
+    /// ("Magnetic 5 × 5 · 130 × 130 mm"), or "Custom · 110 × 90 mm (oval)". The size is always the hoop's current
+    /// width × height.
     public var label: String {
         let size = "\(Self.mm(width)) × \(Self.mm(height)) mm"
-        guard let preset else { return "Custom · \(size)\(oval ? " (oval)" : "")" }
+        guard let preset else { return "\(ownName ?? "Custom") · \(size)\(oval ? " (oval)" : "")" }
         let title = preset.name.hasSuffix("mm") ? preset.brand : preset.id   // a size-named hoop doesn't repeat its size
         return "\(title) · \(size)\(isSideways ? " (sideways)" : "")"
     }
