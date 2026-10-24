@@ -6,6 +6,25 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.7.6</title>
+            <pubDate>Sat, 24 Oct 2026 02:24:01 GMT</pubDate>
+            <sparkle:version>22</sparkle:version>
+            <sparkle:shortVersionString>0.7.6</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.7.6</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.7.6</h3>
+<ul>
+<li><b>Wreath / Kaleidoscope (⌥⇧W).</b> Select something to repeat, such as a leaf, a flower or a word, and click a center. Dashed outlines preview the copies going all the way round. Set <b>Copies</b> (2–100) in Properties and tick <b>Mirror every other</b> for a kaleidoscope, where neighbouring copies face each other in pairs. <b>Apply</b> makes it as one step to undo.</li>
+<li><b>Wreaths sew color by color.</b> The wreath is one group, sewn one thread color at a time all the way round, so it changes thread no more often than the original selection did, however many copies it has.</li>
+<li><b>Lettering envelopes.</b> Bend straight lettering into a <b>Bridge</b> (curved top and bottom), <b>Pennant</b> (tapering), <b>Perspective</b> (leaning) or <b>Diamond</b> (to a point) shape. Pick one under <b>Envelope</b> in Properties, then type the handle moves or drag the handles with Edit Nodes (<b>H</b>). Shift bends the opposite handle the other way, and ⌘ bends it the same way.</li>
+<li><b>Envelopes stay with the lettering.</b> Change the text, font or size and the new letters are bent the same way. Projects with an envelope are saved as a newer file version, so older versions of OpenHoop won't open them.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.7.6/OpenHoop-0.7.6.dmg" sparkle:edSignature="4euTzX7yJTCVTxtSuNoXIoE///q4kn7rbxs3LG5gRDdrjMolvLOBi0Zc20yKwuOoi9mYZcQeVUhpfpCm1vhvCw==" length="23076730" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.7.5</title>
             <pubDate>Fri, 23 Oct 2026 00:40:25 GMT</pubDate>
             <sparkle:version>21</sparkle:version>
