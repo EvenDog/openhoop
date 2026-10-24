@@ -73,6 +73,17 @@ final class MultiHoopingTests: XCTestCase {
         XCTAssertEqual(small[0].center.x, 5, accuracy: 0.5, "centered on the design")
     }
 
+    func testAnEmptyHoopingIsNamedBeforeSaving() throws {
+        // Three hoopings, the middle one over nothing: its plan is empty, which no machine file can hold.
+        var design = twoHoopings([square("Left", at: Point(-80, 0)), square("Right", at: Point(80, 0))])
+        design.multiHooping!.hoopings = [Hooping(center: Point(-80, 0)), Hooping(center: Point(0, 200)), Hooping(center: Point(80, 0))]
+        let plans = try design.hoopingPlans(plan: try StitchEngine.compile(design))
+        XCTAssertEqual(plans.map { $0.stitchCount == 0 }, [false, true, false])
+        XCTAssertEqual(Design.emptyHoopingProblem(plans), "Hooping 2 has nothing to sew. Move it over part of the design, remove it with the Hoopings tool, or use Auto layout.")
+        XCTAssertNil(Design.emptyHoopingProblem([plans[0], plans[2]]))
+        XCTAssertTrue(Design.emptyHoopingProblem([StitchPlan(), plans[0], StitchPlan(), StitchPlan()])!.hasPrefix("Hoopings 1, 3 and 4 have nothing to sew"))
+    }
+
     func testAutoLayoutRefusesATinyHoopOrTooManyHoopings() throws {
         // A hoop typed in inches into a millimeter field ("4"), and one exactly as wide as the overlap, used to crash.
         var design = twoHoopings([square("Left", at: Point(-80, 0)), square("Right", at: Point(80, 0))])

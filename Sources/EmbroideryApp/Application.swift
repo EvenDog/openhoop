@@ -1067,6 +1067,8 @@ import EmbroideryCore
         guard !state.busy, !state.exporting, !state.hasVersionMismatch, state.compiledRevision == state.revision, state.plan.stitchCount > 0 else { state.status = "Wait for current stitches before exporting."; return }
         Task {
             guard let plans = await hoopingPlans(state) else { return }
+            // A machine file needs stitches, so an empty hooping would stop every file being saved.
+            if let problem = Design.emptyHoopingProblem(plans) { state.status = problem; return }
             saveHoopings(state, name: name, plans: plans)
         }
     }
@@ -1096,6 +1098,15 @@ import EmbroideryCore
         let base = url.deletingPathExtension().lastPathComponent, folder = url.deletingLastPathComponent()
         let urls = plans.indices.map { folder.appendingPathComponent("\(base) – hooping \($0 + 1) of \(plans.count).\(choice.format.rawValue)") }
         let sheetURL = folder.appendingPathComponent("\(base) – hooping sheet.pdf")
+        // The save window only asked about the name typed, so ask before replacing files named after it.
+        let existing = (urls + [sheetURL]).filter { FileManager.default.fileExists(atPath: $0.path) }
+        if !existing.isEmpty {
+            let alert = NSAlert()
+            alert.messageText = existing.count == 1 ? "Replace “\(existing[0].lastPathComponent)”?" : "Replace \(existing.count) files?"
+            alert.informativeText = (existing.count == 1 ? "A file with that name" : existing.map(\.lastPathComponent).joined(separator: ", ") + ":") + " already in “\(folder.lastPathComponent)” will be replaced by this design's."
+            alert.addButton(withTitle: "Replace"); alert.addButton(withTitle: "Cancel")
+            guard alert.runModal() == .alertFirstButtonReturn else { state.status = "Export cancelled."; return }
+        }
         let sheet = hoopingSheet(state, plans: plans, name: base)
         let revision = state.revision, hoop = state.design.hoop, version = choice.pesVersion, target = choice.format
         state.exporting = true; state.status = "Encoding and checking \(plans.count) \(target.title) files…"

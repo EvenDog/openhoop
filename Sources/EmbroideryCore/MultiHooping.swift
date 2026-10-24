@@ -145,6 +145,15 @@ extension Design {
         return grid.indices.filter { !used[$0].isEmpty }.map { grid[$0] }
     }
 
+    /// Why `plans` (from `hoopingPlans`) can't be saved as machine files: the hoopings that have nothing to sew, since
+    /// a machine file needs stitches. Nil when every hooping sews something.
+    public static func emptyHoopingProblem(_ plans: [StitchPlan]) -> String? {
+        let empty = plans.indices.filter { plans[$0].stitchCount == 0 }.map { $0 + 1 }
+        guard let last = empty.last else { return nil }
+        let names = empty.count == 1 ? "Hooping \(last) has" : "Hoopings \(empty.dropLast().map(String.init).joined(separator: ", ")) and \(last) have"
+        return "\(names) nothing to sew. Move \(empty.count == 1 ? "it" : "them") over part of the design, remove \(empty.count == 1 ? "it" : "them") with the Hoopings tool, or use Auto layout."
+    }
+
     /// True for the IDs alignment marks sew with (they aren't objects of the design, so lists name them by this).
     public static func isAlignmentMark(_ id: UUID) -> Bool { id.uuidString.hasPrefix("A11C0000-") }
     /// The alignment mark at `center` (mm) as a running line in `color` that starts at the mark's middle, so
