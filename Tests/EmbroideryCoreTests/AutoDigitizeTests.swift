@@ -86,6 +86,28 @@ final class AutoDigitizeTests: XCTestCase {
         XCTAssertFalse(result.warnings.contains { $0.contains("couldn't be traced") }, "\(result.warnings)")
     }
 
+    func testADetailedPictureTracesInsteadOfFailing() throws {
+        // A black square, 60 mm, with a ragged edge (1-pixel teeth all round, far more points than one fill may have)
+        // and 400 white holes: tiny ones (0.36 mm², under the 2 mm² smallest part) and bigger ones (2.56 mm²).
+        // It used to fail outright because one fill can hold 2,000 points and 100 holes.
+        let image = picture(320) { x, y in
+            let inside = x >= 10 && x < 310 && y >= 10 && y < 310
+            let tooth = (x < 13 || x >= 307 || y < 13 || y >= 307) && (x + y) % 2 == 0
+            guard inside && !tooth else { return 0xFFFFFF }
+            let gx = (x - 10) % 14, gy = (y - 10) % 14, big = ((x - 10) / 14 + (y - 10) / 14) % 2 == 0
+            return gx >= 3 && gy >= 3 && gx < (big ? 11 : 6) && gy < (big ? 11 : 6) ? 0xFFFFFF : 0x000000
+        }
+        let result = try run(image, size: 64)
+        XCTAssertEqual(result.objects.count, 1)
+        let fill = result.objects[0]
+        XCTAssertLessThanOrEqual(fill.holes?.count ?? 0, 100, "only the 100 largest holes stay")
+        XCTAssertLessThanOrEqual(fill.allNodes.count, 2000)
+        XCTAssertTrue(result.warnings.contains { $0.contains("filled in") }, "\(result.warnings)")
+        var design = Design(); design.objects = result.objects
+        XCTAssertNoThrow(try design.validate())
+        XCTAssertNoThrow(try StitchEngine.compile(design))
+    }
+
     func testSmallPartsAreLeftOutAndExplained() throws {
         let image = picture(100) { x, y in
             if x >= 80 && x < 83 && y >= 80 && y < 83 { return 0x000000 }   // 0.36 mm² at 0.2 mm per pixel
