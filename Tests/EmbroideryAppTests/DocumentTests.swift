@@ -448,5 +448,40 @@ final class DocumentTests: XCTestCase {
         XCTAssertEqual(state.summary.steps.first?.parts, ["Stem"])
         XCTAssertEqual(state.summary.fabric, .towel)
     }
-}
 
+    @MainActor func testUndoForgetsAPointItTookAway() {
+        // Undoing an added point while it was picked used to leave it picked, and Delete then crashed reaching for it.
+        _ = NSApplication.shared
+        let document = DesignDocument(), state = document.state
+        var square = RunObject(name: "Square", nodes: [Point(0, 0), Point(20, 0), Point(20, 20), Point(0, 20)].map { PathNode($0) })
+        square.closed = true; square.digitizing = DigitizingSettings(kind: .fill)
+        state.design.objects = [square]
+        state.edit("Add Node") { $0.objects[0].nodes.append(PathNode(Point(-5, 10))) }
+        state.selectedNode = NodeLocation(object: square.id, ring: -1, index: 4)
+        state.edit("Move Object") { $0.objects[0].name = "Moved" }
+        XCTAssertNotNil(state.selectedNode, "A change that keeps the point keeps it picked")
+        document.undoManager?.undo()
+        XCTAssertEqual(state.design.objects[0].nodes.count, 4)
+        XCTAssertNil(state.selectedNode, "The point is gone, so it's no longer picked")
+        document.close()
+    }
+
+    @MainActor func testAnEditThatCouldntBeSavedIsRefused() throws {
+        // Save refuses a shape with more than 2,000 points, so the edit that would make one is refused instead,
+        // rather than leaving a design that can't be saved.
+        _ = NSApplication.shared
+        let document = DesignDocument(), state = document.state
+        var square = RunObject(name: "Square", nodes: [Point(0, 0), Point(20, 0), Point(20, 20), Point(0, 20)].map { PathNode($0) })
+        square.closed = true; square.digitizing = DigitizingSettings(kind: .fill)
+        state.design.objects = [square]
+        let before = state.design
+        let crowded = (0..<2_001).map { k -> PathNode in let a = Double(k) / 2_001 * 2 * .pi; return PathNode(Point(10 * cos(a), 10 * sin(a))) }
+        XCTAssertFalse(state.edit("Weld") { $0.objects[0].nodes = crowded })
+        XCTAssertEqual(state.design, before, "Nothing changed")
+        XCTAssertEqual(document.undoManager?.canUndo, false, "and there's nothing to undo")
+        XCTAssertTrue(state.status.contains("Weld can't be done: ‘Square’ has more than 2,000 points"), state.status)
+        _ = try document.fileWrapper(ofType: "Embroidery Project")   // still saves
+        XCTAssertTrue(state.edit("Rename") { $0.objects[0].name = "Still editable" })
+        document.close()
+    }
+}

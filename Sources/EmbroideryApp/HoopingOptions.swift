@@ -110,8 +110,15 @@ extension EditorState {
     /// Turns multi-hooping on, with hoopings laid out to cover the design (one in the middle if nothing sews yet), or
     /// off, back to one hooping. Either way the view zooms to show where stitches may go.
     func setMultiHooping(_ on: Bool) {
-        let hoopings = design.autoHoopings(plan: plan)
-        edit(on ? "Multi-hooping" : "Single Hooping") { $0.multiHooping = on ? MultiHooping(hoopings: hoopings.isEmpty ? [Hooping(center: Point(0, 0))] : hoopings) : nil }
+        guard on else {
+            edit("Single Hooping") { $0.multiHooping = nil }
+            selectedHooping = nil
+            canvas?.fit()
+            return
+        }
+        let hoopings: [Hooping]
+        do { hoopings = try design.autoHoopings(plan: plan) } catch { status = error.localizedDescription; return }
+        edit("Multi-hooping") { $0.multiHooping = MultiHooping(hoopings: hoopings.isEmpty ? [Hooping(center: Point(0, 0))] : hoopings) }
         selectedHooping = nil
         canvas?.fit()
     }
@@ -135,7 +142,8 @@ extension EditorState {
     }
     /// Auto Layout: replaces the hoopings with the fewest that cover the design (MultiHooping.swift).
     func autoLayoutHoopings() {
-        let hoopings = design.autoHoopings(plan: plan)
+        let hoopings: [Hooping]
+        do { hoopings = try design.autoHoopings(plan: plan) } catch { status = error.localizedDescription; return }
         guard !hoopings.isEmpty else { status = "Nothing sews yet, so there's nothing to lay hoopings out around."; return }
         edit("Auto Layout Hoopings") { $0.multiHooping?.hoopings = hoopings }
         selectedHooping = nil

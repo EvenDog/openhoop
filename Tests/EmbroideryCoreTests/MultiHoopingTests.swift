@@ -56,7 +56,7 @@ final class MultiHoopingTests: XCTestCase {
 
     func testAutoLayoutCoversTheDesignWithOverlappingHoopings() throws {
         var design = twoHoopings([square("Left", at: Point(-80, 0)), square("Right", at: Point(80, 0))])
-        let wide = design.autoHoopings(plan: try StitchEngine.compile(design))
+        let wide = try design.autoHoopings(plan: try StitchEngine.compile(design))
         XCTAssertEqual(wide.count, 2)
         XCTAssertEqual(wide[0].center.y, wide[1].center.y, accuracy: 0.001, "one row")
         XCTAssertLessThan(wide[0].center.x, wide[1].center.x, "left to right")
@@ -68,9 +68,29 @@ final class MultiHoopingTests: XCTestCase {
         XCTAssertNoThrow(try design.hoopingPlans(plan: try StitchEngine.compile(design)))
 
         design.objects = [square("Small", at: Point(5, 5))]
-        let small = design.autoHoopings(plan: try StitchEngine.compile(design))
+        let small = try design.autoHoopings(plan: try StitchEngine.compile(design))
         XCTAssertEqual(small.count, 1)
         XCTAssertEqual(small[0].center.x, 5, accuracy: 0.5, "centered on the design")
+    }
+
+    func testAutoLayoutRefusesATinyHoopOrTooManyHoopings() throws {
+        // A hoop typed in inches into a millimeter field ("4"), and one exactly as wide as the overlap, used to crash.
+        var design = twoHoopings([square("Left", at: Point(-80, 0)), square("Right", at: Point(80, 0))])
+        let plan = try StitchEngine.compile(design)
+        for size in [4.0, Design.hoopingOverlap, 2 * Design.hoopingOverlap - 0.1] {
+            design.hoop = Hoop(width: size, height: size)
+            XCTAssertThrowsError(try design.autoHoopings(plan: plan), "\(size) mm") { error in
+                XCTAssertTrue(error.localizedDescription.contains("at least 32 mm"), error.localizedDescription)
+            }
+        }
+        // Just big enough to overlap, but a design 170 mm square would need about 100: refused at once instead.
+        var corners = twoHoopings([square("Bottom left", at: Point(-80, -80)), square("Top right", at: Point(80, 80))])
+        corners.hoop = Hoop(width: 2 * Design.hoopingOverlap + 0.5, height: 2 * Design.hoopingOverlap + 0.5)
+        XCTAssertThrowsError(try corners.autoHoopings(plan: try StitchEngine.compile(corners))) { error in
+            XCTAssertTrue(error.localizedDescription.contains("more than \(MultiHooping.limit) hoopings"), error.localizedDescription)
+        }
+        design.hoop = Hoop(width: 100, height: 100)
+        XCTAssertEqual(try design.autoHoopings(plan: plan).count, 2)
     }
 
     func testEachHoopingGetsItsOwnPlanWithSharedAlignmentMarks() throws {

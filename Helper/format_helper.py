@@ -22,6 +22,9 @@ OPERATIONS = {
     "stitch": embroidery.STITCH, "jump": embroidery.JUMP, "trim": embroidery.TRIM,
     "colorChange": embroidery.COLOR_CHANGE, "stop": embroidery.STOP, "end": embroidery.END,
 }
+# The longest stitch each format can store, in 0.1 mm along either direction (each pyembroidery writer's
+# MAX_STITCH_DISTANCE). Longer stitches are split before encoding (see export).
+LONGEST_STITCH = {"pes": 2047, "pec": 2047, "dst": 121, "exp": 127, "jef": 127, "vp3": 255, "xxx": 124}
 
 
 def export(request):
@@ -101,6 +104,17 @@ def export(request):
                 raise ValueError(f"Stitch at ({qx:.1f}, {qy:.1f}) mm is outside the selected sewing area.")
         if op == "jump" and expected and previous_point != (x, y):
             travel_boundaries.add(len(expected))
+        if op == "stitch" and previous_point is not None:
+            # A stitch longer than the format can store is split here into equal pieces (2 units short of the limit,
+            # so rounding can't push one over), and the read-back check below expects the extra needle points.
+            # Left to the writer, they would appear unannounced and the check would refuse the file.
+            px, py = previous_point
+            pieces = math.ceil(max(abs(x - px), abs(y - py)) * 10 / (LONGEST_STITCH[fmt] - 2))
+            for k in range(1, pieces):
+                ix, iy = px + (x - px) * k / pieces, py + (y - py) * k / pieces
+                expected.append((ix * 10, -iy * 10))
+                expected_colors.append(threads[thread_index]["hex"] & 0xFFFFFF)
+                pattern.add_stitch_absolute(embroidery.STITCH, ix * 10, -iy * 10)
         if op == "stitch":
             expected.append((x * 10, -y * 10))
             expected_colors.append(threads[thread_index]["hex"] & 0xFFFFFF)

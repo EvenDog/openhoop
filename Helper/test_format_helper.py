@@ -50,6 +50,24 @@ class FormatTests(unittest.TestCase):
                 self.assertEqual(min(x for x, _ in moves), 0)
                 self.assertEqual(min(y for _, y in moves), 0)
 
+    def test_stitches_too_long_for_the_format_are_split_not_refused(self):
+        # A 15 mm satin zigzag: longer than DST (12.1 mm), EXP and JEF (12.7) and XXX (12.4) can store. Each format
+        # gets the file, with every long stitch split evenly and nothing over its limit.
+        commands = [{"op": "jump", "point": {"x": -7.5, "y": 0}, "thread": 0}]
+        for row in range(6):
+            commands.append({"op": "stitch", "point": {"x": -7.5 if row % 2 else 7.5, "y": row * 0.4}, "thread": 0})
+        commands.append({"op": "end", "point": commands[-1]["point"], "thread": 0})
+        request = {"version": 1, "pesVersion": 6, "hoop": {"width": 100, "height": 100, "oval": False},
+                   "plan": {"commands": commands, "threads": [{"hex": 0x167c80, "name": "Ocean"}]}}
+        for fmt, limit, pieces in [("dst", 121, 2), ("exp", 127, 2), ("jef", 127, 2), ("xxx", 124, 2), ("vp3", 255, 1), ("pes", 2047, 1)]:
+            with self.subTest(format=fmt):
+                result = export(dict(request, format=fmt))
+                self.assertEqual(result["stitchCount"], 6 * pieces)
+                pattern = getattr(pyembroidery, "read_" + fmt)(io.BytesIO(base64.b64decode(result["bytes"])))
+                needles = [(x, y) for x, y, op in pattern.stitches if op & pyembroidery.COMMAND_MASK == pyembroidery.STITCH]
+                longest = max(max(abs(bx - ax), abs(by - ay)) for (ax, ay), (bx, by) in zip(needles, needles[1:]))
+                self.assertLessEqual(longest, limit)
+
     def test_outside_hoop_rejected(self):
         request = fixture(); request["hoop"]["width"] = 20
         with self.assertRaisesRegex(ValueError, "outside"):
