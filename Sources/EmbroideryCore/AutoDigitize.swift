@@ -105,7 +105,7 @@ public enum AutoDigitize {
         for label in labels where label >= 0 { areas[label] += 1 }
         let order = centers.indices.filter { areas[$0] > 0 }.sorted { areas[$0] > areas[$1] }   // big areas sew first, details on top
         var objects: [RunObject] = [], colors: [AutoDigitizeColor] = [], warnings: [String] = []
-        var smallParts = 0, failedParts = 0, thinParts = 0
+        var smallParts = 0, failedParts = 0, thinParts = 0, filledHoles = 0
         for (number, label) in order.enumerated() {
             try Task.checkCancellation()
             let thread = ThreadColor("Color \(number + 1)", centers[label])
@@ -119,7 +119,9 @@ public enum AutoDigitize {
             // slanted edges, still finer than a thread is wide. Fewer points also keep stitch generation fast.
             let rings = traced.map { simplify(softened($0), tolerance: max(1, 0.1 / min(pixelWidth, pixelHeight))) }.filter { $0.count >= 3 }.map { $0.map { place($0.x, $0.y) } }
             var parts: [[[Point]]] = []
-            for region in try AreaGeometry.svgRegions(rings, nonzero: false) {
+            for traced in try AreaGeometry.svgRegions(rings, nonzero: false) {
+                guard let (region, filled) = fitted(traced, smallest: max(options.smallestArea, 0.05)) else { failedParts += 1; continue }
+                filledHoles += filled
                 let area = AreaGeometry.area(region[0]).magnitude - region.dropFirst().reduce(0) { $0 + AreaGeometry.area($1).magnitude }
                 guard area >= max(options.smallestArea, 0.05) else { smallParts += 1; continue }
                 guard (try? AreaGeometry.validate(region)) != nil else { failedParts += 1; continue }
@@ -142,6 +144,7 @@ public enum AutoDigitize {
         }
         if hasTransparency && options.skipBackground == false { warnings.append("Transparent parts of the image are always left out.") }
         if smallParts > 0 { warnings.append("\(smallParts) patch\(smallParts == 1 ? " was" : "es were") smaller than \(options.smallestArea.formatted()) mm² and left out.") }
+        if filledHoles > 0 { warnings.append("\(filledHoles) small hole\(filledHoles == 1 ? " was" : "s were") filled in, so \(filledHoles == 1 ? "it's" : "they're") sewn over.") }
         if thinParts > 0 { warnings.append("\(thinParts) part\(thinParts == 1 ? " is" : "s are") narrower than about 1.2 mm. Fill sews thin parts poorly; consider redrawing them as satin or running stitch.") }
         if failedParts > 0 { warnings.append("\(failedParts) part\(failedParts == 1 ? "" : "s") couldn't be traced cleanly and \(failedParts == 1 ? "was" : "were") left out. Try fewer colors or a larger smallest part.") }
         guard !objects.isEmpty else { throw DesignError.invalid("Nothing large enough to stitch was found. Try more colors, turn off Skip background, or lower the smallest part.") }
@@ -298,6 +301,25 @@ public enum AutoDigitize {
 
     /// Douglas–Peucker simplification of a closed ring: keeps the points that stick out more than `tolerance`
     /// from a straight line between their neighbors' kept points, and drops the rest.
+    /// `region` (an outline and its holes, in mm) made to fit what one fill can hold (Design.validate): holes smaller
+    /// than `smallest` mm² are filled in, like parts that small; only the 100 largest holes stay; and the outline and
+    /// holes are smoothed a little more at a time until they have 2,000 points between them. Returns the region and
+    /// how many holes were filled in, or nil if even smoothing by 2 mm doesn't fit (or leaves no outline).
+    static func fitted(_ region: [[Point]], smallest: Double) -> (region: [[Point]], filledHoles: Int)? {
+        let holes = region.dropFirst().map { ($0, AreaGeometry.area($0).magnitude) }.filter { $0.1 >= smallest }
+            .sorted { $0.1 > $1.1 }.prefix(100).map(\.0)
+        let kept = [region[0]] + holes
+        var fitted = kept, tolerance = 0.1
+        while fitted.reduce(0, { $0 + $1.count }) > 2000 {
+            tolerance *= 1.5
+            guard tolerance <= 2 else { return nil }
+            // Each pass starts again from the traced shapes, so smoothing doesn't pile up.
+            fitted = [simplify(kept[0], tolerance: tolerance)] + kept.dropFirst().map { simplify($0, tolerance: tolerance) }.filter { $0.count >= 3 }
+        }
+        guard fitted[0].count >= 3 else { return nil }
+        return (fitted, region.count - fitted.count)
+    }
+
     static func simplify(_ ring: [Point], tolerance: Double) -> [Point] {
         guard ring.count > 4 else { return ring }
         // Split the ring at its first point and the point farthest from it, then simplify the two halves as lines.

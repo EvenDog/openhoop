@@ -977,6 +977,21 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             }
         }
     }
+    /// The largest design.json a project may have. Opening refuses bigger ones, so saving never writes one.
+    nonisolated static let largestDesignData = 100_000_000
+    /// `snapshot` as design.json. The finished stitches saved with it (there so a project shows them as soon as it
+    /// opens) are left out when they'd make it `limit` bytes or more, if `canDropPlan` (not for a project from an
+    /// older engine, whose saved stitches are its preview); opening then works them out again. Throws, saying so,
+    /// if it's still too big.
+    nonisolated static func designData(_ snapshot: Design, canDropPlan: Bool, limit: Int = largestDesignData) throws -> Data {
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        var snapshot = snapshot, data = try encoder.encode(snapshot)
+        if data.count >= limit, canDropPlan, snapshot.cachedPlan != nil { snapshot.cachedPlan = nil; data = try encoder.encode(snapshot) }
+        guard data.count < limit else {
+            throw DesignError.invalid("This design is too large to save: its data would pass \((limit / 1_000_000).formatted()) MB. Split it into two designs, or simplify its biggest shapes.")
+        }
+        return data
+    }
     override func fileWrapper(ofType typeName: String) throws -> FileWrapper {
         var snapshot = state.design
         try snapshot.validate()
@@ -989,8 +1004,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             children["artwork.bin"] = FileWrapper(regularFileWithContents: image)
             snapshot.artwork?.data = Data()
         }
-        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        children["design.json"] = FileWrapper(regularFileWithContents: try encoder.encode(snapshot))
+        children["design.json"] = FileWrapper(regularFileWithContents: try Self.designData(snapshot, canDropPlan: !state.hasVersionMismatch))
         // macOS looks for QuickLook/Thumbnail.png inside a package and shows it as the file's icon in Finder.
         if let thumbnail = StitchThumbnail.png(of: snapshot.objects) {
             children["QuickLook"] = FileWrapper(directoryWithFileWrappers: ["Thumbnail.png": FileWrapper(regularFileWithContents: thumbnail)])
@@ -998,7 +1012,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         return FileWrapper(directoryWithFileWrappers: children)
     }
     override func read(from fileWrapper: FileWrapper, ofType typeName: String) throws {
-        guard let bytes = fileWrapper.fileWrappers?["design.json"]?.regularFileContents, bytes.count < 100_000_000 else { throw DesignError.invalid("The project is missing its design data or is too large.") }
+        guard let bytes = fileWrapper.fileWrappers?["design.json"]?.regularFileContents, bytes.count < Self.largestDesignData else { throw DesignError.invalid("The project is missing its design data or is too large.") }
         var design = try JSONDecoder().decode(Design.self, from: bytes)
         design.measureSpacingAcrossTwoRows()   // older files: tatami row spacing is now measured across two rows
         design.splitEdgeAndSparse()   // older files: each underlay now has its own settings
