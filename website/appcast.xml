@@ -6,6 +6,22 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.8.2</title>
+            <pubDate>Sat, 24 Oct 2026 22:41:46 GMT</pubDate>
+            <sparkle:version>29</sparkle:version>
+            <sparkle:shortVersionString>0.8.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.8.2</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.8.2</h3>
+<ul>
+<li><b>Arrange the tool band your way.</b> Choose <b>View › Customize Tools…</b>, or right-click anywhere on the band. A window opens below the band showing every group with each tool's name. Drag tools into a new order or into another group, drag a group by its name to move it, and drag tools you never use into <b>Hidden</b> (they stay in the menus and keep their keys). The band changes as you go: <b>Done</b> keeps it, <b>Cancel</b> puts it back, and <b>Reset to Default</b> restores the usual layout. The tool rail down the left side follows the same arrangement.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.8.2/OpenHoop-0.8.2.dmg" sparkle:edSignature="iA+KcpT6WiYNwjVOFNj6JatbUEnRjF1jKd5P+0UKUUOA8pGnQKtOeQ4vxEJtf0zAG1MQuA7kxa1/JVKtIigECA==" length="23100397" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.8.1</title>
             <pubDate>Sat, 24 Oct 2026 21:42:09 GMT</pubDate>
             <sparkle:version>28</sparkle:version>
