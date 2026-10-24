@@ -70,6 +70,32 @@ extension InspectorPanel {
                     ForEach(LetteringShape.pickable + (spec.shape == .onLine ? [.onLine] : []), id: \.self) { Text($0.title).tag($0) }
                 }.pickerStyle(.segmented).labelsHidden().fixedSize()
             }
+            if spec.shape == .straight {
+                HStack {
+                    Text("Envelope").font(Theme.body(11, weight: .regular)).fixedSize(); Spacer()
+                    Picker("Envelope", selection: Binding(get: { spec.envelope?.kind }, set: { kind in
+                        var next = spec; next.envelope = kind.map { LetteringEnvelope(kind: $0) }
+                        state.rebuildLettering(next, action: "Lettering Envelope")
+                    })) {
+                        Text("None").tag(EnvelopeKind?.none)
+                        ForEach(EnvelopeKind.allCases, id: \.self) { Text($0.title).tag(EnvelopeKind?.some($0)) }
+                    }.labelsHidden().frame(width: 130)
+                }
+                .help("Bend the whole word into a shape: Bridge curves it, Pennant tapers it, Perspective leans it, Diamond brings it to a point")
+                if let envelope = spec.envelope {
+                    // Each handle's move, in mm (kept as a share of the letter height, so it grows with the letters).
+                    let reach = LetteringEnvelope.moves.lowerBound * spec.height...LetteringEnvelope.moves.upperBound * spec.height
+                    ForEach(envelope.kind.handles, id: \.self) { handle in
+                        number(handle.title, value: (envelope.move(handle) * spec.height * 100).rounded() / 100, range: reach, length: true,
+                               help: envelope.kind.slides ? "How far this corner slides right (negative: left)" : "How far this handle moves up (negative: down)") { amount in
+                            var next = spec; next.envelope?.setMove(handle, amount / spec.height)
+                            state.rebuildLettering(next, action: "Shape Envelope")
+                        }
+                    }
+                    Text("Or drag its handles with Edit Nodes (\(preferences.key(.nodeTool))): Shift bends the \(envelope.kind.slides ? "other end" : "opposite edge") the other way, ⌘ the same way.")
+                        .font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
+                }
+            }
             if spec.shape.isArch {
                 number("Arc radius", value: spec.radius, range: Lettering.radii, length: true, help: "The circle the letters follow. Smaller is more curved.") { radius in
                     var next = spec; next.radius = radius

@@ -78,6 +78,28 @@ final class DocumentTests: XCTestCase {
         XCTAssertEqual(document.state.design.objects[1].nodes.map(\.point.x), [40, 50])
     }
 
+    /// Bending lettering into an envelope is one undoable rebuild, saved as file version 9 and reopened with it;
+    /// taking the envelope off goes back to the version the rest needs.
+    @MainActor func testLetteringEnvelopeSavesAsVersionNineAndReopens() throws {
+        _ = NSApplication.shared
+        let document = DesignDocument(); let state = document.state
+        var design = Design()
+        design.objects = try LetteringSpec(text: "HI", fontKind: .system, font: "Helvetica-Bold", height: 10).build(color: .palette[0], embroideryFonts: []).objects
+        state.design = design   // set directly: changes made in one go in a test would undo as one step
+        let plain = state.design
+        var spec = try XCTUnwrap(plain.objects.first?.lettering)
+        spec.envelope = LetteringEnvelope(kind: .bridge)
+        XCTAssertTrue(state.rebuildLettering(spec, action: "Lettering Envelope"))
+        XCTAssertEqual(state.design.schemaVersion, 9)
+        let loaded = DesignDocument()
+        try loaded.read(from: try document.fileWrapper(ofType: "Embroidery Project"), ofType: "Embroidery Project")
+        XCTAssertEqual(loaded.state.design.objects.first?.lettering?.envelope?.kind, .bridge)
+        document.undoManager?.undo()
+        XCTAssertEqual(state.design.objects.map(\.nodes), plain.objects.map(\.nodes), "One undo takes the envelope off")
+        XCTAssertLessThan(state.design.schemaVersion, 9)
+        document.close(); loaded.close()
+    }
+
     @MainActor func testBezierHandlesSaveAsSchemaFiveAndReopen() throws {
         _ = NSApplication.shared
         let document = DesignDocument()
