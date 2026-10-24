@@ -292,6 +292,19 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         guard !rebuilt.isEmpty else { return }
         edit("Satin Width") { next in for index in next.objects.indices { if let new = rebuilt[next.objects[index].id] { next.objects[index] = new } } }
     }
+    /// Turns smart corners on or off for the selected even-width satins, rebuilding each around its middle line at
+    /// its own width, as one Undo step. If one can't sew that way, nothing changes and the status line says why.
+    func setSmartCorners(_ on: Bool) {
+        var rebuilt: [UUID: RunObject] = [:]
+        do {
+            for object in design.objects where selection.contains(object.id) && !object.locked {
+                guard let width = SatinLine.evenWidth(of: object) else { continue }
+                rebuilt[object.id] = try SatinLine.rebuilt(object, width: width, smartCorners: on)
+            }
+        } catch { status = error.localizedDescription; return }
+        guard !rebuilt.isEmpty else { return }
+        edit(on ? "Smart Corners" : "Round Corners") { next in for index in next.objects.indices { if let new = rebuilt[next.objects[index].id] { next.objects[index] = new } } }
+    }
     /// The selected point (Edit Nodes), if it still exists.
     var selectedPathNode: PathNode? {
         guard let location = selectedNode, let object = design.objects.first(where: { $0.id == location.object }) else { return nil }
@@ -913,7 +926,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         // so selected lettering stays selected by its lettering id.
         let selectedLettering = Set(updated.objects.filter { state.selection.contains($0.id) }.compactMap { $0.lettering?.id })
         let guideProblems = updated.syncGuides(embroideryFonts: EmbroideryFontLibrary.fonts)
-        if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaNine ? 9:updated.needsSchemaEight ? 8:updated.needsSchemaSeven ? 7:updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
+        if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaTen ? 10:updated.needsSchemaNine ? 9:updated.needsSchemaEight ? 8:updated.needsSchemaSeven ? 7:updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
         state.design = updated; state.revision += 1
         if !lost.isEmpty { state.status = "\(lost.joined(separator: ", ")): stitches edited by hand were replaced by fresh ones, because the shape or settings changed. Undo (⌘Z) brings them back." }
         if let problem = guideProblems.first { state.status = problem }

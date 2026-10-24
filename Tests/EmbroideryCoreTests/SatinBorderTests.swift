@@ -54,9 +54,13 @@ final class SatinBorderTests: XCTestCase {
     }
 
     func testSharpPointsAndNarrowShapesAreExplained() throws {
-        // A thin spike pokes out past a rounded border.
+        // A thin spike pokes out past a rounded border; with smart corners the border reaches right out to its point.
         let spike = fill([Point(0, 0), Point(20, 0), Point(10, 40)])
-        XCTAssertTrue(try SatinBorder.around(spike, width: 4, color: thread).warnings.contains { $0.contains("stick out") })
+        XCTAssertTrue(try SatinBorder.around(spike, width: 4, color: thread, smartCorners: false).warnings.contains { $0.contains("stick out") })
+        let pointed = try SatinBorder.around(spike, width: 4, color: thread)
+        XCTAssertTrue(pointed.warnings.isEmpty)
+        var design = Design(); design.objects = [pointed.object]
+        XCTAssertGreaterThan(try StitchEngine.compile(design).stitchCount, 200)
         // Too thin for the width, and a narrow neck the border can't follow.
         XCTAssertThrowsError(try SatinBorder.around(fill([Point(0, 0), Point(30, 0), Point(30, 1.5), Point(0, 1.5)]), width: 6, color: thread))
         let dumbbell = fill([Point(0, 0), Point(20, 0), Point(20, 9.5), Point(30, 9.5), Point(30, 0), Point(50, 0), Point(50, 20), Point(30, 20), Point(30, 10.5), Point(20, 10.5), Point(20, 20), Point(0, 20)])

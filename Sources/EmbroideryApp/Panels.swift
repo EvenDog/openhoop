@@ -717,6 +717,8 @@ struct InspectorPanel: View {
         if let width = SatinLine.evenWidth(of: object) {
             number("Width", value: (width * 100).rounded() / 100, range: SatinLine.widths, length: true,
                    help: "How wide the satin is. Type a new width and press Return; it stays centered where it is.") { state.setSatinWidth($0) }
+            toggle("Smart corners", value: object.settings.smartCorners == true) { state.setSmartCorners($0) }
+                .help("Sharp corners (under 75°) get a sharp mitred point, and very sharp ones (under 45°) a cap, instead of being rounded off")
         }
     }
     func toggle(_ title: String, value: Bool, action: @escaping (Bool) -> Void) -> some View {
