@@ -98,6 +98,8 @@ struct PreferenceData: Codable {
     /// between parts by itself (nil: not sure, or never asked). MachineSetup.swift.
     var machineBrand: String?
     var cutsThreads: Bool?
+    /// The tool band as rearranged in View › Customize Tools…; nil means the built-in layout. CustomizeTools.swift.
+    var toolLayout: ToolLayout?
 }
 
 /// The canvas's view choices, remembered across designs and launches. Each is nil until it's first switched, which
@@ -151,6 +153,11 @@ struct ShownItems: Codable, Equatable {
     var recordHandler: ((KeyBinding) -> Void)?
     /// True when the tools sit in a rail down the left side rather than in two rows across the top.
     var proToolsOnLeft: Bool { data.proToolsOnLeft ?? false }
+    /// The tool band's groups and hidden tools, as arranged in View › Customize Tools…. Groups emptied there are
+    /// kept (the band leaves them out).
+    var toolArrangement: ToolArrangement { ToolLayout.arrangement(data.toolLayout) }
+    /// Saves a new tool band arrangement; the band redraws at once, since it watches these preferences.
+    func setToolArrangement(_ arrangement: ToolArrangement) { data.toolLayout = ToolLayout(arrangement); save(announce: false) }
     /// How far the arrow keys move the selection, in mm.
     var nudge: Double { data.nudgeDistance ?? 1 }
     /// The unit sizes and positions are shown and typed in (designs themselves always stay in millimeters).
