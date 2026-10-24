@@ -6,6 +6,23 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.8.3</title>
+            <pubDate>Sat, 24 Oct 2026 23:53:00 GMT</pubDate>
+            <sparkle:version>30</sparkle:version>
+            <sparkle:shortVersionString>0.8.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.8.3</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.8.3</h3>
+<ul>
+<li><b>Hoops of your own.</b> Add a hoop that isn't listed (a magnetic hoop, say) once in <b>Settings › New designs › My hoops</b>: give it a name, its sewing area and, if it's round, tick <b>Oval</b>. Your hoops appear at the top of every hoop menu, and a design in one shows its name under <b>Sewing area</b>. The hoop menu's <b>Add a Hoop of My Own…</b> takes you there.</li>
+<li><b>More machines' hoops.</b> The hoop menus now list <b>Baby Lock</b>, <b>Elna</b>, <b>Bernina</b> (Small to Jumbo) and <b>Singer</b> hoops, and more <b>Husqvarna Viking / Pfaff</b> sizes (80, 120 and 150 mm squares, 100 × 180, 260 × 260, 260 × 360 and 350 × 360 mm). Sizes come from the makers' own pages and catalogs.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.8.3/OpenHoop-0.8.3.dmg" sparkle:edSignature="P5+7hgpVZ+dQdABGhnh/pLH/lYvA+/My7lIoxbHULsMuOQ7+4CK2uhfEGA6ODNw4Z7VofVxBre6FgY4uAKKxAA==" length="23122469" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.8.2</title>
             <pubDate>Sat, 24 Oct 2026 22:41:46 GMT</pubDate>
             <sparkle:version>29</sparkle:version>
