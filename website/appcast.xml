@@ -6,6 +6,34 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.7.8</title>
+            <pubDate>Sat, 24 Oct 2026 16:38:48 GMT</pubDate>
+            <sparkle:version>24</sparkle:version>
+            <sparkle:shortVersionString>0.7.8</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.7.8</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.7.8</h3>
+<h4>Getting started</h4>
+<ul>
+<li><b>OpenHoop asks which machine you sew on</b> the first time it opens: the brand, the hoop new designs should start in, and whether the machine cuts the thread between parts. New designs then start in that hoop and exports in your machine's format (PES, JEF or VP3). If it doesn't cut threads, exporting reminds you about <b>Stop at Jumps</b>. <b>Help › Set Up Your Machine…</b> asks again any time. If you already use OpenHoop, your settings stay as they are.</li>
+<li><b>A Help menu</b>: the user guide (<b>⌘?</b>), Getting started, <b>Report a Problem…</b> (a short form on GitHub) and the website.</li>
+<li><b>The user guide starts with a first sew-out</b>, step by step, with which file format each machine brand needs, a section on Stop at Jumps, and a table of what to try when something sews wrong.</li>
+</ul>
+<h4>Fixes</h4>
+<ul>
+<li>Deleting a point after undoing the edit that added it no longer crashes.</li>
+<li>A very small hoop (under 32 mm) with Multi-hooping no longer crashes or freezes; Auto layout explains why it can't lay out hoopings, as it does for a layout that would need more than 50.</li>
+<li>An edit that would make a design too big to save (a shape with more than 2,000 points after a weld, say) is refused, and the status line says why. Before, the design couldn't be saved afterwards.</li>
+<li>Stitches longer than 12 mm no longer make DST, EXP, JEF and XXX exports fail: they're split to fit the format, as the warning always said.</li>
+<li>Exporting or printing a multi-hooped design no longer freezes OpenHoop while the hoopings are worked out.</li>
+</ul>
+<p>The app now carries its own license text (GPL-3.0).</p>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.7.8/OpenHoop-0.7.8.dmg" sparkle:edSignature="s5BRaU3aCJ3flvaZ2A4OeAquSmRlLxMvW2WKcQ3aiger04cH5q+o90qqXQWIJIKC9ChLs4itoGuUJblUGJ4VCA==" length="22962458" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.7.7</title>
             <pubDate>Sat, 24 Oct 2026 03:33:25 GMT</pubDate>
             <sparkle:version>23</sparkle:version>
