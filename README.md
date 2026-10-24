@@ -13,19 +13,21 @@ Digitize logos, patches and lettering into stitch files for your embroidery mach
 
 ## What it does
 
-- **Draw stitches** over your artwork: running stitch (single or bean), satin columns (edge by edge or from one center line), and fills (tatami, contour, radial, wave) with holes.
+- **Draw stitches** over your artwork: running stitch (single or bean) and line styles (zigzag, blanket, back, stem, motif, ripple); satin columns, edge by edge or from one center line, with sharp corners mitred or capped; and fills: tatami (with 26 textures), contour, radial, wave, stipple, motif, cross stitch, gradient, satin, and fills that turn along stitch angle lines or follow a guide line, all with holes.
 - **Bring in artwork**: trace a PNG or JPEG, import SVG outlines, or auto-digitize simple artwork into fills.
-- **Lettering** with 18 bundled embroidery fonts or any font on your Mac, straight or on an arc, and **monograms**: one to three initials in classic layouts, with ornaments and a satin border.
-- **Familiar editing tools**: knife, weld and smooth shapes; branching (touching shapes sew in one go, without trims); stitch angles that turn a fill round a curve; edit individual needle points; align, space evenly, skew, and sew in the order you click.
+- **Lettering** with 18 bundled embroidery fonts or any font on your Mac: straight, arched, on a line you draw, or bent into an envelope (bridge, pennant, perspective, diamond). **Monograms**: one to three initials in classic layouts, with ornaments and a satin border.
+- **Familiar editing tools**: knife, weld and smooth shapes; branching (touching shapes sew in one go, without trims); remove overlaps; outlines and offsets; wreaths and kaleidoscopes; edit individual needle points; align, space evenly, skew, and sew in the order you click.
 - **Patch tools**: satin borders and appliqué (placement line, tack-down and satin edge, with stops).
-- **Sews well**: underlay, pull compensation, short stitches on curves, split wide satin, start and end points, travel kept inside shapes, and an option to skip stitching under shapes on top.
+- **Sews well**: two underlay layers per shape (including double zigzag and crossed tatami), pull compensation, short stitches on curves, split wide satin, start and end points, travel kept inside shapes, and stops at jumps for machines without a thread cutter.
 - **Fabric presets** for woven, knit, towel, denim and felt, with the stabilizer to use, plus a basting box and laydown to hold the fabric.
-- **See it before it sews**: Thread View draws every stitch as real thread, a stitch player sews it on screen, and zoom box, real-size zoom, measure and show/hide lists help you check the details.
-- **Real threads**: Brother, Janome and Husqvarna Viking color charts built in, or import any brand's chart.
-- **Hoops** for Brother, Janome and Husqvarna Viking / Pfaff machines, or any custom size.
+- **See it before it sews**: Thread View draws every stitch as real thread, a stitch player sews it on screen (and can pause at each trim, like the machine), Review Sewing Order steps through every start, end and move and flags long ones, and a density map shows where thread piles up. Test swatches sew a setting at several values side by side.
+- **Real threads**: Brother, Janome and Husqvarna Viking machine palettes and 21 thread-brand charts (Madeira, Isacord, Sulky, Robison-Anton, Floriani and more) built in, or import any chart.
+- **Hoops** for Brother, Janome and Husqvarna Viking / Pfaff machines, or any custom size, and **multi-hooping** for designs bigger than your hoop, with alignment marks and a hooping sheet.
 - **Machine files**: export PES, PEC, DST, EXP, JEF, VP3 and XXX (each one read back and checked before saving), and import them too.
 - **Production worksheet** to print and keep beside the machine: thread steps, stops and an actual-size picture.
-- **Made for the Mac**: every tool one click away, a precision bar for exact position, size and rotation, light and dark mode, dockable panels, copy and paste, undo, millimeters or inches, tooltips that explain every tool, and a keyboard shortcut you can change for every command.
+- **Made for the Mac**: every tool one click away, a precision bar for exact position, size and rotation, light and dark mode, dockable panels, copy and paste, undo, millimeters or inches, tooltips that explain every tool, a keyboard shortcut you can change for every command, and automatic updates.
+
+New to machine embroidery software? The [user guide's Getting started](docs/USER-GUIDE.md#getting-started) walks through a first sew-out, with which file format your machine needs.
 
 ## Download
 
