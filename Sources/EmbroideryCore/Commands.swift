@@ -319,7 +319,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .knifeTool: return [.init("k", 4)]; case .weldObjects: return [.init("w", 4)]; case .smoothShapes: return [.init("n", 4)]
         case .removeOverlaps: return [.init("e", 3)]
         case .laydown: return [.init("l", 6)]
-        case .wreath: return [.init("w", 6)]   // ⌥⇧W: Wilcom has no key for its Wreath
+        case .wreath: return [.init("w", 6)]   // ⌥⇧W: other embroidery software has no key for it
         case .addStitchAngles: return [.init("h", 8)]; case .removeStitchAngles: return [.init("h", 10)]   // ⌃H, because ⌘H hides the app on a Mac
         case .branching: return [.init("i")]   // Insert Node moved to ⇧⌥I for it
         case .editStitches: return [.init("e")]
@@ -331,7 +331,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .mirrorH: return [.init("1", 1)]; case .mirrorV: return [.init("1", 4)]
         case .cutObjects: return [.init("x", 1)]; case .copyObjects: return [.init("c", 1)]; case .pasteObjects: return [.init("v", 1)]
         case .nudgeLeft: return [.init("left")]; case .nudgeRight: return [.init("right")]; case .nudgeUp: return [.init("up")]; case .nudgeDown: return [.init("down")]
-        // Wilcom has no keys for these: ⌘[ and ⌘] are the Mac's usual backward and forward keys
+        // Other embroidery software has no keys for these: ⌘[ and ⌘] are the Mac's usual backward and forward keys
         case .earlier: return [.init("[", 1)]; case .later: return [.init("]", 1)]
         case .rotateLeft: return [.init("left", 5)]; case .rotateRight: return [.init("right", 5)]; case .hideObject: return [.init("h", 3)]
         // View
@@ -339,9 +339,9 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .zoomBoxTool: return [.init("b")]; case .zoomActual: return [.init("1")]; case .zoomSelected: return [.init("0", 2)]; case .zoomDesign: return [.init("0")]
         case .showStitches: return [.init("s")]; case .showOutlines: return [.init("l")]; case .showConnectors: return [.init("c", 2)]; case .hideOthers: return [.init("s", 2)]
         case .measureTool: return [.init("m")]
-        case .hoopingsTool: return [.init("h", 6)]   // ⌥⇧H: Wilcom has no key for its hooping mode
+        case .hoopingsTool: return [.init("h", 6)]   // ⌥⇧H: other embroidery software has no key for it
         case .grid: return [.init("g", 2)]; case .snap: return [.init("g", 3)]; case .clearGuides: return [.init("x", 3)]; case .needles: return [.init(".")]
-        case .threadView: return [.init("t")]; case .reviewSewingOrder: return [.init("r", 6)]; case .showRulers: return [.init("r", 1)]   // ⌘R, the Mac's usual rulers key (Wilcom gives rulers none)
+        case .threadView: return [.init("t")]; case .reviewSewingOrder: return [.init("r", 6)]; case .showRulers: return [.init("r", 1)]   // ⌘R, the Mac's usual rulers key (other embroidery software gives rulers none)
         case .artwork: return [.init("d")]
         case .play: return [.init("space"), .init("r", 2)]; case .rewind: return [.init("home")]
         // Stepping the player: the arrow keys with nothing selected (stepWithoutSelection), and these
@@ -349,7 +349,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .nextObject: return [.init("t", 1)]; case .previousObject: return [.init("t", 2)]
         case .nextTrim: return [.init("right", 4)]; case .previousTrim: return [.init("left", 4)]
         case .inspector: return [.init("i", 5)]
-        // Panels: ⇧L and ⌥P are Wilcom's Color-Object List and Design Information keys; ⌥⌘1–4 open the four in order
+        // Panels: ⇧L and ⌥P, the keys other embroidery software uses for its object list and design information; ⌥⌘1–4 open the four in order
         case .panelSewingOrder: return [.init("l", 2), .init("1", 5)]; case .panelDesign: return [.init("p", 4), .init("2", 5)]
         case .panelReference: return [.init("3", 5)]; case .palette: return [.init("4", 5)]
         // Design tabs, as in Safari: ⌃⇥ / ⌃⇧⇥ or ⇧⌘] / ⇧⌘[
@@ -458,7 +458,7 @@ public struct ShortcutProfile: Codable, Equatable, Identifiable {
     /// for Remove Overlaps, Space also finishes a shape while drawing, and commands that had no key get their new
     /// ones. Only commands still on their old default change, and a new key someone already uses stays theirs.
     /// Returns whether anything changed.
-    @discardableResult public mutating func updateToWilcomKeys() -> Bool {
+    @discardableResult public mutating func updateToMoreCommonKeys() -> Bool {
         guard keySet == 5 else { return false }
         if Set(bindings[CommandID.exportMachine.rawValue] ?? []) == [.init("e", 1), .init("e", 2), .init("e", 3)] {
             bindings[CommandID.exportMachine.rawValue] = CommandID.exportMachine.defaults
@@ -476,11 +476,11 @@ public struct ShortcutProfile: Codable, Equatable, Identifiable {
     /// added since it was saved get their default keys where they're free. The moves come first, so new commands
     /// can have keys the moves freed. Returns whether any keys moved.
     @discardableResult public mutating func upgrade() -> Bool {
-        let movedToSecondSet = updateToSecondKeySet(), movedForBranching = updateToBranchingKey(), joinedExports = updateToOneExport(), freedForOutlines = updateToOutlinesKey(), matchedWilcom = updateToWilcomKeys()
+        let movedToSecondSet = updateToSecondKeySet(), movedForBranching = updateToBranchingKey(), joinedExports = updateToOneExport(), freedForOutlines = updateToOutlinesKey(), matchedCommonKeys = updateToMoreCommonKeys()
         for command in CommandID.allCases where bindings[command.rawValue] == nil {
             bindings[command.rawValue] = command.defaults.filter { conflicts($0, for: command).isEmpty }
         }
-        return movedToSecondSet || movedForBranching || joinedExports || freedForOutlines || matchedWilcom
+        return movedToSecondSet || movedForBranching || joinedExports || freedForOutlines || matchedCommonKeys
     }
     public func conflicts(_ binding: KeyBinding, for command: CommandID) -> [CommandID] {
         CommandID.allCases.filter { $0 != command && !$0.contexts.isDisjoint(with: command.contexts) && (bindings[$0.rawValue] ?? []).contains(binding) }
