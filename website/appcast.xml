@@ -6,6 +6,22 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.8.1</title>
+            <pubDate>Sat, 24 Oct 2026 21:42:09 GMT</pubDate>
+            <sparkle:version>28</sparkle:version>
+            <sparkle:shortVersionString>0.8.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.8.1</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.8.1</h3>
+<ul>
+<li><b>Tidier menus.</b> The File, Edit and View menus were long single lists. Each is now sorted into groups with dividers, and long runs of related commands open to the side: Edit has <b>Flip &amp; Rotate</b>, <b>Align &amp; Space</b> and <b>Sewing Order</b>; View has <b>Zoom</b>, <b>Show</b>, <b>Grid &amp; Rulers</b> and <b>Stitch Player</b>. <b>Palette Under Canvas</b> moved to the Window menu, beside the panels. Every command and keyboard shortcut is still there.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.8.1/OpenHoop-0.8.1.dmg" sparkle:edSignature="3Gx/vyo+Tg8qFBZu4ID+WeqHDKzR0pQzKJuJcfDriEKfpjabAMfVkq+4V5cQU4ofHhPPMWfCLfCv77HXsb/ICg==" length="22964125" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.8.0</title>
             <pubDate>Sat, 24 Oct 2026 21:10:43 GMT</pubDate>
             <sparkle:version>27</sparkle:version>
