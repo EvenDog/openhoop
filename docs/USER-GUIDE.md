@@ -296,6 +296,8 @@ Choose your hoop under **Sewing area** in the Design panel:
 
 Hoops are listed upright; **Turn sideways** swaps width and height. You can also type any size or choose an oval. New designs start in the hoop you picked last. Stitches outside the hoop are refused at export.
 
+**My hoops.** For a hoop that isn't listed (a magnetic hoop, say), add it once in **Settings › New designs › My hoops**: **Add Hoop**, then give it a name, its sewing area's width × height and, if it's round, tick **Oval**. Your hoops appear at the top of every hoop menu, and a design in one shows its name under **Sewing area**. The hoop menu's **Add a Hoop of My Own…** (or **Edit My Hoops…**) opens that page. Deleting a hoop there doesn't change designs already using it.
+
 ### Multi-hooping
 
 For a design bigger than your hoop: it's sewn in several hoopings, re-hooping the fabric between them. Tick **Multi-hooping** under **Sewing area** in the Design panel. OpenHoop places enough hoopings to cover the design, overlapping by at least 16 mm, and picks the **Hoopings** tool (**⌥⇧H**, under View).

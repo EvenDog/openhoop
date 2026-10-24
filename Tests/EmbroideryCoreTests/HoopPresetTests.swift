@@ -42,6 +42,16 @@ final class HoopPresetTests: XCTestCase {
         XCTAssertEqual(Hoop().label, "Custom · 100 × 100 mm", "Designs from before presets have no hoop name")
     }
 
+    func testAHoopOfYourOwnShowsItsName() {
+        let magnetic = Hoop(width: 130, height: 130, name: "Magnetic 5 × 5")
+        XCTAssertNil(magnetic.preset)
+        XCTAssertEqual(magnetic.ownName, "Magnetic 5 × 5")
+        XCTAssertEqual(magnetic.label, "Magnetic 5 × 5 · 130 × 130 mm")
+        XCTAssertEqual(Hoop(width: 100, height: 140, oval: true, name: "Round").turned.label, "Round · 140 × 100 mm (oval)", "turning keeps the name")
+        XCTAssertNil(Hoop(width: 110, height: 100, name: "Brother 4 × 4 in").ownName, "a preset's name on another size isn't a hoop of your own")
+        XCTAssertNil(Hoop(width: 110, height: 100, name: "").ownName)
+    }
+
     func testHoopNameSavesAndOlderProjectsLoad() throws {
         let old = try JSONDecoder().decode(Hoop.self, from: Data(#"{"width":100,"height":100,"oval":false}"#.utf8))
         XCTAssertNil(old.name)
