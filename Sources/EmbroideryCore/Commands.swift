@@ -20,7 +20,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
     case openShapeTool, closedShapeTool, freehandOpenTool, freehandClosedTool, rectangleTool, ellipseTool, basicShapeTool, knifeTool, weldObjects, removeOverlaps, smoothShapes, laydown, wreath, branching, addStitchAngles, removeStitchAngles, editStitches, addMonogram, editMonogram
     case undo, redo, delete, selectAll, sequenceBySelection, sequenceByColor, alignLeft, alignCentersVertically, alignRight, alignTop, alignCentersHorizontally, alignBottom, alignCenters, spaceAcross, spaceDown, duplicate, mirrorH, mirrorV, rotateLeft, rotateRight, earlier, later, closePath, lockObject, hideObject, tieIn, tieOut, trimAfter, stopAfter, group, ungroup, threadChart, cutObjects, copyObjects, pasteObjects
     case zoomIn, zoomOut, zoomFit, zoomDesign, zoomBoxTool, zoomActual, zoomSelected, showStitches, showOutlines, showConnectors, hideOthers, measureTool, hoopingsTool, grid, snap, clearGuides, needles, threadView, reviewSewingOrder, artwork, inspector, palette, restoreWorkspace, saveWorkspace, useInches, showRulers, paletteUnderCanvas
-    case panelSewingOrder, panelDesign, panelReference, nextTab, previousTab
+    case panelSewingOrder, panelDesign, panelReference, nextTab, previousTab, customizeTools
     case nudgeLeft, nudgeRight, nudgeUp, nudgeDown, play, rewind, focusLength
     case stepForward, stepBackward, stepForward10, stepBackward10, nextColor, previousColor, nextObject, previousObject, nextTrim, previousTrim, toEnd
     public var isExport:Bool {self == .exportMachine || self == .exportThreadList}
@@ -64,7 +64,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .artwork: return "Show Reference Image"; case .inspector: return "Properties Panel"; case .palette: return "Threads Panel"; case .paletteUnderCanvas: return "Palette Under Canvas"
         case .panelSewingOrder: return "Sewing Order Panel"; case .panelDesign: return "Design Panel"; case .panelReference: return "Reference Image Panel"
         case .nextTab: return "Show Next Design Tab"; case .previousTab: return "Show Previous Design Tab"
-        case .restoreWorkspace: return "Reset Panel Layout"; case .saveWorkspace: return "Save Panel Layout…"
+        case .restoreWorkspace: return "Reset Panel Layout"; case .saveWorkspace: return "Save Panel Layout…"; case .customizeTools: return "Customize Tools…"
         case .nudgeLeft: return "Nudge Left"; case .nudgeRight: return "Nudge Right"; case .nudgeUp: return "Nudge Up"; case .nudgeDown: return "Nudge Down"
         case .play: return "Play / Pause Stitch Preview"; case .rewind: return "Rewind Stitch Preview"; case .focusLength: return "Focus Stitch Length"
         case .stepForward: return "Next Stitch"; case .stepBackward: return "Previous Stitch"; case .stepForward10: return "10 Stitches Forward"; case .stepBackward10: return "10 Stitches Back"
@@ -212,6 +212,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .palette: return "Show or hide the Threads panel."
         case .paletteUnderCanvas: return "Show the design's thread palette in a strip under the canvas, or dock it at the top of the Threads panel."
         case .restoreWorkspace: return "Put the panels back where they started."
+        case .customizeTools: return "Rearrange the tool band: drag tools into a new order, into another group or off the band, and move whole groups."
         case .saveWorkspace: return "Keep the current panel layout to come back to."
         case .panelSewingOrder: return "Show or hide the Sewing order panel: every object, in the order it sews."
         case .panelDesign: return "Show or hide the Design panel: fabric, hoop and holding the fabric."
@@ -236,7 +237,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         switch self {
         case .new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportMachine, .exportThreadList, .productionWorksheet, .sample, .stitchSampler: return "File"
         case .selectTool, .runTool, .satinTool, .fillTool, .holeTool, .nodeTool, .panTool, .entryExitTool, .autoStartPoints, .clearStartEnd, .lettering, .editLettering, .autoDigitize, .satinBorder, .outlinesOffsets, .applique, .done, .artworkTool, .finishPath, .cancelPath, .removePoint, .openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool, .knifeTool, .laydown, .wreath, .branching, .addStitchAngles, .removeStitchAngles, .useAsFillGuide, .putLetteringOnLine, .editStitches, .addMonogram, .editMonogram: return "Digitizing"
-        case .settings, .inspector, .palette, .restoreWorkspace, .saveWorkspace, .panelSewingOrder, .panelDesign, .panelReference, .nextTab, .previousTab: return "Workspace"
+        case .settings, .inspector, .palette, .restoreWorkspace, .saveWorkspace, .panelSewingOrder, .panelDesign, .panelReference, .nextTab, .previousTab, .customizeTools: return "Workspace"
         case .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .hoopingsTool, .grid, .snap, .clearGuides, .needles, .threadView, .reviewSewingOrder, .artwork, .play, .rewind, .useInches, .showRulers, .paletteUnderCanvas, .densityMap,
              .stepForward, .stepBackward, .stepForward10, .stepBackward10, .nextColor, .previousColor, .nextObject, .previousObject, .nextTrim, .previousTrim, .toEnd: return "View"
         default: return "Edit"

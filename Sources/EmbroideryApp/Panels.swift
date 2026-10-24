@@ -20,7 +20,8 @@ struct ToolStrip: View {
     /// across the top.
     var rail = false
     @ObservedObject var preferences = Preferences.shared
-    /// The tools in their captioned groups, in on-screen order.
+    /// The tools in their captioned groups, in their built-in order. View › Customize Tools… can rearrange them
+    /// (`Preferences.toolArrangement`).
     static let proGroups: [(title: String, commands: [CommandID])] = [
         ("Pick & shape", [.selectTool, .nodeTool, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .removeOverlaps, .branching, .entryExitTool, .panTool, .artworkTool]),
         ("Stitch", [.runTool, .satinTool, .fillTool, .holeTool, .addStitchAngles, .removeStitchAngles]),
@@ -30,11 +31,16 @@ struct ToolStrip: View {
         ("Show", [.showStitches, .showOutlines, .showConnectors, .needles, .showUnderlay, .hideOthers, .showRulers, .densityMap]),
         ("Zoom", [.zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected])
     ]
-    /// The rail's groups: the same tools, with View and Show sharing a group so the rail's rows of three fill evenly.
+    /// The built-in rail's groups: the same tools, with View and Show sharing a group so the rail's rows of three
+    /// fill evenly.
     static var railGroups: [[CommandID]] {
         let groups = proGroups.map(\.commands)
         return Array(groups[0..<4]) + [groups[4] + groups[5], groups[6]]
     }
+    /// The groups the strip shows, as arranged in Customize Tools, leaving out any emptied there.
+    private var shownGroups: [ToolArrangement.Group] { preferences.toolArrangement.groups.filter { !$0.commands.isEmpty } }
+    /// The rail's groups: the built-in ones while the layout is unchanged, otherwise the strip's groups as they are.
+    private var shownRailGroups: [[CommandID]] { preferences.data.toolLayout == nil ? Self.railGroups : shownGroups.map(\.commands) }
     var body: some View {
         if rail {
             if preferences.proToolsOnLeft { proRail } else { Color.clear.frame(width: 0) }
@@ -45,6 +51,7 @@ struct ToolStrip: View {
                         .padding(.horizontal, 12).padding(.vertical, 6)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Theme.toolBand)
+                        .contextMenu { customizeButton }   // after the background, so right-clicking anywhere on the band works
                     Theme.toolBandEdge.frame(height: 1)
                 }
                 PrecisionBar(state: state)   // exact position, size and turn of the selection
@@ -55,7 +62,7 @@ struct ToolStrip: View {
     /// The Pro strip across the top: each group under its caption, its buttons two high, filled column by column.
     private var proStrip: some View {
         HStack(alignment: .center, spacing: 0) {
-            ForEach(Array(Self.proGroups.enumerated()), id: \.offset) { index, group in
+            ForEach(Array(shownGroups.enumerated()), id: \.offset) { index, group in
                 if index > 0 { Theme.toolBandDivider.frame(width: 1, height: 62).padding(.horizontal, 9) }
                 VStack(alignment: .leading, spacing: 3) {
                     Text(group.title.uppercased()).font(.system(size: 9, weight: .bold, design: .rounded)).tracking(0.8)
@@ -87,13 +94,15 @@ struct ToolStrip: View {
             StripPlayer(state: state).fixedSize()
         }
     }
+    /// The band's right-click menu item that opens Customize Tools.
+    private var customizeButton: some View { Button(CommandID.customizeTools.title) { AppDelegate.shared.perform(.customizeTools) } }
     /// The Pro rail down the left side (picked in Settings): the same tools, three across, groups split by lines,
     /// with the stitch player at the bottom. The tools scroll if the window is too short to show them all.
     private var proRail: some View {
         VStack(spacing: 0) {
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(Array(Self.railGroups.enumerated()), id: \.offset) { index, group in
+                    ForEach(Array(shownRailGroups.enumerated()), id: \.offset) { index, group in
                         if index > 0 { Theme.toolBandDivider.frame(height: 1) }
                         VStack(alignment: .leading, spacing: 2) {
                             ForEach(Array(stride(from: 0, to: group.count, by: 3)), id: \.self) { first in
@@ -110,6 +119,7 @@ struct ToolStrip: View {
         }
         .frame(width: 112)
         .background(Theme.toolBand)
+        .contextMenu { customizeButton }
         .overlay(alignment: .trailing) { Theme.toolBandEdge.frame(width: 1) }
     }
     /// What the current tool is and, briefly, how to use it, for the Pro strip and the tool's choices in Properties.

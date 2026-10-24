@@ -367,7 +367,7 @@ import EmbroideryCore
         if command == .showRulers { menuItem.state = Preferences.shared.showsRulers ? .on : .off; return true }
         if command == .paletteUnderCanvas { menuItem.state = Preferences.shared.paletteUnderCanvas ? .on : .off; return true }
         if command == .useInches { menuItem.state = Preferences.shared.unit == .inches ? .on : .off; return true }
-        if [.new, .open, .sample, .stitchSampler, .settings, .restoreWorkspace].contains(command) { return true }
+        if [.new, .open, .sample, .stitchSampler, .settings, .restoreWorkspace, .customizeTools].contains(command) { return true }
         if command == .close { return NSApp.keyWindow != nil }
         guard let state = active?.state else { return false }
         let shown: [CommandID: Bool] = [.reviewSewingOrder: state.reviewing, .showStitches: state.showStitches, .showOutlines: state.showOutlines, .showConnectors: state.showsConnectors, .hideOthers: state.hideOthers,
@@ -408,6 +408,7 @@ import EmbroideryCore
         case .nextTab: active?.selectNeighbor(1); return
         case .previousTab: active?.selectNeighbor(-1); return
         case .restoreWorkspace: Preferences.shared.data.workspace = Workspace(); Preferences.shared.save(); return
+        case .customizeTools: customizeTools(); return
         case .paletteUnderCanvas:
             let on = !Preferences.shared.paletteUnderCanvas
             Preferences.shared.setPaletteUnderCanvas(on)
@@ -1173,6 +1174,39 @@ import EmbroideryCore
                                             summary: ProductionSummary(plan: state.plan, design: state.design), fabric: state.design.fabricColor ?? 0xF5F0E6)])
         }
     }
+    /// The open Customize Tools window, if any.
+    private var customizeWindow: NSWindow?
+    /// View › Customize Tools…: opens a window just below the tool band for rearranging it. Every change shows on the
+    /// band at once; Done keeps them and Cancel puts back the arrangement from when it opened. The window is a child of
+    /// the design window, so it moves with it and the menus still act on that design.
+    private func customizeTools() {
+        // Already open: bring it forward (unless its design window has closed since, which takes it away too).
+        if let open = customizeWindow, open.parent != nil { open.makeKeyAndOrderFront(nil); return }
+        let preferences = Preferences.shared, original = preferences.toolArrangement
+        // Wide enough for the groups to fit on two lines, if the screen allows.
+        let width = min(1300, ((active?.window?.screen ?? NSScreen.main)?.visibleFrame.width ?? 1300) - 40)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: 500), styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false)
+        window.titlebarAppearsTransparent = true; window.titleVisibility = .hidden; window.isReleasedWhenClosed = false
+        let finish: (Bool) -> Void = { [weak self] keep in
+            if !keep { preferences.setToolArrangement(original) }
+            if let window = self?.customizeWindow { window.parent?.removeChildWindow(window); window.orderOut(nil) }
+            self?.customizeWindow = nil
+        }
+        let host = NSHostingView(rootView: CustomizeToolsView(arrangement: original, changed: { preferences.setToolArrangement($0) }, finish: finish).frame(width: width))
+        window.contentView = host
+        window.setContentSize(host.fittingSize)
+        if let design = active?.window {
+            // Centered on the design window, its top just under the band (title bar about 52 points, band about 100).
+            let screen = design.screen?.visibleFrame ?? design.frame
+            let top = min(design.frame.maxY - 160, screen.maxY), size = window.frame.size
+            window.setFrameOrigin(NSPoint(x: max(screen.minX, design.frame.midX - size.width / 2), y: max(screen.minY, top - size.height)))
+            design.addChildWindow(window, ordered: .above)
+        } else {
+            window.center()
+        }
+        customizeWindow = window
+        window.makeKeyAndOrderFront(nil)
+    }
     /// Shows the worksheet (one page per hooping, or just one), and prints it if asked.
     private func showWorksheet(_ contents: [WorksheetContent]) {
         let preferences = Preferences.shared
@@ -1218,7 +1252,7 @@ import EmbroideryCore
                    .submenu("Grid & Rulers", [[.grid, .snap], [.showRulers, .clearGuides], [.useInches]]),
                    .submenu("Stitch Player", [[.play, .rewind, .toEnd], [.stepForward, .stepBackward, .stepForward10, .stepBackward10],
                                               [.nextColor, .previousColor], [.nextObject, .previousObject], [.nextTrim, .previousTrim]])],
-                  items(.measureTool, .hoopingsTool)]),
+                  items(.measureTool, .hoopingsTool), items(.customizeTools)]),
         ("Window", [items(.nextTab, .previousTab), PanelID.allCases.map { .command($0.command) } + items(.paletteUnderCanvas), items(.saveWorkspace, .restoreWorkspace)])
     ]
     /// Adds a menu's groups to it, with a divider between groups; a submenu entry becomes an item that opens to the side.
