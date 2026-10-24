@@ -7,3 +7,10 @@ __pycache__/
 
 # Claude session handoff notes stay on this Mac, out of the repository.
 .claude/handoff/
+
+# Personal files that sit beside the project: photos, Windows thumbnails, reference machine files in the sew-out
+# folder, and the Finder thumbnails OpenHoop writes into a sheet when it's saved.
+Thumbs.db
+/IMG_*.JPG
+docs/sewout/*.PES
+docs/sewout/*/QuickLook/

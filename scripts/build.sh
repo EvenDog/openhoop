@@ -33,6 +33,8 @@ if [ -d "$APP/Contents/Resources/format-helper" ]; then
 fi
 cp -R .build/helper-dist/format-helper "$APP/Contents/Resources/format-helper"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+# OpenHoop's own license (GPL-3.0) travels with the app, as the license asks.
+cp LICENSE "$APP/Contents/Resources/LICENSE.txt"
 cp Resources/ThirdPartyNotices.txt "$APP/Contents/Resources/ThirdPartyNotices.txt"
 cp Resources/Python-LICENSE.txt "$APP/Contents/Resources/Python-LICENSE.txt"
 cp Resources/Clipper2-LICENSE.txt "$APP/Contents/Resources/Clipper2-LICENSE.txt"

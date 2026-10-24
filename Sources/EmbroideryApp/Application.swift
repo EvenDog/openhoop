@@ -1187,7 +1187,23 @@ import EmbroideryCore
                 }
             }
         }
+        // Help: the user guide, reporting a problem and the website, all opened in the browser. Being the app's
+        // helpMenu also gives it macOS's search field for finding menu commands.
+        let help = NSMenuItem(); help.submenu = NSMenu(title: "Help"); help.title = "Help"; menu.addItem(help)
+        for (title, address, key) in [("OpenHoop User Guide", "https://github.com/EvenDog/openhoop/blob/main/docs/USER-GUIDE.md", "?"),
+                                      ("Getting Started", "https://github.com/EvenDog/openhoop/blob/main/docs/USER-GUIDE.md#getting-started", ""),
+                                      ("Report a Problem…", "https://github.com/EvenDog/openhoop/issues/new/choose", ""),
+                                      ("OpenHoop Website", "https://openhoop.app", "")] {
+            let entry = NSMenuItem(title: title, action: #selector(openHelpLink(_:)), keyEquivalent: key)
+            entry.target = self; entry.representedObject = address; help.submenu?.addItem(entry)
+        }
+        NSApp.helpMenu = help.submenu
         NSApp.mainMenu = menu
+    }
+    /// Opens a Help menu item's web page in the browser.
+    @objc func openHelpLink(_ sender: NSMenuItem) {
+        guard let address = sender.representedObject as? String, let url = URL(string: address) else { return }
+        NSWorkspace.shared.open(url)
     }
     private func commandItem(_ command: CommandID) -> NSMenuItem {
         let label = Preferences.shared.label(command)

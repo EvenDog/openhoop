@@ -1,0 +1,38 @@
+name: Something isn't right
+description: A crash, an error, a file your machine won't read, or stitches that sew wrong.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time. The more of this you can fill in, the faster it can be fixed.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: OpenHoop version
+      description: OpenHoop › About OpenHoop shows it.
+      placeholder: e.g. 0.7.7
+    validations:
+      required: true
+  - type: input
+    id: machine
+    attributes:
+      label: Embroidery machine and file format
+      description: Only if it's about sewing or a machine file.
+      placeholder: e.g. Brother SE600, PES
+  - type: input
+    id: mac
+    attributes:
+      label: Mac and macOS version
+      placeholder: e.g. MacBook Air M2, macOS 15.1
+  - type: textarea
+    id: files
+    attributes:
+      label: Photos or files
+      description: A photo of the sew-out, a screenshot, or the design file (zip a .stitchproj before dragging it in) helps a lot.

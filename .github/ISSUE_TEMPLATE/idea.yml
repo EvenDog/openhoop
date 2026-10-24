@@ -1,0 +1,11 @@
+name: Idea or request
+description: Something OpenHoop doesn't do yet, or could do better.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like OpenHoop to do?
+      description: What you're trying to make, and what gets in the way today.
+    validations:
+      required: true
