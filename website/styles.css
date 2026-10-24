@@ -293,6 +293,7 @@ h1 em { font-style: normal; color: var(--gold); }
 .site-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 32px; padding-block: 28px; border-top: 2px dashed var(--denim-line); font-size: 15px; color: var(--muted); }
 .site-footer .brand { font-size: 20px; color: var(--cream); }
 .site-footer > div { display: flex; gap: 20px; }
+.site-footer .footer-privacy { flex-basis: 100%; margin: 0; font-size: 13px; }
 
 /* ---------- Smaller screens ---------- */
 @media (max-width: 700px) {
