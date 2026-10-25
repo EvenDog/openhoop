@@ -878,22 +878,52 @@ public enum StitchEngine {
             return b.branchID==branch && b.color==a.color && !a.stopAfter && b.rawStitches==nil && b.kind != .vector
         }
         var routers:[UUID:TravelRouter?]=[:]   // each branch's route finder, made the first time it's needed
-        /// Where a lock stitch at the start of `path` goes: 0.6 mm along it (then the needle comes back to its start).
-        /// The 0.6 mm is measured along the stitches (not just the first one), so a short first stitch doesn't shrink
-        /// the lock into a sliver.
+        // Connector settings (Connectors.swift).
+        let tieLength=design.tieLength ?? Design.defaultTieLength,tieCount=design.tieCount ?? Design.defaultTieCount
+        let tieDistance=design.tieDistance ?? Design.defaultTieDistance,runLength=design.runConnectorLength ?? Design.defaultRunConnectorLength
+        /// Where a lock stitch at the start of `path` goes: the tie length (0.6 mm unless changed) along it, then the
+        /// needle comes back to its start. The length is measured along the stitches (not just the first one), so a
+        /// short first stitch doesn't shrink the lock into a sliver.
         func lockPoint(_ path:[Point])->Point {
-            var anchor=path.last!,remaining=0.6
+            var anchor=path.last!,remaining=tieLength
             for (a,b) in zip(path,path.dropFirst()) {let d=a.distance(to:b);if d>=remaining{anchor=a+(b-a)*(remaining/d);break};remaining-=d}
             return anchor
+        }
+        /// Tie stitches at the end of `path` (its last stitches, newest first), as copies of `template`: the lock point
+        /// and back, as many times as the design's tie count.
+        func lock(_ path:[Point],like template:StitchCommand)->[StitchCommand] {
+            var out=template;out.point=lockPoint(path)
+            return Array(repeating:[out,template],count:tieCount).flatMap{$0}
+        }
+        /// True when the thread has been cut since the last stitch (or nothing has sewn yet): a trim or a thread
+        /// change came after it.
+        func threadIsCut()->Bool {
+            for command in plan.commands.reversed() {if command.op == .stitch{return false};if command.op == .trim || command.op == .colorChange{return true}}
+            return true
         }
         /// After an object whose trim is "When far": where its tie-off and trim begin in the plan, where its thread
         /// ended, and its thread. If the next object starts close by in the same thread, they're taken back off.
         var trimToReview:(from:Int,end:Point,color:ThreadColor)?
+        /// After an object whose tie-off is "When far": where the tie-off is in the plan and where the thread ended.
+        /// If the next object starts closer than the tie distance and the thread isn't cut, it's taken back off.
+        var tieOffToReview:(from:Int,to:Int,end:Point)?
+        /// A run connector waiting for the next object: where the thread ended, and its thread.
+        var pendingRun:(end:Point,color:ThreadColor)?
+        /// A run connector that can't be sewn after all (the next part needs another thread, or is imported stitches,
+        /// or there's none): tie off and trim where it would have started, as a jump would have.
+        func settleRun() {
+            guard pendingRun != nil,var end=plan.commands.last else{pendingRun=nil;return}
+            pendingRun=nil
+            let recent=Array(plan.commands.suffix(12).filter{$0.op == .stitch}.map(\.point).reversed())
+            if recent.count>=2{plan.commands+=lock(recent,like:end)}
+            end.op = .trim;plan.commands.append(end)
+        }
         let trimDistance=design.trimDistance ?? Design.defaultTrimDistance
         for (objectIndex,object) in design.objects.enumerated() {
             try Task.checkCancellation()
             if let raw=object.rawStitches {
-                trimToReview=nil   // imported stitches start with their own jump, so the trim before them stays
+                trimToReview=nil;tieOffToReview=nil   // imported stitches start with their own jump, so the trim before them stays
+                settleRun()
                 let thread:Int
                 if let index=plan.threads.firstIndex(of:object.color){thread=index}else{thread=plan.threads.count;plan.threads.append(object.color)}
                 func emit(_ op:StitchOperation,_ point:Point){plan.commands.append(StitchCommand(op,point,thread:thread,objectID:object.id))}
@@ -949,7 +979,7 @@ public enum StitchEngine {
                 // thread uncut. Unless this hands on in turn, tie off and trim after the object before.
                 if objectIndex>0,handsOn(objectIndex-1),!handsOn(objectIndex),var end=plan.commands.last,end.op == .stitch {
                     let recent=Array(plan.commands.suffix(12).filter{$0.op == .stitch}.map(\.point).reversed())
-                    if recent.count>=2{var lock=end;lock.point=lockPoint(recent);plan.commands+=[lock,end]}
+                    if recent.count>=2{plan.commands+=lock(recent,like:end)}
                     end.op = .trim;plan.commands.append(end)
                     trimToReview=nil
                 }
@@ -958,14 +988,25 @@ public enum StitchEngine {
             let thread:Int
             if let index=plan.threads.firstIndex(of:object.color){thread=index}else{thread=plan.threads.count;plan.threads.append(object.color)}
             func command(_ op:StitchOperation,_ p:Point,underlay:Bool=false)->StitchCommand{var c=StitchCommand(op,p,thread:thread,objectID:object.id);c.underlay=underlay ? true:nil;return c}
+            if let run=pendingRun,run.color != object.color{settleRun()}
             if let prior=previous,prior.color != object.color{plan.commands.append(command(.colorChange,last))}
             var endFrom=plan.commands.count   // where the last section's tie-off begins
+            /// True when this object's connector is a run that can be sewn: the next part sews in the same thread,
+            /// isn't imported stitches, and nothing stops the machine or travels inside a branch in between.
+            let runsOn=object.connectorType == .run && !object.stopAfter && !handsOn(objectIndex)
+                && design.objects[(objectIndex+1)...].first(where:{$0.kind != .vector}).map{$0.color==object.color && $0.rawStitches==nil} == true
             for (index,section) in sections.enumerated() {
                 let points=section.points
                 guard plan.commands.count+points.count+10<=1_000_000 else{throw DesignError.invalid("This design exceeds the one-million-command limit.")}
                 /// Lock stitches at the start of `path`: a stitch 0.6 mm along it and back.
                 func tie(_ path:[Point]) {
-                    plan.commands.append(command(.stitch,lockPoint(path),underlay:section.underlay));plan.commands.append(command(.stitch,path[0],underlay:section.underlay))
+                    for _ in 0..<tieCount{plan.commands.append(command(.stitch,lockPoint(path),underlay:section.underlay));plan.commands.append(command(.stitch,path[0],underlay:section.underlay))}
+                }
+                // A "When far" tie-off at the end of the object before comes back off when this part starts close by
+                // and the thread isn't cut.
+                if index==0,let review=tieOffToReview {
+                    tieOffToReview=nil
+                    if !threadIsCut(),review.end.distance(to:points[0])<tieDistance,review.to<=plan.commands.count{plan.commands.removeSubrange(review.from..<review.to)}
                 }
                 // A joined section carries straight on from the needle's position: no trim, jump or tie-in.
                 let joined=index>0 && section.joined
@@ -987,6 +1028,16 @@ public enum StitchEngine {
                     if last.distance(to:points[0])>0.00001 && plan.commands.last?.point != points[0]{plan.commands.append(command(.stitch,points[0]))}
                 } else if joined {
                     if last.distance(to:points[0])>0.00001{plan.commands.append(command(.stitch,points[0],underlay:section.underlay))}
+                } else if index==0,let run=pendingRun {
+                    // A run connector from the object before: running stitches straight here, for this part to sew
+                    // over. The thread isn't cut, so there's no tie-in.
+                    pendingRun=nil
+                    let distance=run.end.distance(to:points[0])
+                    if distance>0.00001 {
+                        let steps=max(1,Int((distance/runLength).rounded(.up)))
+                        for step in 1...steps{plan.commands.append(command(.stitch,run.end+(points[0]-run.end)*(Double(step)/Double(steps))))}
+                    }
+                    if distance>=SewingTravel.longMove{plan.warnings.append("\(object.name): the run connector to it is \(Int(distance.rounded())) mm long and may show unless it's sewn over.")}
                 } else if index==0,let review=trimToReview,review.color==object.color,review.end.distance(to:points[0])<trimDistance {
                     // The object before ends close by in this thread, so the thread isn't cut: its tie-off and trim
                     // come off, a plain stitch carries the thread across, and no tie-in is needed.
@@ -994,10 +1045,12 @@ public enum StitchEngine {
                     last=review.end
                     if last.distance(to:points[0])>0.00001{plan.commands.append(command(.stitch,points[0],underlay:section.underlay))}
                 } else {
+                    // "When far" ties in only after a cut thread or a move of at least the tie distance.
+                    let tiesIn=object.tieIn && (object.tieInWhenFar != true || index>0 || threadIsCut() || last.distance(to:points[0])>=tieDistance)
                     if index>0{plan.commands.append(command(.trim,last))}
                     if previous==nil || index>0 || last.distance(to:points[0])>0.00001{plan.commands.append(command(.jump,points[0]))}
                     plan.commands.append(command(.stitch,points[0],underlay:section.underlay))
-                    if object.tieIn{tie(points)}
+                    if tiesIn{tie(points)}
                 }
                 for (i,p) in points.dropFirst().enumerated(){if i%256==0{try Task.checkCancellation()};plan.commands.append(command(.stitch,p,underlay:section.underlay))}
                 last=points.last!
@@ -1005,15 +1058,21 @@ public enum StitchEngine {
                 let continues=index+1<sections.count && sections[index+1].joined
                 trimToReview=nil
                 if index==sections.count-1{endFrom=plan.commands.count}
-                if object.tieOut && !continues && !(index==sections.count-1 && handsOn(objectIndex)){tie(points.reversed())}
+                if object.tieOut && !continues && !(index==sections.count-1 && (handsOn(objectIndex) || runsOn)) {
+                    let from=plan.commands.count
+                    tie(points.reversed())
+                    if index==sections.count-1 && object.tieOutWhenFar == true && !object.stopAfter{tieOffToReview=(from,plan.commands.count,last)}
+                }
             }
-            if object.trimAfter && !handsOn(objectIndex){
+            if object.trimAfter && !handsOn(objectIndex) && !runsOn{
                 plan.commands.append(command(.trim,last))
                 if object.trimRule == .whenFar && !object.stopAfter{trimToReview=(endFrom,last,object.color)}
             }
+            if runsOn{pendingRun=(last,object.color)}
             if object.stopAfter{plan.commands.append(command(.stop,last))}
             previous=object
         }
+        settleRun()
         plan.commands.append(.init(.end,last,thread:max(0,plan.threads.count-1)))
         // A multi-hooped design is checked hooping by hooping instead (MultiHooping.swift).
         if design.multiHooping == nil,plan.outsidePoints.contains(where:{!design.hoop.contains($0)}){plan.warnings.append("The design extends beyond the sewing area after compensation. Resize or reposition it before export.")}

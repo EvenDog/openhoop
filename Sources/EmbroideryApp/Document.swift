@@ -923,7 +923,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         // so selected lettering stays selected by its lettering id.
         let selectedLettering = Set(updated.objects.filter { state.selection.contains($0.id) }.compactMap { $0.lettering?.id })
         let guideProblems = updated.syncGuides(embroideryFonts: EmbroideryFontLibrary.fonts)
-        if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaTen ? 10:updated.needsSchemaNine ? 9:updated.needsSchemaEight ? 8:updated.needsSchemaSeven ? 7:updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
+        if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaEleven ? 11:updated.needsSchemaTen ? 10:updated.needsSchemaNine ? 9:updated.needsSchemaEight ? 8:updated.needsSchemaSeven ? 7:updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
         // The same check Save makes, before anything is recorded.
         do { try updated.validate() } catch {
             state.status = "\(action) can't be done: \(error.localizedDescription) Nothing was changed."

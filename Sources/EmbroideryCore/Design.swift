@@ -83,6 +83,13 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
     /// only when the next object starts at least the design's trim distance away. `trimRule` reads both as one choice.
     public var trimAlways: Bool?
     public var stopAfter = false
+    /// With tieIn / tieOut on: true ties only when the move is far or the thread is cut (Connectors.swift); nil (older
+    /// files too) ties every time. `tieInRule` / `tieOutRule` read each pair as one choice.
+    public var tieInWhenFar: Bool?
+    public var tieOutWhenFar: Bool?
+    /// How the needle gets to the next object: nil (older files too) jumps; `.run` sews running stitches there for
+    /// the next object to cover, with no trim and no ties (Connectors.swift).
+    public var connector: Connector?
     /// True when Stop after was turned on by Stop at Jumps (JumpStops.swift), which may turn it off again; nil once
     /// Stop after is switched by hand, so stops like appliqué's are never touched.
     public var stopForJump: Bool?
@@ -615,6 +622,13 @@ public struct Design: Codable, Equatable, Sendable {
     public var trimDistance: Double?
     public static let defaultTrimDistance = 3.0
     public static let trimDistances = 0.5...20.0
+    /// Connectors (Connectors.swift), each nil for the default: how far a move must be for "When far" ties
+    /// (`defaultTieDistance`), how many tie stitches lock the thread and how long they are (one of 0.6 mm), and the
+    /// stitch length of run connectors.
+    public var tieDistance: Double?
+    public var tieCount: Int?
+    public var tieLength: Double?
+    public var runConnectorLength: Double?
     /// Guide lines dragged out of the rulers (Guide.swift), or nil for none. Like the fabric color they never change
     /// the stitches, so older versions can safely ignore them.
     public var guides: [Guide]?
@@ -710,11 +724,12 @@ public struct Design: Codable, Equatable, Sendable {
 
     /// Reject corrupt or unreasonable input before it reaches the renderer or generator.
     public func validate() throws {
-        guard (1...10).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
+        guard (1...11).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }
         guard trimDistance.map(Self.trimDistances.contains) ?? true else { throw DesignError.invalid("The trim distance must be between 0.5 and 20 mm.") }
+        try validateConnectors()
         guard (guides ?? []).count <= Guide.limit, (guides ?? []).allSatisfy({ $0.position.isFinite && abs($0.position) <= 10_000 }) else { throw DesignError.invalid("The guide lines are invalid or too many.") }
         guard (palette ?? []).count <= Self.paletteLimit, (palette ?? []).allSatisfy(\.isValid) else { throw DesignError.invalid("The design's thread palette is invalid or too long.") }
         guard multiHooping.map({ $0.hoopings.count <= MultiHooping.limit && $0.hoopings.allSatisfy { $0.center.finite && abs($0.center.x) <= 10_000 && abs($0.center.y) <= 10_000 } }) ?? true else { throw DesignError.invalid("The hoopings are invalid or too many.") }

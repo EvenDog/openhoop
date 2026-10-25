@@ -45,6 +45,17 @@ extension InspectorPanel {
                 var next = spec; next.height = height
                 state.rebuildLettering(next, action: "Letter Height")
             }
+            HStack {
+                Text("Between letters").font(Theme.body(11, weight: .regular)); Spacer()
+                Picker("Between letters", selection: Binding(get: { spec.betweenLetters ?? .whenFar }, set: { choice in
+                    var next = spec; next.betweenLetters = choice == .whenFar ? nil : choice
+                    state.rebuildLettering(next, action: "Between Letters")
+                })) {
+                    ForEach(LetterConnector.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                .labelsHidden().fixedSize()
+            }
+            .help("How the needle gets from one letter (or part of a letter) to the next. Trim when far keeps the font's own trims; Jump never trims; Run sews running stitches that the next letter covers, with no trims or ties.")
             number("Letter spacing", value: spec.letterSpacing ?? 0, range: LetteringSpec.letterSpacings,
                    help: "Extra space between letters in mm, on top of the font's own spacing (negative pulls them closer).") { spacing in
                 var next = spec; next.letterSpacing = abs(spacing) < 0.005 ? nil : spacing
@@ -325,7 +336,7 @@ struct LetteringFontList: View {
     static func remember(_ spec: LetteringSpec) {
         var kept = LetteringSpec(text: spec.text, fontKind: spec.fontKind, font: spec.font, stitch: spec.stitch, height: spec.height,
                                  shape: spec.shape == .onLine ? .straight : spec.shape, radius: spec.radius)
-        kept.letterSpacing = spec.letterSpacing; kept.alignment = spec.alignment; kept.lineSpacing = spec.lineSpacing
+        kept.letterSpacing = spec.letterSpacing; kept.alignment = spec.alignment; kept.lineSpacing = spec.lineSpacing; kept.betweenLetters = spec.betweenLetters
         last = kept
     }
     /// A new recipe (with its own id) for the next lettering, in a font this Mac has.

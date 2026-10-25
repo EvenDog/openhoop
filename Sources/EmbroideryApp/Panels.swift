@@ -421,10 +421,19 @@ struct InspectorPanel: View {
         Button { AppDelegate.shared.perform(.laydown) } label: { Label("Add laydown…", systemImage: CommandID.laydown.symbol) }
             .buttonStyle(ThemedButtonStyle()).help(preferences.hint(.laydown))
         sectionDivider
-        SectionLabel(title: "Trims")
-        number("Trim jumps of at least", value: state.design.trimDistance ?? Design.defaultTrimDistance, range: Design.trimDistances, length: true,
+        SectionLabel(title: "Connectors")
+        number("Trim when the move is at least", value: state.design.trimDistance ?? Design.defaultTrimDistance, range: Design.trimDistances, length: true,
                help: "Objects whose Trim after is When far cut the thread only when the next part starts this far away or more.") { value in
             state.edit("Trim Distance") { $0.trimDistance = value == Design.defaultTrimDistance ? nil : value }
+        }
+        number("Tie when the move is at least", value: state.design.tieDistance ?? Design.defaultTieDistance, range: Design.tieDistances, length: true,
+               help: "Objects whose Tie in or Tie off is When far tie only after (or before) a move this long or more, or where the thread is cut.") { value in
+            state.edit("Tie Distance") { $0.tieDistance = value == Design.defaultTieDistance ? nil : value }
+        }
+        tieStitchesRow
+        number("Run connector stitch length", value: state.design.runConnectorLength ?? Design.defaultRunConnectorLength, range: Design.runConnectorLengths, length: true,
+               help: "How long the running stitches of run connectors are (Then: Run, in an object's Finish).") { value in
+            state.edit("Run Connector Length") { $0.runConnectorLength = value == Design.defaultRunConnectorLength ? nil : value }
         }
         if state.hasVersionMismatch {
             Text("This project uses an older stitch engine. Its saved preview is preserved.").font(Theme.body(11)).foregroundStyle(.orange)
@@ -433,6 +442,23 @@ struct InspectorPanel: View {
         }
         if let error = state.generationError { Text(error).font(Theme.body(11)).foregroundStyle(.red) }
         ForEach(state.plan.warnings, id: \.self) { warning in Label(warning, systemImage: "exclamationmark.circle").font(Theme.body(11)).foregroundStyle(.orange) }
+    }
+    /// Tie stitches: how many lock stitches tie the thread in and off, and how long each is.
+    private var tieStitchesRow: some View {
+        HStack {
+            Text("Tie stitches").font(Theme.body(11, weight: .regular)); Spacer()
+            Picker("Tie stitches", selection: Binding(get: { state.design.tieCount ?? Design.defaultTieCount },
+                                                      set: { count in state.edit("Tie Stitches") { $0.tieCount = count == Design.defaultTieCount ? nil : count } })) {
+                ForEach(Array(Design.tieCounts), id: \.self) { Text("\($0)").tag($0) }
+            }
+            .labelsHidden().fixedSize()
+            Text("×").font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
+            NumberField(value: state.design.tieLength ?? Design.defaultTieLength, range: Design.tieLengths, unit: preferences.unit,
+                        commit: { value in state.edit("Tie Stitch Length") { $0.tieLength = value == Design.defaultTieLength ? nil : value } },
+                        focusCanvas: state.focusCanvas).frame(width: 60, height: 21)
+            Text(preferences.unit.symbol).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).fixedSize().frame(width: 18, alignment: .leading)
+        }
+        .help("How many tiny locking stitches tie the thread in and off, and how long each one is (1 × 0.6 mm unless changed).")
     }
     /// The Trim after menu: Off, Always, or When far (showing the design's trim distance), for every selected object.
     func trimMenu(_ object: RunObject) -> some View {
