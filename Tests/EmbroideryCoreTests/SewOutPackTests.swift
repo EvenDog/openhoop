@@ -1,7 +1,7 @@
-// The sew-out test pack: ten designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
+// The sew-out test pack: eleven designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
 // machine side by side (satin widths and compensation, the fill styles, small lettering, a monogram, travel and
 // finishing, the line styles and stipple, and motifs, cross stitch, gradient and raised satin, then wide satin, Remove Overlaps and Outlines & Offsets,
-// then moves and jumps of known lengths for Review Sewing Order's warnings, then smart corners beside rounded ones). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
+// then moves and jumps of known lengths for Review Sewing Order's warnings, then smart corners beside rounded ones, then run connectors beside jumps). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
 // designs there as OpenHoop projects:
 //   SEWOUT_DIR="$PWD/docs/sewout" swift test --filter SewOutPackTests
 import XCTest
@@ -249,6 +249,68 @@ final class SewOutPackTests: XCTestCase {
         return design
     }
 
+    /// 11 · Connectors: Run (left, first thread) beside Jump (right, second thread). A run is hidden only where a
+    /// later part sews over it. Top: three touching 10 mm squares, each run crossing the next square corner to corner.
+    /// Then three 10 mm squares 4 mm apart, each run straight across the gap. Then four 3 mm satin bars 6 mm apart,
+    /// sewn up and down in turn, so each run crosses the top or bottom gap. Bottom: "ONE" with Between letters Run
+    /// beside the font's own trims.
+    func connectorsSheet() throws -> Design {
+        var design = newDesign()
+        /// Three 10 mm squares from x `left`, `gap` apart, centred on `y`. With `across`, each starts near its top-right
+        /// corner and ends near its bottom-right one (1 mm in, so the corner rows aren't crowded), so the move to the next crosses that square; otherwise each ends
+        /// at the middle of its right edge and the next starts at the middle of its left edge.
+        func squares(_ label: String, left: Double, y: Double, gap: Double, across: Bool, connector: Connector, color: ThreadColor) -> [RunObject] {
+            (0..<3).map { k in
+                let x = left + Double(k) * (10 + gap)
+                var square = fill("\(label) square \(k + 1)", ShapeGeometry.nodes(.rectangle, in: (Point(x, y - 5), Point(x + 10, y + 5))), color: color)
+                square.entry = across ? Point(x + 9, y + 4) : Point(x, y)
+                square.exit = across ? Point(x + 9, y - 4) : Point(x + 10, y)
+                if k < 2 { square.connectorType = connector }
+                return square
+            }
+        }
+        /// Four 3 mm satin bars 14 mm tall, 9 mm apart centre to centre from x `left`, sewn up and down in turn.
+        func bars(_ label: String, left: Double, connector: Connector, color: ThreadColor) -> [RunObject] {
+            (0..<4).map { k in
+                let x = left + Double(k) * 9
+                var bar = column("\(label) bar \(k + 1)", at: Point(x, -10), length: 14, width: 3, color: color)
+                bar.entry = Point(x, k % 2 == 0 ? -10 : 4); bar.exit = Point(x, k % 2 == 0 ? 4 : -10)
+                if k < 3 { bar.connectorType = connector }
+                return bar
+            }
+        }
+        /// "ONE" in the small embroidery font, 10 mm tall, centred on x.
+        func word(_ x: Double, run: Bool, color: ThreadColor) throws -> [RunObject] {
+            var spec = LetteringSpec(text: "ONE", fontKind: .embroidery, font: "small_font", height: 10)
+            if run { spec.betweenLetters = .run }
+            spec.transform { $0 + Point(x, -32) }
+            return try spec.build(color: color, embroideryFonts: fonts).objects
+        }
+        design.objects = squares("Run, touching", left: -44, y: 34, gap: 0, across: true, connector: .run, color: threads[0])
+            + squares("Run, 4 mm gaps", left: -46, y: 14, gap: 4, across: false, connector: .run, color: threads[0])
+            + bars("Run", left: -42.5, connector: .run, color: threads[0])
+            + (try word(-25, run: true, color: threads[0]))
+            + squares("Jump, touching", left: 14, y: 34, gap: 0, across: true, connector: .jump, color: threads[1])
+            + squares("Jump, 4 mm gaps", left: 8, y: 14, gap: 4, across: false, connector: .jump, color: threads[1])
+            + bars("Jump", left: 15.5, connector: .jump, color: threads[1])
+            + (try word(25, run: false, color: threads[1]))
+        return design
+    }
+
+    func testConnectorsSheetRunsWhereItSays() throws {
+        let sheet = try connectorsSheet(), plan = try RunningEngine.compile(sheet)
+        func trims(_ prefix: String) -> Int {
+            let ids = Set(sheet.objects.filter { $0.name.hasPrefix(prefix) }.map(\.id))
+            return plan.commands.filter { $0.op == .trim && $0.objectID.map(ids.contains) == true }.count
+        }
+        // Each run group trims only after its last part; the jump groups trim between parts too.
+        for (run, jump) in [("Run, touching", "Jump, touching"), ("Run, 4 mm gaps", "Jump, 4 mm gaps"), ("Run bar", "Jump bar")] {
+            XCTAssertLessThan(trims(run), trims(jump), run)
+        }
+        XCTAssertFalse(plan.warnings.contains { $0.contains("run connector") }, "every run is under 15 mm")
+        XCTAssertTrue(sheet.needsSchemaEleven)
+    }
+
     func testSmartCornersSheetHasTheCornersItSaysItHas() throws {
         let sheet = try smartCornersSheet()
         func kinds(_ name: String) throws -> [SmartCorners.Kind] {
@@ -293,10 +355,10 @@ final class SewOutPackTests: XCTestCase {
         let sheets: [(String, Design)] = [("1 Satin", satinSheet()), ("2 Fills", fillSheet()), ("3 Lettering", try letteringSheet()),
                                           ("4 Monogram", try monogramSheet()), ("5 Travel and finishing", try travelSheet()), ("6 Line styles and stipple", lineStyleSheet()), ("7 Motifs, cross stitch and more", patternSheet()),
                                           ("8 Wide satin, overlaps and outlines", try wideSatinOverlapsAndOutlinesSheet()), ("9 Moves and jumps", movesAndJumpsSheet()),
-                                          ("10 Smart corners", try smartCornersSheet())]
+                                          ("10 Smart corners", try smartCornersSheet()), ("11 Connectors", try connectorsSheet())]
         for (name, sheet) in sheets {
             var design = sheet
-            design.schemaVersion = design.needsSchemaTen ? 10 : design.needsSchemaNine ? 9 : design.needsSchemaEight ? 8 : design.needsSchemaSeven ? 7 : design.needsSchemaSix ? 6 : design.needsSchemaFive ? 5 : 4
+            design.schemaVersion = design.needsSchemaEleven ? 11 : design.needsSchemaTen ? 10 : design.needsSchemaNine ? 9 : design.needsSchemaEight ? 8 : design.needsSchemaSeven ? 7 : design.needsSchemaSix ? 6 : design.needsSchemaFive ? 5 : 4
             let plan = try RunningEngine.compile(design)
             XCTAssertGreaterThan(plan.stitchCount, 100, name)
             XCTAssertTrue(plan.commands.allSatisfy { design.hoop.contains($0.point, tolerance: -2) }, "\(name) stays 2 mm inside the hoop")

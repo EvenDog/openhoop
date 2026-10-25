@@ -1,0 +1,5569 @@
+{
+  "engineVersion" : "digitize-3",
+  "hoop" : {
+    "height" : 100,
+    "oval" : false,
+    "width" : 100
+  },
+  "objects" : [
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "connector" : "run",
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : -35,
+        "y" : 38
+      },
+      "exit" : {
+        "x" : -35,
+        "y" : 30
+      },
+      "id" : "26F82B25-9C29-43CA-89C4-529CD3D544AC",
+      "locked" : false,
+      "name" : "Run, touching square 1",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -44,
+            "y" : 29
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -34,
+            "y" : 29
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -34,
+            "y" : 39
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -44,
+            "y" : 39
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "connector" : "run",
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : -25,
+        "y" : 38
+      },
+      "exit" : {
+        "x" : -25,
+        "y" : 30
+      },
+      "id" : "3D7D4348-A618-4E99-B02A-7D66A8B49FDC",
+      "locked" : false,
+      "name" : "Run, touching square 2",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -34,
+            "y" : 29
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -24,
+            "y" : 29
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -24,
+            "y" : 39
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -34,
+            "y" : 39
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : -15,
+        "y" : 38
+      },
+      "exit" : {
+        "x" : -15,
+        "y" : 30
+      },
+      "id" : "8C51D428-B7FB-474F-B26B-8E2F1F421D20",
+      "locked" : false,
+      "name" : "Run, touching square 3",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -24,
+            "y" : 29
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -14,
+            "y" : 29
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -14,
+            "y" : 39
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -24,
+            "y" : 39
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "connector" : "run",
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : -46,
+        "y" : 14
+      },
+      "exit" : {
+        "x" : -36,
+        "y" : 14
+      },
+      "id" : "F5CBB7B3-0B65-447E-A8EA-EB5F851866F3",
+      "locked" : false,
+      "name" : "Run, 4 mm gaps square 1",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -46,
+            "y" : 9
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -36,
+            "y" : 9
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -36,
+            "y" : 19
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -46,
+            "y" : 19
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "connector" : "run",
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : -32,
+        "y" : 14
+      },
+      "exit" : {
+        "x" : -22,
+        "y" : 14
+      },
+      "id" : "5270C316-E493-4D6D-BD89-31BAB6B6093B",
+      "locked" : false,
+      "name" : "Run, 4 mm gaps square 2",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -32,
+            "y" : 9
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -22,
+            "y" : 9
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -22,
+            "y" : 19
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -32,
+            "y" : 19
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : -18,
+        "y" : 14
+      },
+      "exit" : {
+        "x" : -8,
+        "y" : 14
+      },
+      "id" : "1BF9094C-0B8F-4D25-A74C-060B0CE43B2B",
+      "locked" : false,
+      "name" : "Run, 4 mm gaps square 3",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -18,
+            "y" : 9
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -8,
+            "y" : 9
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -8,
+            "y" : 19
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -18,
+            "y" : 19
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "connector" : "run",
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : -42.5,
+        "y" : -10
+      },
+      "exit" : {
+        "x" : -42.5,
+        "y" : 4
+      },
+      "id" : "EE8818D1-5A48-4295-951C-8967486A344C",
+      "locked" : false,
+      "name" : "Run bar 1",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -44,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -41,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -44,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -41,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -44,
+            "y" : 0
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -41,
+            "y" : 0
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "connector" : "run",
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : -33.5,
+        "y" : 4
+      },
+      "exit" : {
+        "x" : -33.5,
+        "y" : -10
+      },
+      "id" : "EC229462-D407-42C5-BB27-5717F7A8F39E",
+      "locked" : false,
+      "name" : "Run bar 2",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -35,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -32,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -35,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -32,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -35,
+            "y" : 0
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -32,
+            "y" : 0
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "connector" : "run",
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : -24.5,
+        "y" : -10
+      },
+      "exit" : {
+        "x" : -24.5,
+        "y" : 4
+      },
+      "id" : "D765E3D6-0555-429E-8B1E-7D633DF259E2",
+      "locked" : false,
+      "name" : "Run bar 3",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -26,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -23,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -26,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -23,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -26,
+            "y" : 0
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -23,
+            "y" : 0
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : -15.5,
+        "y" : 4
+      },
+      "exit" : {
+        "x" : -15.5,
+        "y" : -10
+      },
+      "id" : "E0545EFD-D1B2-4D90-B1B3-2692FBCB7C33",
+      "locked" : false,
+      "name" : "Run bar 4",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -17,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -14,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -17,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -14,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -17,
+            "y" : 0
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -14,
+            "y" : 0
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "connector" : "run",
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "relaxedChecks" : true,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "groupID" : "2B45B036-4CEA-47D9-868B-221E3B68ED2E",
+      "id" : "2DDF634C-1B37-446C-972D-765DF0B99986",
+      "letterKey" : 0,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : -15,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : -25,
+          "y" : -32
+        },
+        "betweenLetters" : "run",
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "081AA2FD-918D-4466-8B73-0D4593C11BD2",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : -25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter O",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -32.03224059472625,
+            "y" : -32.00449940764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -30.590053094726244,
+            "y" : -32.00449940764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -32.07215948923813,
+            "y" : -32.666100573587116
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -30.65202299898929,
+            "y" : -32.88855595122984
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -32.17041478816758,
+            "y" : -33.320045508995335
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -30.81492627798375,
+            "y" : -33.75730727057097
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -32.34470228544784,
+            "y" : -33.95719464129947
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -31.102682521540736,
+            "y" : -34.5914300709332
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -32.61294976716664,
+            "y" : -34.560722390260814
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -31.531220753654793,
+            "y" : -35.361925510854206
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -32.9855224368076,
+            "y" : -35.10642490590682
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -32.09912313786511,
+            "y" : -36.03622246148814
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -33.46237480025201,
+            "y" : -35.563354821264326
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -32.79322914502688,
+            "y" : -36.57948884270097
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -34.03457452005171,
+            "y" : -35.89241222726879
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -33.588569508031824,
+            "y" : -36.96033248172303
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -34.66892134587475,
+            "y" : -36.07640239662871
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -34.445730941289,
+            "y" : -37.173288233249735
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -35.32854580305958,
+            "y" : -36.1281656038435
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -35.328545803059576,
+            "y" : -37.23928074902224
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -36.02944370269962,
+            "y" : -36.04522634024074
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -36.28332170029763,
+            "y" : -37.15381378836227
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -36.69005634034737,
+            "y" : -35.800209622778105
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37.201200768842185,
+            "y" : -36.87868819980578
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37.26606555652798,
+            "y" : -35.39576835108706
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -38.0306831056916,
+            "y" : -36.400969269602136
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37.73100828622624,
+            "y" : -34.8670563742009
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -38.72930765782047,
+            "y" : -35.747185121165394
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -38.077922228080084,
+            "y" : -34.253647888762124
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -39.27229638759889,
+            "y" : -34.95932496944568
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -38.31245267755608,
+            "y" : -33.58804731175017
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -39.647697841924966,
+            "y" : -34.07853670493009
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -38.45144083892443,
+            "y" : -32.8947757584785
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -39.86703076884987,
+            "y" : -33.14519969089841
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -38.49403395309213,
+            "y" : -32.1888530534813
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -39.93444586360709,
+            "y" : -32.1888530534813
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -38.47527883303316,
+            "y" : -31.50768314577283
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -39.89704504765106,
+            "y" : -31.28538984078526
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -38.39671782968512,
+            "y" : -30.831431634730123
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -39.75654322221068,
+            "y" : -30.393636626163886
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -38.2400386833541,
+            "y" : -30.168790650869827
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -39.48735040380766,
+            "y" : -29.532861115601445
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37.98453566206646,
+            "y" : -29.537049576167696
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -39.06982163093568,
+            "y" : -28.733773581236136
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37.61679331430315,
+            "y" : -28.962772687130652
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -38.50369070300905,
+            "y" : -28.031793715906016
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37.134873253046884,
+            "y" : -28.48045088162245
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37.804691558383496,
+            "y" : -27.462153199360827
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -36.55130708754621,
+            "y" : -28.12932017490939
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -36.99741163241124,
+            "y" : -27.05987501422701
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -35.900177087705146,
+            "y" : -27.930198295789868
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -36.123213484496254,
+            "y" : -26.833014485069043
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -35.22104163639291,
+            "y" : -27.871540218627054
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -35.22104163639291,
+            "y" : -26.76071925097776
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -34.494566037461425,
+            "y" : -27.95731075747214
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -34.24128686421451,
+            "y" : -26.849638481565712
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -33.812909804797314,
+            "y" : -28.217764278603987
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -33.30252822584125,
+            "y" : -27.140408163659206
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -33.22549600160502,
+            "y" : -28.648946922552557
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -32.46052305776679,
+            "y" : -27.64428387704006
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -32.75937434843598,
+            "y" : -29.209786656615115
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -31.759042556008474,
+            "y" : -28.329794599084288
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -32.41862434171365,
+            "y" : -29.855005420336006
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -31.22074976456609,
+            "y" : -29.1493213686144
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -32.19752681875963,
+            "y" : -30.551310506323926
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -30.85897014794515,
+            "y" : -30.06121560091792
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -32.07624199416649,
+            "y" : -31.27284744376418
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -30.658707488248236,
+            "y" : -31.02289066576301
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -32.03224059472625,
+            "y" : -32.00449940764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -30.590053094726244,
+            "y" : -32.00449940764797
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : false,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "connector" : "run",
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "relaxedChecks" : true,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "groupID" : "2B45B036-4CEA-47D9-868B-221E3B68ED2E",
+      "id" : "FC16B860-A638-40FD-ADE8-9A87A9EB1BE3",
+      "letterKey" : 1,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : -15,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : -25,
+          "y" : -32
+        },
+        "betweenLetters" : "run",
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "081AA2FD-918D-4466-8B73-0D4593C11BD2",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : -25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter N (part 1)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -27.484553094726245,
+            "y" : -36.91339003264797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -26.15746976139291,
+            "y" : -36.91339003264797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -27.484553094726245,
+            "y" : -36.04070600487019
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -26.15746976139291,
+            "y" : -36.04070600487019
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -27.484553094726245,
+            "y" : -35.168021977092415
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -26.15746976139291,
+            "y" : -35.168021977092415
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -27.484553094726245,
+            "y" : -34.295337949314636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -26.15746976139291,
+            "y" : -34.295337949314636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -27.484553094726245,
+            "y" : -33.422653921536856
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -26.15746976139291,
+            "y" : -33.422653921536856
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -27.484553094726245,
+            "y" : -32.549969893759084
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -26.15746976139291,
+            "y" : -32.549969893759084
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -27.484553094726245,
+            "y" : -31.677285865981304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -26.15746976139291,
+            "y" : -31.677285865981304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -27.484553094726245,
+            "y" : -30.752059824314635
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -26.15746976139291,
+            "y" : -30.741934355603036
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -27.484553094726245,
+            "y" : -29.82683378264797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -26.15746976139291,
+            "y" : -29.806582845224764
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -27.484553094726245,
+            "y" : -28.901607740981305
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -26.15746976139291,
+            "y" : -28.871231334846495
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -27.484553094726245,
+            "y" : -27.976381699314636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -25.917251011392914,
+            "y" : -28.01202279302624
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -27.484553094726245,
+            "y" : -27.05115565764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -25.917251011392914,
+            "y" : -27.07667128264797
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : false,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "connector" : "run",
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "relaxedChecks" : true,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "groupID" : "2B45B036-4CEA-47D9-868B-221E3B68ED2E",
+      "id" : "4547E09D-BA86-40AA-A0FF-3C2116432208",
+      "letterKey" : 1,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : -15,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : -25,
+          "y" : -32
+        },
+        "betweenLetters" : "run",
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "081AA2FD-918D-4466-8B73-0D4593C11BD2",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : -25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter N (part 2)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -25.642886428059576,
+            "y" : -27.05115565764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -26.506537469726247,
+            "y" : -27.07667128264797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -25.23332477036283,
+            "y" : -27.801344025703525
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -26.506537469726247,
+            "y" : -27.91548996545985
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -24.823763112666082,
+            "y" : -28.551532393759082
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -26.245285774437377,
+            "y" : -28.630966783053836
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -24.414201454969337,
+            "y" : -29.301720761814636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -25.811621508177534,
+            "y" : -29.340530103072588
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -24.00463979727259,
+            "y" : -30.051909129870193
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -25.411526034995276,
+            "y" : -30.077782024042158
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -23.59507813957584,
+            "y" : -30.80209749792575
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -25.01143056181302,
+            "y" : -30.81503394501173
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -23.18551648187909,
+            "y" : -31.552285865981304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -24.61133508863076,
+            "y" : -31.552285865981304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -22.770433518833833,
+            "y" : -32.31258753192765
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -24.191884089501542,
+            "y" : -32.32520402074321
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -22.355350555788583,
+            "y" : -33.072889197874
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -23.772433090372324,
+            "y" : -33.09812217550511
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -21.940267592743325,
+            "y" : -33.83319086382034
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -23.352982091243113,
+            "y" : -33.871040330267014
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -21.525184629698067,
+            "y" : -34.593492529766685
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -22.933531092113896,
+            "y" : -34.643958485028925
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -21.070004995662558,
+            "y" : -35.31513033679295
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -22.514080092984678,
+            "y" : -35.41687663979083
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -20.774396844726247,
+            "y" : -36.01314551789006
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -22.09462909385546,
+            "y" : -36.18979479455273
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -20.774396844726247,
+            "y" : -36.87937440764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -21.67517809472625,
+            "y" : -36.962712949314636
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : false,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "connector" : "run",
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "relaxedChecks" : true,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "groupID" : "2B45B036-4CEA-47D9-868B-221E3B68ED2E",
+      "id" : "0055BAE0-F0A6-4034-A9DD-0938EAD3CC6A",
+      "letterKey" : 1,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : -15,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : -25,
+          "y" : -32
+        },
+        "betweenLetters" : "run",
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "081AA2FD-918D-4466-8B73-0D4593C11BD2",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : -25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter N (part 3)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -21.452969761392914,
+            "y" : -36.86152024098131
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -19.833516636392915,
+            "y" : -36.91339003264797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -21.452969761392914,
+            "y" : -35.93688166987254
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -19.833516636392915,
+            "y" : -36.00499159514797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -21.160594761392915,
+            "y" : -35.161553692083025
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -19.833516636392915,
+            "y" : -35.09659315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -21.160594761392915,
+            "y" : -34.23691512097427
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -19.833516636392915,
+            "y" : -34.18819472014797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -21.160594761392915,
+            "y" : -33.3122765498655
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -19.833516636392915,
+            "y" : -33.27979628264797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -21.160594761392915,
+            "y" : -32.387637978756736
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -19.833516636392915,
+            "y" : -32.37139784514797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -21.160594761392915,
+            "y" : -31.46299940764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -19.833516636392915,
+            "y" : -31.46299940764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -21.160594761392915,
+            "y" : -30.58063065764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -19.833516636392915,
+            "y" : -30.58063065764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -21.160594761392915,
+            "y" : -29.69826190764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -19.833516636392915,
+            "y" : -29.698261907647968
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -21.160594761392915,
+            "y" : -28.81589315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -19.833516636392915,
+            "y" : -28.81589315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -21.160594761392915,
+            "y" : -27.933524407647973
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -19.833516636392915,
+            "y" : -27.933524407647973
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -21.160594761392915,
+            "y" : -27.05115565764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -19.833516636392915,
+            "y" : -27.05115565764797
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : false,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "connector" : "run",
+      "groupID" : "2B45B036-4CEA-47D9-868B-221E3B68ED2E",
+      "id" : "51C8B611-9065-427E-86A7-5DF1C13BEA50",
+      "letterKey" : 2,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : -15,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : -25,
+          "y" : -32
+        },
+        "betweenLetters" : "run",
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "081AA2FD-918D-4466-8B73-0D4593C11BD2",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : -25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter E (part 1)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -15.698278615559579,
+            "y" : -27.6705538347313
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.83638538639291,
+            "y" : -36.578442115981304
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 1.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : false,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "connector" : "run",
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "relaxedChecks" : true,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "groupID" : "2B45B036-4CEA-47D9-868B-221E3B68ED2E",
+      "id" : "958B0361-E6F7-477B-AACC-5CA803DDFC38",
+      "letterKey" : 2,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : -15,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : -25,
+          "y" : -32
+        },
+        "betweenLetters" : "run",
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "081AA2FD-918D-4466-8B73-0D4593C11BD2",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : -25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter E (part 2)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -10.18742913639291,
+            "y" : -26.92902315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -10.18742913639291,
+            "y" : -28.294346074314635
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11.03185257389291,
+            "y" : -26.92902315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11.03185257389291,
+            "y" : -28.294346074314635
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11.876276011392912,
+            "y" : -26.92902315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11.876276011392912,
+            "y" : -28.294346074314635
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -12.712694500976243,
+            "y" : -26.92902315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -12.710052573892911,
+            "y" : -28.294346074314635
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -13.54911299055958,
+            "y" : -26.92902315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -13.54382913639291,
+            "y" : -28.294346074314635
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -14.385531480142914,
+            "y" : -26.92902315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -14.377605698892912,
+            "y" : -28.294346074314635
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.221949969726248,
+            "y" : -26.92902315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.211382261392915,
+            "y" : -28.294346074314635
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : false,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "connector" : "run",
+      "groupID" : "2B45B036-4CEA-47D9-868B-221E3B68ED2E",
+      "id" : "C127F8B8-51BF-4291-AF3E-49C2E1E91B5D",
+      "letterKey" : 2,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : -15,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : -25,
+          "y" : -32
+        },
+        "betweenLetters" : "run",
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "081AA2FD-918D-4466-8B73-0D4593C11BD2",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : -25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter E (part 3)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -15.698278615559579,
+            "y" : -27.6705538347313
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.62922517805958,
+            "y" : -31.85979315764797
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 1.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : false,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "connector" : "run",
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "relaxedChecks" : true,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "groupID" : "2B45B036-4CEA-47D9-868B-221E3B68ED2E",
+      "id" : "5B2FA263-186A-4C1D-92B7-01E93F8ACF9D",
+      "letterKey" : 2,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : -15,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : -25,
+          "y" : -32
+        },
+        "betweenLetters" : "run",
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "081AA2FD-918D-4466-8B73-0D4593C11BD2",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : -25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter E (part 4)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -10.397324969726247,
+            "y" : -30.965627011814636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -10.397324969726247,
+            "y" : -32.33095513681464
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11.024386483935723,
+            "y" : -30.965627011814636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11.024386610170621,
+            "y" : -32.33095513681464
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11.6514479981452,
+            "y" : -30.965627011814636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11.651448250614996,
+            "y" : -32.33095513681464
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -12.541431563957131,
+            "y" : -30.965627011814636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -12.541431753309476,
+            "y" : -32.33095513681464
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -13.431415129769059,
+            "y" : -30.965627011814636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -13.431415256003953,
+            "y" : -32.33095513681464
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -14.321398695580983,
+            "y" : -30.965627011814636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -14.32139875869843,
+            "y" : -32.33095513681464
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.211382261392915,
+            "y" : -30.965627011814636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.211382261392915,
+            "y" : -32.33095513681464
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : false,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "connector" : "run",
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "relaxedChecks" : true,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "groupID" : "2B45B036-4CEA-47D9-868B-221E3B68ED2E",
+      "id" : "167CE790-012C-4051-989A-87E999B7C516",
+      "letterKey" : 2,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : -15,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : -25,
+          "y" : -32
+        },
+        "betweenLetters" : "run",
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "081AA2FD-918D-4466-8B73-0D4593C11BD2",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : -25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter E (part 5)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -16.57909746972625,
+            "y" : -27.414971074314636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.211382261392915,
+            "y" : -27.44100753264797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -16.57909746972625,
+            "y" : -28.210851074314636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.211382261392915,
+            "y" : -28.223869303481305
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -16.57909746972625,
+            "y" : -29.006731074314636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.211382261392915,
+            "y" : -29.006731074314636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -16.57909746972625,
+            "y" : -29.962507129002137
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.211382261392915,
+            "y" : -29.957019498793805
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -16.57909746972625,
+            "y" : -30.91828318368964
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.211382261392915,
+            "y" : -30.90730792327297
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -16.57909746972625,
+            "y" : -31.874059238377136
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.211382261392915,
+            "y" : -31.857596347752136
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -16.57909746972625,
+            "y" : -32.82983529306463
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.211382261392915,
+            "y" : -32.807884772231304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -16.57909746972625,
+            "y" : -33.78561134775214
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.211382261392915,
+            "y" : -33.75817319671047
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -16.57909746972625,
+            "y" : -34.741387402439635
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.211382261392915,
+            "y" : -34.708461621189635
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -16.57909746972625,
+            "y" : -35.69716345712714
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.211382261392915,
+            "y" : -35.6587500456688
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -16.57909746972625,
+            "y" : -36.65293951181464
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.211382261392915,
+            "y" : -36.60903847014797
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : false,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "relaxedChecks" : true,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "groupID" : "2B45B036-4CEA-47D9-868B-221E3B68ED2E",
+      "id" : "B734813E-592B-4554-94DF-31B766341E88",
+      "letterKey" : 2,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : -15,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : -25,
+          "y" : -32
+        },
+        "betweenLetters" : "run",
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "081AA2FD-918D-4466-8B73-0D4593C11BD2",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : -25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter E (part 6)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -10.065554136392914,
+            "y" : -35.672543678481304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -10.065554136392914,
+            "y" : -37.0378718034813
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -10.97403330305958,
+            "y" : -35.672543678481304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -10.97403330305958,
+            "y" : -37.0378718034813
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11.88251246972625,
+            "y" : -35.672543678481304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11.88251246972625,
+            "y" : -37.0378718034813
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -12.790991636392915,
+            "y" : -35.672543678481304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -12.790991636392915,
+            "y" : -37.0378718034813
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -13.597788511392912,
+            "y" : -35.672543678481304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -13.601311080837357,
+            "y" : -37.0378718034813
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -14.404585386392911,
+            "y" : -35.672543678481304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -14.411630525281803,
+            "y" : -37.0378718034813
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.211382261392915,
+            "y" : -35.672543678481304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.221949969726248,
+            "y" : -37.0378718034813
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : 23,
+        "y" : 38
+      },
+      "exit" : {
+        "x" : 23,
+        "y" : 30
+      },
+      "id" : "D1A62892-0005-4844-904B-5ED6F5802BF4",
+      "locked" : false,
+      "name" : "Jump, touching square 1",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 14,
+            "y" : 29
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 24,
+            "y" : 29
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 24,
+            "y" : 39
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 14,
+            "y" : 39
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : 33,
+        "y" : 38
+      },
+      "exit" : {
+        "x" : 33,
+        "y" : 30
+      },
+      "id" : "AA83EDA4-5C75-4ADF-9BC4-8C36A6A86EF0",
+      "locked" : false,
+      "name" : "Jump, touching square 2",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 24,
+            "y" : 29
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34,
+            "y" : 29
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34,
+            "y" : 39
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 24,
+            "y" : 39
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : 43,
+        "y" : 38
+      },
+      "exit" : {
+        "x" : 43,
+        "y" : 30
+      },
+      "id" : "D667DDA7-36B0-42E1-AFC4-65E4CCF76749",
+      "locked" : false,
+      "name" : "Jump, touching square 3",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 34,
+            "y" : 29
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 44,
+            "y" : 29
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 44,
+            "y" : 39
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34,
+            "y" : 39
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : 8,
+        "y" : 14
+      },
+      "exit" : {
+        "x" : 18,
+        "y" : 14
+      },
+      "id" : "7E2E29EE-97BA-42B7-ADC3-B7605EA71FA1",
+      "locked" : false,
+      "name" : "Jump, 4 mm gaps square 1",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 8,
+            "y" : 9
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 18,
+            "y" : 9
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 18,
+            "y" : 19
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 8,
+            "y" : 19
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : 22,
+        "y" : 14
+      },
+      "exit" : {
+        "x" : 32,
+        "y" : 14
+      },
+      "id" : "B348B341-45AF-4B14-8500-094F99EDB3CB",
+      "locked" : false,
+      "name" : "Jump, 4 mm gaps square 2",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 22,
+            "y" : 9
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 32,
+            "y" : 9
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 32,
+            "y" : 19
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 22,
+            "y" : 19
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : 36,
+        "y" : 14
+      },
+      "exit" : {
+        "x" : 46,
+        "y" : 14
+      },
+      "id" : "1BE685FA-241E-45A4-9737-D440A633C34E",
+      "locked" : false,
+      "name" : "Jump, 4 mm gaps square 3",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 36,
+            "y" : 9
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 46,
+            "y" : 9
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 46,
+            "y" : 19
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 36,
+            "y" : 19
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : 15.5,
+        "y" : -10
+      },
+      "exit" : {
+        "x" : 15.5,
+        "y" : 4
+      },
+      "id" : "8B3A51C7-A697-43B4-9710-997C00F7B41A",
+      "locked" : false,
+      "name" : "Jump bar 1",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 14,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 17,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 14,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 17,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 14,
+            "y" : 0
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 17,
+            "y" : 0
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : 24.5,
+        "y" : 4
+      },
+      "exit" : {
+        "x" : 24.5,
+        "y" : -10
+      },
+      "id" : "8558549D-31B3-4787-81BD-F69C2C45022C",
+      "locked" : false,
+      "name" : "Jump bar 2",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 23,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 26,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 23,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 26,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 23,
+            "y" : 0
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 26,
+            "y" : 0
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : 33.5,
+        "y" : -10
+      },
+      "exit" : {
+        "x" : 33.5,
+        "y" : 4
+      },
+      "id" : "180B01E7-06C7-4FDF-97DC-83E72332332B",
+      "locked" : false,
+      "name" : "Jump bar 3",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 32,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 35,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 32,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 35,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 32,
+            "y" : 0
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 35,
+            "y" : 0
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "entry" : {
+        "x" : 42.5,
+        "y" : 4
+      },
+      "exit" : {
+        "x" : 42.5,
+        "y" : -10
+      },
+      "id" : "412ACB20-A0EC-4C53-9B3F-0EC8A5A8CB5F",
+      "locked" : false,
+      "name" : "Jump bar 4",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 41,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 44,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 41,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 44,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 41,
+            "y" : 0
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 44,
+            "y" : 0
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "relaxedChecks" : true,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "groupID" : "3A44FC1D-5B29-4C41-9D55-019298735825",
+      "id" : "8A668EAD-48E9-4803-8E00-4F2F517C624A",
+      "letterKey" : 0,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : 35,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : 25,
+          "y" : -32
+        },
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "7EB825CF-8BA1-4FBB-8C26-E8A36FDD4381",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : 25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter O",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 17.967759405273753,
+            "y" : -32.00449940764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 19.409946905273756,
+            "y" : -32.00449940764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 17.927840510761868,
+            "y" : -32.666100573587116
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 19.34797700101071,
+            "y" : -32.88855595122984
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 17.829585211832423,
+            "y" : -33.320045508995335
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 19.18507372201625,
+            "y" : -33.75730727057097
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 17.655297714552166,
+            "y" : -33.95719464129947
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 18.897317478459264,
+            "y" : -34.5914300709332
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 17.38705023283336,
+            "y" : -34.560722390260814
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 18.468779246345207,
+            "y" : -35.361925510854206
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 17.0144775631924,
+            "y" : -35.10642490590682
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 17.900876862134897,
+            "y" : -36.03622246148814
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 16.537625199747996,
+            "y" : -35.563354821264326
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 17.20677085497312,
+            "y" : -36.57948884270097
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 15.965425479948287,
+            "y" : -35.89241222726879
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 16.411430491968176,
+            "y" : -36.96033248172303
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 15.331078654125248,
+            "y" : -36.07640239662871
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 15.554269058711002,
+            "y" : -37.173288233249735
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 14.67145419694042,
+            "y" : -36.1281656038435
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 14.671454196940422,
+            "y" : -37.23928074902224
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 13.970556297300377,
+            "y" : -36.04522634024074
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 13.716678299702373,
+            "y" : -37.15381378836227
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 13.309943659652635,
+            "y" : -35.800209622778105
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 12.798799231157815,
+            "y" : -36.87868819980578
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 12.733934443472027,
+            "y" : -35.39576835108706
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 11.969316894308397,
+            "y" : -36.400969269602136
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 12.268991713773762,
+            "y" : -34.8670563742009
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 11.27069234217953,
+            "y" : -35.747185121165394
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 11.922077771919913,
+            "y" : -34.253647888762124
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 10.727703612401108,
+            "y" : -34.95932496944568
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 11.687547322443923,
+            "y" : -33.58804731175017
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 10.352302158075034,
+            "y" : -34.07853670493009
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 11.548559161075573,
+            "y" : -32.8947757584785
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 10.132969231150124,
+            "y" : -33.14519969089841
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 11.505966046907876,
+            "y" : -32.1888530534813
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 10.065554136392914,
+            "y" : -32.1888530534813
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 11.524721166966842,
+            "y" : -31.50768314577283
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 10.102954952348934,
+            "y" : -31.28538984078526
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 11.603282170314879,
+            "y" : -30.831431634730123
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 10.24345677778932,
+            "y" : -30.393636626163886
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 11.759961316645896,
+            "y" : -30.168790650869827
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 10.512649596192341,
+            "y" : -29.532861115601445
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 12.015464337933537,
+            "y" : -29.537049576167696
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 10.93017836906432,
+            "y" : -28.733773581236136
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 12.383206685696846,
+            "y" : -28.962772687130652
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 11.496309296990951,
+            "y" : -28.031793715906016
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 12.865126746953116,
+            "y" : -28.48045088162245
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 12.1953084416165,
+            "y" : -27.462153199360827
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 13.448692912453787,
+            "y" : -28.12932017490939
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 13.00258836758876,
+            "y" : -27.05987501422701
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 14.099822912294858,
+            "y" : -27.930198295789868
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 13.876786515503746,
+            "y" : -26.833014485069043
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 14.778958363607085,
+            "y" : -27.871540218627054
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 14.778958363607085,
+            "y" : -26.76071925097776
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 15.505433962538575,
+            "y" : -27.95731075747214
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 15.758713135785491,
+            "y" : -26.849638481565712
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 16.187090195202686,
+            "y" : -28.217764278603987
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 16.69747177415875,
+            "y" : -27.140408163659206
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 16.774503998394977,
+            "y" : -28.648946922552557
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 17.539476942233204,
+            "y" : -27.64428387704006
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 17.240625651564013,
+            "y" : -29.209786656615115
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 18.240957443991526,
+            "y" : -28.329794599084288
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 17.581375658286348,
+            "y" : -29.855005420336006
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 18.77925023543391,
+            "y" : -29.1493213686144
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 17.802473181240373,
+            "y" : -30.551310506323926
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 19.14102985205485,
+            "y" : -30.06121560091792
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 17.923758005833513,
+            "y" : -31.27284744376418
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 19.341292511751764,
+            "y" : -31.02289066576301
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 17.967759405273753,
+            "y" : -32.00449940764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 19.409946905273756,
+            "y" : -32.00449940764797
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "relaxedChecks" : true,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "groupID" : "3A44FC1D-5B29-4C41-9D55-019298735825",
+      "id" : "F28CD655-A62A-442D-97F7-50357D3E9EB8",
+      "letterKey" : 1,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : 35,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : 25,
+          "y" : -32
+        },
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "7EB825CF-8BA1-4FBB-8C26-E8A36FDD4381",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : 25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter N (part 1)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 22.515446905273755,
+            "y" : -36.91339003264797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 23.84253023860709,
+            "y" : -36.91339003264797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 22.515446905273755,
+            "y" : -36.04070600487019
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 23.84253023860709,
+            "y" : -36.04070600487019
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 22.515446905273755,
+            "y" : -35.168021977092415
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 23.84253023860709,
+            "y" : -35.168021977092415
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 22.515446905273755,
+            "y" : -34.295337949314636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 23.84253023860709,
+            "y" : -34.295337949314636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 22.515446905273755,
+            "y" : -33.422653921536856
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 23.84253023860709,
+            "y" : -33.422653921536856
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 22.515446905273755,
+            "y" : -32.549969893759084
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 23.84253023860709,
+            "y" : -32.549969893759084
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 22.515446905273755,
+            "y" : -31.677285865981304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 23.84253023860709,
+            "y" : -31.677285865981304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 22.515446905273755,
+            "y" : -30.752059824314635
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 23.84253023860709,
+            "y" : -30.741934355603036
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 22.515446905273755,
+            "y" : -29.82683378264797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 23.84253023860709,
+            "y" : -29.806582845224764
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 22.515446905273755,
+            "y" : -28.901607740981305
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 23.84253023860709,
+            "y" : -28.871231334846495
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 22.515446905273755,
+            "y" : -27.976381699314636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 24.082748988607086,
+            "y" : -28.01202279302624
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 22.515446905273755,
+            "y" : -27.05115565764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 24.082748988607086,
+            "y" : -27.07667128264797
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : false,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "relaxedChecks" : true,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "groupID" : "3A44FC1D-5B29-4C41-9D55-019298735825",
+      "id" : "7FA44DBE-61F2-4BD8-A045-C37BA4C90C00",
+      "letterKey" : 1,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : 35,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : 25,
+          "y" : -32
+        },
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "7EB825CF-8BA1-4FBB-8C26-E8A36FDD4381",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : 25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter N (part 2)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 24.357113571940424,
+            "y" : -27.05115565764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 23.493462530273753,
+            "y" : -27.07667128264797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 24.76667522963717,
+            "y" : -27.801344025703525
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 23.493462530273753,
+            "y" : -27.91548996545985
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 25.176236887333918,
+            "y" : -28.551532393759082
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 23.754714225562623,
+            "y" : -28.630966783053836
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 25.585798545030663,
+            "y" : -29.301720761814636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 24.188378491822466,
+            "y" : -29.340530103072588
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 25.99536020272741,
+            "y" : -30.051909129870193
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 24.588473965004724,
+            "y" : -30.077782024042158
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 26.40492186042416,
+            "y" : -30.80209749792575
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 24.98856943818698,
+            "y" : -30.81503394501173
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 26.81448351812091,
+            "y" : -31.552285865981304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 25.38866491136924,
+            "y" : -31.552285865981304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 27.229566481166167,
+            "y" : -32.31258753192765
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 25.808115910498458,
+            "y" : -32.32520402074321
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 27.644649444211417,
+            "y" : -33.072889197874
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 26.227566909627676,
+            "y" : -33.09812217550511
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 28.059732407256675,
+            "y" : -33.83319086382034
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 26.647017908756887,
+            "y" : -33.871040330267014
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 28.474815370301933,
+            "y" : -34.593492529766685
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 27.066468907886104,
+            "y" : -34.643958485028925
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 28.929995004337442,
+            "y" : -35.31513033679295
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 27.485919907015322,
+            "y" : -35.41687663979083
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 29.225603155273753,
+            "y" : -36.01314551789006
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 27.90537090614454,
+            "y" : -36.18979479455273
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 29.225603155273753,
+            "y" : -36.87937440764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 28.32482190527375,
+            "y" : -36.962712949314636
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : false,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "relaxedChecks" : true,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "groupID" : "3A44FC1D-5B29-4C41-9D55-019298735825",
+      "id" : "D1873846-BAA9-4ADD-BA13-20BC6D1BFC73",
+      "letterKey" : 1,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : 35,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : 25,
+          "y" : -32
+        },
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "7EB825CF-8BA1-4FBB-8C26-E8A36FDD4381",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : 25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter N (part 3)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 28.547030238607086,
+            "y" : -36.86152024098131
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 30.166483363607085,
+            "y" : -36.91339003264797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 28.547030238607086,
+            "y" : -35.93688166987254
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 30.166483363607085,
+            "y" : -36.00499159514797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 28.839405238607085,
+            "y" : -35.161553692083025
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 30.166483363607085,
+            "y" : -35.09659315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 28.839405238607085,
+            "y" : -34.23691512097427
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 30.166483363607085,
+            "y" : -34.18819472014797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 28.839405238607085,
+            "y" : -33.3122765498655
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 30.166483363607085,
+            "y" : -33.27979628264797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 28.839405238607085,
+            "y" : -32.387637978756736
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 30.166483363607085,
+            "y" : -32.37139784514797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 28.839405238607085,
+            "y" : -31.46299940764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 30.166483363607085,
+            "y" : -31.46299940764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 28.839405238607085,
+            "y" : -30.58063065764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 30.166483363607085,
+            "y" : -30.58063065764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 28.839405238607085,
+            "y" : -29.69826190764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 30.166483363607085,
+            "y" : -29.698261907647968
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 28.839405238607085,
+            "y" : -28.81589315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 30.166483363607085,
+            "y" : -28.81589315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 28.839405238607085,
+            "y" : -27.933524407647973
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 30.166483363607085,
+            "y" : -27.933524407647973
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 28.839405238607085,
+            "y" : -27.05115565764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 30.166483363607085,
+            "y" : -27.05115565764797
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "groupID" : "3A44FC1D-5B29-4C41-9D55-019298735825",
+      "id" : "43926CA8-A864-45AB-AB42-FD3AA319D09F",
+      "letterKey" : 2,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : 35,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : 25,
+          "y" : -32
+        },
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "7EB825CF-8BA1-4FBB-8C26-E8A36FDD4381",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : 25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter E (part 1)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 34.30172138444042,
+            "y" : -27.6705538347313
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.16361461360709,
+            "y" : -36.578442115981304
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 1.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "relaxedChecks" : true,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "groupID" : "3A44FC1D-5B29-4C41-9D55-019298735825",
+      "id" : "60DE2CF5-A414-4336-86AC-D71D03A56846",
+      "letterKey" : 2,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : 35,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : 25,
+          "y" : -32
+        },
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "7EB825CF-8BA1-4FBB-8C26-E8A36FDD4381",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : 25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter E (part 2)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 39.81257086360709,
+            "y" : -26.92902315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 39.81257086360709,
+            "y" : -28.294346074314635
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 38.96814742610709,
+            "y" : -26.92902315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 38.96814742610709,
+            "y" : -28.294346074314635
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 38.12372398860709,
+            "y" : -26.92902315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 38.12372398860709,
+            "y" : -28.294346074314635
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 37.28730549902376,
+            "y" : -26.92902315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 37.28994742610709,
+            "y" : -28.294346074314635
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 36.45088700944042,
+            "y" : -26.92902315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 36.45617086360709,
+            "y" : -28.294346074314635
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 35.614468519857084,
+            "y" : -26.92902315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 35.622394301107086,
+            "y" : -28.294346074314635
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.778050030273754,
+            "y" : -26.92902315764797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.78861773860709,
+            "y" : -28.294346074314635
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : false,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "groupID" : "3A44FC1D-5B29-4C41-9D55-019298735825",
+      "id" : "1C99F7BB-2246-470C-A76A-91727E2B6F6F",
+      "letterKey" : 2,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : 35,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : 25,
+          "y" : -32
+        },
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "7EB825CF-8BA1-4FBB-8C26-E8A36FDD4381",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : 25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter E (part 3)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 34.30172138444042,
+            "y" : -27.6705538347313
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.37077482194042,
+            "y" : -31.85979315764797
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 1.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "relaxedChecks" : true,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "groupID" : "3A44FC1D-5B29-4C41-9D55-019298735825",
+      "id" : "931C607A-89D7-47D9-B2FB-4B3A4C81AF29",
+      "letterKey" : 2,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : 35,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : 25,
+          "y" : -32
+        },
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "7EB825CF-8BA1-4FBB-8C26-E8A36FDD4381",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : 25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter E (part 4)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 39.60267503027375,
+            "y" : -30.965627011814636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 39.60267503027375,
+            "y" : -32.33095513681464
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 38.97561351606428,
+            "y" : -30.965627011814636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 38.97561338982938,
+            "y" : -32.33095513681464
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 38.3485520018548,
+            "y" : -30.965627011814636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 38.348551749385,
+            "y" : -32.33095513681464
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 37.45856843604287,
+            "y" : -30.965627011814636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 37.458568246690525,
+            "y" : -32.33095513681464
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 36.56858487023094,
+            "y" : -30.965627011814636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 36.56858474399605,
+            "y" : -32.33095513681464
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 35.67860130441902,
+            "y" : -30.965627011814636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 35.67860124130157,
+            "y" : -32.33095513681464
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.78861773860709,
+            "y" : -30.965627011814636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.78861773860709,
+            "y" : -32.33095513681464
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "relaxedChecks" : true,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "groupID" : "3A44FC1D-5B29-4C41-9D55-019298735825",
+      "id" : "EA2282DE-3104-4FD4-B3CE-92FAC0B6E923",
+      "letterKey" : 2,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : 35,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : 25,
+          "y" : -32
+        },
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "7EB825CF-8BA1-4FBB-8C26-E8A36FDD4381",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : 25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter E (part 5)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 33.42090253027375,
+            "y" : -27.414971074314636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.78861773860709,
+            "y" : -27.44100753264797
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 33.42090253027375,
+            "y" : -28.210851074314636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.78861773860709,
+            "y" : -28.223869303481305
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 33.42090253027375,
+            "y" : -29.006731074314636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.78861773860709,
+            "y" : -29.006731074314636
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 33.42090253027375,
+            "y" : -29.962507129002137
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.78861773860709,
+            "y" : -29.957019498793805
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 33.42090253027375,
+            "y" : -30.91828318368964
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.78861773860709,
+            "y" : -30.90730792327297
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 33.42090253027375,
+            "y" : -31.874059238377136
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.78861773860709,
+            "y" : -31.857596347752136
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 33.42090253027375,
+            "y" : -32.82983529306463
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.78861773860709,
+            "y" : -32.807884772231304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 33.42090253027375,
+            "y" : -33.78561134775214
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.78861773860709,
+            "y" : -33.75817319671047
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 33.42090253027375,
+            "y" : -34.741387402439635
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.78861773860709,
+            "y" : -34.708461621189635
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 33.42090253027375,
+            "y" : -35.69716345712714
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.78861773860709,
+            "y" : -35.6587500456688
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 33.42090253027375,
+            "y" : -36.65293951181464
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.78861773860709,
+            "y" : -36.60903847014797
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "relaxedChecks" : true,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "groupID" : "3A44FC1D-5B29-4C41-9D55-019298735825",
+      "id" : "0BA6E931-F946-433A-B0F6-0C3449AA2935",
+      "letterKey" : 2,
+      "lettering" : {
+        "alongMarker" : {
+          "x" : 35,
+          "y" : -32
+        },
+        "anchor" : {
+          "x" : 25,
+          "y" : -32
+        },
+        "font" : "small_font",
+        "fontKind" : "embroidery",
+        "height" : 10,
+        "id" : "7EB825CF-8BA1-4FBB-8C26-E8A36FDD4381",
+        "radius" : 40,
+        "shape" : "straight",
+        "stitch" : "fill",
+        "text" : "ONE",
+        "upMarker" : {
+          "x" : 25,
+          "y" : -22
+        }
+      },
+      "locked" : false,
+      "name" : "Letter E (part 6)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 39.93444586360709,
+            "y" : -35.672543678481304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 39.93444586360709,
+            "y" : -37.0378718034813
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 39.02596669694042,
+            "y" : -35.672543678481304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 39.02596669694042,
+            "y" : -37.0378718034813
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 38.11748753027375,
+            "y" : -35.672543678481304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 38.11748753027375,
+            "y" : -37.0378718034813
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 37.20900836360708,
+            "y" : -35.672543678481304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 37.20900836360708,
+            "y" : -37.0378718034813
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 36.40221148860709,
+            "y" : -35.672543678481304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 36.398688919162645,
+            "y" : -37.0378718034813
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 35.59541461360709,
+            "y" : -35.672543678481304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 35.5883694747182,
+            "y" : -37.0378718034813
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.78861773860709,
+            "y" : -35.672543678481304
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.778050030273754,
+            "y" : -37.0378718034813
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    }
+  ],
+  "schemaVersion" : 11
+}
