@@ -239,6 +239,8 @@ extension Design {
             if !start.isEmpty { start[start.count - 1].stopAfter = true }
             let end = marks.filter { partner[$0.key] == index }.sorted { $0.key < $1.key }.flatMap { $0.value }
                 .enumerated().map { Self.alignmentMark(at: $1 - center, style: style, color: lastColor, number: 1000 + $0) }
+            // The hooping's last object never runs on to the alignment marks sewn after it.
+            if !part.objects.isEmpty { part.objects[part.objects.count - 1].connector = nil }
             part.objects = start + (box.map { [$0] } ?? []) + part.objects + end
             let sewn = try StitchEngine.compile(part)
             guard sewn.outsidePoints.allSatisfy({ hoop.contains($0, tolerance: -Self.hoopingEdgeClearance / 2) }) else {

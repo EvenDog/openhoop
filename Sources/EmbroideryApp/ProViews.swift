@@ -620,20 +620,34 @@ extension InspectorPanel {
         }
     }
 
-    /// Tie in / tie off / trim / stop as checkboxes in two columns.
+    /// How the needle gets to the next part (Jump or Run), the trim, tie off and tie in (each Off, Always or When far),
+    /// and Stop after. Imported stitches only offer the trim and the stop.
     private func proFinish(_ object: RunObject) -> some View {
         let help = (object.kind == .raw ? "" : "Ties are tiny locking stitches so the thread can't unravel. ") + "Trim cuts the thread before the next part; Stop pauses the machine. PES encodes travel moves after the first as trim/jumps, so your machine decides whether to cut."
         return proSection("Finish") {
-            LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], alignment: .leading, spacing: 4) {
-                if object.kind != .raw {
-                    toggle("Tie in", value: object.tieIn) { _ in AppDelegate.shared.perform(.tieIn) }
-                    toggle("Tie off", value: object.tieOut) { _ in AppDelegate.shared.perform(.tieOut) }
+            if object.kind != .raw {
+                Picker("Then", selection: Binding(get: { object.connectorType }, set: { connector in state.editSelected("Connector") { if $0.kind != .raw { $0.connectorType = connector } } })) {
+                    ForEach(Connector.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
-                toggle("Stop after", value: object.stopAfter) { _ in AppDelegate.shared.perform(.stopAfter) }
+                .font(Theme.body(12, weight: .semibold))
+                .help("How the needle gets to the next part. Jump: the frame moves without sewing. Run: running stitches straight there, for the next part to sew over, so there's no trim and no ties. A run only sews when the next part is the same thread and nothing stops in between; otherwise it jumps.")
             }
-            .help(help)
             trimMenu(object).help(help)
+            if object.kind != .raw {
+                tieMenu("Tie off", object.tieOutRule) { rule in state.editSelected("Tie Off") { if $0.kind != .raw { $0.tieOutRule = rule } } }
+                tieMenu("Tie in", object.tieInRule) { rule in state.editSelected("Tie In") { if $0.kind != .raw { $0.tieInRule = rule } } }
+            }
+            toggle("Stop after", value: object.stopAfter) { _ in AppDelegate.shared.perform(.stopAfter) }.help(help)
         }
+    }
+    /// A tie menu: Off, Always, or When far (showing the design's tie distance).
+    private func tieMenu(_ title: String, _ rule: TieRule, set: @escaping (TieRule) -> Void) -> some View {
+        let distance = preferences.unit.short(state.design.tieDistance ?? Design.defaultTieDistance)
+        return Picker(title, selection: Binding(get: { rule }, set: set)) {
+            ForEach(TieRule.allCases, id: \.self) { rule in Text(rule == .whenFar ? "When far (\(distance))" : rule.title).tag(rule) }
+        }
+        .font(Theme.body(12, weight: .semibold))
+        .help("Tiny locking stitches so the thread can't unravel. When far ties only after (or before) a move of at least the design's tie distance, or where the thread is cut.")
     }
 
     /// Exact start and end points (in the chosen unit), or "automatic", with buttons to set, clear or auto-place them.

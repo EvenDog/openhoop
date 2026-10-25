@@ -44,6 +44,8 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
     /// An envelope the straight lettering is bent into (Bridge, Pennant, Perspective or Diamond), or nil. Arched
     /// lettering and lettering on a line keep it but aren't bent by it.
     public var envelope: LetteringEnvelope?
+    /// How each part of the lettering connects to the next (Connectors.swift); nil keeps the font's own trims.
+    public var betweenLetters: LetterConnector?
     public static let defaultLineSpacing = 1.4, lineSpacings = 0.8...4.0, maximumLines = 10
     /// Placement markers, in mm. Freshly made lettering is centered on `anchor` = (0, 0), with `alongMarker`
     /// 10 mm to the right (the reading direction) and `upMarker` 10 mm up. They move, turn and mirror with the
@@ -73,7 +75,7 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
     /// the markers (any stretching is left out; the letters are `height` tall). Every object gets a copy of this
     /// spec and a new group. Embroidery fonts are looked up by folder name in `embroideryFonts`.
     public func build(color: ThreadColor, embroideryFonts: [EmbroideryFont]) throws -> LetteringResult {
-        if shape == .onLine { return try builtOnLine(color: color, embroideryFonts: embroideryFonts) }
+        if shape == .onLine { return connected(try builtOnLine(color: color, embroideryFonts: embroideryFonts)) }
         var result = try stackedLines(color: color, embroideryFonts: embroideryFonts)
         // An envelope bends the straight lettering before it's placed, and remembers the box it filled.
         var envelopeBox: [Point]?
@@ -101,6 +103,21 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
         }
         // The lettering's start goes on its first letter, its end on its last.
         if !result.objects.isEmpty { result.objects[0].entry = entry; result.objects[result.objects.count - 1].exit = exit }
+        return connected(result)
+    }
+    /// `result` with Between letters applied: every part but the last trims always, never (jumping), or runs on to
+    /// the next. Trim when far (nil) keeps the font's own trims.
+    private func connected(_ result: LetteringResult) -> LetteringResult {
+        guard let betweenLetters, betweenLetters != .whenFar else { return result }
+        var result = result
+        for i in result.objects.indices.dropLast() {
+            switch betweenLetters {
+            case .whenFar: break
+            case .always: result.objects[i].trimRule = .always
+            case .jump: result.objects[i].trimRule = .off
+            case .run: result.objects[i].trimRule = .off; result.objects[i].connectorType = .run
+            }
+        }
         return result
     }
 
@@ -208,6 +225,7 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
             return same(old.nodes, new.nodes) && (old.holes ?? []).count == (new.holes ?? []).count && zip(old.holes ?? [], new.holes ?? []).allSatisfy(same)
                 && old.closed == new.closed && oldSettings == newSettings && anglesMatch && old.stitchLength == new.stitchLength
                 && old.tieIn == new.tieIn && old.tieOut == new.tieOut && old.trimAfter == new.trimAfter && old.trimAlways == new.trimAlways && old.stopAfter == new.stopAfter
+                && old.tieInWhenFar == new.tieInWhenFar && old.tieOutWhenFar == new.tieOutWhenFar && old.connector == new.connector
                 && near(old.entry, new.entry) && near(old.exit, new.exit)
         }
     }

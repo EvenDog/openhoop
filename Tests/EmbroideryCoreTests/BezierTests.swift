@@ -81,7 +81,7 @@ final class BezierTests: XCTestCase {
         design.objects = [RunObject(name: "Arch", nodes: [PathNode(Point(0, 0), smooth: true, outHandle: Point(0, 10)), PathNode(Point(10, 0))])]
         XCTAssertTrue(design.usesHandles)
         design.schemaVersion = 5; XCTAssertNoThrow(try design.validate())
-        design.schemaVersion = 11; XCTAssertThrowsError(try design.validate(), "a file version from the future is refused")
+        design.schemaVersion = 12; XCTAssertThrowsError(try design.validate(), "a file version from the future is refused")
         design.schemaVersion = 5; design.objects[0].nodes[0].outHandle = Point(.infinity, 0)
         XCTAssertThrowsError(try design.validate())
         XCTAssertFalse(Design.sample().usesHandles)
