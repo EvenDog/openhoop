@@ -6,6 +6,23 @@ import EmbroideryCore
 @testable import EmbroideryApp
 
 final class ShapeToolTests: XCTestCase {
+    /// Finishing a line, satin, fill or shape goes back to Select, with what was drawn selected, and the status line
+    /// gives the key to draw another.
+    @MainActor func testFinishingAShapeGoesBackToSelect() {
+        _ = NSApplication.shared
+        let document = DesignDocument(), state = document.state
+        let draws: [(Tool, [Point])] = [(.run, [Point(0, 0), Point(20, 0)]), (.satin, [Point(0, 10), Point(0, 14), Point(20, 10), Point(20, 14)]),
+                                        (.fill, [Point(0, 20), Point(20, 20), Point(10, 35)]), (.closedShape, [Point(30, 0), Point(50, 0), Point(40, 15)])]
+        for (tool, points) in draws {
+            state.tool = tool
+            state.draft = points.map { PathNode($0) }
+            state.finishPath()
+            XCTAssertEqual(state.tool, .select, "\(tool)")
+            XCTAssertEqual(state.selection, Set(state.design.objects.suffix(state.selection.count).map(\.id)), "\(tool): what was drawn is selected")
+            XCTAssertTrue(state.status.contains("to draw another"), state.status)
+        }
+    }
+
     @MainActor func testOpenAndClosedShapeUseThePickedStitch() {
         _ = NSApplication.shared
         let document = DesignDocument(), state = document.state   // the document must stay alive: edits go through it
@@ -64,6 +81,8 @@ final class ShapeToolTests: XCTestCase {
         mouse(.leftMouseUp, 400, 380)
         let perShape = state.design.objects.count   // 1, or 2 when the saved Next shape choice adds an outline
         XCTAssertEqual(state.design.objects.first?.name, "Rectangle 1")
+        XCTAssertEqual(state.tool, .select, "back to Select once it's added")
+        state.tool = .rectangle   // picked again for the next ones
 
         mouse(.leftMouseDown, 100, 100); mouse(.leftMouseDragged, 150, 150)
         canvas.cancelShapeDrag(); state.draft = []   // what Escape does
