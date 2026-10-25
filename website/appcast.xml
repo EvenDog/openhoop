@@ -6,6 +6,26 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.8.4</title>
+            <pubDate>Sun, 25 Oct 2026 01:20:14 GMT</pubDate>
+            <sparkle:version>31</sparkle:version>
+            <sparkle:shortVersionString>0.8.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.8.4</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.8.4</h3>
+<ul>
+<li><b>Run connectors.</b> An object's <b>Finish</b> now has <b>Then: Jump or Run</b>. Run sews running stitches straight to the next part, which sews over them: no trim, no ties, and no thread left lying across the fabric, handy on machines without a thread cutter. A run only sews when the next part is the same thread with no stop in between (otherwise it jumps), and long runs get a warning.</li>
+<li><b>Ties when you want them.</b> <b>Tie off</b> and <b>Tie in</b> are now <b>Off</b>, <b>Always</b> or <b>When far</b> (only after a move of at least the tie distance, or where the thread is cut).</li>
+<li><b>Connectors for the whole design.</b> With nothing selected, <b>Connectors</b> in Properties sets the trim and tie distances, the <b>tie stitches</b> (how many and how long) and the run connector's stitch length.</li>
+<li><b>Between letters.</b> Lettering can trim when far (the font's own trims), always trim, jump without trimming, or run from letter to letter.</li>
+</ul>
+<p>Designs that don't use these sew exactly as before. Designs that do need OpenHoop 0.8.4 or later to open.</p>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.8.4/OpenHoop-0.8.4.dmg" sparkle:edSignature="FvmPNpAdVzOGYEPiJhCUQL2ttIgrQMx02jrRmxNX9aQ14CF6E53yxZDLGaseO3aHlT0/KFqzG5+fSu9x9Cf8DQ==" length="23127510" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.8.3</title>
             <pubDate>Sat, 24 Oct 2026 23:53:00 GMT</pubDate>
             <sparkle:version>30</sparkle:version>
