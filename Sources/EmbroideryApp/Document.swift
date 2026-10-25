@@ -365,7 +365,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         if kind != .run {object.digitizing=DigitizingSettings(kind:kind);object.closed=kind == .fill;object.stitchLength=kind == .fill ? 3:2.5}
         object=design.withFabric(Preferences.shared.withNewObjectDefaults(object))   // Settings' starting values, then the design's fabric values
         edit("Draw \(kind.title)"){$0.objects.append(object)}
-        draft=[];selection=[object.id];selectedNode=nil;status="\(kind.title) added. Keep drawing, or press \(Preferences.shared.key(.selectTool)) to select."
+        draft=[];selection=[object.id];selectedNode=nil;backToSelect(after:"\(kind.title) added")
     }
     /// Continue drawing: a click on an end of a selected open line or satin with its tool. Its points become the
     /// drawing in progress, facing out of that end, so new clicks carry it on. Return puts them back in the object;
@@ -385,7 +385,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         do{try candidate.validate()}catch{status=error.localizedDescription;return}
         let name=candidate.objects[index].name
         edit("Continue Drawing"){$0=candidate}
-        draft=[];selection=[id];selectedNode=nil;status="‘\(name)’ continued. Keep drawing, or press \(Preferences.shared.key(.selectTool)) to select."
+        draft=[];selection=[id];selectedNode=nil;backToSelect(after:"‘\(name)’ continued")
     }
     /// Add or Remove Stitch Angles: a click at `point`. Adding takes two clicks per line, across the fill, and adds
     /// it (one undoable step each); removing takes away the line within `reach` mm of the click.
@@ -576,7 +576,14 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         let objects=objects.map{design.withFabric(Preferences.shared.withNewObjectDefaults($0))}
         edit(action){$0.objects+=objects}
         draft=[];selection=Set(objects.map(\.id));selectedNode=nil
-        status="\(objects[0].name)\(objects.count>1 ? " and its outline" : "") added. Keep drawing, or press \(Preferences.shared.key(.selectTool)) to select."
+        backToSelect(after:"\(objects[0].name)\(objects.count>1 ? " and its outline" : "") added")
+    }
+    /// After a shape or line is finished: back to Select, with what was just drawn selected, and the status line
+    /// saying how to draw another with the same tool.
+    private func backToSelect(after added:String) {
+        let drawing=Tool.forCommand.first{$0.value==tool}?.key
+        tool = .select
+        status="\(added) and selected."+(drawing.map{" Press \(Preferences.shared.key($0)) to draw another."} ?? "")
     }
     func resizeSelection(width:Double?=nil,height:Double?=nil) {
         let points=design.objects.filter{selection.contains($0.id) && !$0.locked}.flatMap{$0.outlinePaths.flatMap{$0}}

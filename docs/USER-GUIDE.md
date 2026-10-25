@@ -58,7 +58,7 @@ Your machine's manual lists the formats it reads; if in doubt, it's the one its 
 
 ## Drawing stitches
 
-All drawing tools work the same way: **click** for a corner, **press and drag** to pull out a curve, **secondary-click** for an automatic smooth point. **Return** finishes, **Escape** cancels, **Delete** removes the last point. Projects remember an unfinished path, so you can carry on after reopening.
+All drawing tools work the same way: **click** for a corner, **press and drag** to pull out a curve, **secondary-click** for an automatic smooth point. **Return** finishes, **Escape** cancels, **Delete** removes the last point. Once a shape is finished, OpenHoop goes back to **Select** with the new shape selected, ready to adjust in Properties; press the tool's key (shown in the status line) to draw another. Projects remember an unfinished path, so you can carry on after reopening.
 
 ### Running stitch (⇧N)
 
