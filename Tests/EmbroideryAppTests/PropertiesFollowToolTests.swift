@@ -27,14 +27,14 @@ final class PropertiesFollowToolTests: XCTestCase {
         state.selection = []
         XCTAssertTrue(ToolOptions.showsNextShape(state))
 
-        // Drawing a rectangle selects it, so Properties shows the new rectangle; the tool stays on.
+        // Drawing a rectangle selects it, so Properties shows the new rectangle, and goes back to Select.
         state.selection = [heart.id]
         state.tool = .rectangle; state.toolPicked = NextShapeOptions.shows(state.tool)
         state.draft = ShapeGeometry.nodes(.rectangle, in: (Point(20, 20), Point(40, 30)))
         state.finishShape(.rectangle)
         XCTAssertFalse(state.selection.contains(heart.id))
         XCTAssertFalse(ToolOptions.showsNextShape(state))
-        XCTAssertEqual(state.tool, .rectangle)
+        XCTAssertEqual(state.tool, .select)
 
         // Tools without Next shape choices never switch Properties.
         state.selection = [heart.id]
