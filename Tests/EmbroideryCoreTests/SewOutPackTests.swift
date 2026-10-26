@@ -1,7 +1,7 @@
-// The sew-out test pack: twelve designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
+// The sew-out test pack: thirteen designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
 // machine side by side (satin widths and compensation, the fill styles, small lettering, a monogram, travel and
 // finishing, the line styles and stipple, and motifs, cross stitch, gradient and raised satin, then wide satin, Remove Overlaps and Outlines & Offsets,
-// then moves and jumps of known lengths for Review Sewing Order's warnings, then smart corners beside rounded ones, then run connectors beside jumps, then push compensation side by side). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
+// then moves and jumps of known lengths for Review Sewing Order's warnings, then smart corners beside rounded ones, then run connectors beside jumps, then push compensation side by side, then hand stitch). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
 // designs there as OpenHoop projects:
 //   SEWOUT_DIR="$PWD/docs/sewout" swift test --filter SewOutPackTests
 import XCTest
@@ -321,6 +321,39 @@ final class SewOutPackTests: XCTestCase {
         return design
     }
 
+    /// Sheet 13's hand stitch settings, left to right (satins) and top to bottom (lines): off, then
+    /// (length, angle, count) 2·2·1×, 4·4·1× and 2·2·2×.
+    static let handSteps: [(length: Int, angle: Int, count: Int)?] = [nil, (2, 2, 1), (4, 4, 1), (2, 2, 2)]
+
+    /// 13 · Hand stitch: four 4 mm satins 30 mm tall (left, first thread) and four gently curved running lines 36 mm
+    /// long (right, second thread), each plain, then with the settings in `handSteps`.
+    func handStitchSheet() -> Design {
+        var design = newDesign()
+        func hand(_ step: (length: Int, angle: Int, count: Int)?) -> HandStitch? {
+            step.map { var h = HandStitch(); h.length = $0.length; h.angle = $0.angle; h.count = $0.count; return h }
+        }
+        func label(_ step: (length: Int, angle: Int, count: Int)?) -> String { step.map { "hand \($0.length)·\($0.angle)·\($0.count)×" } ?? "plain" }
+        for (k, step) in Self.handSteps.enumerated() {
+            var satin = column("Satin \(k + 1), \(label(step))", at: Point(-40 + Double(k) * 11, -15), length: 30, width: 4, color: threads[0])
+            satin.digitizing?.handStitch = hand(step)
+            design.objects.append(satin)
+        }
+        for (k, step) in Self.handSteps.enumerated() {
+            let y = 21 - Double(k) * 14
+            var line = RunObject(name: "Line \(k + 1), \(label(step))", nodes: [PathNode(Point(6, y)), PathNode(Point(24, y + 4), smooth: true), PathNode(Point(42, y))], color: threads[1])
+            line.digitizing = DigitizingSettings(kind: .run); line.digitizing?.handStitch = hand(step)
+            design.objects.append(line)
+        }
+        return design
+    }
+
+    func testHandStitchSheetRoughensAllButThePlainOnes() throws {
+        let sheet = handStitchSheet()
+        XCTAssertTrue(sheet.needsSchemaThirteen)
+        XCTAssertEqual(sheet.objects.filter { $0.settings.handStitch == nil }.count, 2, "one plain satin and one plain line")
+        XCTAssertNoThrow(try RunningEngine.compile(sheet))
+    }
+
     func testPushAndPullSheetPullsInOnlyTheSidesItSays() throws {
         let sheet = pushAndPullSheet()
         XCTAssertTrue(sheet.needsSchemaTwelve)
@@ -393,10 +426,10 @@ final class SewOutPackTests: XCTestCase {
                                           ("4 Monogram", try monogramSheet()), ("5 Travel and finishing", try travelSheet()), ("6 Line styles and stipple", lineStyleSheet()), ("7 Motifs, cross stitch and more", patternSheet()),
                                           ("8 Wide satin, overlaps and outlines", try wideSatinOverlapsAndOutlinesSheet()), ("9 Moves and jumps", movesAndJumpsSheet()),
                                           ("10 Smart corners", try smartCornersSheet()), ("11 Connectors", try connectorsSheet()),
-                                          ("12 Push and pull", pushAndPullSheet())]
+                                          ("12 Push and pull", pushAndPullSheet()), ("13 Hand stitch", handStitchSheet())]
         for (name, sheet) in sheets {
             var design = sheet
-            design.schemaVersion = design.needsSchemaTwelve ? 12 : design.needsSchemaEleven ? 11 : design.needsSchemaTen ? 10 : design.needsSchemaNine ? 9 : design.needsSchemaEight ? 8 : design.needsSchemaSeven ? 7 : design.needsSchemaSix ? 6 : design.needsSchemaFive ? 5 : 4
+            design.schemaVersion = design.needsSchemaThirteen ? 13 : design.needsSchemaTwelve ? 12 : design.needsSchemaEleven ? 11 : design.needsSchemaTen ? 10 : design.needsSchemaNine ? 9 : design.needsSchemaEight ? 8 : design.needsSchemaSeven ? 7 : design.needsSchemaSix ? 6 : design.needsSchemaFive ? 5 : 4
             let plan = try RunningEngine.compile(design)
             XCTAssertGreaterThan(plan.stitchCount, 100, name)
             XCTAssertTrue(plan.commands.allSatisfy { design.hoop.contains($0.point, tolerance: -2) }, "\(name) stays 2 mm inside the hoop")

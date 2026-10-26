@@ -445,6 +445,8 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     /// because thread pushes fabric out across its stitches. nil (older files) means none.
     public var pushCompensation:Double?
     public static let pushCompensationRange=0.0...2.0
+    /// Satins and running lines: the hand stitch effect (HandStitch.swift). nil means off.
+    public var handStitch:HandStitch?
     /// True for fills sewn in straight rows at the fill angle (tatami, wave, gradient and satin fills without stitch
     /// angle lines): their compensation lengthens the rows at their ends, and push compensation applies.
     public var hasStraightRows:Bool {[.tatami,.wave,.gradient,.satin].contains(fillStyle ?? .tatami) && (angleLines ?? []).isEmpty}
@@ -702,6 +704,9 @@ public struct Design: Codable, Equatable, Sendable {
     /// True when a design has fills with push compensation (added in file version 12), so it's saved as version 12
     /// and older versions of the app, which would sew those fills' sides where they were drawn, refuse it instead.
     public var needsSchemaTwelve: Bool { objects.contains { $0.kind == .fill && ($0.settings.pushCompensation ?? 0) > 0 } }
+    /// True when a design has satins or running lines with hand stitch (added in file version 13), so it's saved as
+    /// version 13 and older versions of the app, which would sew them plain, refuse it instead.
+    public var needsSchemaThirteen: Bool { objects.contains { $0.digitizing?.handStitch != nil } }
     /// True when a design has satins with smart corners (added in file version 10) that actually have a sharp corner,
     /// so it's saved as version 10 and older versions of the app, which would sew those corners fanned round the seam,
     /// refuse it instead. A satin with the setting but no sharp corner sews the same in older versions.
@@ -734,7 +739,7 @@ public struct Design: Codable, Equatable, Sendable {
 
     /// Reject corrupt or unreasonable input before it reaches the renderer or generator.
     public func validate() throws {
-        guard (1...12).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
+        guard (1...13).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }
@@ -786,6 +791,9 @@ public struct Design: Codable, Equatable, Sendable {
             } else if object.kind == .raw {throw DesignError.invalid("Imported stitch data is missing.")}
             if object.kind == .vector {
                 guard object.allNodes.count<=2000,(object.holes?.count ?? 0)<=100 else{throw DesignError.invalid("Vector outline is too complex.")}
+            }
+            if let hand=object.digitizing?.handStitch {
+                guard object.kind == .run || object.kind == .satin,hand.isValid else{throw DesignError.invalid("Invalid hand stitch settings in \(object.name).")}
             }
             if object.kind == .satin || object.kind == .fill {
                 let s=object.settings
