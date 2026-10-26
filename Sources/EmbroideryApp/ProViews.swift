@@ -500,7 +500,13 @@ extension InspectorPanel {
             if style.usesStitchLength {
                 number("Stitch length", value: object.stitchLength, id: "stitchLength", range: 0.3...10, help: fillStitchLengthHelp(object)) { value in state.editSelected("Stitch Length") { $0.stitchLength = value } }
             }
-            number("Expansion", value: object.settings.expansion, range: 0...2, help: "Grows the fill past its outline by this much, because thread pulls fabric inward as it sews.") { value in settings(.fill, "Compensation") { $0.expansion = value } }
+            // Straight rows get pull and push apart: thread pulls fabric in along its stitches and pushes it out across them.
+            if object.settings.hasStraightRows {
+                number("Pull compensation", value: object.settings.expansion, range: 0...2, help: "Lengthens every row at both ends by this much, because thread pulls fabric in along its stitches.") { value in settings(.fill, "Pull Compensation") { $0.expansion = value } }
+                number("Push compensation", value: object.settings.pushCompensation ?? 0, range: DigitizingSettings.pushCompensationRange, help: "Pulls in the edges the rows run along by this much, because thread pushes fabric out across its stitches. 0 sews them where you drew them; raise it if a test sew-out shows those edges sewing wider.") { value in settings(.fill, "Push Compensation") { $0.pushCompensation = value } }
+            } else {
+                number("Expansion", value: object.settings.expansion, range: 0...2, help: "Grows the fill past its outline by this much, because thread pulls fabric inward as it sews.") { value in settings(.fill, "Compensation") { $0.expansion = value } }
+            }
             proRow("Holes", help: "Holes are areas inside the fill left unstitched. + traces a new one; − removes them all.") {
                 Text(ProStats.count(holes, "hole")).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
                 Button { AppDelegate.shared.perform(.holeTool) } label: { Image(systemName: "plus") }.buttonStyle(ThemedButtonStyle()).accessibilityLabel("Add hole")

@@ -1,7 +1,7 @@
-// The sew-out test pack: eleven designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
+// The sew-out test pack: twelve designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
 // machine side by side (satin widths and compensation, the fill styles, small lettering, a monogram, travel and
 // finishing, the line styles and stipple, and motifs, cross stitch, gradient and raised satin, then wide satin, Remove Overlaps and Outlines & Offsets,
-// then moves and jumps of known lengths for Review Sewing Order's warnings, then smart corners beside rounded ones, then run connectors beside jumps). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
+// then moves and jumps of known lengths for Review Sewing Order's warnings, then smart corners beside rounded ones, then run connectors beside jumps, then push compensation side by side). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
 // designs there as OpenHoop projects:
 //   SEWOUT_DIR="$PWD/docs/sewout" swift test --filter SewOutPackTests
 import XCTest
@@ -297,6 +297,43 @@ final class SewOutPackTests: XCTestCase {
         return design
     }
 
+    /// The push compensation (mm) of sheet 12's three columns, left to right.
+    static let pushSteps = [0.0, 0.2, 0.4]
+
+    /// 12 · Push and pull: tatami fills with Push 0, 0.2 and 0.4 mm (left to right), each with the default 0.2 mm
+    /// pull. Top: 20 mm squares with rows across (0°); middle: the same with rows up and down (90°); bottom: 20 mm
+    /// circles at 45°. Each is then outlined in the second thread exactly where it was drawn, so the edges the rows run
+    /// along show whether they sew wider than drawn, and the row ends whether they reach the outline.
+    func pushAndPullSheet() -> Design {
+        var design = newDesign(), outlines: [RunObject] = []
+        for (row, (y, angle, shape)) in [(26.0, 0.0, BasicShape.rectangle), (0, 90, .rectangle), (-26, 45, .ellipse)].enumerated() {
+            for (column, push) in Self.pushSteps.enumerated() {
+                let nodes = ShapeGeometry.nodes(shape, in: box(Point(Double(column - 1) * 28, y), 10))
+                var shapeFill = fill("Row \(row + 1), push \(push.formatted()) mm", nodes, color: threads[0])
+                shapeFill.digitizing?.angle = angle; shapeFill.digitizing?.pushCompensation = push
+                design.objects.append(shapeFill)
+                var outline = RunObject(name: "Outline \(row + 1), push \(push.formatted()) mm", nodes: nodes, color: threads[1])
+                outline.closed = true; outline.digitizing = DigitizingSettings(kind: .run)
+                outlines.append(outline)
+            }
+        }
+        design.objects += outlines
+        return design
+    }
+
+    func testPushAndPullSheetPullsInOnlyTheSidesItSays() throws {
+        let sheet = pushAndPullSheet()
+        XCTAssertTrue(sheet.needsSchemaTwelve)
+        // In the top row (rows across), more push lowers the top of the fill, and the rows stay as long.
+        let tops = try Self.pushSteps.map { push -> (top: Double, width: Double) in
+            let object = try XCTUnwrap(sheet.objects.first { $0.name == "Row 1, push \(push.formatted()) mm" })
+            let points = try AreaEngine.fill(object).sections.filter { !$0.underlay }.flatMap(\.points)
+            return (points.map(\.y).max()!, points.map(\.x).max()! - points.map(\.x).min()!)
+        }
+        XCTAssertEqual(tops[0].top - tops[2].top, 0.4, accuracy: 0.1)
+        XCTAssertEqual(tops[0].width, tops[2].width, accuracy: 0.02)
+    }
+
     func testConnectorsSheetRunsWhereItSays() throws {
         let sheet = try connectorsSheet(), plan = try RunningEngine.compile(sheet)
         func trims(_ prefix: String) -> Int {
@@ -355,10 +392,11 @@ final class SewOutPackTests: XCTestCase {
         let sheets: [(String, Design)] = [("1 Satin", satinSheet()), ("2 Fills", fillSheet()), ("3 Lettering", try letteringSheet()),
                                           ("4 Monogram", try monogramSheet()), ("5 Travel and finishing", try travelSheet()), ("6 Line styles and stipple", lineStyleSheet()), ("7 Motifs, cross stitch and more", patternSheet()),
                                           ("8 Wide satin, overlaps and outlines", try wideSatinOverlapsAndOutlinesSheet()), ("9 Moves and jumps", movesAndJumpsSheet()),
-                                          ("10 Smart corners", try smartCornersSheet()), ("11 Connectors", try connectorsSheet())]
+                                          ("10 Smart corners", try smartCornersSheet()), ("11 Connectors", try connectorsSheet()),
+                                          ("12 Push and pull", pushAndPullSheet())]
         for (name, sheet) in sheets {
             var design = sheet
-            design.schemaVersion = design.needsSchemaEleven ? 11 : design.needsSchemaTen ? 10 : design.needsSchemaNine ? 9 : design.needsSchemaEight ? 8 : design.needsSchemaSeven ? 7 : design.needsSchemaSix ? 6 : design.needsSchemaFive ? 5 : 4
+            design.schemaVersion = design.needsSchemaTwelve ? 12 : design.needsSchemaEleven ? 11 : design.needsSchemaTen ? 10 : design.needsSchemaNine ? 9 : design.needsSchemaEight ? 8 : design.needsSchemaSeven ? 7 : design.needsSchemaSix ? 6 : design.needsSchemaFive ? 5 : 4
             let plan = try RunningEngine.compile(design)
             XCTAssertGreaterThan(plan.stitchCount, 100, name)
             XCTAssertTrue(plan.commands.allSatisfy { design.hoop.contains($0.point, tolerance: -2) }, "\(name) stays 2 mm inside the hoop")
