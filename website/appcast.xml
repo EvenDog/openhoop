@@ -6,6 +6,25 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.8.6</title>
+            <pubDate>Wed, 28 Oct 2026 01:31:59 GMT</pubDate>
+            <sparkle:version>33</sparkle:version>
+            <sparkle:shortVersionString>0.8.6</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.8.6</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.8.6</h3>
+<ul>
+<li><b>Pull compensation where fills pull.</b> Fills with straight rows (tatami, wave, gradient, and satin fill without stitch angle lines) now grow only at the ends of their rows, where the thread pulls the fabric in. Their sides, along the rows, no longer grow. This also changes existing designs: their straight-row fills come out a little smaller across the rows.</li>
+<li><b>Push compensation.</b> A new setting for those fills (0–2 mm, off by default) pulls in the edges the rows run along, where stitches push the fabric out. Properties shows <b>Pull compensation</b> and <b>Push compensation</b> for straight-row fills, and <b>Expansion</b> for the others.</li>
+<li><b>Hand stitch.</b> Satins and running lines can look sewn by hand: uneven stitch lengths (<b>Length</b>), slightly tilted stitches (<b>Angle</b>), each stitch sewn over 1–3 times in new holes (<b>Count</b>), random extra passes (<b>Random</b>) and another random version of the same look (<b>Variant</b>). On a satin, <b>Side</b> puts the effect on just one edge and keeps the other crisp. Underlay isn't changed. These amounts are a starting point, so test-sew before relying on them.</li>
+<li>Designs that use Push compensation or Hand stitch need OpenHoop 0.8.6 or later to open.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.8.6/OpenHoop-0.8.6.dmg" sparkle:edSignature="tStUkBxikQ4RbJKCOAlmAL+5Uk+kO79MGgiDvQqi1yh0suLdWKvTihF6mXEyXmjbkbNabN7qykOwsYPob49xBw==" length="23356810" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.8.5</title>
             <pubDate>Sun, 25 Oct 2026 02:20:19 GMT</pubDate>
             <sparkle:version>32</sparkle:version>
