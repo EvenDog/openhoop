@@ -6,6 +6,25 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.8.7</title>
+            <pubDate>Wed, 28 Oct 2026 18:33:57 GMT</pubDate>
+            <sparkle:version>34</sparkle:version>
+            <sparkle:shortVersionString>0.8.7</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.8.7</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.8.7</h3>
+<ul>
+<li><b>Create Motif.</b> Draw a motif with one or more running lines, select them and choose <b>Edit › Create Motif…</b>. Name it, check it in the previews, and it's saved in <b>My motifs</b>, ready to choose in the <b>Motif</b> menu for any motif line or motif fill, next to the built-in hearts, leaves and stars.</li>
+<li>Copies join from the drawing's left end to its right end. Several lines are joined into one, and a closed shape (like a circle or a heart outline) starts and ends along its bottom.</li>
+<li>Rename or delete your motifs in <b>Settings › New designs › My motifs</b>. Each design keeps its own copy of the motifs it uses, so it never changes and opens the same on another Mac.</li>
+<li>Designs that use a motif of your own need OpenHoop 0.8.7 or later to open.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.8.7/OpenHoop-0.8.7.dmg" sparkle:edSignature="m2PR7BeiioYteRmtfItu4ZXOOBYLn+P438GOMkt3J8QSRGZ+/cXsfOyGukzXgyVLDiBPuxqedQRt4a6bsfy2Aw==" length="23307922" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.8.6</title>
             <pubDate>Wed, 28 Oct 2026 01:31:59 GMT</pubDate>
             <sparkle:version>33</sparkle:version>
