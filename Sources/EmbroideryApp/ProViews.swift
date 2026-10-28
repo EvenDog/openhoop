@@ -561,6 +561,17 @@ extension InspectorPanel {
             toggle("Hand stitch", value: hand != nil) { on in settings(kind, on ? "Hand Stitch" : "No Hand Stitch") { $0.handStitch = on ? HandStitch() : nil } }
                 .help("Makes the stitches look sewn by hand: uneven lengths, slightly tilted stitches and, with Count, stitches sewn over more than once. Works best without underlay on small shapes.")
             if let hand {
+                if kind == .satin {
+                    HStack {
+                        Text("Side").font(Theme.body(11, weight: .regular)); Spacer()
+                        Picker("Side", selection: Binding(get: { hand.side }, set: { value in change("Hand Stitch Side") { $0.side = value } })) {
+                            Text("Both").tag(HandStitch.Side?.none)
+                            Text("Left").tag(HandStitch.Side?.some(.left))
+                            Text("Right").tag(HandStitch.Side?.some(.right))
+                        }.pickerStyle(.segmented).labelsHidden().frame(width: 170)
+                    }
+                    .help("Which edge looks sewn by hand, as seen looking along the satin the way it sews. The other edge stays crisp.")
+                }
                 level("Length", hand.length, HandStitch.levels, help: "Roughness: how much stitch lengths vary, from 0 (not at all) to 5 (up to a fifth of each stitch, either way).") { $0.length = $1 }
                 level("Angle", hand.angle, HandStitch.levels, help: "Roughness: how much stitches tilt, from 0 (not at all) to 5 (up to 10°, either way).") { $0.angle = $1 }
                 HStack {
