@@ -842,7 +842,9 @@ public enum StitchEngine {
     /// `stitches` with the object's hand stitch effect, when it has one (HandStitch.swift).
     static func handStitched(_ stitches:ObjectStitches,_ object:RunObject)->ObjectStitches {
         guard let hand=object.settings.handStitch else{return stitches}
-        return hand.applied(to:stitches,seed:HandStitch.seed(object.id))
+        // A satin with the effect on one edge only: the edges are those of the column as it sews (sewingOrder).
+        let crisp=object.kind == .satin ? hand.side.map{HandStitch.crispEdge(of:object.sewingOrder(),rough:$0)} : nil
+        return hand.applied(to:stitches,seed:HandStitch.seed(object.id),crisp:crisp)
     }
     /// An object's stitches worked out from its shape and settings, ignoring any edited by hand. `later` are the
     /// objects sewn after it (a fill set to cut out overlaps leaves out what they cover).

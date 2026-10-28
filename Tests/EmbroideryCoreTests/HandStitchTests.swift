@@ -1,5 +1,6 @@
 // Checks the hand stitch effect on running lines and satins: how far it moves needle holes, how many passes Count
-// adds, that it leaves underlay and section ends alone, that it sews the same every time, and its file checks.
+// adds, that it leaves underlay and section ends alone, that a satin can have it on one edge only, that it sews the
+// same every time, and its file checks.
 import XCTest
 @testable import EmbroideryCore
 
@@ -76,5 +77,67 @@ final class HandStitchTests: XCTestCase {
         XCTAssertNoThrow(try design.validate())
         var bad = design; bad.objects[1].digitizing?.handStitch?.length = 6
         XCTAssertThrowsError(try bad.validate())
+    }
+
+    /// The satin's own stitches, without its underlay or the short hidden runs to and from it. Its left edge
+    /// (sewing up the screen) is x = 0, less compensation; its right x = 4, plus compensation.
+    func top(_ object: RunObject) throws -> [Point] {
+        try StitchEngine.fresh(object, under: []).sections.filter { !$0.underlay }.max { $0.points.count < $1.points.count }!.points
+    }
+
+    func testOneSideLeavesTheOtherEdgeCrisp() throws {
+        let plain = try top(satin())
+        let leftEdge = plain.map(\.x).min()!, rightEdge = plain.map(\.x).max()!
+        // One satin, so its random numbers are the same each time; only its Side changes.
+        let both = satin(hand(length: 5, angle: 5))
+        var left = both; left.digitizing?.handStitch?.side = .left
+        let rough = try top(left), bothRough = try top(both)
+        XCTAssertEqual(rough.count, plain.count)
+        // Holes on the right edge haven't moved; holes on the left have, just as with the effect on both edges.
+        for k in plain.indices {
+            if plain[k].x == rightEdge { XCTAssertEqual(rough[k], plain[k]) } else { XCTAssertEqual(rough[k], bothRough[k]) }
+        }
+        XCTAssertTrue(zip(plain, rough).contains { $0.x == leftEdge && $0 != $1 }, "the left edge is rough")
+        // Right is the mirror image.
+        var right = both; right.digitizing?.handStitch?.side = .right
+        let mirrored = try top(right)
+        XCTAssertTrue(zip(plain, mirrored).allSatisfy { $0.x == leftEdge ? $0 == $1 : true })
+        XCTAssertTrue(zip(plain, mirrored).contains { $0.x == rightEdge && $0 != $1 })
+    }
+
+    func testLeftComesFromTheShapeNotTheDrawingOrder() throws {
+        var left = hand(length: 5, angle: 5); left.side = .left
+        // The same column with each pair's points drawn right first: the left edge (x = 0) is still the rough one.
+        var swapped = satin(left)
+        swapped.nodes = [Point(4, 0), Point(0, 0), Point(4, 20), Point(0, 20)].map { PathNode($0) }
+        let rightEdge = try top(satin()).map(\.x).max()!
+        XCTAssertTrue(try top(swapped).filter { $0.x > 2 }.allSatisfy { $0.x == rightEdge }, "the right edge stays straight")
+        // Sewn the other way (down the screen), left is the other edge.
+        var downward = satin(left)
+        downward.nodes = [Point(0, 20), Point(4, 20), Point(0, 0), Point(4, 0)].map { PathNode($0) }
+        let leftEdge = try top(satin()).map(\.x).min()!
+        XCTAssertTrue(try top(downward).filter { $0.x < 2 }.allSatisfy { $0.x == leftEdge }, "the x = 0 edge stays straight")
+    }
+
+    func testCountOnTheCrispEdgeSlidesAlongItIntoNewHoles() throws {
+        let plain = try top(satin()), rightEdge = plain.map(\.x).max()!
+        let original = plain.filter { $0.x > 2 }
+        for angle in [0, 5] {
+            var h = hand(length: 5, angle: angle, count: 3); h.side = .left
+            let crispHoles = try top(satin(h)).filter { $0.x > 2 }
+            XCTAssertTrue(crispHoles.allSatisfy { abs($0.x - rightEdge) < 1e-9 }, "every pass stays on the right edge (angle \(angle))")
+            // A hole sewn over again isn't the same hole: an extra pass lands at least 0.1 mm from every original hole.
+            let extra = crispHoles.filter { !original.contains($0) }
+            XCTAssertTrue(original.allSatisfy { crispHoles.contains($0) }, "the original holes are still sewn")
+            XCTAssertTrue(extra.allSatisfy { e in original.allSatisfy { e.distance(to: $0) > 0.1 - 1e-9 } }, "angle \(angle)")
+        }
+    }
+
+    func testOldFilesWithoutSideReadAsBothEdges() throws {
+        let saved = try JSONEncoder().encode(hand(count: 2))
+        XCTAssertFalse(String(decoding: saved, as: UTF8.self).contains("side"))
+        XCTAssertNil(try JSONDecoder().decode(HandStitch.self, from: saved).side)
+        var h = hand(); h.side = .right
+        XCTAssertEqual(try JSONDecoder().decode(HandStitch.self, from: JSONEncoder().encode(h)).side, .right)
     }
 }
