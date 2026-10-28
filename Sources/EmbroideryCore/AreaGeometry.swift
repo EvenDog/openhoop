@@ -80,6 +80,20 @@ public enum AreaGeometry {
         for _ in 0..<steps where !result.isEmpty { result = try resolvedPaths(result,by:amount/Double(steps),nonzero:nil,sharp:sharp).rings }
         return result
     }
+    /// `rings` grown by `pull` mm along `angle` only (the way straight fill rows run), so just the row ends move out,
+    /// then shrunk by `push` mm across it, so the edges the rows run along move in. It uses `offset` on the shape
+    /// stretched 50 times in the other direction: an even offset of that grows it almost only one way (the other way
+    /// by 1/50 of the amount, a few thousandths of a millimeter).
+    public static func directionalOffset(_ rings: [[Point]], angle: Double, pull: Double, push: Double) throws -> [[Point]] {
+        func offset(_ rings: [[Point]], by amount: Double, stretch: Point) throws -> [[Point]] {
+            guard amount != 0, !rings.isEmpty else { return rings }
+            // Rotated by -angle, rows run along x.
+            let stretched = rings.map { $0.map { let p = rotate($0, degrees: -angle); return Point(p.x * stretch.x, p.y * stretch.y) } }
+            return try Self.offset(stretched, by: amount).map { $0.map { rotate(Point($0.x / stretch.x, $0.y / stretch.y), degrees: angle) } }
+        }
+        let pulled = try offset(rings, by: pull, stretch: Point(1, 50))
+        return try offset(pulled, by: -push, stretch: Point(50, 1))
+    }
     /// Preserve Clipper's topology rather than infer containment from boundary vertices.
     static func svgRegions(_ rings:[[Point]],nonzero:Bool)throws->[[[Point]]] {
         let result=try resolvedPaths(rings,by:0,nonzero:nonzero)

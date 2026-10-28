@@ -32,8 +32,8 @@ extension StitchEngine {
             case .fill:
                 let rings = ([object.nodes] + (object.holes ?? [])).map { AreaGeometry.ring($0) }
                 try AreaGeometry.validate(rings)
-                // The region the fill engine lays rows in (AreaEngine.fill): the outline grown by the expansion.
-                let s = object.settings, expanded = try AreaGeometry.offset(rings, by: s.expansion)
+                // The region the fill engine lays rows in (AreaEngine.fill): the outline grown by its compensation.
+                let s = object.settings, expanded = try AreaEngine.compensated(rings, s)
                 let style = s.fillStyle ?? .tatami
                 if style == .tatami, let lines = s.angleLines, !lines.isEmpty, TurningFill.chords(in: expanded, angleLines: lines).isEmpty {
                     throw DesignError.invalid("The stitch angle lines don't cross this fill. Draw them across it, or remove them.")

@@ -1,0 +1,1265 @@
+{
+  "engineVersion" : "digitize-3",
+  "hoop" : {
+    "height" : 100,
+    "oval" : false,
+    "width" : 100
+  },
+  "objects" : [
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 0,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "pushCompensation" : 0,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "9545D66B-A4BD-4036-A211-777EA323D9CB",
+      "locked" : false,
+      "name" : "Row 1, push 0 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -38,
+            "y" : 16
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -18,
+            "y" : 16
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -18,
+            "y" : 36
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -38,
+            "y" : 36
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 0,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "pushCompensation" : 0.2,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "50D6A2EB-DDE6-46DF-A52F-38F5D2589466",
+      "locked" : false,
+      "name" : "Row 1, push 0.2 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -10,
+            "y" : 16
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 10,
+            "y" : 16
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 10,
+            "y" : 36
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -10,
+            "y" : 36
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 0,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "pushCompensation" : 0.4,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "B33F5159-C489-4387-819C-AA5DFE7FFCAC",
+      "locked" : false,
+      "name" : "Row 1, push 0.4 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 18,
+            "y" : 16
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 38,
+            "y" : 16
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 38,
+            "y" : 36
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 18,
+            "y" : 36
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 90,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "pushCompensation" : 0,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "B30BDA5D-7FDD-4F2D-95B3-B60DB58FFDB1",
+      "locked" : false,
+      "name" : "Row 2, push 0 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -38,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -18,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -18,
+            "y" : 10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -38,
+            "y" : 10
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 90,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "pushCompensation" : 0.2,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "29B2B0F6-41A3-4DE7-B5FB-B384A1F2C6FB",
+      "locked" : false,
+      "name" : "Row 2, push 0.2 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -10,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 10,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 10,
+            "y" : 10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -10,
+            "y" : 10
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 90,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "pushCompensation" : 0.4,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "8776139A-59D1-42B8-A73A-682AE58AD63A",
+      "locked" : false,
+      "name" : "Row 2, push 0.4 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 18,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 38,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 38,
+            "y" : 10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 18,
+            "y" : 10
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "pushCompensation" : 0,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "D8C5D033-5ABD-4BC5-A308-D4C2090489DD",
+      "locked" : false,
+      "name" : "Row 3, push 0 mm",
+      "nodes" : [
+        {
+          "inHandle" : {
+            "x" : -18,
+            "y" : -31.522847498
+          },
+          "outHandle" : {
+            "x" : -18,
+            "y" : -20.477152502
+          },
+          "point" : {
+            "x" : -18,
+            "y" : -26
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : -22.477152502,
+            "y" : -16
+          },
+          "outHandle" : {
+            "x" : -33.522847498,
+            "y" : -16
+          },
+          "point" : {
+            "x" : -28,
+            "y" : -16
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : -38,
+            "y" : -20.477152502
+          },
+          "outHandle" : {
+            "x" : -38,
+            "y" : -31.522847498
+          },
+          "point" : {
+            "x" : -38,
+            "y" : -26
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : -33.522847498,
+            "y" : -36
+          },
+          "outHandle" : {
+            "x" : -22.477152502,
+            "y" : -36
+          },
+          "point" : {
+            "x" : -28,
+            "y" : -36
+          },
+          "smooth" : true
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "pushCompensation" : 0.2,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "F778E414-B774-4BC8-AFAF-797E2CFD6323",
+      "locked" : false,
+      "name" : "Row 3, push 0.2 mm",
+      "nodes" : [
+        {
+          "inHandle" : {
+            "x" : 10,
+            "y" : -31.522847498
+          },
+          "outHandle" : {
+            "x" : 10,
+            "y" : -20.477152502
+          },
+          "point" : {
+            "x" : 10,
+            "y" : -26
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : 5.522847498,
+            "y" : -16
+          },
+          "outHandle" : {
+            "x" : -5.522847498,
+            "y" : -16
+          },
+          "point" : {
+            "x" : 0,
+            "y" : -16
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : -10,
+            "y" : -20.477152502
+          },
+          "outHandle" : {
+            "x" : -10,
+            "y" : -31.522847498
+          },
+          "point" : {
+            "x" : -10,
+            "y" : -26
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : -5.522847498,
+            "y" : -36
+          },
+          "outHandle" : {
+            "x" : 5.522847498,
+            "y" : -36
+          },
+          "point" : {
+            "x" : 0,
+            "y" : -36
+          },
+          "smooth" : true
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "pushCompensation" : 0.4,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "EFBE90DB-AE25-433F-BBD0-67A887E8176C",
+      "locked" : false,
+      "name" : "Row 3, push 0.4 mm",
+      "nodes" : [
+        {
+          "inHandle" : {
+            "x" : 38,
+            "y" : -31.522847498
+          },
+          "outHandle" : {
+            "x" : 38,
+            "y" : -20.477152502
+          },
+          "point" : {
+            "x" : 38,
+            "y" : -26
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : 33.522847498,
+            "y" : -16
+          },
+          "outHandle" : {
+            "x" : 22.477152502,
+            "y" : -16
+          },
+          "point" : {
+            "x" : 28,
+            "y" : -16
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : 18,
+            "y" : -20.477152502
+          },
+          "outHandle" : {
+            "x" : 18,
+            "y" : -31.522847498
+          },
+          "point" : {
+            "x" : 18,
+            "y" : -26
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : 22.477152502,
+            "y" : -36
+          },
+          "outHandle" : {
+            "x" : 33.522847498,
+            "y" : -36
+          },
+          "point" : {
+            "x" : 28,
+            "y" : -36
+          },
+          "smooth" : true
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "184B0FC1-A69D-4892-A793-CC4D9041CAEB",
+      "locked" : false,
+      "name" : "Outline 1, push 0 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -38,
+            "y" : 16
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -18,
+            "y" : 16
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -18,
+            "y" : 36
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -38,
+            "y" : 36
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "DFB24080-3F2D-42BA-AD9F-16C220321C70",
+      "locked" : false,
+      "name" : "Outline 1, push 0.2 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -10,
+            "y" : 16
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 10,
+            "y" : 16
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 10,
+            "y" : 36
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -10,
+            "y" : 36
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "4C31CC1E-34A3-43CB-8089-E575C88B1526",
+      "locked" : false,
+      "name" : "Outline 1, push 0.4 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 18,
+            "y" : 16
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 38,
+            "y" : 16
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 38,
+            "y" : 36
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 18,
+            "y" : 36
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "50225D95-E7D4-44DD-9A8C-5F28AA165E98",
+      "locked" : false,
+      "name" : "Outline 2, push 0 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -38,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -18,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -18,
+            "y" : 10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -38,
+            "y" : 10
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "FC9C5161-B3AA-4BD9-B75B-EFFB554E3863",
+      "locked" : false,
+      "name" : "Outline 2, push 0.2 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -10,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 10,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 10,
+            "y" : 10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -10,
+            "y" : 10
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "D29089C8-EEA8-49BE-88FD-B515C5424959",
+      "locked" : false,
+      "name" : "Outline 2, push 0.4 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 18,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 38,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 38,
+            "y" : 10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 18,
+            "y" : 10
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "B3CE6BC2-B15E-418C-9545-8938E58FAC4D",
+      "locked" : false,
+      "name" : "Outline 3, push 0 mm",
+      "nodes" : [
+        {
+          "inHandle" : {
+            "x" : -18,
+            "y" : -31.522847498
+          },
+          "outHandle" : {
+            "x" : -18,
+            "y" : -20.477152502
+          },
+          "point" : {
+            "x" : -18,
+            "y" : -26
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : -22.477152502,
+            "y" : -16
+          },
+          "outHandle" : {
+            "x" : -33.522847498,
+            "y" : -16
+          },
+          "point" : {
+            "x" : -28,
+            "y" : -16
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : -38,
+            "y" : -20.477152502
+          },
+          "outHandle" : {
+            "x" : -38,
+            "y" : -31.522847498
+          },
+          "point" : {
+            "x" : -38,
+            "y" : -26
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : -33.522847498,
+            "y" : -36
+          },
+          "outHandle" : {
+            "x" : -22.477152502,
+            "y" : -36
+          },
+          "point" : {
+            "x" : -28,
+            "y" : -36
+          },
+          "smooth" : true
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "8DDF5B42-7F1D-42A1-A82F-F5D032361933",
+      "locked" : false,
+      "name" : "Outline 3, push 0.2 mm",
+      "nodes" : [
+        {
+          "inHandle" : {
+            "x" : 10,
+            "y" : -31.522847498
+          },
+          "outHandle" : {
+            "x" : 10,
+            "y" : -20.477152502
+          },
+          "point" : {
+            "x" : 10,
+            "y" : -26
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : 5.522847498,
+            "y" : -16
+          },
+          "outHandle" : {
+            "x" : -5.522847498,
+            "y" : -16
+          },
+          "point" : {
+            "x" : 0,
+            "y" : -16
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : -10,
+            "y" : -20.477152502
+          },
+          "outHandle" : {
+            "x" : -10,
+            "y" : -31.522847498
+          },
+          "point" : {
+            "x" : -10,
+            "y" : -26
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : -5.522847498,
+            "y" : -36
+          },
+          "outHandle" : {
+            "x" : 5.522847498,
+            "y" : -36
+          },
+          "point" : {
+            "x" : 0,
+            "y" : -36
+          },
+          "smooth" : true
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "run",
+        "maximumSatin" : 10,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "center",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "7917619B-F188-4272-B835-A3598EA7BD4B",
+      "locked" : false,
+      "name" : "Outline 3, push 0.4 mm",
+      "nodes" : [
+        {
+          "inHandle" : {
+            "x" : 38,
+            "y" : -31.522847498
+          },
+          "outHandle" : {
+            "x" : 38,
+            "y" : -20.477152502
+          },
+          "point" : {
+            "x" : 38,
+            "y" : -26
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : 33.522847498,
+            "y" : -16
+          },
+          "outHandle" : {
+            "x" : 22.477152502,
+            "y" : -16
+          },
+          "point" : {
+            "x" : 28,
+            "y" : -16
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : 18,
+            "y" : -20.477152502
+          },
+          "outHandle" : {
+            "x" : 18,
+            "y" : -31.522847498
+          },
+          "point" : {
+            "x" : 18,
+            "y" : -26
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : 22.477152502,
+            "y" : -36
+          },
+          "outHandle" : {
+            "x" : 33.522847498,
+            "y" : -36
+          },
+          "point" : {
+            "x" : 28,
+            "y" : -36
+          },
+          "smooth" : true
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    }
+  ],
+  "schemaVersion" : 12
+}

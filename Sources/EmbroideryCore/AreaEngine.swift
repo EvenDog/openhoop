@@ -11,13 +11,20 @@ public struct StitchSection: Sendable {
 public struct ObjectStitches: Sendable {public var sections:[StitchSection]=[];public var warnings:[String]=[]}
 
 public enum AreaEngine {
+    /// The region a fill's top stitches are laid in: its outline and holes grown by its compensation. Straight rows
+    /// grow only at their ends (thread pulls fabric in along its stitches) and shrink along their sides by the push
+    /// amount (it pushes fabric out across them); fills whose stitches turn grow evenly all round.
+    static func compensated(_ rings:[[Point]],_ s:DigitizingSettings) throws -> [[Point]] {
+        guard s.hasStraightRows else{return try AreaGeometry.offset(rings,by:s.expansion)}
+        return try AreaGeometry.directionalOffset(rings,angle:s.angle,pull:s.expansion,push:s.pushCompensation ?? 0)
+    }
     /// Fill rows are split into monotone sections at interval splits and merges.
     /// Every sewn connector is checked against the compensated region, including holes.
     public static func fill(_ object:RunObject) throws -> ObjectStitches {
         let s=object.settings
         let original=([object.nodes]+(object.holes ?? [])).map{AreaGeometry.ring($0)}
         try AreaGeometry.validate(original)
-        let expanded=try AreaGeometry.offset(original,by:s.expansion)
+        let expanded=try compensated(original,s)
         guard !expanded.isEmpty else{throw DesignError.invalid("Fill compensation collapses this region.")}
         var result=ObjectStitches()
         // Travel between sections follows rings just inside the shape's edge (the edge itself if that inset collapses).

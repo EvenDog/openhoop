@@ -441,6 +441,13 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     public var pullPercent:Double?
     /// 3% is a starting value, to be tuned after test sew-outs (5% made 6 mm satins sew 7 mm stitches, long enough to snag).
     public static let defaultPullPercent=3.0, pullPercentRange=0.0...20.0
+    /// Fill only, for straight rows (`hasStraightRows`): how far (mm) the edges the rows run along are pulled in,
+    /// because thread pushes fabric out across its stitches. nil (older files) means none.
+    public var pushCompensation:Double?
+    public static let pushCompensationRange=0.0...2.0
+    /// True for fills sewn in straight rows at the fill angle (tatami, wave, gradient and satin fills without stitch
+    /// angle lines): their compensation lengthens the rows at their ends, and push compensation applies.
+    public var hasStraightRows:Bool {[.tatami,.wave,.gradient,.satin].contains(fillStyle ?? .tatami) && (angleLines ?? []).isEmpty}
     /// Satin only: true when the design's fabric stretches (knit, towel), so Auto underlay gives more support.
     /// Set by the fabric type; nil means a stable fabric.
     public var stretchyFabric:Bool?
@@ -692,6 +699,9 @@ public struct Design: Codable, Equatable, Sendable {
     /// True when a design has lettering bent by an envelope, added in file version 9, so it's saved as version 9 and
     /// older versions of the app, which would lose the envelope the next time the text is edited, refuse it instead.
     public var needsSchemaNine: Bool { objects.contains { $0.lettering?.envelope != nil } }
+    /// True when a design has fills with push compensation (added in file version 12), so it's saved as version 12
+    /// and older versions of the app, which would sew those fills' sides where they were drawn, refuse it instead.
+    public var needsSchemaTwelve: Bool { objects.contains { $0.kind == .fill && ($0.settings.pushCompensation ?? 0) > 0 } }
     /// True when a design has satins with smart corners (added in file version 10) that actually have a sharp corner,
     /// so it's saved as version 10 and older versions of the app, which would sew those corners fanned round the seam,
     /// refuse it instead. A satin with the setting but no sharp corner sews the same in older versions.
@@ -724,7 +734,7 @@ public struct Design: Codable, Equatable, Sendable {
 
     /// Reject corrupt or unreasonable input before it reaches the renderer or generator.
     public func validate() throws {
-        guard (1...11).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
+        guard (1...12).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }
@@ -787,7 +797,8 @@ public struct Design: Codable, Equatable, Sendable {
                       s.secondInset.map((0...3).contains) ?? true,s.secondSpacing.map((0.5...5).contains) ?? true,
                       [s.underlayLength,s.secondLength].allSatisfy({$0.map(DigitizingSettings.underlayLengthRange.contains) ?? true}),
                       [s.underlayAngle,s.secondAngle].allSatisfy({$0.map((-180...180).contains) ?? true}),
-                      s.pullPercent.map({object.kind == .satin && DigitizingSettings.pullPercentRange.contains($0)}) ?? true else {throw DesignError.invalid("Invalid digitizing settings in \(object.name).")}
+                      s.pullPercent.map({object.kind == .satin && DigitizingSettings.pullPercentRange.contains($0)}) ?? true,
+                      s.pushCompensation.map({object.kind == .fill && DigitizingSettings.pushCompensationRange.contains($0)}) ?? true else {throw DesignError.invalid("Invalid digitizing settings in \(object.name).")}
                 // The fill style's own settings: out-of-range values would make the fill engines overflow or run for ages.
                 guard s.radialCenter.map({ $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 }) ?? true,
                       s.angleLineCenter.map({ $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 }) ?? true,
