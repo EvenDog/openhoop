@@ -18,7 +18,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
     case new, open, save, saveAs, close, importImage, importSVG, importMachine, exportMachine, exportThreadList, productionWorksheet, sample, stitchSampler, settings
     case selectTool, artworkTool, runTool, satinTool, fillTool, holeTool, removeHoles, nodeTool, panTool, entryExitTool, autoStartPoints, clearStartEnd, lettering, editLettering, autoDigitize, satinBorder, outlinesOffsets, applique, done, finishPath, cancelPath, removePoint, insertNode, deleteNode, toggleNodeType, breakApartLettering, densityMap, testSwatches, useAsFillGuide, putLetteringOnLine, renameObject, convertFill, convertRun, convertSatin, toggleUnderlay, showUnderlay, focusSpacing, focusAngle
     case openShapeTool, closedShapeTool, freehandOpenTool, freehandClosedTool, rectangleTool, ellipseTool, basicShapeTool, knifeTool, weldObjects, removeOverlaps, smoothShapes, laydown, wreath, branching, addStitchAngles, removeStitchAngles, editStitches, addMonogram, editMonogram
-    case undo, redo, delete, selectAll, sequenceBySelection, sequenceByColor, alignLeft, alignCentersVertically, alignRight, alignTop, alignCentersHorizontally, alignBottom, alignCenters, spaceAcross, spaceDown, duplicate, mirrorH, mirrorV, rotateLeft, rotateRight, earlier, later, closePath, lockObject, hideObject, tieIn, tieOut, trimAfter, stopAfter, group, ungroup, threadChart, cutObjects, copyObjects, pasteObjects
+    case undo, redo, delete, selectAll, sequenceBySelection, sequenceByColor, alignLeft, alignCentersVertically, alignRight, alignTop, alignCentersHorizontally, alignBottom, alignCenters, spaceAcross, spaceDown, duplicate, mirrorH, mirrorV, rotateLeft, rotateRight, earlier, later, closePath, lockObject, hideObject, tieIn, tieOut, trimAfter, stopAfter, group, ungroup, threadChart, cutObjects, copyObjects, pasteObjects, createMotif
     case zoomIn, zoomOut, zoomFit, zoomDesign, zoomBoxTool, zoomActual, zoomSelected, showStitches, showOutlines, showConnectors, hideOthers, measureTool, hoopingsTool, grid, snap, clearGuides, needles, threadView, reviewSewingOrder, artwork, inspector, palette, restoreWorkspace, saveWorkspace, useInches, showRulers, paletteUnderCanvas
     case panelSewingOrder, panelDesign, panelReference, nextTab, previousTab, customizeTools
     case nudgeLeft, nudgeRight, nudgeUp, nudgeDown, play, rewind, focusLength
@@ -55,7 +55,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .alignTop: return "Align Top"; case .alignCentersHorizontally: return "Align Centers Horizontally"; case .alignBottom: return "Align Bottom"
         case .alignCenters: return "Align Centers"; case .spaceAcross: return "Space Evenly Across"; case .spaceDown: return "Space Evenly Down" case .closePath: return "Toggle Closed Path"
         case .lockObject: return "Lock / Unlock Object"; case .hideObject: return "Show / Hide Object"; case .group: return "Group"; case .ungroup: return "Ungroup"
-        case .threadChart: return "Choose Thread from Chart…"
+        case .threadChart: return "Choose Thread from Chart…"; case .createMotif: return "Create Motif…"
         case .cutObjects: return "Cut"; case .copyObjects: return "Copy"; case .pasteObjects: return "Paste"
         case .zoomIn: return "Zoom In"; case .zoomOut: return "Zoom Out"; case .zoomFit: return "Fit Hoop"
         case .zoomBoxTool: return "Zoom Box"; case .zoomActual: return "Zoom 1:1 (Real Size)"; case .zoomSelected: return "Zoom to Selected"; case .zoomDesign: return "Zoom to Design"
@@ -182,6 +182,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .group: return "Group the selection so it moves, turns and resizes together."
         case .ungroup: return "Split the selected group back into separate objects."
         case .threadChart: return "Pick a real thread by brand and color number for the current color."
+        case .createMotif: return "Save the selected running lines as a motif of your own, for motif lines and motif fills."
         case .cutObjects: return "Remove the selection and keep a copy to paste."
         case .copyObjects: return "Copy the selection, to paste here or into another design."
         case .pasteObjects: return "Add the copied objects to this design."
@@ -251,14 +252,14 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
          .insertNode, .deleteNode, .toggleNodeType, .weldObjects, .smoothShapes, .wreath, .branching, .addStitchAngles, .removeStitchAngles, .editStitches, .editMonogram,
          .delete, .sequenceBySelection, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters,
          .spaceAcross, .spaceDown, .duplicate, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .closePath, .lockObject, .hideObject,
-         .tieIn, .tieOut, .trimAfter, .stopAfter, .group, .ungroup, .cutObjects, .copyObjects, .zoomSelected, .nudgeLeft, .nudgeRight, .nudgeUp, .nudgeDown].contains(self)
+         .tieIn, .tieOut, .trimAfter, .stopAfter, .group, .ungroup, .cutObjects, .copyObjects, .createMotif, .zoomSelected, .nudgeLeft, .nudgeRight, .nudgeUp, .nudgeDown].contains(self)
     }
     public var appWide: Bool { [.new, .open, .save, .saveAs, .close, .settings].contains(self) }
     public var contexts: Set<CommandContext> {
         if appWide { return [.canvas, .drawing, .list, .text] }
         if [.finishPath, .cancelPath, .removePoint].contains(self) { return [.drawing] }
         if self == .play || stitchStep != nil { return [.canvas, .list] }   // while drawing, Space finishes the shape instead
-        if [.holeTool, .removeHoles, .insertNode, .deleteNode, .toggleNodeType, .breakApartLettering, .renameObject, .convertFill, .convertRun, .convertSatin, .toggleUnderlay, .focusSpacing, .focusAngle, .delete, .selectAll, .sequenceBySelection, .sequenceByColor, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .duplicate, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .closePath, .lockObject, .hideObject, .group, .ungroup, .threadChart, .cutObjects, .copyObjects, .pasteObjects, .clearStartEnd, .lettering, .editLettering, .autoDigitize, .satinBorder, .outlinesOffsets, .applique, .done, .focusLength, .nudgeLeft, .nudgeRight, .nudgeUp, .nudgeDown, .weldObjects, .removeOverlaps, .smoothShapes, .laydown, .wreath, .branching, .addMonogram, .editMonogram, .useAsFillGuide, .putLetteringOnLine, .reviewSewingOrder].contains(self) { return [.canvas, .list] }
+        if [.holeTool, .removeHoles, .insertNode, .deleteNode, .toggleNodeType, .breakApartLettering, .renameObject, .convertFill, .convertRun, .convertSatin, .toggleUnderlay, .focusSpacing, .focusAngle, .delete, .selectAll, .sequenceBySelection, .sequenceByColor, .alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters, .spaceAcross, .spaceDown, .duplicate, .mirrorH, .mirrorV, .rotateLeft, .rotateRight, .earlier, .later, .closePath, .lockObject, .hideObject, .group, .ungroup, .threadChart, .cutObjects, .copyObjects, .pasteObjects, .clearStartEnd, .lettering, .editLettering, .autoDigitize, .satinBorder, .outlinesOffsets, .applique, .done, .focusLength, .nudgeLeft, .nudgeRight, .nudgeUp, .nudgeDown, .weldObjects, .removeOverlaps, .smoothShapes, .laydown, .wreath, .branching, .addMonogram, .editMonogram, .useAsFillGuide, .putLetteringOnLine, .reviewSewingOrder, .createMotif].contains(self) { return [.canvas, .list] }
         return [.canvas, .drawing, .list]
     }
     public var repeats: Bool { [.nudgeLeft, .nudgeRight, .nudgeUp, .nudgeDown, .zoomIn, .zoomOut].contains(self) || stitchStep != nil }
@@ -385,7 +386,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .play: return "play.fill"; case .showUnderlay: return "square.stack"; case .group: return "square.on.square"; case .ungroup: return "square.dashed"; case .threadChart: return "swatchpalette"
         case .openShapeTool: return "scribble"; case .closedShapeTool: return "lasso"; case .freehandOpenTool: return "pencil.line"; case .freehandClosedTool: return "pencil.and.scribble"; case .rectangleTool: return "rectangle"; case .ellipseTool: return "oval"; case .basicShapeTool: return "star"
         case .knifeTool: return "square.split.diagonal"; case .weldObjects: return "square.on.circle"; case .removeOverlaps: return "square.on.square.dashed"; case .smoothShapes: return "point.topleft.down.curvedto.point.bottomright.up"; case .laydown: return "square.grid.3x3"; case .wreath: return "camera.aperture"; case .branching: return "arrow.triangle.branch"; case .addStitchAngles: return "angle"; case .removeStitchAngles: return "eraser.line.dashed"; case .editStitches: return "point.3.filled.connected.trianglepath.dotted"; case .addMonogram: return "openhoop.monogram"; case .editMonogram: return "pencil.and.outline"
-        case .paletteUnderCanvas: return "rectangle.bottomthird.inset.filled"
+        case .paletteUnderCanvas: return "rectangle.bottomthird.inset.filled"; case .createMotif: return "heart.circle"
         default: return "circle"
         }
     }

@@ -1,7 +1,7 @@
-// Motif stitches and the cross stitch fill. A motif is a small pattern (heart, leaf, diamond, star, scallop, circle)
-// drawn as one stroke of running stitch that starts and ends on its baseline, so motifs can be strung along a line
-// (a motif run) or set out in rows across a shape (a motif fill). The cross stitch fill covers a shape's whole
-// squares with X's.
+// Motif stitches and the cross stitch fill. A motif is a small pattern (heart, leaf, diamond, star, scallop, circle,
+// or one of the user's own made from lines with Create Motif) drawn as one stroke of running stitch that starts and
+// ends on its baseline, so motifs can be strung along a line (a motif run) or set out in rows across a shape (a motif
+// fill). The cross stitch fill covers a shape's whole squares with X's.
 import Foundation
 
 public enum Motifs {
@@ -41,15 +41,52 @@ public enum Motifs {
         }
     }
 
-    /// A motif run: `motif`, `size` mm long, repeated along `path` with `gap` mm between motifs, joined by running
+    /// A motif of one's own from `lines` (running lines' paths, in sewing order), named `name`. The lines are joined
+    /// into one stroke by straight runs, each line sewn from whichever of its ends is nearer where the last one ended.
+    /// The stroke starts at its left end and finishes at its right end: it's turned and scaled so those sit at (0, 0)
+    /// and (1, 0), like the built-in motifs. When its ends meet (a closed shape) it has no left and right ends, so it
+    /// starts and finishes at its lowest point instead, with runs in from the bottom left corner and out to the bottom
+    /// right, like the circle.
+    public static func make(from lines: [[Point]], name: String) throws -> CustomMotif {
+        var stroke: [Point] = []
+        for line in lines where line.count >= 2 {
+            guard let end = stroke.last else { stroke = line; continue }
+            stroke += line.last!.distance(to: end) < line.first!.distance(to: end) ? line.reversed() : line
+        }
+        let xs = stroke.map(\.x), ys = stroke.map(\.y)
+        guard let minX = xs.min(), let maxX = xs.max(), let minY = ys.min(), let maxY = ys.max(), max(maxX - minX, maxY - minY) > 0.1 else {
+            throw DesignError.invalid("Select at least one running line to make a motif from.")
+        }
+        guard stroke.count <= CustomMotif.pointLimit else { throw DesignError.invalid("These lines have too many points for a motif. Try Smooth Shapes first.") }
+        let first = stroke.first!, last = stroke.last!, width = maxX - minX
+        // "Meet" means closer together than a tenth of the drawing's size, so a hand-drawn loop counts too.
+        if first.distance(to: last) < 0.1 * max(width, maxY - minY) {
+            guard width > 0.1 else { throw DesignError.invalid("A closed motif needs some width, to join one copy to the next.") }
+            // Start the loop again at its lowest point, so the runs in and out go along the bottom.
+            var loop = first.distance(to: last) < 1e-6 ? Array(stroke.dropLast()) : stroke
+            let lowest = loop.indices.min { loop[$0].y < loop[$1].y }!
+            loop = Array(loop[lowest...] + loop[..<lowest]) + [loop[lowest]]
+            let placed = [Point(minX, minY)] + loop + [Point(maxX, minY)]
+            return CustomMotif(name: name, stroke: placed.map { Point(($0.x - minX) / width, ($0.y - minY) / width) })
+        }
+        if last.x < first.x { stroke.reverse() }
+        // Turn and scale so the start lands on (0, 0) and the end on (1, 0): x is how far along the baseline a point
+        // is, y how far to its left (above it), both divided by the baseline's length.
+        let start = stroke.first!, along = stroke.last! - start, squared = along.x * along.x + along.y * along.y
+        return CustomMotif(name: name, stroke: stroke.map { p in
+            let d = p - start
+            return Point((d.x * along.x + d.y * along.y) / squared, (along.x * d.y - along.y * d.x) / squared)
+        })
+    }
+
+    /// A motif run: `motif` (a stroke like `stroke(_:)`'s), `size` mm long, repeated along `path` with `gap` mm between motifs, joined by running
     /// stitch along the line. The row of motifs is centered, so the line's two ends get equal runs. Each motif follows
     /// the line as it curves. Stitches are about `length` mm, shorter in the motifs so their curves stay round.
-    public static func run(along path: [Point], motif: Motif, size: Double, gap: Double, length: Double) -> [Point] {
+    public static func run(along path: [Point], motif shape: [Point], size: Double, gap: Double, length: Double) -> [Point] {
         let line = RunningStyles.Measured(path)
         let count = Int((line.total + gap) / (size + gap)), small = max(0.4, min(length, size / 5))
         guard count >= 1 else { return evenly(path, length: length) }
         let used = Double(count) * size + Double(count - 1) * gap, first = (line.total - used) / 2
-        let shape = stroke(motif)
         var points = [line.point(at: 0)], lastDistance = 0.0
         /// Running stitch along the line from where the last motif (or run) ended to distance `s`.
         func runTo(_ s: Double) {
@@ -68,13 +105,13 @@ public enum Motifs {
         return points
     }
 
-    /// Motif fill: whole motifs (`size` mm, `gap` mm apart) set out in rows across `region` at `angle` degrees, every
+    /// Motif fill: whole motifs (`motif` is a stroke like `stroke(_:)`'s; `size` mm, `gap` mm apart) set out in rows across `region` at `angle` degrees, every
     /// other row shifted by half a motif, keeping only those entirely inside. Each motif is one section; the rows are
     /// sewn back and forth (odd rows' motifs backwards) so each hop to the next motif is short.
-    static func fill(in region: [[Point]], motif: Motif, size: Double, gap: Double, angle: Double, length: Double) throws -> [[Point]] {
+    static func fill(in region: [[Point]], motif shape: [Point], size: Double, gap: Double, angle: Double, length: Double) throws -> [[Point]] {
         let turned = region.map { $0.map { AreaGeometry.rotate($0, degrees: -angle) } }, all = turned.flatMap { $0 }
         guard let minX = all.map(\.x).min(), let maxX = all.map(\.x).max(), let minY = all.map(\.y).min(), let maxY = all.map(\.y).max() else { return [] }
-        let pitch = size + gap, shape = stroke(motif), small = max(0.4, min(length, size / 5))
+        let pitch = size + gap, small = max(0.4, min(length, size / 5))
         let top = shape.map(\.y).max()!, bottom = shape.map(\.y).min()!, rowPitch = (top - bottom) * size + gap
         guard ((maxX - minX) / pitch) * ((maxY - minY) / rowPitch) <= 40_000 else { throw DesignError.invalid("This motif fill has too many motifs. Make the motifs bigger.") }
         var sections: [[Point]] = []

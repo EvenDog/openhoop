@@ -684,14 +684,27 @@ struct InspectorPanel: View {
         default: EmptyView()
         }
     }
-    /// The pattern a motif run or motif fill repeats.
+    /// The pattern a motif run or motif fill repeats: a built-in one, or one of My motifs (Edit › Create Motif…),
+    /// which is copied into the object's settings so the design keeps it even if it's later deleted from My motifs.
     func motifPicker(_ object: RunObject, kind: StitchKind) -> some View {
-        HStack {
+        let s = object.settings
+        return HStack {
             Text("Motif").font(Theme.body(11, weight: .regular)); Spacer()
-            Picker("Motif", selection: Binding(get: { object.settings.motif ?? .heart }, set: { value in settings(kind, "Motif") { $0.motif = value == .heart ? nil : value } })) {
-                ForEach(Motif.allCases, id: \.self) { Text($0.title).tag($0) }
-            }.labelsHidden().frame(width: 120)
+            Menu {
+                ForEach(Motif.allCases, id: \.self) { motif in
+                    Button(motif.title) { settings(kind, "Motif") { $0.motif = motif == .heart ? nil : motif; $0.customMotif = nil } }
+                }
+                if !preferences.myMotifs.isEmpty {
+                    Section("My motifs") {
+                        ForEach(preferences.myMotifs) { motif in Button(motif.name) { settings(kind, "Motif") { $0.customMotif = motif; $0.motif = nil } } }
+                    }
+                }
+                Divider()
+                Button("Edit My Motifs…") { SettingsNavigation.shared.page = .newDesigns; AppDelegate.shared.showSettings() }
+            } label: { Text(s.customMotif?.name ?? (s.motif ?? .heart).title) }
+            .frame(width: 120)
         }
+        .help("The pattern that's repeated. Make your own from running lines with \(CommandID.createMotif.title) in the Edit menu.")
     }
     /// A line's stitch style (running, zigzag, blanket, back or stem stitch, motif), with the width and spacing the style
     /// uses. The style's explanation shows as a tooltip.
@@ -793,7 +806,7 @@ struct StitchPreview: View {
                 // the bottom, so they fit).
                 let length = (size.width - 2 * inset) / scale, baseline = runStyle == .blanket ? size.height - inset : size.height / 2
                 let points = RunningStyles.stitches(runStyle, along: [Point(0, 0), Point(length, 0)], closed: false, width: settings.runWidth ?? DigitizingSettings.defaultRunWidth(runStyle),
-                                                    spacing: settings.runSpacing ?? DigitizingSettings.defaultRunSpacing(runStyle), length: stitchLength, motif: settings.motif ?? .heart) ?? []
+                                                    spacing: settings.runSpacing ?? DigitizingSettings.defaultRunSpacing(runStyle), length: stitchLength, motif: settings.motifStroke) ?? []
                 var path = Path()
                 for (index, p) in points.enumerated() {
                     let q = CGPoint(x: inset + p.x * scale, y: baseline - p.y * scale)

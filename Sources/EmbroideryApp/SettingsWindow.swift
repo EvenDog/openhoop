@@ -313,6 +313,7 @@ private struct NewDesignSettings: View {
                 SettingsRow(title: "Hoop", hint: "The one you used last, unless you pick one here") { hoopMenu }
             }
             MyHoopsCard()
+            MyMotifsCard()
             SettingsCard(caption: "New objects") {
                 number("Line stitch length", hint: "Running stitches and outlines", unit: "mm", value: preferences.data.lineStitchLength ?? Preferences.builtInLineStitchLength, range: 0.3...10) { preferences.data.lineStitchLength = $0 }
                 RowDivider()
