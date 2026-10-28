@@ -6,9 +6,9 @@ import Foundation
 public enum RunningStyles {
     /// The needle points for `style` along the line `path` (its points in sewing order; a closed line's last point is
     /// its first again). `width` is across the line and `spacing` along it (mm), for a motif its size and the gap
-    /// between motifs; `length` is the stitch length. A ripple shrinks `lines` copies toward `target` (nil is the
+    /// between motifs (`motif` is its stroke, nil for hearts); `length` is the stitch length. A ripple shrinks `lines` copies toward `target` (nil is the
     /// default, `rippleTarget`). Returns nil for plain running stitch, which RunningEngine sews.
-    public static func stitches(_ style: RunStyle, along path: [Point], closed: Bool, width: Double, spacing: Double, length: Double, motif: Motif = .heart,
+    public static func stitches(_ style: RunStyle, along path: [Point], closed: Bool, width: Double, spacing: Double, length: Double, motif: [Point]? = nil,
                                 target: Point? = nil, lines: Int = DigitizingSettings.defaultRippleLines) -> [Point]? {
         let line = Measured(path)
         guard line.total > 0.01, style != .running else { return nil }
@@ -20,7 +20,7 @@ public enum RunningStyles {
         case .blanket: points = blanket(line, closed: closed, prong: width, spacing: spacing, length: length, inward: closed && AreaGeometry.area(path) > 0)
         case .backStitch: points = backStitch(line, length: min(length, 4), offset: 0)
         case .stemStitch: points = backStitch(line, length: min(length, 4), offset: width / 2)
-        case .motif: points = Motifs.run(along: path, motif: motif, size: width, gap: spacing, length: length)
+        case .motif: points = Motifs.run(along: path, motif: motif ?? Motifs.stroke(.heart), size: width, gap: spacing, length: length)
         case .ripple: points = ripple(line, closed: closed, target: target ?? rippleTarget(path, closed: closed), lines: lines, length: length)
         }
         return split(points, longest: longestStitch)

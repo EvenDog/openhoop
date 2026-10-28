@@ -354,6 +354,21 @@ public enum Motif: String, Codable, CaseIterable, Sendable {
     case heart, leaf, diamond, star, scallop, circle
     public var title: String { rawValue.prefix(1).uppercased() + rawValue.dropFirst() }
 }
+/// A motif of the user's own, made from running lines with Create Motif (`Motifs.make`): its name and its stroke, in
+/// the same unit box as the built-in motifs (from (0, 0) to (1, 0) along the baseline). Each object that uses it
+/// keeps its own copy in its settings, so the design sews the same wherever it's opened.
+public struct CustomMotif: Codable, Hashable, Identifiable, Sendable {
+    public var id = UUID()
+    public var name: String
+    public var stroke: [Point]
+    public init(name: String, stroke: [Point]) { self.name = name; self.stroke = stroke }
+    public static let pointLimit = 2000
+    /// False for a motif from a damaged or hand-edited file: too many points, or points so far out that motif sizes
+    /// would blow up.
+    public var isValid: Bool {
+        !name.isEmpty && name.count <= 100 && (2...Self.pointLimit).contains(stroke.count) && stroke.allSatisfy { $0.finite && abs($0.x) <= 100 && abs($0.y) <= 100 }
+    }
+}
 public struct DigitizingSettings: Codable, Hashable, Sendable {
     public var kind:StitchKind
     public var spacing=0.4
@@ -500,6 +515,10 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     public static func defaultRunSpacing(_ style:RunStyle)->Double {style == .blanket ? 3 : style == .motif ? 1 : 1.5}
     /// Motif runs and motif fills: which pattern (nil means hearts).
     public var motif:Motif?
+    /// Motif runs and motif fills: a motif of the user's own, used instead of `motif`. nil means a built-in one.
+    public var customMotif:CustomMotif?
+    /// The stroke motif runs and motif fills repeat: the user's own motif, or the built-in one.
+    public var motifStroke:[Point] {customMotif?.stroke ?? Motifs.stroke(motif ?? .heart)}
     /// Motif and cross stitch fills: the size of each motif or cross-stitch square, and (motif fills) the gap
     /// between motifs, in mm. nil uses the defaults below.
     public var patternSize:Double?
@@ -707,6 +726,9 @@ public struct Design: Codable, Equatable, Sendable {
     /// True when a design has satins or running lines with hand stitch (added in file version 13), so it's saved as
     /// version 13 and older versions of the app, which would sew them plain, refuse it instead.
     public var needsSchemaThirteen: Bool { objects.contains { $0.digitizing?.handStitch != nil } }
+    /// True when a design has motif runs or fills with a motif of the user's own (added in file version 14), so it's
+    /// saved as version 14 and older versions of the app, which would sew hearts instead, refuse it instead.
+    public var needsSchemaFourteen: Bool { objects.contains { $0.digitizing?.customMotif != nil } }
     /// True when a design has satins with smart corners (added in file version 10) that actually have a sharp corner,
     /// so it's saved as version 10 and older versions of the app, which would sew those corners fanned round the seam,
     /// refuse it instead. A satin with the setting but no sharp corner sews the same in older versions.
@@ -739,7 +761,7 @@ public struct Design: Codable, Equatable, Sendable {
 
     /// Reject corrupt or unreasonable input before it reaches the renderer or generator.
     public func validate() throws {
-        guard (1...13).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
+        guard (1...14).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }
@@ -791,6 +813,9 @@ public struct Design: Codable, Equatable, Sendable {
             } else if object.kind == .raw {throw DesignError.invalid("Imported stitch data is missing.")}
             if object.kind == .vector {
                 guard object.allNodes.count<=2000,(object.holes?.count ?? 0)<=100 else{throw DesignError.invalid("Vector outline is too complex.")}
+            }
+            if let motif=object.digitizing?.customMotif {
+                guard object.kind == .run || object.kind == .fill,motif.isValid else{throw DesignError.invalid("Invalid motif in \(object.name).")}
             }
             if let hand=object.digitizing?.handStitch {
                 guard object.kind == .run || object.kind == .satin,hand.isValid else{throw DesignError.invalid("Invalid hand stitch settings in \(object.name).")}

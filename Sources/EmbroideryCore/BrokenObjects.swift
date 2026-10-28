@@ -47,7 +47,7 @@ extension StitchEngine {
                 // cross itself.
                 let fits: Bool
                 switch style {
-                case .motif: fits = try !Motifs.fill(in: expanded, motif: s.motif ?? .heart, size: s.patternSize ?? DigitizingSettings.defaultPatternSize(.motif), gap: s.patternGap ?? DigitizingSettings.defaultPatternGap, angle: s.angle, length: object.stitchLength).isEmpty
+                case .motif: fits = try !Motifs.fill(in: expanded, motif: s.motifStroke, size: s.patternSize ?? DigitizingSettings.defaultPatternSize(.motif), gap: s.patternGap ?? DigitizingSettings.defaultPatternGap, angle: s.angle, length: object.stitchLength).isEmpty
                 case .crossStitch: fits = try !Motifs.crossStitch(in: expanded, size: s.patternSize ?? DigitizingSettings.defaultPatternSize(.crossStitch)).isEmpty
                 case .guided:
                     guard let guide = s.guideLine else { throw DesignError.invalid("This guided fill has no guide line. Draw a line over it, select both and choose Use Line as Fill Guide.") }

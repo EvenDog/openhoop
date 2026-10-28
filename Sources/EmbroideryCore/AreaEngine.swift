@@ -83,7 +83,7 @@ public enum AreaEngine {
             let swept=try topRows(in:expanded,object,entry:entry,exit:exit).filter{!$0.rows.isEmpty}
             parts=swept.map(\.rows);sweptCovered=swept.map(\.covered)
         case .contour:parts=[try FillStyles.contour(in:expanded,spacing:s.spacing,length:object.stitchLength,start:start)]
-        case .motif:parts=[try Motifs.fill(in:expanded,motif:s.motif ?? .heart,size:s.patternSize ?? DigitizingSettings.defaultPatternSize(.motif),gap:s.patternGap ?? DigitizingSettings.defaultPatternGap,angle:s.angle,length:object.stitchLength)]
+        case .motif:parts=[try Motifs.fill(in:expanded,motif:s.motifStroke,size:s.patternSize ?? DigitizingSettings.defaultPatternSize(.motif),gap:s.patternGap ?? DigitizingSettings.defaultPatternGap,angle:s.angle,length:object.stitchLength)]
         case .crossStitch:parts=[try Motifs.crossStitch(in:expanded,size:s.patternSize ?? DigitizingSettings.defaultPatternSize(.crossStitch))]
         case .stipple:parts=[try FillStyles.stipple(in:expanded,spacing:s.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing,length:object.stitchLength,start:start)]
         case .guided:
@@ -859,7 +859,7 @@ public enum StitchEngine {
             // stitch, its repeated form) along the line's stitches.
             let path=RunningEngine.flatten(ordered.nodes,closed:ordered.closed).flatMap{$0}
             let styled=RunningStyles.stitches(style,along:path,closed:ordered.closed,width:s.runWidth ?? DigitizingSettings.defaultRunWidth(style),
-                                              spacing:s.runSpacing ?? DigitizingSettings.defaultRunSpacing(style),length:object.stitchLength,motif:s.motif ?? .heart,
+                                              spacing:s.runSpacing ?? DigitizingSettings.defaultRunSpacing(style),length:object.stitchLength,motif:s.motifStroke,
                                               target:s.radialCenter,lines:s.rippleLines ?? DigitizingSettings.defaultRippleLines)
             let line=try styled ?? RunningEngine.stitches(for:ordered)
             let sewn=styled != nil ? line : try RunningEngine.repeated(line,passes:s.runPasses ?? 1)

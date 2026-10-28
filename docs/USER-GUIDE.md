@@ -79,6 +79,8 @@ A line of stitches along your path. Set **Stitch length** in Properties.
 
 Projects using line styles, the stipple, motif, cross stitch, gradient or guided fills, lettering on a line, or raised satin are saved as file version 6, which versions of OpenHoop before these stitches refuse to open rather than sewing them as plain stitches.
 
+**Motifs of your own.** Draw a motif with one or more running lines, select them and choose **Edit › Create Motif…**. Name it and check the two previews, then **Save Motif**: it appears under **My motifs** in every **Motif** menu, for motif lines and motif fills. Several lines are joined into one stroke, in sewing order, by straight runs. Copies join from the drawing's left end to its right end, so draw it the way it should stand on the line. A closed shape, whose ends meet, starts and finishes at its lowest point, with runs in and out along its bottom (like the built-in circle). Each object that uses a motif keeps its own copy, so renaming or deleting one in **Settings › New designs › My motifs** never changes a design, and the design opens the same on another Mac. Designs with a motif of your own are saved as file version 14.
+
 ### Satin columns (⇧A)
 
 Smooth, shiny columns for borders, outlines and lettering. Two ways to make one:

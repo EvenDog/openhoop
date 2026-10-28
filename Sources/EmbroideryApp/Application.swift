@@ -386,7 +386,7 @@ import EmbroideryCore
     private static let reviewSteps: [CommandID: Int] = [.nudgeRight: 1, .nudgeDown: 1, .stepForward: 1, .nextObject: 1,
                                                         .nudgeLeft: -1, .nudgeUp: -1, .stepBackward: -1, .previousObject: -1]
     /// Commands that open a dialog and wait for it to close.
-    private static let opensDialog: Set<CommandID> = [.laydown, .testSwatches, .addMonogram, .editMonogram, .autoDigitize, .satinBorder, .outlinesOffsets, .applique, .threadChart, .renameObject, .importImage]
+    private static let opensDialog: Set<CommandID> = [.laydown, .testSwatches, .addMonogram, .editMonogram, .autoDigitize, .satinBorder, .outlinesOffsets, .applique, .threadChart, .renameObject, .importImage, .createMotif]
     /// `now` is false unless the command was already put off by one beat (see below).
     func perform(_ command: CommandID, now: Bool = false) {
         // A dialog opened inside a SwiftUI button's action never updates (no typing, no setup), because SwiftUI
@@ -555,6 +555,7 @@ import EmbroideryCore
         case .editMonogram: editMonogram(state)
         case .convertSatin: makeSatinColumn(state)
         case .threadChart: chooseThreadFromChart(state)
+        case .createMotif: createMotif(state)
         case .cutObjects, .copyObjects: copyObjects(state, cut: command == .cutObjects)
         case .pasteObjects: pasteObjects(state)
         case .clearStartEnd: state.clearStartEnd()
@@ -914,6 +915,20 @@ import EmbroideryCore
             state.status = "Added a laydown in \(laydown.count) part\(laydown.count == 1 ? "" : "s"), grouped, sewn before what it lies under. Change its spacing or angle in Properties."
         } catch { showError(error) }
     }
+    /// Create Motif…: the selected running lines become a motif of your own (Motifs.make), named in the dialog and
+    /// kept in My motifs, ready to choose for any motif line or motif fill. The design itself doesn't change.
+    private func createMotif(_ state: EditorState) {
+        let lines = state.design.objects.filter { state.selection.contains($0.id) && $0.kind == .run }
+        guard !lines.isEmpty else { state.status = "Select one or more running lines to make a motif from."; return }
+        do {
+            let motif = try Motifs.make(from: lines.map { RunningEngine.flatten($0.nodes, closed: $0.closed).flatMap { $0 } }, name: "My motif")
+            guard let name = GuidedDialog.createMotif(motif, color: lines[0].color) else { state.status = "Create Motif cancelled."; return }
+            let preferences = Preferences.shared
+            var named = motif; named.name = Preferences.uniqueMotifName(name, among: preferences.myMotifs.map(\.name)) ?? motif.name
+            preferences.setMyMotifs(preferences.myMotifs + [named])
+            state.status = "Saved “\(named.name)” in My motifs. Choose it in Properties › Motif for a motif line or motif fill."
+        } catch { state.status = error.localizedDescription }
+    }
     /// How many times the current pasteboard contents have been pasted into the design they came from, so each
     /// paste there lands 3 mm further along instead of exactly on the last one.
     private var pasteRepeat = (changeCount: -1, count: 0)
@@ -1243,7 +1258,7 @@ import EmbroideryCore
                   [.submenu("Flip & Rotate", [[.mirrorH, .mirrorV], [.rotateLeft, .rotateRight]]),
                    .submenu("Align & Space", [[.alignLeft, .alignCentersVertically, .alignRight], [.alignTop, .alignCentersHorizontally, .alignBottom], [.alignCenters], [.spaceAcross, .spaceDown]]),
                    .submenu("Sewing Order", [[.earlier, .later], [.sequenceBySelection, .sequenceByColor]])],
-                  items(.closePath, .lockObject, .hideObject, .renameObject, .threadChart)]),
+                  items(.closePath, .lockObject, .hideObject, .renameObject, .threadChart, .createMotif)]),
         // One submenu per toolbar group, then a divider before Done.
         ("Digitize", [digitizeSections.map { .submenu($0.title, [$0.commands]) }, items(.done)]),
         ("View", [items(.threadView, .reviewSewingOrder),
