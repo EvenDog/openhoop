@@ -839,6 +839,11 @@ public enum StitchEngine {
         }
         return result
     }
+    /// `stitches` with the object's hand stitch effect, when it has one (HandStitch.swift).
+    static func handStitched(_ stitches:ObjectStitches,_ object:RunObject)->ObjectStitches {
+        guard let hand=object.settings.handStitch else{return stitches}
+        return hand.applied(to:stitches,seed:HandStitch.seed(object.id))
+    }
     /// An object's stitches worked out from its shape and settings, ignoring any edited by hand. `later` are the
     /// objects sewn after it (a fill set to cut out overlaps leaves out what they cover).
     public static func fresh(_ object:RunObject,under later:[RunObject]) throws -> ObjectStitches {
@@ -862,8 +867,8 @@ public enum StitchEngine {
             // An end point part way along: after the line, come back along it through its own needle holes to the end
             // point (round a closed outline, whichever way is shorter).
             if let exit=object.exit,object.closed ? object.entry != nil : true,let tail=RunningEngine.tail(along:line,to:exit,closed:object.closed) {points+=tail}
-            return ObjectStitches(sections:[StitchSection(points)])
-        case .satin:return try AreaEngine.satin(object.sewingOrder())
+            return handStitched(ObjectStitches(sections:[StitchSection(points)]),object)
+        case .satin:return handStitched(try AreaEngine.satin(object.sewingOrder()),object)
         case .fill:
             guard object.settings.cutOutOverlaps == true else{return try AreaEngine.fill(object)}
             // Leave out what's sewn on top. If the cut can't be worked out, sew the whole fill and say so.

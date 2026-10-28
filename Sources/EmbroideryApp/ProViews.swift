@@ -421,6 +421,7 @@ extension InspectorPanel {
         case .raw: EmptyView()
         }
         // Stipple, motif and cross stitch fills sew without underlay, so they have no Underlay section.
+        if object.kind == .satin || object.kind == .run { proHandStitch(object) }
         if object.kind == .satin || (object.kind == .fill && ![.stipple, .motif, .crossStitch].contains(object.settings.fillStyle ?? .tatami)) { proUnderlay(object) }
         if object.kind != .vector { proFinish(object) }
         if object.kind == .run || object.kind == .satin || object.kind == .fill { proStartEnd(object) }
@@ -540,6 +541,38 @@ extension InspectorPanel {
             toggle("Closed path", value: object.closed) { _ in AppDelegate.shared.perform(.closePath) }.help(preferences.hint(.closePath))
             satinLine(object)
             border(object)
+        }
+    }
+
+    /// Hand stitch (HandStitch.swift): a checkbox, then once it's on, its roughness, mass and variant.
+    private func proHandStitch(_ object: RunObject) -> some View {
+        let kind = object.kind, hand = object.settings.handStitch
+        /// Changes one hand stitch setting of the selection, as one undoable step called `title`.
+        func change(_ title: String, _ body: @escaping (inout HandStitch) -> Void) {
+            settings(kind, title) { s in var h = s.handStitch ?? HandStitch(); body(&h); s.handStitch = h }
+        }
+        /// A whole-number setting from `range`, typed in a number field.
+        func level(_ title: String, _ value: Int, _ range: ClosedRange<Int>, help: String, set: @escaping (inout HandStitch, Int) -> Void) -> some View {
+            number(title, value: Double(value), range: Double(range.lowerBound)...Double(range.upperBound), help: help) { typed in
+                change("Hand Stitch \(title)") { set(&$0, min(range.upperBound, max(range.lowerBound, Int(typed.rounded())))) }
+            }
+        }
+        return proSection("Hand stitch") {
+            toggle("Hand stitch", value: hand != nil) { on in settings(kind, on ? "Hand Stitch" : "No Hand Stitch") { $0.handStitch = on ? HandStitch() : nil } }
+                .help("Makes the stitches look sewn by hand: uneven lengths, slightly tilted stitches and, with Count, stitches sewn over more than once. Works best without underlay on small shapes.")
+            if let hand {
+                level("Length", hand.length, HandStitch.levels, help: "Roughness: how much stitch lengths vary, from 0 (not at all) to 5 (up to a fifth of each stitch, either way).") { $0.length = $1 }
+                level("Angle", hand.angle, HandStitch.levels, help: "Roughness: how much stitches tilt, from 0 (not at all) to 5 (up to 10°, either way).") { $0.angle = $1 }
+                HStack {
+                    Text("Count").font(Theme.body(11, weight: .regular)); Spacer()
+                    Picker("Count", selection: Binding(get: { hand.count }, set: { value in change("Hand Stitch Count") { $0.count = value } })) {
+                        ForEach(HandStitch.counts, id: \.self) { Text("\($0)×").tag($0) }
+                    }.pickerStyle(.segmented).labelsHidden().frame(width: 170)
+                }
+                .help("Mass: how many times each stitch is sewn, back and forth in new holes each time, for a fuller, thread-heavy look. Higher counts suit satins with wider row spacing.")
+                level("Random", hand.random, HandStitch.randomLevels, help: "Mass: how often a stitch randomly gets one pass more (or now and then one fewer), from 1 (never) to 5 (often).") { $0.random = $1 }
+                level("Variant", hand.variant, HandStitch.variants, help: "Another random version of the same settings, if you don't like how this one came out.") { $0.variant = $1 }
+            }
         }
     }
 
