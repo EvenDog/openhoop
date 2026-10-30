@@ -6,6 +6,26 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.8.9</title>
+            <pubDate>Fri, 30 Oct 2026 02:38:46 GMT</pubDate>
+            <sparkle:version>36</sparkle:version>
+            <sparkle:shortVersionString>0.8.9</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.8.9</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.8.9</h3>
+<ul>
+<li><b>DST, EXP, JEF, VP3 and XXX files hold the design centered,</b> the way other embroidery software writes them. Before, a design that wasn't in the middle of the hoop kept its offset in these files. Brother files (PES and PEC) are unchanged.</li>
+<li><b>JEF export works for designs that aren't in the middle of the hoop.</b> It used to refuse most of them. Now it only refuses designs too large for any Janome hoop.</li>
+<li>If a design isn't in the middle of the hoop, the export tells you the file won't keep its place, so you can position it on the machine.</li>
+<li>Designs that were already centered export the same as before.</li>
+</ul>
+<p>Only Brother files have been sewn on a machine so far. If you sew OpenHoop designs on a Janome, Husqvarna Viking, Pfaff, Singer, Bernina or Tajima machine, please share how it went with <b>Help › Report a Problem</b>, good or bad.</p>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.8.9/OpenHoop-0.8.9.dmg" sparkle:edSignature="nPSR8KWBxo3Alv80nd8ayYiovy5C262JqLDCAZXCKKc218FqKG9ppHWtOlt5FKRdA5GChv9Nc5mHGGE5tNIKAQ==" length="37894266" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.8.8</title>
             <pubDate>Fri, 30 Oct 2026 02:09:42 GMT</pubDate>
             <sparkle:version>35</sparkle:version>
