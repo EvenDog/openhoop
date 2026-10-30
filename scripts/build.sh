@@ -5,24 +5,36 @@ cd "$(dirname "$0")/.."
 mkdir -p .build dist
 export CLANG_MODULE_CACHE_PATH="$PWD/.build/clang-cache"
 export SWIFTPM_MODULECACHE_OVERRIDE="$PWD/.build/swift-cache"
-swift build --disable-sandbox --cache-path .build/package-cache -c release   # optimized: large fills generate ~40x faster than debug
+# The app is "universal": one copy for Apple Silicon (arm64) and one for Intel (x86_64) in the same file, and each Mac
+# runs its own. Built for two chips, SwiftPM puts its output in another folder, so it's asked where (--show-bin-path).
+SWIFT_BUILD=(swift build --disable-sandbox --cache-path .build/package-cache -c release --arch arm64 --arch x86_64)
+"${SWIFT_BUILD[@]}"   # release (optimized): large fills generate ~40x faster than debug
+BIN=$("${SWIFT_BUILD[@]}" --show-bin-path)
+# The format helper is packed from .venv's Python, so that Python must be universal too. Homebrew's is Apple Silicon
+# only; the one from python.org's installer has both chips (see docs/DEVELOPMENT.md).
+PYTHON_ORG=/Library/Frameworks/Python.framework/Versions/Current/bin/python3
 if [ ! -x .venv/bin/python ]; then
-  python3 -m venv .venv
+  [ -x "$PYTHON_ORG" ] || { echo "Install Python 3 from python.org first (see docs/DEVELOPMENT.md)." >&2; exit 1; }
+  "$PYTHON_ORG" -m venv .venv
   .venv/bin/python -m pip install -r requirements-build.txt
+fi
+if ! lipo -archs .venv/bin/python | grep -q x86_64; then
+  echo ".venv's Python runs on Apple Silicon only. Install Python 3 from python.org, delete .venv, and build again." >&2
+  exit 1
 fi
 export PYINSTALLER_CONFIG_DIR="$PWD/.build/pyinstaller-cache"
 .venv/bin/python -m PyInstaller --noconfirm --clean --onedir --name format-helper \
   --distpath .build/helper-dist --workpath .build/helper-work --specpath .build \
-  --target-architecture arm64 Helper/format_helper.py
+  --target-architecture universal2 Helper/format_helper.py
 APP="$PWD/dist/OpenHoop.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp .build/release/EmbroideryApp "$APP/Contents/MacOS/EmbroideryApp"
+cp "$BIN/EmbroideryApp" "$APP/Contents/MacOS/EmbroideryApp"
 # Sparkle, the updater (Updates.swift), goes in Contents/Frameworks, where the app is told to look for it (an
 # "rpath"). SwiftPM's own rpath points into this Mac's build folder, so it comes out: it would show the folder's path
 # to anyone who looked, and it's no use on another Mac. Sparkle's XPC services are only for sandboxed apps, which
 # OpenHoop isn't, so they're left out (Sparkle's guide says they may be removed).
 rm -rf "$APP/Contents/Frameworks"; mkdir -p "$APP/Contents/Frameworks"
-ditto .build/release/Sparkle.framework "$APP/Contents/Frameworks/Sparkle.framework"
+ditto "$BIN/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
 rm -rf "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices" "$APP/Contents/Frameworks/Sparkle.framework/XPCServices"
 otool -l "$APP/Contents/MacOS/EmbroideryApp" | awk '/LC_RPATH/ { getline; getline; if ($2 ~ /PackageFrameworks/) print $2 }' | while read -r path; do
   install_name_tool -delete_rpath "$path" "$APP/Contents/MacOS/EmbroideryApp"

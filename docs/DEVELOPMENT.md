@@ -4,12 +4,24 @@ How the code is laid out, how to build and test it, and what the tests cover. Fo
 
 ## Build and test
 
-Requires Xcode's Swift toolchain, Python 3, and an Apple Silicon Mac. Dependencies are pinned in `requirements-build.txt` and installed into the project-local `.venv`.
+Requires Xcode's Swift toolchain and Python 3 from the [python.org](https://www.python.org/downloads/macos/) installer. Dependencies are pinned in `requirements-build.txt` and installed into the project-local `.venv`.
 
 ```sh
 ./scripts/build.sh
 ./scripts/test.sh
 ```
+
+The app is universal: it runs on Apple Silicon and Intel Macs. `build.sh` builds the Swift code for both chips and packs the format helper as `universal2`, which needs a Python that has both chips too. python.org's has; Homebrew's is Apple Silicon only, and the build stops if `.venv` was made from it (delete `.venv` and build again). Of the installer's parts, only the Python framework is needed, not IDLE, the shell profile changes or the `/usr/local/bin` links.
+
+To run the tests as Intel code on an Apple Silicon Mac (through Rosetta), build them for Intel, then start Apple's test runner as Intel, since SwiftPM's own runner can't load them:
+
+```sh
+swift test --arch x86_64          # builds, then fails to load the tests: expected
+arch -x86_64 "$(xcrun --find xctest)" .build/out/Products/Debug/EmbroideryCoreTests.xctest
+arch -x86_64 "$(xcrun --find xctest)" .build/out/Products/Debug/EmbroideryAppTests.xctest
+```
+
+The two chips round some arithmetic differently in the last place, so a few stitch plans can differ between them. One known case: in `TurningFillStressTests`, the rectangle with a hole in the corner-lines layout gets 3 long jumps on Intel instead of 1, so that test fails there.
 
 To pack the built app into a DMG for downloading, run `./scripts/make-dmg.sh`. It works on a copy, so an open copy of the app is left alone. Set `SIGN_IDENTITY` to a Developer ID Application certificate to sign it with the hardened runtime, and `NOTARY_PROFILE` to credentials saved with `xcrun notarytool store-credentials` to have Apple notarize it and staple the result, so it opens on other Macs without a warning:
 
