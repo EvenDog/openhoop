@@ -14,15 +14,16 @@ class MachineImportTests(unittest.TestCase):
     def test_all_seven_formats_preserve_needle_positions_and_orientation(self):
         source=fixture()
         expected=[(round(c['point']['x'],1),round(c['point']['y'],1)) for c in source['plan']['commands'] if c['op']=='stitch']
-        # Brother files carry no place in the hoop, so they come back centered: the fixture spans x -20…12 and
-        # y -10…15, so its middle (-4, 2.5) moves to the hoop center.
+        # Machine files carry no place in the hoop (exports center the design or, for Brother, start at its corner),
+        # so designs come back centered: the fixture spans x -20…12 and y -10…15, so its middle (-4, 2.5) moves to
+        # the hoop center.
         centered=[(x+4,y-2.5) for x,y in expected]
         for fmt in FORMATS:
             with self.subTest(format=fmt):
                 encoded=export(dict(source,format=fmt))
                 result=import_machine(request(base64.b64decode(encoded['bytes']),fmt))
                 actual=[(c['point']['x'],c['point']['y']) for c in result['plan']['commands'] if c['op']=='stitch']
-                self.assertEqual(actual,centered if fmt in ('pes','pec') else expected)
+                self.assertEqual(actual,centered)
                 self.assertEqual((result['width'],result['height']),(32,25))
                 self.assertEqual(result['stitchCount'],31)
 

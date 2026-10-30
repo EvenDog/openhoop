@@ -487,4 +487,4 @@ These are the starting keys; every one can be changed. Tools on a function key a
 | VP3 | exact colors | Travel is trimmed; check the first move at the sew-out |
 | XXX | exact colors | At most 21 thread blocks |
 
-Stops are saved as a repeated color, with a reminder to keep the same thread. Except XXX, files hold at most 255 thread blocks including stops. Leave a little room at the hoop's edges: trim moves outside the hoop are refused.
+Machine files don't keep the design's place in the hoop. PES and PEC files start at the design's top-left corner and the other formats at its center, as other embroidery software writes them, so place the design on the machine. Stops are saved as a repeated color, with a reminder to keep the same thread. Except XXX, files hold at most 255 thread blocks including stops. Leave a little room at the hoop's edges: trim moves outside the hoop are refused.

@@ -38,11 +38,12 @@ class FormatMatrixTests(unittest.TestCase):
     def test_vp3_block_starting_on_an_axis_after_travel_exports(self):
         # An imported block can end with a jump; the next colour change then sits at the jump's
         # destination. VP3 drops jumps and records that point as the next block's start, which
-        # the pinned reader skips when x or y is 0, so valid files used to fail verification.
+        # the pinned reader skips when x or y is 0, so valid files used to fail verification. The first block runs
+        # from (-20, -10) to (20, 10) so the design is centered already and the block start stays on the axis.
         for x,y in [(0,5),(5,0),(0,0)]:
             with self.subTest(start=(x,y)):
                 commands=[{'op':'jump','point':{'x':-20,'y':-10},'thread':0}]
-                commands+=[{'op':'stitch','point':{'x':-20+i,'y':-10+i},'thread':0} for i in range(8)]
+                commands+=[{'op':'stitch','point':{'x':-20+i,'y':-10+i/2},'thread':0} for i in range(41)]
                 commands+=[{'op':'jump','point':{'x':x,'y':y},'thread':0},{'op':'colorChange','point':{'x':x,'y':y},'thread':1}]
                 commands+=[{'op':'stitch','point':{'x':x+i,'y':y+i},'thread':1} for i in range(6)]
                 commands.append({'op':'end','point':{'x':x+5,'y':y+5},'thread':1})
@@ -84,10 +85,42 @@ class FormatMatrixTests(unittest.TestCase):
         commands.append({'op':'end','point':{'x':12,'y':15},'thread':0})
         with self.assertRaisesRegex(ValueError,'21 thread blocks'):export(request)
 
-    def test_jef_header_contains_offset_placement(self):
-        request=fixture();request['format']='jef';request['hoop']['width']=200
-        for c in request['plan']['commands']:c['point']['x']+=60
-        with self.assertRaisesRegex(ValueError,'encoded JEF hoop'):export(request)
+    def test_off_center_designs_are_centered_in_the_file(self):
+        # Other embroidery software writes these formats with the design's center at 0 wherever it sits in the hoop,
+        # and JEF's header assumes it. The fixture runs from (-20, -10) to (12, 15) mm; moved 30 right and 20 up.
+        for fmt in ('dst','exp','jef','vp3','xxx'):
+            with self.subTest(format=fmt):
+                request=fixture();request['format']=fmt
+                for c in request['plan']['commands']:c['point']['x']+=30;c['point']['y']+=20
+                result=export(request)
+                decoded=getattr(e,'read_'+fmt)(io.BytesIO(base64.b64decode(result['bytes'])))
+                needles=[(x,y) for x,y,op in decoded.stitches if op&e.COMMAND_MASK==e.STITCH]
+                xs,ys=[x for x,_ in needles],[y for _,y in needles]
+                self.assertEqual(((min(xs)+max(xs))/2,(min(ys)+max(ys))/2),(0,0))
+                self.assertEqual(needles[0],(-160,125))   # (-20, -10) is 16 mm left of the center and 12.5 mm below it
+                self.assertTrue(any("doesn't keep the design's place" in w for w in result['warnings']))
+
+    def test_brother_files_still_start_at_the_corner(self):
+        for fmt in ('pes','pec'):
+            with self.subTest(format=fmt):
+                request=fixture();request['format']=fmt
+                for c in request['plan']['commands']:c['point']['x']+=30;c['point']['y']+=20
+                decoded=getattr(e,'read_'+fmt)(io.BytesIO(base64.b64decode(export(request)['bytes'])))
+                needles=[(x,y) for x,y,op in decoded.stitches if op&e.COMMAND_MASK==e.STITCH]
+                self.assertEqual((min(x for x,_ in needles),min(y for _,y in needles)),(0,0))
+
+    def test_centered_designs_get_no_placement_warning(self):
+        request=fixture();request['format']='dst'
+        for c in request['plan']['commands']:c['point']['x']+=4;c['point']['y']-=2.5   # now centered in the hoop
+        self.assertFalse(any("place in the hoop" in w for w in export(request)['warnings']))
+
+    def test_jef_refuses_a_design_too_large_for_its_hoops(self):
+        commands=[{'op':'jump','point':{'x':-105,'y':0},'thread':0},{'op':'stitch','point':{'x':-105,'y':0},'thread':0},
+                  {'op':'stitch','point':{'x':105,'y':0},'thread':0},{'op':'stitch','point':{'x':105,'y':5},'thread':0},
+                  {'op':'end','point':{'x':105,'y':5},'thread':0}]
+        request={'version':1,'format':'jef','hoop':{'width':300,'height':300,'oval':False},
+                 'plan':{'commands':commands,'threads':[{'hex':0x167c80,'name':'Ocean'}]}}
+        with self.assertRaisesRegex(ValueError,'too large for a JEF file'):export(request)
 
     def test_rounded_encoded_moves_respect_hoop(self):
         for fmt in FORMATS:
