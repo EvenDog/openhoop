@@ -6,6 +6,25 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.8.8</title>
+            <pubDate>Fri, 30 Oct 2026 02:09:42 GMT</pubDate>
+            <sparkle:version>35</sparkle:version>
+            <sparkle:shortVersionString>0.8.8</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.8.8</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.8.8</h3>
+<ul>
+<li><b>OpenHoop runs on Intel Macs too.</b> One download works on both kinds of Mac, and each runs its own native version. Intel Macs with macOS 14 Sonoma or later are supported.</li>
+<li>Designs sew the same on either kind of Mac, except that now and then a turning fill can be routed a little differently on an Intel Mac, with an extra jump or two.</li>
+<li>The download is a little bigger (about 36 MB), since it holds both versions.</li>
+<li>Nothing else has changed since 0.8.7.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.8.8/OpenHoop-0.8.8.dmg" sparkle:edSignature="ku1OgVY6c658glbGOMF6vMlbrcuDLvQzpqD+Vea33NsflLBisQRb8cBo6D4M4bEEJlQ15LgRoFL2K7V7FFuUCA==" length="37896444" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.8.7</title>
             <pubDate>Wed, 28 Oct 2026 18:33:57 GMT</pubDate>
             <sparkle:version>34</sparkle:version>
