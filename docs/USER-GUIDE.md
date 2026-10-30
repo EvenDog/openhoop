@@ -33,7 +33,7 @@ The first time it opens, OpenHoop asks **which machine you sew on**: the brand, 
 
 Your machine's manual lists the formats it reads; if in doubt, it's the one its own designs come in.
 
-> OpenHoop runs on Apple Silicon Macs with macOS 14 or later, and its designs have been sewn on a Brother SE600. Every machine, fabric and stabilizer behaves a little differently, so test-sew a new design on scrap fabric first.
+> OpenHoop runs on Apple Silicon and Intel Macs with macOS 14 or later, and its designs have been sewn on a Brother SE600. Every machine, fabric and stabilizer behaves a little differently, so test-sew a new design on scrap fabric first.
 
 **The window:**
 - **Tool strip** (under the toolbar): every tool as its own button on a walnut band, two rows across the top, in groups (*Pick & shape*, *Stitch*, *Shape*, *Add*, *View*, *Show*, *Zoom*). Rest the pointer on one for its name and key. Tools that can't be used yet are dimmed. **Settings › Tools & player › Tools** moves them to a rail down the left side instead. To rearrange the band, choose **View › Customize Tools…** or right-click it: drag tools into a new order or into another group, drag a group by its name to move it, and drag tools you never use into **Hidden** (they stay in the menus and keep their keys). The band changes as you go; **Cancel** puts it back, and **Reset to Default** restores the usual layout.

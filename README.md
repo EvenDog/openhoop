@@ -35,8 +35,8 @@ Get the DMG from the [latest release](https://github.com/EvenDog/openhoop/releas
 
 ## Requirements
 
-- macOS 14 (Sonoma) or later on an Apple Silicon Mac
-- To build: Xcode or the Swift 6 toolchain, and Python 3
+- macOS 14 (Sonoma) or later, on an Apple Silicon or Intel Mac
+- To build: Xcode or the Swift 6 toolchain, and Python 3 from python.org (see [Developing OpenHoop](docs/DEVELOPMENT.md))
 
 ## Build and run
 
