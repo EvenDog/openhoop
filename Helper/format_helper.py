@@ -133,13 +133,14 @@ def export(request):
     # Brother machines read PEC stitches as distances from the design's top-left corner and drop anything at a
     # negative position: a Brother SE600 showed and sewed only the part of a design right of and below the hoop
     # center. So PES and PEC files start from that corner, as other embroidery software writes them; the machine centers
-    # the design in its hoop itself. `shift` is how far everything moved (0.1 mm units, y down as in the file).
-    shift = (0.0, 0.0)
-    if fmt in ("pes", "pec"):
-        left, top, _, _ = pattern.bounds()
-        shift = (-left, -top)
-        pattern.translate(*shift)
-        expected = [(x + shift[0], y + shift[1]) for x, y in expected]
+    # the design in its hoop itself. The other formats put the design's center at 0, as other embroidery software
+    # writes them wherever the design sits in its hoop; JEF's header also assumes it, giving the design's edges as
+    # half its width and height either side of 0. `shift` is how far everything moved (0.1 mm units, y down as in the
+    # file); the center is rounded to whole units so no needle position is rounded differently.
+    left, top, right, bottom = pattern.bounds()
+    shift = (-left, -top) if fmt in ("pes", "pec") else (-round((left + right) / 2), -round((top + bottom) / 2))
+    pattern.translate(*shift)
+    expected = [(x + shift[0], y + shift[1]) for x, y in expected]
     output = io.BytesIO()
     settings = {"version": pes_version, "tie_on": False, "tie_off": False, "round": True,
                 "trims": True, "trim_at": 3,
@@ -236,6 +237,8 @@ def export(request):
         warnings.append("Brother files for hoops larger than 100 × 100 mm haven't been sewn on a machine yet. Check that the machine shows the design in the right hoop before sewing.")
     if fmt == "pes" and pes_version == 6 and pes_hoop(data) != (int(round(width)), int(round(height))):
         raise ValueError("Export wrote the wrong hoop size. No file was saved.")
+    if fmt not in ("pes", "pec") and max(abs(shift[0]), abs(shift[1])) > 10:   # more than 1 mm from the hoop's middle
+        warnings.append("This format doesn't keep the design's place in the hoop: the design is centered in the file, as other embroidery software writes it. Position it on the machine.")
     if any(c["op"] == "stop" for c in commands):
         warnings.append("Stops use repeated thread-color boundaries. Resume with the same thread; controller behavior varies.")
     if fmt == "jef":
@@ -243,7 +246,7 @@ def export(request):
         sizes = {0:(110,110),1:(50,50),2:(140,200),3:(126,110),4:(200,200)}
         hw, hh = sizes[code]
         if any(abs(x)>hw*5 or abs(y)>hh*5 for x,y,op in decoded.stitches if op & embroidery.COMMAND_MASK in (embroidery.STITCH,embroidery.JUMP)):
-            raise ValueError("The encoded JEF hoop cannot contain this placement: JEF files describe Janome hoops up to 200 × 200 mm. Center or reduce the design, or export DST for a larger hoop.")
+            raise ValueError("This design is too large for a JEF file: JEF files describe Janome hoops up to 200 × 200 mm. Reduce the design, or export DST for a larger hoop.")
         warnings.append(f"JEF header selects a {hw} × {hh} mm hoop from design bounds. Confirm that hoop on the target machine.")
     mapped_by_rgb = {}
     if fmt not in ("dst", "exp"):
