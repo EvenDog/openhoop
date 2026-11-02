@@ -6,6 +6,24 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.9.1</title>
+            <pubDate>Mon, 02 Nov 2026 02:32:16 GMT</pubDate>
+            <sparkle:version>38</sparkle:version>
+            <sparkle:shortVersionString>0.9.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.9.1</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.9.1</h3>
+<ul>
+<li><b>Saved projects show their design as their icon in Finder.</b> OpenHoop has saved a picture of the design inside each project since 0.6, but Finder on current macOS doesn't look for it there and showed the plain document icon instead. A small Quick Look extension now gives Finder that picture.</li>
+<li>Projects saved with OpenHoop 0.6 or later show their design straight away. Older ones show it after you open and save them once.</li>
+<li>If an icon still looks plain after updating, give Finder a moment, or open the folder again.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.9.1/OpenHoop-0.9.1.dmg" sparkle:edSignature="RT/EL2hLrxIwUFj8Wtw/ituGXpngZ6b2HpFzlndjTMEt7Q+C5yQXZdyoO3zzYgKDDkcKORByoSO5zrkYnQgIDw==" length="38101021" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.9.0</title>
             <pubDate>Mon, 02 Nov 2026 02:15:15 GMT</pubDate>
             <sparkle:version>37</sparkle:version>
