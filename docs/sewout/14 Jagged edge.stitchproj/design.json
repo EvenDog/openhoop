@@ -1,0 +1,836 @@
+{
+  "engineVersion" : "digitize-3",
+  "hoop" : {
+    "height" : 100,
+    "oval" : false,
+    "width" : 100
+  },
+  "objects" : [
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "04747851-F822-48D7-B845-AFF75903D2B2",
+      "locked" : false,
+      "name" : "Satin 1, plain",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -43,
+            "y" : -15
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37,
+            "y" : -15
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -43,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -43,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -43,
+            "y" : 0
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37,
+            "y" : 0
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -43,
+            "y" : 5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37,
+            "y" : 5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -43,
+            "y" : 10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37,
+            "y" : 10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -43,
+            "y" : 15
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37,
+            "y" : 15
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "jaggedEdge" : {
+          "amount" : 1,
+          "outward" : false,
+          "variant" : 1
+        },
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "6E60AD5D-27F3-4333-9C42-DE8F2FE06C57",
+      "locked" : false,
+      "name" : "Satin 2, in 1 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -30,
+            "y" : -15
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -24,
+            "y" : -15
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -30,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -24,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -30,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -24,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -30,
+            "y" : 0
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -24,
+            "y" : 0
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -30,
+            "y" : 5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -24,
+            "y" : 5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -30,
+            "y" : 10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -24,
+            "y" : 10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -30,
+            "y" : 15
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -24,
+            "y" : 15
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "jaggedEdge" : {
+          "amount" : 1,
+          "outward" : true,
+          "variant" : 1
+        },
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "59AF24C4-8336-4D78-8F7E-217FA8B2BD9A",
+      "locked" : false,
+      "name" : "Satin 3, out 1 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -17,
+            "y" : -15
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11,
+            "y" : -15
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -17,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -17,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -17,
+            "y" : 0
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11,
+            "y" : 0
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -17,
+            "y" : 5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11,
+            "y" : 5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -17,
+            "y" : 10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11,
+            "y" : 10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -17,
+            "y" : 15
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11,
+            "y" : 15
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "jaggedEdge" : {
+          "amount" : 1.5,
+          "outward" : false,
+          "side" : "left",
+          "variant" : 1
+        },
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "DC5379E6-EB08-460B-8559-472855C4F0AE",
+      "locked" : false,
+      "name" : "Satin 4, in 1.5 mm left",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -4,
+            "y" : -15
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 2,
+            "y" : -15
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -4,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 2,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -4,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 2,
+            "y" : -5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -4,
+            "y" : 0
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 2,
+            "y" : 0
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -4,
+            "y" : 5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 2,
+            "y" : 5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -4,
+            "y" : 10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 2,
+            "y" : 10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -4,
+            "y" : 15
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 2,
+            "y" : 15
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "fillStyle" : "satin",
+        "inset" : 0.4,
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "3D1B10CE-2236-4B8F-978E-92AC5A3B6DEC",
+      "locked" : false,
+      "name" : "Circle 1, plain",
+      "nodes" : [
+        {
+          "inHandle" : {
+            "x" : 36,
+            "y" : 17.5817220016
+          },
+          "outHandle" : {
+            "x" : 36,
+            "y" : 26.4182779984
+          },
+          "point" : {
+            "x" : 36,
+            "y" : 22
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : 32.4182779984,
+            "y" : 30
+          },
+          "outHandle" : {
+            "x" : 23.5817220016,
+            "y" : 30
+          },
+          "point" : {
+            "x" : 28,
+            "y" : 30
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : 20,
+            "y" : 26.4182779984
+          },
+          "outHandle" : {
+            "x" : 20,
+            "y" : 17.5817220016
+          },
+          "point" : {
+            "x" : 20,
+            "y" : 22
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : 23.5817220016,
+            "y" : 14
+          },
+          "outHandle" : {
+            "x" : 32.4182779984,
+            "y" : 14
+          },
+          "point" : {
+            "x" : 28,
+            "y" : 14
+          },
+          "smooth" : true
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "fillStyle" : "satin",
+        "inset" : 0.4,
+        "jaggedEdge" : {
+          "amount" : 1,
+          "outward" : false,
+          "variant" : 1
+        },
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "25A00DCE-D6C2-4F2C-9BB2-6347132889F7",
+      "locked" : false,
+      "name" : "Circle 2, in 1 mm",
+      "nodes" : [
+        {
+          "inHandle" : {
+            "x" : 36,
+            "y" : -2.4182779984
+          },
+          "outHandle" : {
+            "x" : 36,
+            "y" : 6.4182779984
+          },
+          "point" : {
+            "x" : 36,
+            "y" : 2
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : 32.4182779984,
+            "y" : 10
+          },
+          "outHandle" : {
+            "x" : 23.5817220016,
+            "y" : 10
+          },
+          "point" : {
+            "x" : 28,
+            "y" : 10
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : 20,
+            "y" : 6.4182779984
+          },
+          "outHandle" : {
+            "x" : 20,
+            "y" : -2.4182779984
+          },
+          "point" : {
+            "x" : 20,
+            "y" : 2
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : 23.5817220016,
+            "y" : -6
+          },
+          "outHandle" : {
+            "x" : 32.4182779984,
+            "y" : -6
+          },
+          "point" : {
+            "x" : 28,
+            "y" : -6
+          },
+          "smooth" : true
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : true,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "expansion" : 0.2,
+        "fillStyle" : "satin",
+        "inset" : 0.4,
+        "jaggedEdge" : {
+          "amount" : 1,
+          "outward" : true,
+          "variant" : 1
+        },
+        "kind" : "fill",
+        "maximumSatin" : 10,
+        "secondInset" : 0.4,
+        "secondSpacing" : 1.2,
+        "secondUnderlay" : "tatami",
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "edge",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "AAF52C02-A7AA-49B7-8E67-90A2D63F5A06",
+      "locked" : false,
+      "name" : "Circle 3, out 1 mm",
+      "nodes" : [
+        {
+          "inHandle" : {
+            "x" : 36,
+            "y" : -22.4182779984
+          },
+          "outHandle" : {
+            "x" : 36,
+            "y" : -13.5817220016
+          },
+          "point" : {
+            "x" : 36,
+            "y" : -18
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : 32.4182779984,
+            "y" : -10
+          },
+          "outHandle" : {
+            "x" : 23.5817220016,
+            "y" : -10
+          },
+          "point" : {
+            "x" : 28,
+            "y" : -10
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : 20,
+            "y" : -13.5817220016
+          },
+          "outHandle" : {
+            "x" : 20,
+            "y" : -22.4182779984
+          },
+          "point" : {
+            "x" : 20,
+            "y" : -18
+          },
+          "smooth" : true
+        },
+        {
+          "inHandle" : {
+            "x" : 23.5817220016,
+            "y" : -26
+          },
+          "outHandle" : {
+            "x" : 32.4182779984,
+            "y" : -26
+          },
+          "point" : {
+            "x" : 28,
+            "y" : -26
+          },
+          "smooth" : true
+        }
+      ],
+      "stitchLength" : 3,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    }
+  ],
+  "schemaVersion" : 15
+}

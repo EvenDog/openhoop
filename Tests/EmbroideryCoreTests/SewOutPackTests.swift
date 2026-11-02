@@ -1,7 +1,7 @@
-// The sew-out test pack: thirteen designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
+// The sew-out test pack: fourteen designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
 // machine side by side (satin widths and compensation, the fill styles, small lettering, a monogram, travel and
 // finishing, the line styles and stipple, and motifs, cross stitch, gradient and raised satin, then wide satin, Remove Overlaps and Outlines & Offsets,
-// then moves and jumps of known lengths for Review Sewing Order's warnings, then smart corners beside rounded ones, then run connectors beside jumps, then push compensation side by side, then hand stitch). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
+// then moves and jumps of known lengths for Review Sewing Order's warnings, then smart corners beside rounded ones, then run connectors beside jumps, then push compensation side by side, then hand stitch, then jagged edges). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
 // designs there as OpenHoop projects:
 //   SEWOUT_DIR="$PWD/docs/sewout" swift test --filter SewOutPackTests
 import XCTest
@@ -347,6 +347,40 @@ final class SewOutPackTests: XCTestCase {
         return design
     }
 
+    /// Sheet 14's jagged edges for the satin columns, left to right: off, in 1 mm, out 1 mm, and in 1.5 mm on the left
+    /// edge only. The satin-fill circles use the first three.
+    static let jaggedSteps: [(amount: Double, outward: Bool, side: HandStitch.Side?)?] = [nil, (1, false, nil), (1, true, nil), (1.5, false, .left)]
+
+    /// 14 · Jagged edge: four 6 mm satins 30 mm tall (left, first thread) and three 16 mm satin-fill circles (right,
+    /// second thread), each plain, then with the settings in `jaggedSteps`.
+    func jaggedEdgeSheet() -> Design {
+        var design = newDesign()
+        func jagged(_ step: (amount: Double, outward: Bool, side: HandStitch.Side?)?) -> JaggedEdge? {
+            step.map { var j = JaggedEdge(); j.amount = $0.amount; j.outward = $0.outward; j.side = $0.side; return j }
+        }
+        func label(_ step: (amount: Double, outward: Bool, side: HandStitch.Side?)?) -> String {
+            step.map { "\($0.outward ? "out" : "in") \(String(format: "%g", $0.amount)) mm\($0.side == .left ? " left" : "")" } ?? "plain"
+        }
+        for (k, step) in Self.jaggedSteps.enumerated() {
+            var satin = column("Satin \(k + 1), \(label(step))", at: Point(-40 + Double(k) * 13, -15), length: 30, width: 6, color: threads[0])
+            satin.digitizing?.jaggedEdge = jagged(step)
+            design.objects.append(satin)
+        }
+        for (k, step) in Self.jaggedSteps.prefix(3).enumerated() {
+            var circle = fill("Circle \(k + 1), \(label(step))", ShapeGeometry.nodes(.ellipse, in: box(Point(28, 22 - Double(k) * 20), 8)), color: threads[1])
+            circle.digitizing?.fillStyle = .satin; circle.digitizing?.jaggedEdge = jagged(step)
+            design.objects.append(circle)
+        }
+        return design
+    }
+
+    func testJaggedEdgeSheetJagsAllButThePlainOnes() throws {
+        let sheet = jaggedEdgeSheet()
+        XCTAssertTrue(sheet.needsSchemaFifteen)
+        XCTAssertEqual(sheet.objects.filter { $0.settings.jaggedEdge == nil }.count, 2, "one plain satin and one plain circle")
+        XCTAssertNoThrow(try RunningEngine.compile(sheet))
+    }
+
     func testHandStitchSheetRoughensAllButThePlainOnes() throws {
         let sheet = handStitchSheet()
         XCTAssertTrue(sheet.needsSchemaThirteen)
@@ -426,10 +460,10 @@ final class SewOutPackTests: XCTestCase {
                                           ("4 Monogram", try monogramSheet()), ("5 Travel and finishing", try travelSheet()), ("6 Line styles and stipple", lineStyleSheet()), ("7 Motifs, cross stitch and more", patternSheet()),
                                           ("8 Wide satin, overlaps and outlines", try wideSatinOverlapsAndOutlinesSheet()), ("9 Moves and jumps", movesAndJumpsSheet()),
                                           ("10 Smart corners", try smartCornersSheet()), ("11 Connectors", try connectorsSheet()),
-                                          ("12 Push and pull", pushAndPullSheet()), ("13 Hand stitch", handStitchSheet())]
+                                          ("12 Push and pull", pushAndPullSheet()), ("13 Hand stitch", handStitchSheet()), ("14 Jagged edge", jaggedEdgeSheet())]
         for (name, sheet) in sheets {
             var design = sheet
-            design.schemaVersion = design.needsSchemaFourteen ? 14 : design.needsSchemaThirteen ? 13 : design.needsSchemaTwelve ? 12 : design.needsSchemaEleven ? 11 : design.needsSchemaTen ? 10 : design.needsSchemaNine ? 9 : design.needsSchemaEight ? 8 : design.needsSchemaSeven ? 7 : design.needsSchemaSix ? 6 : design.needsSchemaFive ? 5 : 4
+            design.schemaVersion = design.needsSchemaFifteen ? 15 : design.needsSchemaFourteen ? 14 : design.needsSchemaThirteen ? 13 : design.needsSchemaTwelve ? 12 : design.needsSchemaEleven ? 11 : design.needsSchemaTen ? 10 : design.needsSchemaNine ? 9 : design.needsSchemaEight ? 8 : design.needsSchemaSeven ? 7 : design.needsSchemaSix ? 6 : design.needsSchemaFive ? 5 : 4
             let plan = try RunningEngine.compile(design)
             XCTAssertGreaterThan(plan.stitchCount, 100, name)
             XCTAssertTrue(plan.commands.allSatisfy { design.hoop.contains($0.point, tolerance: -2) }, "\(name) stays 2 mm inside the hoop")
