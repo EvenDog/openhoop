@@ -15,6 +15,7 @@ enum Tool: String, Codable { case select, run, satin, fill, hole, node, pan, ent
     addAngles, removeAngles,   // add stitch angle lines to a fill (two clicks each), or click one to remove it
     branch,    // Branching: click where the branch starts, then where it ends (Return lets OpenHoop choose)
     wreath,    // Wreath: click the center, then set the copies in Properties and apply
+    scatter,   // Scatter: set the copies in Properties, Shuffle until it looks right, and apply
     zoomBox,   // drag a box to zoom into it, then go back to the tool before
     measure,   // drag to measure a distance and angle
     hooping,   // Hoopings: drag the hoopings of a multi-hooped design, click one to see what it sews
@@ -38,7 +39,7 @@ enum Tool: String, Codable { case select, run, satin, fill, hole, node, pan, ent
     }
     /// The tool each tool command turns on.
     static let forCommand:[CommandID:Tool]=[.selectTool:.select,.runTool:.run,.satinTool:.satin,.fillTool:.fill,.holeTool:.hole,.nodeTool:.node,.panTool:.pan,
-        .entryExitTool:.entryExit,.artworkTool:.artwork,.openShapeTool:.openShape,.closedShapeTool:.closedShape,.freehandOpenTool:.freehandOpen,.freehandClosedTool:.freehandClosed,.rectangleTool:.rectangle,.ellipseTool:.ellipse,.basicShapeTool:.basicShape,.zoomBoxTool:.zoomBox,.measureTool:.measure,.hoopingsTool:.hooping,.knifeTool:.knife,.branching:.branch,.wreath:.wreath,.addStitchAngles:.addAngles,.removeStitchAngles:.removeAngles,.editStitches:.stitchEdit,.lettering:.text]
+        .entryExitTool:.entryExit,.artworkTool:.artwork,.openShapeTool:.openShape,.closedShapeTool:.closedShape,.freehandOpenTool:.freehandOpen,.freehandClosedTool:.freehandClosed,.rectangleTool:.rectangle,.ellipseTool:.ellipse,.basicShapeTool:.basicShape,.zoomBoxTool:.zoomBox,.measureTool:.measure,.hoopingsTool:.hooping,.knifeTool:.knife,.branching:.branch,.wreath:.wreath,.scatter:.scatter,.addStitchAngles:.addAngles,.removeStitchAngles:.removeAngles,.editStitches:.stitchEdit,.lettering:.text]
 }
 struct NodeLocation:Equatable {var object:UUID;var ring:Int;var index:Int}
 /// One needle point of an object's stitches, for Edit Stitch: which section (run of stitches) and which point in it.
@@ -533,6 +534,50 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             guard edit(wreathMirrored ? "Kaleidoscope" : "Wreath", { $0 = next }) else { return }
             selection = Set(ids); selectedNode = nil; wreathCenter = nil; tool = .select
             status = "\(wreathMirrored ? "Kaleidoscope" : "Wreath") of \(wreathCopies), grouped. It sews one thread color at a time round the circle, so it changes thread no more often than the original."
+        } catch { status = error.localizedDescription }
+    }
+    /// Scatter: the shapes being scattered, the closed shape they're scattered in, and the choices (ScatterSettings).
+    var scatterTargets: Set<UUID> = [], scatterArea: UUID?
+    @Published var scatterSettings = ScatterSettings()
+    /// The last preview worked out, and what it was worked out from, so the canvas doesn't place every copy again
+    /// each time it draws.
+    private var scatterCache: (settings: ScatterSettings, design: Design, result: (design: Design, placed: Int)?)?
+    /// The shapes and the area for Scatter: the selection's largest closed shape as the area, and everything else
+    /// selected as the shapes to scatter; nil without both.
+    var shapesAndArea: (shapes: Set<UUID>, area: UUID)? {
+        let chosen = design.objects.filter { selection.contains($0.id) && !$0.locked }
+        let areas = chosen.compactMap { o -> (id: UUID, size: Double)? in
+            guard o.areaRings != nil, let b = design.bounds(of: [o.id]) else { return nil }
+            return (o.id, (b.max.x - b.min.x) * (b.max.y - b.min.y))
+        }
+        guard chosen.count >= 2, let area = areas.max(by: { $0.size < $1.size }) else { return nil }
+        return (Set(chosen.map(\.id)).subtracting([area.id]), area.id)
+    }
+    /// Starts Scatter on the selection: the preview shows straight away, and Properties holds the choices.
+    func startScatter() {
+        guard let pair = shapesAndArea else { status = "Select the shapes to scatter and a closed shape to scatter them in (Shift-click to select them all), then choose \(CommandID.scatter.title)."; return }
+        scatterTargets = pair.shapes; scatterArea = pair.area; scatterCache = nil; tool = .scatter
+        status = "Scatter · Set the copies in Properties; Shuffle for another layout · Return or Apply makes it · Esc cancels"
+    }
+    /// The design as Scatter would leave it, and how many copies fit, for the preview; nil when it can't be done.
+    var scatterPreview: (design: Design, placed: Int)? {
+        guard tool == .scatter, let area = scatterArea else { return nil }
+        if let cache = scatterCache, cache.settings == scatterSettings, cache.design == design { return cache.result }
+        var next = design
+        let result = (try? next.scatter(scatterTargets, inside: area, scatterSettings)).map { (next, $0.placed) }
+        scatterCache = (scatterSettings, design, result)
+        return result
+    }
+    /// Makes the scatter as one undoable edit, selects the copies and goes back to Select.
+    func applyScatter() {
+        guard let area = scatterArea else { return }
+        var next = design
+        do {
+            let result = try next.scatter(scatterTargets, inside: area, scatterSettings)
+            guard edit(CommandID.scatter.title, { $0 = next }) else { return }
+            selection = Set(result.ids); selectedNode = nil; scatterArea = nil; scatterCache = nil; tool = .select
+            let short = result.placed < scatterSettings.copies ? " (only \(result.placed) of \(scatterSettings.copies) fit)" : ""
+            status = "Scattered \(result.placed) copies\(short), grouped. The shape they were scattered in was used up; Undo brings it back."
         } catch { status = error.localizedDescription }
     }
     /// Knife: cuts the selected objects (or, with nothing selected, everything on show) along the line just drawn,
