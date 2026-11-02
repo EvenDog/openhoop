@@ -1081,7 +1081,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             snapshot.artwork?.data = Data()
         }
         children["design.json"] = FileWrapper(regularFileWithContents: try Self.designData(snapshot, canDropPlan: !state.hasVersionMismatch))
-        // macOS looks for QuickLook/Thumbnail.png inside a package and shows it as the file's icon in Finder.
+        // A picture of the design, which OpenHoop's Quick Look extension (Thumbnail/) hands Finder as the file's icon.
         if let thumbnail = StitchThumbnail.png(of: snapshot.objects) {
             children["QuickLook"] = FileWrapper(directoryWithFileWrappers: ["Thumbnail.png": FileWrapper(regularFileWithContents: thumbnail)])
         }

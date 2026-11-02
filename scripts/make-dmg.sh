@@ -36,6 +36,9 @@ if [ -n "${SIGN_IDENTITY:-}" ]; then
   codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$SPARKLE/Versions/B/Autoupdate"
   codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$SPARKLE/Versions/B/Updater.app"
   codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$SPARKLE"
+  # The Finder-icon extension, with the sandbox Quick Look requires.
+  codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" --entitlements Thumbnail/Thumbnail.entitlements \
+    "$COPY/Contents/PlugIns/OpenHoopThumbnail.appex"
   codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$COPY"
   codesign --verify --deep --strict "$COPY"
   echo "Signed the app."
