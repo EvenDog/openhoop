@@ -53,6 +53,18 @@ final class SatinFillTests: XCTestCase {
         XCTAssertNoThrow(try AreaEngine.fill(wide), "on again (nil counts as on)")
     }
 
+    func testSplitLengthGoesUpTo12mm() throws {
+        var wide = ellipse(40, 20)
+        wide.digitizing?.satinSplit = 12
+        var design = Design(); design.objects = [wide]; design.schemaVersion = 5
+        XCTAssertNoThrow(try design.validate())
+        let sewn = try AreaEngine.fill(wide).sections.flatMap { zip($0.points, $0.points.dropFirst()) }
+        XCTAssertLessThanOrEqual(sewn.map { $0.0.distance(to: $0.1) }.max()!, 12.001, "no piece longer than 12 mm")
+        XCTAssertGreaterThan(sewn.map { $0.0.distance(to: $0.1) }.max()!, 10, "and pieces longer than the old 10 mm limit")
+        design.objects[0].digitizing?.satinSplit = 12.5
+        XCTAssertThrowsError(try design.validate(), "past 12 mm, machines cut stitches up anyway")
+    }
+
     func testAUShapeNeverStitchesAcrossItsGap() throws {
         // A U: two 6 mm arms joined at the bottom, with a 10 mm gap between them.
         var u = RunObject(name: "U", nodes: [Point(0, 0), Point(22, 0), Point(22, 30), Point(16, 30), Point(16, 6), Point(6, 6), Point(6, 30), Point(0, 30)].map { PathNode($0) })

@@ -556,7 +556,8 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     /// files) measures it from one row to the next; opening such a file converts it (Design.measureSpacingAcrossTwoRows).
     public var spacingAcrossTwoRows:Bool?
     public static let defaultSatinSplit=7.0
-    public static let satinSplitRange=3.0...10.0
+    /// Up to `longSatinStitch` (12 mm), about the longest stitch machines sew without cutting it up.
+    public static let satinSplitRange=3.0...12.0
     /// Fills only: leave out the area that shapes sewn after this one cover (OverlapCutout.swift). nil (the default)
     /// means off: the whole fill sews.
     public var cutOutOverlaps:Bool?
