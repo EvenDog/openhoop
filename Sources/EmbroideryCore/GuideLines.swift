@@ -47,7 +47,7 @@ extension Design {
 
     /// Takes the open line `lineID` out of the objects, turned into an unstitched guide for `target`. Any other guide
     /// `target` had goes back to being a plain unstitched line.
-    private mutating func takeGuide(_ lineID: UUID, for target: UUID) throws -> RunObject {
+    mutating func takeGuide(_ lineID: UUID, for target: UUID) throws -> RunObject {
         guard let lineIndex = objects.firstIndex(where: { $0.id == lineID }), [.run, .vector].contains(objects[lineIndex].kind),
               !objects[lineIndex].closed, objects[lineIndex].lettering == nil, objects[lineIndex].monogram == nil else {
             throw DesignError.invalid("The guide must be an open line (not a closed outline or lettering). Draw one with the line tool.")
@@ -67,21 +67,35 @@ extension Design {
     /// sews as before. Returns why any lettering couldn't be rebuilt (it's left as it was).
     @discardableResult
     public mutating func syncGuides(embroideryFonts: [EmbroideryFont] = []) -> [String] {
-        guard objects.contains(where: { $0.guideFor != nil }) else { return [] }
+        guard objects.contains(where: { $0.guideFor != nil || $0.repeatCopy != nil }) else { return [] }
         let fills = Dictionary(objects.enumerated().filter { $0.element.kind == .fill }.map { ($0.element.id, $0.offset) }, uniquingKeysWith: { a, _ in a })
         let onLine = Set(objects.compactMap { $0.lettering?.shape == .onLine ? $0.lettering?.id : nil })
-        var guided: Set<UUID> = [], reshaped: [(id: UUID, path: [Point])] = []
+        // Copies along a line that still have copies; a guide whose copies are all gone is just an unstitched line.
+        let copied = Set(objects.compactMap { $0.repeatCopy?.id })
+        var guided: Set<UUID> = [], reshaped: [(id: UUID, path: [Point])] = [], rebuilt: [UUID] = []
         for i in objects.indices {
             guard let target = objects[i].guideFor else { continue }
             // Linked to something that isn't there (or a second guide for the same thing): just an unstitched line.
-            guard objects[i].kind == .vector, fills[target] != nil || onLine.contains(target), !guided.contains(target) else { objects[i].guideFor = nil; continue }
+            let repeats = objects[i].lineRepeat?.id == target && copied.contains(target)
+            guard objects[i].kind == .vector, fills[target] != nil || onLine.contains(target) || repeats, !guided.contains(target) else {
+                objects[i].guideFor = nil; objects[i].lineRepeat = nil; continue
+            }
             guided.insert(target)
             let path = objects[i].outlinePaths.first ?? []
-            if let f = fills[target] {
+            if repeats {
+                if !Self.samePath(objects[i].lineRepeat?.path, path) { rebuilt.append(target) }
+            } else if let f = fills[target] {
                 if objects[f].digitizing?.guideLine != path { objects[f].digitizing?.guideLine = path }
             } else { reshaped.append((target, path)) }
         }
+        // Copies whose guide is gone become ordinary objects.
+        for i in objects.indices where objects[i].repeatCopy.map({ !guided.contains($0.id) }) ?? false { objects[i].repeatCopy = nil }
         var problems: [String] = []
+        for id in rebuilt {
+            // Built on a copy, so copies that can't be set out stay as they were.
+            var next = self
+            do { try next.rebuildRepeat(id); self = next } catch { problems.append("Copies along a line: \(error.localizedDescription)") }
+        }
         for (id, path) in reshaped {
             let letters = letteringObjects(id)
             // Moving the letters and their guide together moves the stored path too: only a reshaped guide rebuilds.

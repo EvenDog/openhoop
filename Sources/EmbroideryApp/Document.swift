@@ -800,6 +800,27 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             status = "The lettering now sits along the line, which doesn't sew. Reshape the dashed line with Edit Nodes\(key.isEmpty ? "" : " (\(key))") and the letters follow."
         } catch { status = error.localizedDescription }
     }
+    /// The shapes and the line for Copies Along Line: the selection's longest open line (one that isn't lettering or
+    /// already a guide), and everything else selected as the shapes to repeat; nil without both.
+    var shapesAndLine: (shapes: Set<UUID>, line: UUID)? {
+        let chosen = design.objects.filter { selection.contains($0.id) && !$0.locked }
+        let lines = chosen.filter { [.run, .vector].contains($0.kind) && !$0.closed && $0.lettering == nil && $0.monogram == nil && $0.guideFor == nil && $0.repeatCopy == nil }
+        func length(_ o: RunObject) -> Double { let p = o.outlinePaths.first ?? []; return zip(p, p.dropFirst()).reduce(0) { $0 + $1.0.distance(to: $1.1) } }
+        guard chosen.count >= 2, let line = lines.max(by: { length($0) < length($1) }) else { return nil }
+        return (Set(chosen.map(\.id)).subtracting([line.id]), line.id)
+    }
+    /// Copies Along Line: sets copies of the selected shapes along the selected line as one undoable step, and
+    /// selects them, or says what to select.
+    func repeatSelectionAlongLine() {
+        guard let pair = shapesAndLine else { status = "Select the shapes to repeat and an open line (Shift-click to select them all), then choose \(CommandID.repeatAlongLine.title)."; return }
+        do {
+            var next = design; let id = try next.repeatAlongLine(pair.shapes.union([pair.line]), line: pair.line)
+            edit(CommandID.repeatAlongLine.title) { $0 = next }
+            selection = Set(design.objects.filter { $0.repeatCopy?.id == id || $0.lineRepeat?.id == id }.map(\.id)); selectedNode = nil
+            let key = Preferences.shared.label(.nodeTool)
+            status = "Copies now sit along the line, which doesn't sew. Set how many in Properties; reshape the dashed line with Edit Nodes\(key.isEmpty ? "" : " (\(key))") and they follow."
+        } catch { status = error.localizedDescription }
+    }
     /// True when `id` is a letter of a piece of lettering.
     func isLettering(_ id: UUID) -> Bool { design.objects.first { $0.id == id }?.lettering != nil }
     /// Break Apart Lettering: turns the selected lettering into plain shapes (still grouped, so they move together
@@ -929,8 +950,10 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         // Guided fills and lettering on a line follow their guide lines' new shapes. Rebuilt letters are new objects,
         // so selected lettering stays selected by its lettering id.
         let selectedLettering = Set(updated.objects.filter { state.selection.contains($0.id) }.compactMap { $0.lettering?.id })
+        // Copies along a line are new objects when built again too, so a selected set stays selected by its id.
+        let selectedRepeats = Set(updated.objects.filter { state.selection.contains($0.id) }.compactMap { $0.repeatCopy?.id ?? $0.lineRepeat?.id })
         let guideProblems = updated.syncGuides(embroideryFonts: EmbroideryFontLibrary.fonts)
-        if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaFifteen ? 15:updated.needsSchemaFourteen ? 14:updated.needsSchemaThirteen ? 13:updated.needsSchemaTwelve ? 12:updated.needsSchemaEleven ? 11:updated.needsSchemaTen ? 10:updated.needsSchemaNine ? 9:updated.needsSchemaEight ? 8:updated.needsSchemaSeven ? 7:updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
+        if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaSixteen ? 16:updated.needsSchemaFifteen ? 15:updated.needsSchemaFourteen ? 14:updated.needsSchemaThirteen ? 13:updated.needsSchemaTwelve ? 12:updated.needsSchemaEleven ? 11:updated.needsSchemaTen ? 10:updated.needsSchemaNine ? 9:updated.needsSchemaEight ? 8:updated.needsSchemaSeven ? 7:updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
         // The same check Save makes, before anything is recorded.
         do { try updated.validate() } catch {
             state.status = "\(action) can't be done: \(error.localizedDescription) Nothing was changed."
@@ -948,6 +971,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         if let problem = guideProblems.first { state.status = problem }
         state.selection.formIntersection(Set(updated.objects.map(\.id)))
         state.selection.formUnion(updated.objects.filter { $0.lettering.map { selectedLettering.contains($0.id) } ?? false }.map(\.id))
+        state.selection.formUnion(updated.objects.filter { ($0.repeatCopy?.id ?? $0.lineRepeat?.id).map(selectedRepeats.contains) ?? false }.map(\.id))
         // A picked point this change took away (Undo of an added point, say) is forgotten, so Delete can't reach for it.
         if state.selectedPathNode == nil { state.selectedNode = nil }
         regenerate()

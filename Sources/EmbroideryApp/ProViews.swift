@@ -413,6 +413,7 @@ extension InspectorPanel {
         if object.stitchEdits != nil { stitchEditNotice(object) }
         if let lettering = object.lettering { letteringEditor(lettering) }
         if let monogram = object.monogram { monogramSummary(monogram) }
+        if let id = object.repeatCopy?.id ?? object.lineRepeat?.id, let spec = state.design.objects.first(where: { $0.lineRepeat?.id == id })?.lineRepeat { proLineRepeat(id, spec) }
         switch object.kind {
         case .fill: proFill(object)
         case .satin: proSatin(object)
@@ -584,6 +585,32 @@ extension InspectorPanel {
                 .help("Mass: how many times each stitch is sewn, back and forth in new holes each time, for a fuller, thread-heavy look. Higher counts suit satins with wider row spacing.")
                 level("Random", hand.random, HandStitch.randomLevels, help: "Mass: how often a stitch randomly gets one pass more (or now and then one fewer), from 1 (never) to 5 (often).") { $0.random = $1 }
                 level("Variant", hand.variant, HandStitch.variants, help: "Another random version of the same settings, if you don't like how this one came out.") { $0.variant = $1 }
+            }
+        }
+    }
+
+    /// Copies along a line (LineRepeat.swift): how many, which way they face and where they sit, and Break Apart.
+    private func proLineRepeat(_ id: UUID, _ spec: LineRepeat) -> some View {
+        /// Changes the set's settings as one undoable step called `title`; the copies are built again from the first.
+        func change(_ title: String, _ body: @escaping (inout LineRepeat) -> Void) { state.edit(title) { $0.setLineRepeat(id, body) } }
+        return proSection("Copies along line") {
+            number("Copies", value: Double(spec.copies), range: Double(LineRepeat.copyRange.lowerBound)...Double(LineRepeat.copyRange.upperBound),
+                   help: "How many copies, spread evenly from one end of the line to the other.") { typed in
+                change("Copies Along Line") { $0.copies = min(LineRepeat.copyRange.upperBound, max(LineRepeat.copyRange.lowerBound, Int(typed.rounded()))) }
+            }
+            toggle("Turn with line", value: spec.turnsWithLine) { on in change(on ? "Turn Copies With Line" : "Keep Copies Upright") { $0.turnsWithLine = on } }
+                .help("On, each copy turns to follow the line where it sits. Off, they all stay upright.")
+            HStack {
+                Text("Sit").font(Theme.body(11, weight: .regular)); Spacer()
+                Picker("Sit", selection: Binding(get: { spec.placement }, set: { value in change("Copies Sit \(value.title)") { $0.placement = value } })) {
+                    ForEach(LineRepeat.Placement.allCases, id: \.self) { Text($0.title).tag($0) }
+                }.pickerStyle(.segmented).labelsHidden().frame(width: 220)
+            }
+            .help("Center puts each copy on the line; Above and Below set them beside it (above is on the left, looking along the line the way it was drawn); Alternate switches sides.")
+            toggle("Mirror every other", value: spec.mirrorsEveryOther) { on in change(on ? "Mirror Every Other Copy" : "Don't Mirror Copies") { $0.mirrorsEveryOther = on } }
+                .help("Flips every other copy over the line, like leaves on both sides of a stem.")
+            proRow("Copies", help: "Reshaping the line or changing these settings builds the copies again from the first one, so change that copy's color, stitches or size and the others follow. Break Apart makes them ordinary objects and leaves the line unstitched.") {
+                Button("Break Apart") { state.edit("Break Apart Copies") { $0.breakApartRepeat(id) } }.buttonStyle(ThemedButtonStyle())
             }
         }
     }

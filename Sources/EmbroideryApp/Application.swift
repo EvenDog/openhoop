@@ -664,6 +664,7 @@ import EmbroideryCore
         case .testSwatches: makeTestSwatches(state)
         case .useAsFillGuide: state.useSelectedLineAsFillGuide()
         case .putLetteringOnLine: state.putSelectedLetteringOnLine()
+        case .repeatAlongLine: state.repeatSelectionAlongLine()
         case .tieIn: state.editSelected(command.title) { if $0.kind != .raw {$0.tieInRule = $0.tieIn ? .off : .always} }
         case .tieOut: state.editSelected(command.title) { if $0.kind != .raw {$0.tieOutRule = $0.tieOut ? .off : .always} }
         case .trimAfter: state.editSelected(command.title) { $0.trimAfter.toggle() }
@@ -1243,7 +1244,7 @@ import EmbroideryCore
                     .convertRun, .convertSatin, .convertFill, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool,
                    .finishPath, .removePoint, .cancelPath]),
-        ("Add", [.lettering, .editLettering, .breakApartLettering, .putLetteringOnLine, .addMonogram, .editMonogram, .satinBorder, .outlinesOffsets, .applique, .autoDigitize, .laydown, .wreath, .testSwatches])
+        ("Add", [.lettering, .editLettering, .breakApartLettering, .putLetteringOnLine, .addMonogram, .editMonogram, .satinBorder, .outlinesOffsets, .applique, .autoDigitize, .laydown, .wreath, .repeatAlongLine, .testSwatches])
     ]
     /// One line of a menu: a command, or a submenu of commands (its groups split by dividers).
     enum MenuEntry { case command(CommandID), submenu(String, [[CommandID]]) }

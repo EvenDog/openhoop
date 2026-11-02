@@ -117,6 +117,10 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
     public var monogram: MonogramSpec?
     /// Set on an unstitched line that guides a fill: the fill's id. A guided fill's rows follow it (GuidedFill.swift).
     public var guideFor: UUID?
+    /// Set on the guide line of copies along a line (LineRepeat.swift): their settings. Its `guideFor` is their id.
+    public var lineRepeat: LineRepeat?
+    /// Set on each object of a copy along a line (LineRepeat.swift): which set and copy it belongs to.
+    public var repeatCopy: RepeatCopy?
     public var kind: StitchKind { rawStitches != nil ? .raw : digitizing?.kind ?? .run }
     public var settings: DigitizingSettings { digitizing ?? DigitizingSettings(kind: .run) }
     /// What the stitches are called in lists: the stitch kind, naming the fill style for fills (such as "Contour Fill").
@@ -131,7 +135,8 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
         for i in nodes.indices { nodes[i].transform(body) }
         if holes != nil { for r in holes!.indices { for i in holes![r].indices { holes![r][i].transform(body) } } }
         entry = entry.map(body); exit = exit.map(body)
-        lettering?.transform(body); monogram?.transform(body)
+        lettering?.transform(body); monogram?.transform(body); repeatCopy?.transform(body)
+        if let path = lineRepeat?.path { lineRepeat?.path = path.map(body) }
         if let center = digitizing?.radialCenter { digitizing?.radialCenter = body(center) }
         if let lines = digitizing?.angleLines { digitizing?.angleLines = lines.map { $0.map(body) } }
         if let guide = digitizing?.guideLine { digitizing?.guideLine = guide.map(body) }
@@ -735,6 +740,9 @@ public struct Design: Codable, Equatable, Sendable {
     /// True when a design has satins with a jagged edge (added in file version 15), so it's saved as version 15 and
     /// older versions of the app, which would sew smooth edges, refuse it instead.
     public var needsSchemaFifteen: Bool { objects.contains { $0.digitizing?.jaggedEdge != nil } }
+    /// True when a design has copies along a line (added in file version 16), so it's saved as version 16 and older
+    /// versions of the app, which would lose the link between the copies and their line, refuse it instead.
+    public var needsSchemaSixteen: Bool { objects.contains { $0.lineRepeat != nil || $0.repeatCopy != nil } }
     /// True when a design has satins with smart corners (added in file version 10) that actually have a sharp corner,
     /// so it's saved as version 10 and older versions of the app, which would sew those corners fanned round the seam,
     /// refuse it instead. A satin with the setting but no sharp corner sews the same in older versions.
@@ -767,7 +775,7 @@ public struct Design: Codable, Equatable, Sendable {
 
     /// Reject corrupt or unreasonable input before it reaches the renderer or generator.
     public func validate() throws {
-        guard (1...15).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
+        guard (1...16).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }
@@ -827,6 +835,9 @@ public struct Design: Codable, Equatable, Sendable {
                 guard object.kind == .run || object.kind == .satin,hand.isValid else{throw DesignError.invalid("Invalid hand stitch settings in \(object.name).")}
             }
             // A fill keeps its jagged edge when its style changes from satin (it only sews with satin), so any fill may have one.
+            if let spec=object.lineRepeat {
+                guard object.kind == .vector,object.guideFor == spec.id,spec.isValid else{throw DesignError.invalid("Invalid copies along a line in \(object.name).")}
+            }
             if let jagged=object.digitizing?.jaggedEdge {
                 guard object.kind == .satin || object.kind == .fill,jagged.isValid else{throw DesignError.invalid("Invalid jagged edge settings in \(object.name).")}
             }

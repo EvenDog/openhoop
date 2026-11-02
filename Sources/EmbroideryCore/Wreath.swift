@@ -58,7 +58,7 @@ extension Design {
 
     /// Copies of `objects` with fresh ids, kept together the way `paste` keeps them (a new lettering or branch for
     /// each one copied, guide lines still guiding their copied fill), without adding them anywhere.
-    private static func freshCopies(of objects: [RunObject]) -> [RunObject] {
+    static func freshCopies(of objects: [RunObject]) -> [RunObject] {
         var scratch = Design()
         scratch.paste(ObjectClipboard(objects: objects))
         return scratch.objects
