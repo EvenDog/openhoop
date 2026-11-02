@@ -94,6 +94,8 @@ struct PreferenceData: Codable {
     var exportFormat: String?
     /// True when Review Sewing Order hides the steps still to sew; nil or false fades them.
     var reviewHidesUnsewn: Bool?
+    /// True when the rulers don't mark where the pointer is; nil or false marks it.
+    var hidesPointerMarks: Bool?
     /// The machine brand picked in Set Up Your Machine (a MachineBrand), and whether that machine cuts the thread
     /// between parts by itself (nil: not sure, or never asked). MachineSetup.swift.
     var machineBrand: String?
@@ -261,6 +263,8 @@ struct ShownItems: Codable, Equatable {
     var shown: ShownItems { data.shown ?? ShownItems() }
     /// True when Review Sewing Order hides the steps still to sew, rather than fading them.
     var reviewHidesUnsewn: Bool { data.reviewHidesUnsewn ?? false }
+    /// True when the rulers mark where the pointer is (Settings › Measuring › Rulers).
+    var showsPointerMarks: Bool { !(data.hidesPointerMarks ?? false) }
     /// Saves a Show list or grid choice when it's switched.
     func updateShown(_ change: (inout ShownItems) -> Void) {
         var items = shown; change(&items)
