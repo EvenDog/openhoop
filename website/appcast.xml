@@ -6,6 +6,34 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.9.0</title>
+            <pubDate>Mon, 02 Nov 2026 02:15:15 GMT</pubDate>
+            <sparkle:version>37</sparkle:version>
+            <sparkle:shortVersionString>0.9.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.9.0</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.9.0</h3>
+<h4>Stitches</h4>
+<ul>
+<li><b>Jagged edge</b> for satin columns and satin fills (Properties › Jagged edge) gives the edge a rough, uneven look for fur, grass or feathers. Stitch ends move a random distance <b>In</b> (the shape keeps its size) or <b>Out</b> (past the edge), up to an <b>Amount</b> you set. A satin column can be jagged on its left or right edge only. <b>Variant</b> tries another random version. The amounts are a first guess and haven't been sewn yet, so test-sew before using it in a real design.</li>
+<li><b>Satin fills can split their stitches at up to 12 mm</b> (Split length, with Auto split on). The limit used to be 10 mm.</li>
+</ul>
+<h4>Copies</h4>
+<ul>
+<li><b>Copies Along Line</b> (Digitize › Add) sets copies of the selected shapes evenly along a line you drew, like leaves along a vine or a border of hearts. The line becomes a dashed guide that doesn't sew. In Properties, choose how many, whether they <b>turn with the line</b>, where they <b>sit</b> (on the line, above, below or alternating sides) and whether <b>every other one is mirrored</b>. Reshape the line and the copies follow. Changes to the first copy (its color, stitches or size) carry over to the rest.</li>
+<li><b>Scatter</b> (Digitize › Add) drops copies of the selection at random inside a closed shape, like confetti, stars or polka dots. Set how many, their smallest and largest size, the gap between them and whether they turn at random. <b>Shuffle</b> tries another layout, and <b>Apply</b> makes it. Copies never touch, and they sew one thread color at a time.</li>
+</ul>
+<h4>Settings</h4>
+<ul>
+<li><b>Settings › Measuring › Rulers › Mark the pointer</b> turns off the thin lines on the rulers that follow the mouse.</li>
+</ul>
+<p>Projects that use a jagged edge or copies along a line need OpenHoop 0.9.0 to open. Older versions refuse them instead of sewing them wrong.</p>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.9.0/OpenHoop-0.9.0.dmg" sparkle:edSignature="t54ZZQCgspKP9KUvWifD5Kku208pRwGDMpdE9fAJwH8dwt3IKMLXufEPpKsJHUoimlbWuDxioBANrlcpwkltDA==" length="38209561" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.8.9</title>
             <pubDate>Fri, 30 Oct 2026 02:38:46 GMT</pubDate>
             <sparkle:version>36</sparkle:version>
