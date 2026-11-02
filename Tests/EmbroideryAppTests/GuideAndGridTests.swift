@@ -88,9 +88,9 @@ final class GuideAndGridTests: XCTestCase {
     /// dragging where the top ruler was adds no guide. Guides aren't deleted: they come back with the rulers.
     @MainActor func testRulerMarksFollowThePointerAndRulersCanBeHidden() throws {
         _ = NSApplication.shared
-        let preferences = Preferences.shared, saved = preferences.data.showRulers
-        defer { preferences.data.showRulers = saved }   // changed in memory only, never saved to the preferences file
-        preferences.data.showRulers = nil
+        let preferences = Preferences.shared, saved = preferences.data.showRulers, savedMarks = preferences.data.hidesPointerMarks
+        defer { preferences.data.showRulers = saved; preferences.data.hidesPointerMarks = savedMarks }   // changed in memory only, never saved to the preferences file
+        preferences.data.showRulers = nil; preferences.data.hidesPointerMarks = nil
         let document = DesignDocument(), state = document.state
         let canvas = DesignCanvas(state: state); canvas.frame = NSRect(x: 0, y: 0, width: 600, height: 600); state.canvas = canvas
         func mouse(_ type: NSEvent.EventType, _ p: CGPoint) {
@@ -110,6 +110,11 @@ final class GuideAndGridTests: XCTestCase {
         XCTAssertEqual(canvas.topRulerMark.frame.minY, 600 - 23, "on the top ruler")
         XCTAssertEqual(canvas.leftRulerMark.frame.midY, at.y, accuracy: 0.5)
         XCTAssertEqual(canvas.leftRulerMark.frame.minX, 0, "on the left ruler")
+        // Settings › Measuring › Mark the pointer, off: the rulers stay but the marks don't follow.
+        preferences.data.hidesPointerMarks = true
+        mouse(.mouseMoved, at)
+        XCTAssertTrue(canvas.topRulerMark.isHidden); XCTAssertTrue(canvas.leftRulerMark.isHidden)
+        preferences.data.hidesPointerMarks = nil
 
         state.edit("Guide") { $0.guides = [Guide(vertical: true, position: 2.4)] }
         state.snap = true

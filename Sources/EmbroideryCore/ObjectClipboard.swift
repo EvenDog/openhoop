@@ -31,6 +31,9 @@ extension Design {
             if let old = copy.branchID { if newGroups[old] == nil { newGroups[old] = UUID() }; copy.branchID = newGroups[old] }   // a separate branch too
             if let old = copy.lettering?.id { if newLettering[old] == nil { newLettering[old] = UUID() }; copy.lettering?.id = newLettering[old]! }
             if let old = copy.monogram?.id { if newLettering[old] == nil { newLettering[old] = UUID() }; copy.monogram?.id = newLettering[old]! }   // a separate monogram too
+            // Copies along a line pasted with their guide make a separate set; pasted without it, they're ordinary objects.
+            if let old = copy.repeatCopy?.id { if newLettering[old] == nil { newLettering[old] = UUID() }; copy.repeatCopy?.id = newLettering[old]! }
+            if let old = copy.lineRepeat?.id { if newLettering[old] == nil { newLettering[old] = UUID() }; copy.lineRepeat?.id = newLettering[old]! }
             ids.append(copy.id); objects.append(copy)
         }
         relinkCopiedGuides(copies.merging(newLettering) { a, _ in a })   // a copied guide line guides the copied fill or lettering
