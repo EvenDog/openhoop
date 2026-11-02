@@ -95,7 +95,7 @@ final class DesignCanvas: NSView {
         for mark in [topRulerMark, leftRulerMark] { mark.isHidden = true; addSubview(mark) }
         observation = state.objectWillChange.sink { [weak self] _ in DispatchQueue.main.async { self?.needsDisplay = true } }
         preferencesObservation = Preferences.shared.objectWillChange.sink { [weak self] _ in
-            DispatchQueue.main.async { self?.needsDisplay = true; if self?.rulersShown == false { self?.moveRulerMarks(to: nil) } }
+            DispatchQueue.main.async { self?.needsDisplay = true; if self?.rulersShown == false || !Preferences.shared.showsPointerMarks { self?.moveRulerMarks(to: nil) } }
         }
         registerForDraggedTypes([.string])   // panel tabs dragged onto the canvas (see Docking.swift)
     }
@@ -1121,10 +1121,11 @@ final class DesignCanvas: NSView {
     }
     /// True when the rulers and guides are shown (View › Show Rulers & Guides).
     var rulersShown: Bool { Preferences.shared.showsRulers }
-    /// Puts the rulers' pointer marks at `location` (on screen), or hides them for nil or with the rulers off. Each
-    /// hides while the pointer is over the other ruler, so the corner where the rulers meet stays clear.
+    /// Puts the rulers' pointer marks at `location` (on screen), or hides them for nil, with the rulers off, or with
+    /// the marks switched off in Settings. Each hides while the pointer is over the other ruler, so the corner where
+    /// the rulers meet stays clear.
     private func moveRulerMarks(to location: CGPoint?) {
-        guard let location, rulersShown else { topRulerMark.isHidden = true; leftRulerMark.isHidden = true; return }
+        guard let location, rulersShown, Preferences.shared.showsPointerMarks else { topRulerMark.isHidden = true; leftRulerMark.isHidden = true; return }
         topRulerMark.frame = CGRect(x: location.x.rounded() - 0.5, y: bounds.height - 23, width: 1, height: 23)
         leftRulerMark.frame = CGRect(x: 0, y: location.y.rounded() - 0.5, width: 27, height: 1)
         topRulerMark.isHidden = location.x < 27

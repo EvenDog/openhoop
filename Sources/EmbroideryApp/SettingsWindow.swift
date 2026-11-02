@@ -228,7 +228,7 @@ private struct LookSettings: View {
     }
 }
 
-/// Measuring: millimeters or inches, how far apart the grid's lines are, and Snap's step.
+/// Measuring: millimeters or inches, how far apart the grid's lines are, Snap's step, and the rulers' pointer marks.
 private struct MeasuringSettings: View {
     @ObservedObject var preferences = Preferences.shared
     var body: some View {
@@ -256,6 +256,12 @@ private struct MeasuringSettings: View {
                         ForEach(GridSize.allCases, id: \.self) { size in Text(preferences.unit.snapLabel(size)).tag(size) }
                     }
                     .pickerStyle(.segmented).labelsHidden().fixedSize()
+                }
+            }
+            SettingsCard(caption: "Rulers") {
+                SettingsRow(title: "Mark the pointer", hint: "A thin line on each ruler follows the mouse") {
+                    Toggle("Mark the pointer", isOn: Binding(get: { preferences.showsPointerMarks }, set: { preferences.data.hidesPointerMarks = $0 ? nil : true; preferences.save() }))
+                        .toggleStyle(.switch).labelsHidden()
                 }
             }
         }
