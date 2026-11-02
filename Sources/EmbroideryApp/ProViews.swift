@@ -422,6 +422,7 @@ extension InspectorPanel {
         }
         // Stipple, motif and cross stitch fills sew without underlay, so they have no Underlay section.
         if object.kind == .satin || object.kind == .run { proHandStitch(object) }
+        if object.kind == .satin || (object.kind == .fill && object.settings.fillStyle == .satin) { proJaggedEdge(object) }
         if object.kind == .satin || (object.kind == .fill && ![.stipple, .motif, .crossStitch].contains(object.settings.fillStyle ?? .tatami)) { proUnderlay(object) }
         if object.kind != .vector { proFinish(object) }
         if object.kind == .run || object.kind == .satin || object.kind == .fill { proStartEnd(object) }
@@ -583,6 +584,44 @@ extension InspectorPanel {
                 .help("Mass: how many times each stitch is sewn, back and forth in new holes each time, for a fuller, thread-heavy look. Higher counts suit satins with wider row spacing.")
                 level("Random", hand.random, HandStitch.randomLevels, help: "Mass: how often a stitch randomly gets one pass more (or now and then one fewer), from 1 (never) to 5 (often).") { $0.random = $1 }
                 level("Variant", hand.variant, HandStitch.variants, help: "Another random version of the same settings, if you don't like how this one came out.") { $0.variant = $1 }
+            }
+        }
+    }
+
+    /// Jagged edge (JaggedEdge.swift): a checkbox, then once it's on, which way and how far the edge holes move.
+    private func proJaggedEdge(_ object: RunObject) -> some View {
+        let kind = object.kind, jagged = object.settings.jaggedEdge
+        /// Changes one jagged edge setting of the selection, as one undoable step called `title`.
+        func change(_ title: String, _ body: @escaping (inout JaggedEdge) -> Void) {
+            settings(kind, title) { s in var j = s.jaggedEdge ?? JaggedEdge(); body(&j); s.jaggedEdge = j }
+        }
+        return proSection("Jagged edge") {
+            toggle("Jagged edge", value: jagged != nil) { on in settings(kind, on ? "Jagged Edge" : "No Jagged Edge") { $0.jaggedEdge = on ? JaggedEdge() : nil } }
+                .help("Gives the satin's edge a rough, uneven look, for fur, grass or feathers: each stitch ends a random distance in from the edge, or out past it.")
+            if let jagged {
+                HStack {
+                    Text("Direction").font(Theme.body(11, weight: .regular)); Spacer()
+                    Picker("Direction", selection: Binding(get: { jagged.outward }, set: { value in change("Jagged Edge Direction") { $0.outward = value } })) {
+                        Text("In").tag(false)
+                        Text("Out").tag(true)
+                    }.pickerStyle(.segmented).labelsHidden().frame(width: 170)
+                }
+                .help("In ends stitches short of the edge, so the shape keeps its size. Out sews them past it, so the shape grows a little.")
+                if kind == .satin {
+                    HStack {
+                        Text("Side").font(Theme.body(11, weight: .regular)); Spacer()
+                        Picker("Side", selection: Binding(get: { jagged.side }, set: { value in change("Jagged Edge Side") { $0.side = value } })) {
+                            Text("Both").tag(HandStitch.Side?.none)
+                            Text("Left").tag(HandStitch.Side?.some(.left))
+                            Text("Right").tag(HandStitch.Side?.some(.right))
+                        }.pickerStyle(.segmented).labelsHidden().frame(width: 170)
+                    }
+                    .help("Which edge is jagged, as seen looking along the satin the way it sews. The other edge stays smooth.")
+                }
+                number("Amount", value: jagged.amount, range: JaggedEdge.amounts, help: "The most a stitch end moves, in millimeters. Each one moves a random part of it.") { value in change("Jagged Edge Amount") { $0.amount = value } }
+                number("Variant", value: Double(jagged.variant), range: Double(JaggedEdge.variants.lowerBound)...Double(JaggedEdge.variants.upperBound), help: "Another random version of the same settings, if you don't like how this one came out.") { typed in
+                    change("Jagged Edge Variant") { $0.variant = min(JaggedEdge.variants.upperBound, max(JaggedEdge.variants.lowerBound, Int(typed.rounded()))) }
+                }
             }
         }
     }

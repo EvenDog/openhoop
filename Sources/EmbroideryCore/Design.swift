@@ -462,6 +462,8 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     public static let pushCompensationRange=0.0...2.0
     /// Satins and running lines: the hand stitch effect (HandStitch.swift). nil means off.
     public var handStitch:HandStitch?
+    /// Satin columns and satin fills: the jagged edge effect (JaggedEdge.swift). nil means off.
+    public var jaggedEdge:JaggedEdge?
     /// True for fills sewn in straight rows at the fill angle (tatami, wave, gradient and satin fills without stitch
     /// angle lines): their compensation lengthens the rows at their ends, and push compensation applies.
     public var hasStraightRows:Bool {[.tatami,.wave,.gradient,.satin].contains(fillStyle ?? .tatami) && (angleLines ?? []).isEmpty}
@@ -730,6 +732,9 @@ public struct Design: Codable, Equatable, Sendable {
     /// True when a design has motif runs or fills with a motif of the user's own (added in file version 14), so it's
     /// saved as version 14 and older versions of the app, which would sew hearts instead, refuse it instead.
     public var needsSchemaFourteen: Bool { objects.contains { $0.digitizing?.customMotif != nil } }
+    /// True when a design has satins with a jagged edge (added in file version 15), so it's saved as version 15 and
+    /// older versions of the app, which would sew smooth edges, refuse it instead.
+    public var needsSchemaFifteen: Bool { objects.contains { $0.digitizing?.jaggedEdge != nil } }
     /// True when a design has satins with smart corners (added in file version 10) that actually have a sharp corner,
     /// so it's saved as version 10 and older versions of the app, which would sew those corners fanned round the seam,
     /// refuse it instead. A satin with the setting but no sharp corner sews the same in older versions.
@@ -762,7 +767,7 @@ public struct Design: Codable, Equatable, Sendable {
 
     /// Reject corrupt or unreasonable input before it reaches the renderer or generator.
     public func validate() throws {
-        guard (1...14).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
+        guard (1...15).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }
@@ -820,6 +825,10 @@ public struct Design: Codable, Equatable, Sendable {
             }
             if let hand=object.digitizing?.handStitch {
                 guard object.kind == .run || object.kind == .satin,hand.isValid else{throw DesignError.invalid("Invalid hand stitch settings in \(object.name).")}
+            }
+            // A fill keeps its jagged edge when its style changes from satin (it only sews with satin), so any fill may have one.
+            if let jagged=object.digitizing?.jaggedEdge {
+                guard object.kind == .satin || object.kind == .fill,jagged.isValid else{throw DesignError.invalid("Invalid jagged edge settings in \(object.name).")}
             }
             if object.kind == .satin || object.kind == .fill {
                 let s=object.settings

@@ -846,6 +846,13 @@ public enum StitchEngine {
         let crisp=object.kind == .satin ? hand.side.map{HandStitch.crispEdge(of:object.sewingOrder(),rough:$0)} : nil
         return hand.applied(to:stitches,seed:HandStitch.seed(object.id),crisp:crisp)
     }
+    /// `stitches` with the object's jagged edge, when it has one (JaggedEdge.swift): satin columns, and fills sewn in satin.
+    static func jagged(_ stitches:ObjectStitches,_ object:RunObject)->ObjectStitches {
+        guard let jagged=object.settings.jaggedEdge,object.kind == .satin || (object.settings.fillStyle ?? .tatami) == .satin else{return stitches}
+        // One edge only is for satin columns: the edges are those of the column as it sews (sewingOrder).
+        let crisp=object.kind == .satin ? jagged.side.map{HandStitch.crispEdge(of:object.sewingOrder(),rough:$0)} : nil
+        return jagged.applied(to:stitches,seed:HandStitch.seed(object.id),crisp:crisp)
+    }
     /// An object's stitches worked out from its shape and settings, ignoring any edited by hand. `later` are the
     /// objects sewn after it (a fill set to cut out overlaps leaves out what they cover).
     public static func fresh(_ object:RunObject,under later:[RunObject]) throws -> ObjectStitches {
@@ -870,13 +877,13 @@ public enum StitchEngine {
             // point (round a closed outline, whichever way is shorter).
             if let exit=object.exit,object.closed ? object.entry != nil : true,let tail=RunningEngine.tail(along:line,to:exit,closed:object.closed) {points+=tail}
             return handStitched(ObjectStitches(sections:[StitchSection(points)]),object)
-        case .satin:return handStitched(try AreaEngine.satin(object.sewingOrder()),object)
+        case .satin:return handStitched(jagged(try AreaEngine.satin(object.sewingOrder()),object),object)
         case .fill:
-            guard object.settings.cutOutOverlaps == true else{return try AreaEngine.fill(object)}
+            guard object.settings.cutOutOverlaps == true else{return jagged(try AreaEngine.fill(object),object)}
             // Leave out what's sewn on top. If the cut can't be worked out, sew the whole fill and say so.
-            do { return try OverlapCutout.fill(object,under:later) ?? AreaEngine.fill(object) }
+            do { return jagged(try OverlapCutout.fill(object,under:later) ?? AreaEngine.fill(object),object) }
             catch is CancellationError {throw CancellationError()}
-            catch {var whole=try AreaEngine.fill(object);whole.warnings.append("\(object.name): overlaps couldn't be cut out (\(error.localizedDescription)); the whole fill sews.");return whole}
+            catch {var whole=jagged(try AreaEngine.fill(object),object);whole.warnings.append("\(object.name): overlaps couldn't be cut out (\(error.localizedDescription)); the whole fill sews.");return whole}
         }
     }
     public static func compile(_ design:Design) throws -> StitchPlan {
