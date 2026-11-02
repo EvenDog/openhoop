@@ -220,14 +220,13 @@ struct ProSewingOrder: View {
         let flags = [object.trimAfter ? "T" : "", object.stopAfter ? "S" : "", object.visible ? "" : "H"].joined()
         let type = object.kind == .raw ? "Imported stitches" : object.stitchTitle
         let notes = [object.trimAfter ? (object.trimRule == .always ? ", trims after" : ", trims after when far") : "", object.stopAfter ? ", stops after" : "", object.locked ? ", locked" : "", object.visible ? "" : ", hidden (still sews)"].joined()
-        return Button { state.listClick(object.id, single: indented) } label: {
-            row(number: "\(index + 1)", swatch: Color(nsColor: object.color.nsColor), symbol: Self.symbol(object), name: Text(object.name),
-                stitches: count.map { $0.formatted() } ?? "–", flags: flags, indent: indented, warned: warned)
-                .frame(height: 22)
-                .background(selected ? Theme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 4))
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
+        // A tap, not a Button: a Button holds on to the mouse while it's pressed, so the row could never be dragged.
+        return row(number: "\(index + 1)", swatch: Color(nsColor: object.color.nsColor), symbol: Self.symbol(object), name: Text(object.name),
+                   stitches: count.map { $0.formatted() } ?? "–", flags: flags, indent: indented, warned: warned)
+        .frame(height: 22)
+        .background(selected ? Theme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 4))
+        .contentShape(Rectangle())
+        .onTapGesture { state.listClick(object.id, single: indented) }
         .simultaneousGesture(TapGesture(count: 2).onEnded { if object.lettering == nil { renaming = object.id } })
         .overlay(alignment: .leading) {
             // The rename box sits over the name column while typing (past the number, swatch and type icon).
@@ -250,15 +249,14 @@ struct ProSewingOrder: View {
         let lettering = members.first?.lettering
         let title = lettering.map { "“\($0.lines.joined(separator: " / "))”" } ?? "\(members.count) objects"
         let colors = Set(members.map(\.color))
-        return Button { state.listClick(members[0].id) } label: {
-            row(number: "\(first + 1)", swatch: colors.count == 1 ? Color(nsColor: members[0].color.nsColor) : nil, symbol: nil,
-                name: groupName(title, label: lettering == nil ? label : nil),
-                stitches: count.formatted(), flags: "", warned: warned)
-                .frame(height: 22)
-                .background(selected ? Theme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 4))
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
+        // A tap, not a Button, so the row can be dragged (see objectRow).
+        return row(number: "\(first + 1)", swatch: colors.count == 1 ? Color(nsColor: members[0].color.nsColor) : nil, symbol: nil,
+                   name: groupName(title, label: lettering == nil ? label : nil),
+                   stitches: count.formatted(), flags: "", warned: warned)
+        .frame(height: 22)
+        .background(selected ? Theme.accentSoft : Color.clear, in: RoundedRectangle(cornerRadius: 4))
+        .contentShape(Rectangle())
+        .onTapGesture { state.listClick(members[0].id) }
         .help(lettering == nil ? "Group of \(members.count) objects, sewing \(first + 1)–\(first + members.count). Drag to change when it sews." : "Lettering, sewing \(first + 1)–\(first + members.count). Edit it in Properties; Break Apart Lettering splits it into shapes.")
         // The group's lock and menu act on all its objects.
         .overlay(alignment: .trailing) { RowLock(state: state, ids: Set(members.map(\.id)), showing: hovered == "\(id.uuidString)-\(first)").padding(.trailing, 4) }
