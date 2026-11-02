@@ -59,6 +59,26 @@ cp -R Resources/EmbroideryFonts "$APP/Contents/Resources/EmbroideryFonts"
 # Thread charts made from pyembroidery's machine palettes; see scripts/make-thread-charts.py.
 rm -rf "$APP/Contents/Resources/ThreadCharts"
 cp -R Resources/ThreadCharts "$APP/Contents/Resources/ThreadCharts"
+# Finder icons (Thumbnail/): a small Quick Look extension that hands Finder the picture each saved project carries.
+# SwiftPM can't build app extensions, so it's compiled here, once per chip like the app, and joined into one file.
+# _NSExtensionMain is where every app extension starts. It carries the app's version, as Apple asks.
+THUMB=.build/thumbnail
+mkdir -p "$THUMB"
+for arch in arm64 x86_64; do
+  swiftc -O -parse-as-library -application-extension -module-name OpenHoopThumbnail -target "$arch-apple-macos14.0" \
+    Thumbnail/ThumbnailProvider.swift -o "$THUMB/OpenHoopThumbnail-$arch" -Xlinker -e -Xlinker _NSExtensionMain -framework QuickLookThumbnailing
+done
+APPEX="$APP/Contents/PlugIns/OpenHoopThumbnail.appex"
+rm -rf "$APP/Contents/PlugIns"; mkdir -p "$APPEX/Contents/MacOS"
+lipo -create "$THUMB/OpenHoopThumbnail-arm64" "$THUMB/OpenHoopThumbnail-x86_64" -output "$APPEX/Contents/MacOS/OpenHoopThumbnail"
+cp Thumbnail/Info.plist "$APPEX/Contents/Info.plist"
+for key in CFBundleShortVersionString CFBundleVersion; do
+  /usr/libexec/PlistBuddy -c "Set :$key $(/usr/libexec/PlistBuddy -c "Print :$key" Resources/Info.plist)" "$APPEX/Contents/Info.plist"
+done
 codesign --force --deep --sign - "$APP"
+# Quick Look extensions must run sandboxed. --deep signed the extension without saying so, so it's signed again with
+# its entitlements (Thumbnail.entitlements), then the app around it.
+codesign --force --sign - --entitlements Thumbnail/Thumbnail.entitlements "$APPEX"
+codesign --force --sign - "$APP"
 codesign --verify --deep --strict "$APP"
 printf 'Built %s\n' "$APP"
