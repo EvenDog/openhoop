@@ -26,7 +26,7 @@ struct ToolStrip: View {
         ("Pick & shape", [.selectTool, .nodeTool, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .removeOverlaps, .branching, .entryExitTool, .panTool, .artworkTool]),
         ("Stitch", [.runTool, .satinTool, .fillTool, .holeTool, .addStitchAngles, .removeStitchAngles]),
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool]),
-        ("Add", [.lettering, .addMonogram, .satinBorder, .outlinesOffsets, .applique, .autoDigitize, .laydown, .wreath, .repeatAlongLine]),
+        ("Add", [.lettering, .addMonogram, .satinBorder, .outlinesOffsets, .applique, .autoDigitize, .laydown, .wreath, .repeatAlongLine, .scatter]),
         ("View", [.measureTool, .hoopingsTool, .grid, .snap, .threadView, .reviewSewingOrder]),
         ("Show", [.showStitches, .showOutlines, .showConnectors, .needles, .showUnderlay, .hideOthers, .showRulers, .densityMap]),
         ("Zoom", [.zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected])
@@ -156,6 +156,7 @@ struct ToolStrip: View {
         case .addAngles: return ("Stitch angles", state.angleStart == nil ? "click two points across the fill" : "click the other side")
         case .removeAngles: return ("Remove angles", "click a line to remove it")
         case .wreath: return ("Wreath", state.wreathCenter == nil ? "click the center" : "click to move the center" + key(.finishPath, "makes it"))
+        case .scatter: return ("Scatter", "set the copies in Properties · Shuffle for another layout" + key(.finishPath, "makes it"))
         case .branch: return ("Branching", state.branchPoints.isEmpty ? "click where it starts · ↩ chooses for you" : "click where it ends · ↩ chooses for you")
         }
     }
@@ -188,6 +189,7 @@ struct ToolStrip: View {
         case .useAsFillGuide: return state.fillAndGuideLine != nil
         case .putLetteringOnLine: return state.letteringAndLine != nil
         case .repeatAlongLine: return state.shapesAndLine != nil
+        case .scatter: return state.shapesAndArea != nil
         case .satinBorder, .outlinesOffsets, .applique: return state.design.objects.contains { state.selection.contains($0.id) && !$0.locked && SatinBorder.canBorder($0) }
         case .autoDigitize: return state.design.artwork != nil
         case .weldObjects: return state.design.objects.filter { state.selection.contains($0.id) && !$0.locked && $0.areaRings != nil }.count >= 2

@@ -10,7 +10,7 @@ struct ToolOptions: View {
     @ObservedObject var state: EditorState
     @ObservedObject var preferences = Preferences.shared
     /// True for the tools whose choices live in Properties, so picking one opens the panel if it's closed.
-    static func applies(to tool: Tool) -> Bool { NextShapeOptions.shows(tool) || tool == .node || tool == .stitchEdit || tool == .hooping || tool == .wreath }
+    static func applies(to tool: Tool) -> Bool { NextShapeOptions.shows(tool) || tool == .node || tool == .stitchEdit || tool == .hooping || tool == .wreath || tool == .scatter }
     /// True when Properties shows the next shape's choices: with a shape tool on, while nothing is selected or just
     /// after the tool was picked. They then stand in for the selection's properties.
     static func showsNextShape(_ state: EditorState) -> Bool {
@@ -21,6 +21,8 @@ struct ToolOptions: View {
             NextShapeOptions(state: state)
         } else if state.tool == .wreath {
             WreathOptions(state: state)
+        } else if state.tool == .scatter {
+            ScatterOptions(state: state)
         } else if state.tool == .hooping {
             HoopingOptions(state: state)   // HoopingOptions.swift
         } else if state.tool == .node, let node = state.selectedPathNode {
@@ -78,6 +80,44 @@ struct WreathOptions: View {
         }
         .font(Theme.body(12))
         Divider()
+    }
+}
+
+/// Scatter's choices: how many copies, their smallest and largest size, the gap between them, whether they turn, and
+/// Shuffle for another random layout, then Apply. The canvas shows the copies dashed until then.
+struct ScatterOptions: View {
+    @ObservedObject var state: EditorState
+    @ObservedObject var preferences = Preferences.shared
+    var body: some View {
+        let s = state.scatterSettings, placed = state.scatterPreview?.placed
+        VStack(alignment: .leading, spacing: 8) {
+            ToolCaption(text: "SCATTER")
+            stepper("Copies", "\(s.copies)", value: $state.scatterSettings.copies, in: ScatterSettings.copyRange, step: 1, help: "How many to scatter; fewer go in when no more fit")
+            stepper("Smallest", "\(Int(s.smallest))%", value: Binding(get: { s.smallest }, set: { state.scatterSettings.smallest = $0; state.scatterSettings.largest = max(state.scatterSettings.largest, $0) }),
+                    in: ScatterSettings.sizeRange, step: 10, help: "The smallest a copy can be, as a share of the original")
+            stepper("Largest", "\(Int(s.largest))%", value: Binding(get: { s.largest }, set: { state.scatterSettings.largest = $0; state.scatterSettings.smallest = min(state.scatterSettings.smallest, $0) }),
+                    in: ScatterSettings.sizeRange, step: 10, help: "The largest a copy can be, as a share of the original")
+            stepper("Gap", preferences.unit.short(s.gap), value: $state.scatterSettings.gap, in: ScatterSettings.gapRange, step: 0.5, help: "The least space between copies, and between a copy and the shape's edge")
+            Toggle("Turn at random", isOn: $state.scatterSettings.turns).help("Each copy turned any which way; off, they all stay upright")
+            HStack {
+                Button("Shuffle") { state.scatterSettings.seed += 1 }.help("Another random layout with the same settings")
+                Button("Apply") { state.applyScatter() }.disabled(placed == nil).help("Make it (\(preferences.key(.finishPath)))")
+                Button("Cancel") { AppDelegate.shared.perform(.done) }.help("Leave it unmade (\(preferences.key(.done)))")
+            }
+            .controlSize(.small)
+            Text(placed.map { $0 < s.copies ? "Only \($0) of \(s.copies) fit. Make them smaller or the gap narrower for more." : "All \(s.copies) fit." } ?? "None fit. Make them smaller, or the gap narrower.")
+                .font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
+        }
+        .font(Theme.body(12))
+        Divider()
+    }
+    /// A labeled value with a stepper beside it.
+    private func stepper<V: Strideable>(_ title: String, _ shown: String, value: Binding<V>, in range: ClosedRange<V>, step: V.Stride, help: String) -> some View {
+        HStack(spacing: 8) {
+            Text(title); Spacer(minLength: 8); Text(shown).monospacedDigit()
+            Stepper(title, value: value, in: range, step: step).labelsHidden()
+        }
+        .help(help)
     }
 }
 

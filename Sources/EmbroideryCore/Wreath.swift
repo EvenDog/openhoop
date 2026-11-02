@@ -68,7 +68,7 @@ extension Design {
 extension RunObject {
     /// Turns the object by `degrees` (positive is counterclockwise) around `center`, as Rotate does: a fill's rows
     /// turn with it.
-    fileprivate mutating func turn(by degrees: Double, around center: Point) {
+    mutating func turn(by degrees: Double, around center: Point) {
         guard degrees != 0 else { return }
         let radians = degrees * .pi / 180, c = cos(radians), s = sin(radians)
         transform { p in let q = p - center; return center + Point(q.x * c - q.y * s, q.x * s + q.y * c) }
