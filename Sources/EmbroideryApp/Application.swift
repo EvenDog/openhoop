@@ -248,6 +248,9 @@ import EmbroideryCore
         // (in milliseconds) is an undocumented but long-standing AppKit setting; registering it here changes it for
         // OpenHoop only and saves nothing.
         UserDefaults.standard.register(defaults: ["NSInitialToolTipDelay": 300])
+        // The app opens on the Reference image tab, ready for a picture to trace. This runs before any design opens,
+        // so a project opened by double-clicking it still switches to Sewing order (DesignDocument.makeWindowControllers).
+        Preferences.shared.updatePanels { $0.select(.reference) }
     }
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
@@ -372,7 +375,7 @@ import EmbroideryCore
         if command == .close { return NSApp.keyWindow != nil }
         guard let state = active?.state else { return false }
         let shown: [CommandID: Bool] = [.reviewSewingOrder: state.reviewing, .showStitches: state.showStitches, .showOutlines: state.showOutlines, .showConnectors: state.showsConnectors, .hideOthers: state.hideOthers,
-                                        .grid: state.grid, .snap: state.snap, .needles: state.needles, .showUnderlay: state.showUnderlay, .densityMap: state.showDensity]
+                                        .grid: state.grid, .snap: state.snap, .needles: state.needles, .showUnderlay: state.showUnderlay, .densityMap: state.showDensity, .artworkOnTop: state.artworkOnTop]
         if let on = shown[command] { menuItem.state = on ? .on : .off; return true }
         if command == .cutObjects || command == .copyObjects { return !state.selection.isEmpty }
         if command == .pasteObjects { return NSPasteboard.general.data(forType: .init(ObjectClipboard.pasteboardType)) != nil }
@@ -704,6 +707,10 @@ import EmbroideryCore
             state.hideOthers.toggle()
             state.status = state.hideOthers ? "Only the selection shows. Everything still sews; \(Preferences.shared.key(.hideOthers)) shows the rest again." : "Everything shown again."
         case .artwork: state.edit("Reference Visibility") { $0.artwork?.visible.toggle() }
+        case .artworkOnTop:
+            guard state.design.artwork != nil else { state.status = "Import a reference image first (\(Preferences.shared.key(.importImage)))."; return }
+            state.artworkOnTop.toggle()
+            state.status = state.artworkOnTop ? "The reference image is drawn over all the stitches. Lower its opacity in the Reference panel to see both." : "The reference image is back in its place in the sewing order."
         case .saveWorkspace:
             if let name = askName("Save workspace layout", value: "My Workspace") { var workspace = editor.captureWorkspace(); workspace.id = UUID(); workspace.name = name; Preferences.shared.data.workspaces.append(workspace); Preferences.shared.data.workspace = workspace; Preferences.shared.save() }
         case .focusLength,.focusSpacing,.focusAngle:
@@ -1040,6 +1047,7 @@ import EmbroideryCore
             guard data.count <= 50_000_000, let image = NSImage(data: data), image.size.width > 0, image.size.height > 0 else { throw DesignError.invalid("Choose a PNG or JPEG under 50 MB.") }
             let width = min(state.design.hoop.width * 0.8, state.design.hoop.height * 0.8 * image.size.width / image.size.height)
             state.edit("Import Reference") { $0.artwork = Artwork(data: data, name: url.lastPathComponent, width: width, height: width * image.size.height / image.size.width) }
+            Preferences.shared.updatePanels { $0.select(.sewingOrder) }   // with a picture in, the objects traced over it come next
             state.focusCanvas()
         } catch { showError(error) }
     }
@@ -1268,7 +1276,7 @@ import EmbroideryCore
         ("Digitize", [digitizeSections.map { .submenu($0.title, [$0.commands]) }, items(.done)]),
         ("View", [items(.threadView, .reviewSewingOrder),
                   [.submenu("Zoom", [[.zoomIn, .zoomOut], [.zoomFit, .zoomDesign, .zoomSelected, .zoomActual], [.zoomBoxTool]]),
-                   .submenu("Show", [[.showStitches, .showOutlines, .showConnectors, .showUnderlay, .needles], [.artwork, .densityMap], [.hideOthers]]),
+                   .submenu("Show", [[.showStitches, .showOutlines, .showConnectors, .showUnderlay, .needles], [.artwork, .artworkOnTop, .densityMap], [.hideOthers]]),
                    .submenu("Grid & Rulers", [[.grid, .snap], [.showRulers, .clearGuides], [.useInches]]),
                    .submenu("Stitch Player", [[.play, .rewind, .toEnd], [.stepForward, .stepBackward, .stepForward10, .stepBackward10],
                                               [.nextColor, .previousColor], [.nextObject, .previousObject], [.nextTrim, .previousTrim]])],

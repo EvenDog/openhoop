@@ -437,7 +437,7 @@ final class DesignCanvas: NSView {
                 }
             }
         }
-        let artworkLayer = design.artworkLayer
+        let artworkLayer = state.artworkOnTop ? design.objects.count : design.artworkLayer   // on top: over every object
         if artworkLayer == 0 { drawArtwork() }
         if state.grid {
             context.saveGState(); context.addPath(multi ? CGPath(rect: area, transform: nil) : hoopPath.cgPathCopy); context.clip()

@@ -164,6 +164,9 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     /// The artwork's opacity while its slider is dragged: the canvas shows it live, and letting go saves it as one
     /// step you can undo (rather than one for every little movement of the slider).
     @Published var artworkOpacityPreview: Double?
+    /// View › Show › Reference Image on Top: draws the picture over every object, wherever its row sits in the sewing
+    /// order. Only this window's view; the design doesn't change.
+    @Published var artworkOnTop = false
     private var draggingArtworkOpacity = false
     /// A new value from the slider. Outside a drag (such as from the keyboard) it's saved straight away.
     func previewArtworkOpacity(_ value: Double) {
@@ -953,6 +956,9 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     override func makeWindowControllers() {
         if let host = EditorWindowController.tabHost() { host.addTab(for: self) } else { _ = EditorWindowController(document: self) }
         if !state.hasVersionMismatch { regenerate() }
+        // A design that already has a reference picture or objects (an opened project, the sample) shows Sewing
+        // order; a blank one leaves the Reference image tab the app opened on.
+        if state.design.artwork != nil || !state.design.objects.isEmpty { Preferences.shared.updatePanels { $0.select(.sewingOrder) } }
     }
     /// Brings the design's tab forward (also when an already-open design is opened again).
     override func showWindows() {

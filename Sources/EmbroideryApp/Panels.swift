@@ -232,12 +232,21 @@ struct PictureRow: View {
             Text("Reference image").font(Theme.body(11, weight: .semibold)).lineLimit(1)
             if state.design.artwork?.visible == false { Image(systemName: "eye.slash").font(.caption2).help("Hidden") }
             Spacer(minLength: 0)
+            onTopButton
             arrow("chevron.up", step: -1, enabled: layer > 0)
             arrow("chevron.down", step: 1, enabled: layer < count)
         }
         .padding(.horizontal, 4).padding(.vertical, 3)
         .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.controlBorder, style: StrokeStyle(lineWidth: 1, dash: [3, 3])))
         .help("Objects above this row are drawn under the reference image, the ones below it on top. The image is never sewn.")
+    }
+    /// Reference Image on Top: draws the picture over every object while it's on (accent colored then). The filled
+    /// square shows where the picture is: the top one while it's on top, the bottom one while it's behind.
+    private var onTopButton: some View {
+        let symbol = state.artworkOnTop ? "square.2.layers.3d.top.filled" : "square.2.layers.3d.bottom.filled"
+        return Button { AppDelegate.shared.perform(.artworkOnTop) } label: { Image(systemName: symbol).font(.system(size: 10, weight: .bold)) }
+            .buttonStyle(.borderless).foregroundStyle(state.artworkOnTop ? Theme.accent : Theme.inkSecondary)
+            .help("\(Preferences.shared.hint(.artworkOnTop)) (\(Preferences.shared.key(.artworkOnTop)))")
     }
     private func arrow(_ symbol: String, step: Int, enabled: Bool) -> some View {
         Button {
