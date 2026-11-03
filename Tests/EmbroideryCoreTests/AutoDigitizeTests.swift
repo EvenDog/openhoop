@@ -135,4 +135,23 @@ final class AutoDigitizeTests: XCTestCase {
         XCTAssertThrowsError(try run(picture(40) { _, _ in 0xFFFFFF }), "A blank picture is all background")
         XCTAssertThrowsError(try run(picture(40) { x, _ in x < 20 ? 0 : 0xFFFFFF }, colors: 9))
     }
+
+    func testColorsBecomeThreadsFromTheChosenChart() throws {
+        // A big dark-blue square and a small blue circle on white. Both blues are nearest the chart's "Navy",
+        // so the larger one gets Navy and the smaller one the next closest thread, never the same one.
+        let image = picture(100) { x, y in
+            if hypot(Double(x) - 75, Double(y) - 75) < 12 { return 0x2840B0 }
+            return x >= 10 && x < 55 && y >= 10 && y < 55 ? 0x203890 : 0xFFFFFF
+        }
+        let chart = ThreadChart(name: "Test Brand", threads: [
+            ThreadColor("Navy", 0x203890, brand: "Test Brand", code: "100"), ThreadColor("Royal", 0x3050D0, brand: "Test Brand", code: "200"),
+            ThreadColor("Red", 0xD02020, brand: "Test Brand", code: "300")])
+        var options = AutoDigitizeOptions(); options.colors = 3; options.chart = chart
+        let result = try AutoDigitize.run(image, center: Point(0, 0), width: 20, height: 20, options: options)
+        XCTAssertEqual(result.objects.map(\.color.name), ["Navy", "Royal"])
+        XCTAssertEqual(result.objects.map(\.color.chartLabel), ["Test Brand 100", "Test Brand 200"])
+        XCTAssertEqual(result.colors.filter(\.background).map(\.color.hex), [0xFFFFFF], "The background, which isn't sewn, keeps the picture's color")
+        // Without a chart the picture's own colors stay.
+        XCTAssertNil(try run(image, colors: 3).objects.first?.color.brand)
+    }
 }
