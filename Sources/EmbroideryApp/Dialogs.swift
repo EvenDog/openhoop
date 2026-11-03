@@ -251,8 +251,11 @@ extension GuidedDialog {
     /// The auto-digitize dialog: returns the traced fills, or nil if the person cancelled.
     static func autoDigitize(_ artwork: Artwork) -> AutoDigitizeResult? {
         var made: AutoDigitizeResult?   // the dialog's closure writes the result here before it closes
+        // Colors become threads from the chart chosen in Threads (none chosen: the picture's own colors).
+        var options = lastAutoDigitize
+        options.chart = ThreadChartLibrary.charts().first { $0.name == Preferences.shared.data.threadChart }
         let confirmed = run(width: 820) { finish in
-            AutoDigitizeView(artwork: artwork, options: lastAutoDigitize) { options, result in
+            AutoDigitizeView(artwork: artwork, options: options) { options, result in
                 lastAutoDigitize = options; made = result; finish(result != nil)
             }
         }
@@ -341,6 +344,7 @@ struct AutoDigitizeView: View {
                     HStack(spacing: 8) {
                         Circle().fill(Color(nsColor: found.color.nsColor)).frame(width: 16, height: 16).overlay(Circle().strokeBorder(Theme.controlBorder))
                         Text(found.color.name).fontWeight(.semibold)
+                        if !found.background, let label = found.color.chartLabel { Text(label) }
                         Text(found.background ? "background · left out" : "\(found.parts) part\(found.parts == 1 ? "" : "s") · \(Int(found.area.rounded()).formatted()) mm²")
                             .foregroundStyle(Theme.inkSecondary)
                     }.font(Theme.body(12))
@@ -348,6 +352,8 @@ struct AutoDigitizeView: View {
             } else {
                 Text("Tracing…").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary)
             }
+            Text(options.chart.map { "Threads from \($0.name), the chart chosen in Threads." } ?? "The picture's own colors. Choose a thread chart in Threads to get real threads.")
+                .font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
         }
     }
 }

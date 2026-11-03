@@ -1,6 +1,7 @@
 // Auto-digitizing turns the reference image into fill shapes. It reduces the picture to a few thread colors,
 // traces the outline of every patch of each color along the pixel edges, smooths away the pixel "staircase",
-// and makes each patch a tatami fill (with holes) placed exactly over the image.
+// and makes each patch a tatami fill (with holes) placed exactly over the image. With a thread chart chosen, each
+// color becomes that chart's closest thread.
 import Foundation
 import CoreGraphics
 import ImageIO
@@ -45,6 +46,7 @@ public struct AutoDigitizeOptions: Equatable, Sendable {
     public var colors = 4             // how many thread colors the picture is reduced to
     public var skipBackground = true  // leave out the transparent area, or the color around the image's edges
     public var smallestArea = 2.0     // square millimeters; smaller patches are left out
+    public var chart: ThreadChart?    // the chart chosen in Threads: colors become its threads; nil keeps the picture's colors
     public init() {}
     public static let colorRange = 2...8
 }
@@ -106,9 +108,12 @@ public enum AutoDigitize {
         let order = centers.indices.filter { areas[$0] > 0 }.sorted { areas[$0] > areas[$1] }   // big areas sew first, details on top
         var objects: [RunObject] = [], colors: [AutoDigitizeColor] = [], warnings: [String] = []
         var smallParts = 0, failedParts = 0, thinParts = 0, filledHoles = 0
+        let sewn = order.filter { $0 != background }
+        let chartThreads = options.chart.map { threads(for: sewn.map { centers[$0] }, from: $0) }
         for (number, label) in order.enumerated() {
             try Task.checkCancellation()
-            let thread = ThreadColor("Color \(number + 1)", centers[label])
+            var thread = ThreadColor("Color \(number + 1)", centers[label])
+            if let chartThreads, let index = sewn.firstIndex(of: label), let match = chartThreads[index] { thread = match }
             if label == background {
                 colors.append(AutoDigitizeColor(color: thread, area: Double(areas[label]) * pixelArea, parts: 0, background: true)); continue
             }
@@ -151,6 +156,18 @@ public enum AutoDigitize {
         guard objects.count <= 500 else { throw DesignError.invalid("The picture traced into \(objects.count) parts, which is too many. Use fewer colors or a larger smallest part.") }
         var check = Design(); check.objects = objects; try check.validate()
         return AutoDigitizeResult(objects: objects, colors: colors, warnings: warnings)
+    }
+
+    /// The closest thread in `chart` for each color, in order, with no thread used twice: when two colors are nearest
+    /// the same thread, the earlier one (the larger area) gets it and the other takes its next closest, so colors that
+    /// looked different stay different threads. nil for a color when the chart has run out of threads.
+    static func threads(for colors: [Int], from chart: ThreadChart) -> [ThreadColor?] {
+        var taken = Set<ThreadColor>()
+        return colors.map { hex in
+            let match = chart.nearest(to: hex, count: taken.count + 1).first { !taken.contains($0) }
+            if let match { taken.insert(match) }
+            return match
+        }
     }
 
     /// Reduces the picture to at most `colors` colors with k-means: start from well-spread common colors, then
