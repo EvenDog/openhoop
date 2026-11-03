@@ -156,14 +156,15 @@ final class AutoDigitizeTests: XCTestCase {
     }
 
     func testFillsRunAlongTheirLongSide() throws {
-        // On white, apart from each other: a tall blue bar, a wide red bar and a green square.
+        // On white, apart from each other: a tall blue bar, a wide red bar and a green square. Shown 100 mm wide,
+        // so even the bars are 10 mm across: too wide for satin, so all three are tatami.
         let image = picture(100) { x, y in
             if x >= 10 && x < 20 && y >= 10 && y < 90 { return 0x2040A0 }
             if x >= 35 && x < 95 && y >= 10 && y < 20 { return 0xD02020 }
             if x >= 50 && x < 80 && y >= 50 && y < 80 { return 0x20A040 }
             return 0xFFFFFF
         }
-        let fills = try run(image, colors: 4).objects
+        let fills = try run(image, colors: 4, size: 100).objects
         func angle(_ hex: Int) -> Double { fills.first { $0.color.hex == hex }!.settings.angle }
         XCTAssertEqual(angle(0x2040A0), 90, "the tall bar's rows run up and down")
         XCTAssertEqual(angle(0xD02020), 0, "the wide bar's rows run across")
@@ -171,7 +172,8 @@ final class AutoDigitizeTests: XCTestCase {
     }
 
     func testTouchingFillsGetDifferentAngles() throws {
-        // Two wide bars, red above blue: touching, then with a white gap between them.
+        // Two wide bars, red above blue: touching, then with a white gap between them. Shown 100 mm wide (bars
+        // 20 mm across, so tatami).
         func bars(gap: Int) -> PixelImage {
             picture(100) { x, y in
                 guard x >= 10 && x < 90 else { return 0xFFFFFF }
@@ -180,11 +182,11 @@ final class AutoDigitizeTests: XCTestCase {
                 return 0xFFFFFF
             }
         }
-        let touching = try run(bars(gap: 0), colors: 3).objects.map(\.settings.angle)
+        let touching = try run(bars(gap: 0), colors: 3, size: 100).objects.map(\.settings.angle)
         XCTAssertEqual(touching.count, 2)
         XCTAssertEqual(touching[0], 0, "the first bar sews along its long side")
         XCTAssertEqual(touching[1], 45, "the bar touching it turns 45°, so the two don't read as one patch")
-        XCTAssertEqual(try run(bars(gap: 20), colors: 3).objects.map(\.settings.angle), [0, 0], "apart, both follow their long side")
+        XCTAssertEqual(try run(bars(gap: 20), colors: 3, size: 100).objects.map(\.settings.angle), [0, 0], "apart, both follow their long side")
     }
 
     func testPartsSewNearestFirstAndStartWhereTheLastEnded() throws {
@@ -208,5 +210,53 @@ final class AutoDigitizeTests: XCTestCase {
         XCTAssertEqual(fills.count, 5, "squares of one color meeting at a corner join into one part")
         var design = Design(); design.objects = fills.map { var fill = $0; fill.entry = nil; return fill }
         XCTAssertEqual(try StitchEngine.autoStartPoints(design).objects.map(\.entry), fills.map(\.entry))
+    }
+
+    func testStitchTypeFollowsWidth() throws {
+        // Shown 40 mm wide (0.4 mm per pixel), on white: a black line 2 pixels (0.8 mm) wide that bends like an L,
+        // a red bar 10 pixels (4 mm) wide, and a big blue square 40 pixels (16 mm).
+        let image = picture(100) { x, y in
+            if (x >= 10 && x < 12 && y >= 10 && y < 60) || (y >= 58 && y < 60 && x >= 10 && x < 40) { return 0x000000 }
+            if x >= 50 && x < 90 && y >= 10 && y < 20 { return 0xD02020 }
+            if x >= 50 && x < 90 && y >= 40 && y < 80 { return 0x2040A0 }
+            return 0xFFFFFF
+        }
+        let result = try run(image, colors: 4, size: 40)
+        func part(_ hex: Int) -> RunObject { result.objects.first { $0.color.hex == hex }! }
+        let line = part(0x000000), bar = part(0xD02020), square = part(0x2040A0)
+
+        XCTAssertEqual(line.kind, .run); XCTAssertEqual(line.settings.runPasses, 3, "a triple (bean) running stitch")
+        XCTAssertFalse(line.closed)
+        // The run follows the L down its middle: from near one end, through the corner, to near the other end.
+        let points = line.nodes.map(\.point), middleX = -20 + 11 * 0.4, middleY = 20 - 59 * 0.4
+        XCTAssertEqual(AreaGeometry.pathLength(points), 19.6 + 11.6, accuracy: 2.5, "about as long as the L's two arms")
+        XCTAssertTrue(points.allSatisfy { abs($0.x - middleX) < 0.5 || abs($0.y - middleY) < 0.5 }, "every point on the middle of an arm: \(points)")
+
+        XCTAssertEqual(bar.kind, .fill); XCTAssertEqual(bar.settings.fillStyle, .satin)
+        XCTAssertEqual(bar.settings.angle, 90, "satin stitches run across the bar")
+        XCTAssertEqual(square.settings.fillStyle ?? .tatami, .tatami, "wider than 8 mm stays tatami")
+        XCTAssertTrue(result.warnings.contains("Each part's stitch follows its width: 1 running stitch line (thinner than 1 mm), 1 satin (up to 8 mm across), 1 tatami (wider)."), "\(result.warnings)")
+        var design = Design(); design.objects = result.objects
+        XCTAssertNoThrow(try StitchEngine.compile(design))
+    }
+
+    func testAThinRingBecomesALoop() throws {
+        // A black circle outline 2 pixels (0.8 mm) wide, radius 30 pixels (12 mm), on white.
+        let image = picture(100) { x, y in let r = hypot(Double(x) - 49.5, Double(y) - 49.5); return r >= 29 && r < 31 ? 0x000000 : 0xFFFFFF }
+        let line = try run(image, size: 40).objects
+        XCTAssertEqual(line.count, 1); XCTAssertEqual(line[0].kind, .run)
+        XCTAssertTrue(line[0].closed, "the ring is sewn as a closed loop")
+        let radii = line[0].nodes.map { hypot($0.point.x, $0.point.y) }
+        XCTAssertTrue(radii.allSatisfy { abs($0 - 12) < 0.6 }, "the loop runs down the middle of the ring: \(radii)")
+    }
+
+    func testThinningLeavesALineOnePixelWide() {
+        // A bar 5 pixels tall and 20 long (with the empty border thinning needs) thins to a single row.
+        let w = 24, h = 9
+        var on = (0..<(w * h)).map { i in (2..<22).contains(i % w) && (2..<7).contains(i / w) }
+        AutoDigitize.thin(&on, width: w, height: h)
+        let rows = Set(on.indices.filter { on[$0] }.map { $0 / w })
+        XCTAssertEqual(rows, [4], "one row, down the middle")
+        XCTAssertGreaterThan(on.filter { $0 }.count, 14, "the line keeps most of its length")
     }
 }
