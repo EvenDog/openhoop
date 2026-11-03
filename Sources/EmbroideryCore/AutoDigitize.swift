@@ -1,7 +1,8 @@
 // Auto-digitizing turns the reference image into fill shapes. It reduces the picture to a few thread colors,
 // traces the outline of every patch of each color along the pixel edges, smooths away the pixel "staircase",
 // and makes each patch a tatami fill (with holes) placed exactly over the image. With a thread chart chosen, each
-// color becomes that chart's closest thread.
+// color becomes that chart's closest thread. Fills sew nearest part next, with rows along each shape's long side
+// (touching shapes at clearly different angles), and each starts where the one before it ends.
 import Foundation
 import CoreGraphics
 import ImageIO
@@ -134,11 +135,7 @@ public enum AutoDigitize {
                 if 2 * area / perimeter < 1.2 { thinParts += 1 }   // area ÷ half the perimeter: about the width of a strip, the radius of a dot
                 parts.append(region)
             }
-            // Top to bottom, then left to right, so the sewing order reads like the picture.
-            parts.sort { a, b in
-                let ya = a[0].map(\.y).max()!, yb = b[0].map(\.y).max()!
-                return abs(ya - yb) > 1 ? ya > yb : a[0].map(\.x).min()! < b[0].map(\.x).min()!
-            }
+            parts = nearestFirst(parts, after: objects.last.map { AreaGeometry.centroid($0.nodes.map(\.point)) })
             for (index, region) in parts.enumerated() {
                 var object = RunObject(name: "\(thread.name) area \(index + 1)", nodes: region[0].map { PathNode($0) }, color: thread)
                 object.closed = true; object.holes = region.count > 1 ? region.dropFirst().map { $0.map { PathNode($0) } } : nil
@@ -154,8 +151,98 @@ public enum AutoDigitize {
         if failedParts > 0 { warnings.append("\(failedParts) part\(failedParts == 1 ? "" : "s") couldn't be traced cleanly and \(failedParts == 1 ? "was" : "were") left out. Try fewer colors or a larger smallest part.") }
         guard !objects.isEmpty else { throw DesignError.invalid("Nothing large enough to stitch was found. Try more colors, turn off Skip background, or lower the smallest part.") }
         guard objects.count <= 500 else { throw DesignError.invalid("The picture traced into \(objects.count) parts, which is too many. Use fewer colors or a larger smallest part.") }
+        // Neighbors traced from the same pixel edge end up at most a smoothing step or two apart, so closer than
+        // three pixels (at least 0.3 mm) counts as touching.
+        setAngles(&objects, touching: 3 * max(0.1, pixelWidth, pixelHeight))
+        try setStartPoints(&objects)
         var check = Design(); check.objects = objects; try check.validate()
         return AutoDigitizeResult(objects: objects, colors: colors, warnings: warnings)
+    }
+
+    /// Each part starts where the one before it finishes, so the needle travels less in between: the same start
+    /// points as Auto Start Points, found faster. That command sews everything before a part to see where it ends,
+    /// which takes minutes for hundreds of parts; plain fills end in the same place sewn on their own, so here each
+    /// part is sewn once.
+    static func setStartPoints(_ objects: inout [RunObject]) throws {
+        for i in objects.indices.dropFirst() {
+            try Task.checkCancellation()
+            var previous = Design(); previous.objects = [objects[i - 1]]
+            objects[i].entry = try StitchEngine.compile(previous).commands.last { $0.op == .stitch }?.point
+        }
+    }
+
+    /// `parts` (each an outline and its holes) put in sewing order, nearest part next so the needle travels less:
+    /// after the part sewn last, the one whose middle is closest to its middle. `after` is the middle of the part
+    /// sewn just before these (the color before ends there); nil starts with the top-left part, where you'd start
+    /// reading the picture.
+    static func nearestFirst(_ parts: [[[Point]]], after: Point?) -> [[[Point]]] {
+        var left = parts.map { (region: $0, middle: AreaGeometry.centroid($0[0])) }, ordered: [[[Point]]] = []
+        var last = after
+        while !left.isEmpty {
+            let next: Int
+            if let last {
+                next = left.indices.min { left[$0].middle.distance(to: last) < left[$1].middle.distance(to: last) }!
+            } else {
+                // The highest top edge (within 1 mm), then the leftmost.
+                next = left.indices.min { a, b in
+                    let ya = left[a].region[0].map(\.y).max()!, yb = left[b].region[0].map(\.y).max()!
+                    return abs(ya - yb) > 1 ? ya > yb : left[a].region[0].map(\.x).min()! < left[b].region[0].map(\.x).min()!
+                }!
+            }
+            ordered.append(left[next].region); last = left[next].middle
+            left.remove(at: next)
+        }
+        return ordered
+    }
+
+    /// Gives each fill its stitch angle, in sewing order. Rows run along the shape's long side (fewer turns, and
+    /// the stitches follow the shape). When a fill touches one sewn before it whose angle is within 30° of its own,
+    /// it turns 45° (or -45°, or 90°, whichever first clears every such neighbor), so neighbors read as separate
+    /// shapes instead of one patch. Shapes about as wide as they are long keep the default angle.
+    static func setAngles(_ objects: inout [RunObject], touching gap: Double) {
+        let regions = objects.map { [$0.nodes.map(\.point)] + ($0.holes ?? []).map { $0.map(\.point) } }
+        // How far apart two angles are, in degrees: 0–90, since rows at 10° and 190° are the same rows.
+        func apart(_ a: Double, _ b: Double) -> Double { let d = abs(a - b).truncatingRemainder(dividingBy: 180); return min(d, 180 - d) }
+        for i in objects.indices {
+            let base = longAxis(regions[i][0]) ?? objects[i].settings.angle
+            let neighbors = (0..<i).filter { touches(regions[i], regions[$0], within: gap) }.map { objects[$0].settings.angle }
+            let choices = [base, base + 45, base - 45, base + 90]
+            // How far a choice is from its closest neighbor; with no neighbors, as far as can be.
+            func clearance(_ angle: Double) -> Double { neighbors.map { apart(angle, $0) }.min() ?? 90 }
+            let angle = choices.first { clearance($0) >= 30 } ?? choices.max { clearance($0) < clearance($1) }!
+            // Kept between 0° and 180° (rows look the same turned half a circle).
+            objects[i].digitizing?.angle = (angle.truncatingRemainder(dividingBy: 180) + 180).truncatingRemainder(dividingBy: 180)
+        }
+    }
+
+    /// The direction of a shape's long side, in whole degrees (0–179), or nil when it has none (about as wide as it
+    /// is long, like a dot or a square). The long side is that of the smallest box that fits around the shape when the
+    /// box may turn; every whole degree is tried, which is plenty for stitch angles.
+    static func longAxis(_ outline: [Point]) -> Double? {
+        var best: (area: Double, angle: Double, long: Double, short: Double)?
+        for degrees in 0..<90 {   // a box turned 90° is the same box on its side, so 0–89° covers them all
+            // Turning the shape back by `degrees` lines that direction up with x, so the box is plain min/max.
+            let turned = outline.map { AreaGeometry.rotate($0, degrees: -Double(degrees)) }
+            let width = turned.map(\.x).max()! - turned.map(\.x).min()!, height = turned.map(\.y).max()! - turned.map(\.y).min()!
+            if best == nil || width * height < best!.area {
+                best = (width * height, Double(width >= height ? degrees : degrees + 90), max(width, height), min(width, height))
+            }
+        }
+        guard let best, best.short < 0.9 * best.long else { return nil }
+        return best.angle
+    }
+
+    /// Whether two regions (outline and holes each) come within `gap` mm of each other anywhere along their edges.
+    static func touches(_ a: [[Point]], _ b: [[Point]], within gap: Double) -> Bool {
+        // Quick check first: if their boxes, grown by the gap, don't overlap, they can't touch.
+        let pa = a.flatMap { $0 }, pb = b.flatMap { $0 }
+        guard pa.map(\.x).min()! - gap <= pb.map(\.x).max()!, pb.map(\.x).min()! - gap <= pa.map(\.x).max()!,
+              pa.map(\.y).min()! - gap <= pb.map(\.y).max()!, pb.map(\.y).min()! - gap <= pa.map(\.y).max()! else { return false }
+        // Any corner of one within `gap` of an edge of the other. Corners of a shared edge sit on both shapes' edges.
+        func near(_ p: Point, _ rings: [[Point]]) -> Bool {
+            rings.contains { ring in ring.indices.contains { p.distance(to: AreaGeometry.projection(p, ring[$0], ring[($0 + 1) % ring.count])) <= gap } }
+        }
+        return pa.contains { near($0, b) } || pb.contains { near($0, a) }
     }
 
     /// The closest thread in `chart` for each color, in order, with no thread used twice: when two colors are nearest

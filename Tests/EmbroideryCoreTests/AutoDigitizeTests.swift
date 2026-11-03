@@ -154,4 +154,59 @@ final class AutoDigitizeTests: XCTestCase {
         // Without a chart the picture's own colors stay.
         XCTAssertNil(try run(image, colors: 3).objects.first?.color.brand)
     }
+
+    func testFillsRunAlongTheirLongSide() throws {
+        // On white, apart from each other: a tall blue bar, a wide red bar and a green square.
+        let image = picture(100) { x, y in
+            if x >= 10 && x < 20 && y >= 10 && y < 90 { return 0x2040A0 }
+            if x >= 35 && x < 95 && y >= 10 && y < 20 { return 0xD02020 }
+            if x >= 50 && x < 80 && y >= 50 && y < 80 { return 0x20A040 }
+            return 0xFFFFFF
+        }
+        let fills = try run(image, colors: 4).objects
+        func angle(_ hex: Int) -> Double { fills.first { $0.color.hex == hex }!.settings.angle }
+        XCTAssertEqual(angle(0x2040A0), 90, "the tall bar's rows run up and down")
+        XCTAssertEqual(angle(0xD02020), 0, "the wide bar's rows run across")
+        XCTAssertEqual(angle(0x20A040), DigitizingSettings(kind: .fill).angle, "a square has no long side, so it keeps the default")
+    }
+
+    func testTouchingFillsGetDifferentAngles() throws {
+        // Two wide bars, red above blue: touching, then with a white gap between them.
+        func bars(gap: Int) -> PixelImage {
+            picture(100) { x, y in
+                guard x >= 10 && x < 90 else { return 0xFFFFFF }
+                if y >= 20 && y < 40 { return 0xD02020 }
+                if y >= 40 + gap && y < 60 + gap { return 0x2040A0 }
+                return 0xFFFFFF
+            }
+        }
+        let touching = try run(bars(gap: 0), colors: 3).objects.map(\.settings.angle)
+        XCTAssertEqual(touching.count, 2)
+        XCTAssertEqual(touching[0], 0, "the first bar sews along its long side")
+        XCTAssertEqual(touching[1], 45, "the bar touching it turns 45°, so the two don't read as one patch")
+        XCTAssertEqual(try run(bars(gap: 20), colors: 3).objects.map(\.settings.angle), [0, 0], "apart, both follow their long side")
+    }
+
+    func testPartsSewNearestFirstAndStartWhereTheLastEnded() throws {
+        // Three black dots: A top left, B top right a little lower, C just below A. Top to bottom would be A, B, C;
+        // nearest first is A, C, B.
+        let dots = [(15, 15), (85, 20), (15, 40)]
+        let image = picture(100) { x, y in dots.contains { hypot(Double(x - $0.0), Double(y - $0.1)) < 6 } ? 0x000000 : 0xFFFFFF }
+        let fills = try run(image).objects
+        // Picture pixel (x, y) → canvas mm: 20 mm across 100 px, centered on 0, y up.
+        let middles = fills.map { AreaGeometry.centroid($0.nodes.map(\.point)) }
+        let expected = [dots[0], dots[2], dots[1]].map { Point(Double($0.0) * 0.2 - 10, 10 - Double($0.1) * 0.2) }
+        for (middle, dot) in zip(middles, expected) { XCTAssertLessThan(middle.distance(to: dot), 0.5) }
+        XCTAssertNil(fills[0].entry, "the first part starts on its own")
+        XCTAssertTrue(fills.dropFirst().allSatisfy { $0.entry != nil }, "each later part starts where the one before it ended")
+    }
+
+    func testStartPointsMatchAutoStartPoints() throws {
+        // A grid of touching squares in three colors: the quick start points equal those of the slower command.
+        let image = picture(90) { x, y in [0xD02020, 0x2040A0, 0x20A040][(x / 30 + y / 30) % 3] }
+        let fills = try run(image, colors: 3, skip: false).objects
+        XCTAssertEqual(fills.count, 5, "squares of one color meeting at a corner join into one part")
+        var design = Design(); design.objects = fills.map { var fill = $0; fill.entry = nil; return fill }
+        XCTAssertEqual(try StitchEngine.autoStartPoints(design).objects.map(\.entry), fills.map(\.entry))
+    }
 }
