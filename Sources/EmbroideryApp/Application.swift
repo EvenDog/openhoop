@@ -840,7 +840,7 @@ import EmbroideryCore
             var candidate = state.design; candidate.objects += traced.objects.map(state.design.withFabric); try candidate.validate()
             state.edit("Auto-Digitize Artwork") { $0 = candidate }
             state.selection = Set(traced.objects.map(\.id)); state.selectedNode = nil; state.tool = .select; state.focusCanvas()
-            state.status = "Added \(traced.objects.count) fills over your image. Press \(Preferences.shared.key(.artwork)) to hide the image and check the shapes; thin parts may suit satin or running stitch."
+            state.status = "Added \(traced.objects.count) parts over your image. Press \(Preferences.shared.key(.artwork)) to hide the image and check the shapes."
         } catch { showError(error) }
     }
     /// Add Satin Border: the dialog builds a border around each selected closed shape; each border is placed right

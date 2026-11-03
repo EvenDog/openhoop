@@ -275,8 +275,8 @@ struct AutoDigitizeView: View {
 
     var body: some View {
         DialogFrame(eyebrow: "Auto-digitize", title: "Trace your image into fills",
-                    subtitle: "The picture is reduced to a few thread colors and each patch of color becomes a tatami fill, placed exactly over your image. Check the result: thin lines and small text usually look better redrawn as satin or running stitch.",
-                    primary: "Add Fills",
+                    subtitle: "The picture is reduced to a few thread colors and each patch of color is stitched by its width, placed exactly over your image: thin lines in running stitch, narrow parts in satin, wide areas in tatami. Check the result: small text and curved strips may look better redrawn by hand.",
+                    primary: "Add Stitches",
                     finish: { add in
                         if !add { done(options, nil) } else if case .success(let result) = traced { done(options, result) }
                     }) {
@@ -285,10 +285,10 @@ struct AutoDigitizeView: View {
                     picture("Your image") {
                         if let image = NSImage(data: artwork.data) { Image(nsImage: image).resizable().scaledToFit().padding(14) }
                     }
-                    picture("Traced fills") {
+                    picture("Traced stitches") {
                         switch traced {
                         case .none: ProgressView().controlSize(.small)
-                        case .success(let result)?: StitchThumbnail(objects: result.objects, label: "Preview of the traced fills")
+                        case .success(let result)?: StitchThumbnail(objects: result.objects, label: "Preview of the traced stitches")
                         case .failure(let error)?: Text(error.localizedDescription).font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).multilineTextAlignment(.center).padding()
                         }
                     }

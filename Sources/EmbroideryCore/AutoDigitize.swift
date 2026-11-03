@@ -1,8 +1,9 @@
-// Auto-digitizing turns the reference image into fill shapes. It reduces the picture to a few thread colors,
+// Auto-digitizing turns the reference image into stitches. It reduces the picture to a few thread colors,
 // traces the outline of every patch of each color along the pixel edges, smooths away the pixel "staircase",
-// and makes each patch a tatami fill (with holes) placed exactly over the image. With a thread chart chosen, each
-// color becomes that chart's closest thread. Fills sew nearest part next, with rows along each shape's long side
-// (touching shapes at clearly different angles), and each starts where the one before it ends.
+// and stitches each patch by its width (thin lines as running stitch, narrow parts as satin, the rest as tatami),
+// placed exactly over the image. With a thread chart chosen, each color becomes that chart's closest thread. Parts
+// sew nearest first, fills at angles that follow each shape (touching shapes at clearly different angles), and each
+// part starts where the one before it ends.
 import Foundation
 import CoreGraphics
 import ImageIO
@@ -56,7 +57,7 @@ public struct AutoDigitizeOptions: Equatable, Sendable {
 public struct AutoDigitizeColor: Sendable, Equatable {
     public var color: ThreadColor
     public var area: Double       // square millimeters covered
-    public var parts: Int         // fill objects made in this color
+    public var parts: Int         // objects made in this color
     public var background: Bool   // left out as the background
 }
 
@@ -108,7 +109,7 @@ public enum AutoDigitize {
         for label in labels where label >= 0 { areas[label] += 1 }
         let order = centers.indices.filter { areas[$0] > 0 }.sorted { areas[$0] > areas[$1] }   // big areas sew first, details on top
         var objects: [RunObject] = [], colors: [AutoDigitizeColor] = [], warnings: [String] = []
-        var smallParts = 0, failedParts = 0, thinParts = 0, filledHoles = 0
+        var smallParts = 0, failedParts = 0, filledHoles = 0, lines = 0, satins = 0, tatamis = 0
         let sewn = order.filter { $0 != background }
         let chartThreads = options.chart.map { threads(for: sewn.map { centers[$0] }, from: $0) }
         for (number, label) in order.enumerated() {
@@ -131,15 +132,32 @@ public enum AutoDigitize {
                 let area = AreaGeometry.area(region[0]).magnitude - region.dropFirst().reduce(0) { $0 + AreaGeometry.area($1).magnitude }
                 guard area >= max(options.smallestArea, 0.05) else { smallParts += 1; continue }
                 guard (try? AreaGeometry.validate(region)) != nil else { failedParts += 1; continue }
-                let perimeter = region.reduce(0) { $0 + AreaGeometry.pathLength($1 + [$1[0]]) }
-                if 2 * area / perimeter < 1.2 { thinParts += 1 }   // area ÷ half the perimeter: about the width of a strip, the radius of a dot
                 parts.append(region)
             }
             parts = nearestFirst(parts, after: objects.last.map { AreaGeometry.centroid($0.nodes.map(\.point)) })
+            // Millimeters on the canvas → pixel corners in the image (the reverse of `place`).
+            func pixel(_ p: Point) -> Point { Point((p.x - left) / pixelWidth, (top - p.y) / pixelHeight) }
             for (index, region) in parts.enumerated() {
+                // The stitch type follows the part's width. Area ÷ half the outline is about a strip's width (a dot's radius).
+                let area = AreaGeometry.area(region[0]).magnitude - region.dropFirst().reduce(0) { $0 + AreaGeometry.area($1).magnitude }
+                let perimeter = region.reduce(0) { $0 + AreaGeometry.pathLength($1 + [$1[0]]) }
+                // Thinner than 1 mm: a triple running stitch down the middle of the line, if it has one at least 1 mm long.
+                if 2 * area / perimeter < 1, let line = centerline(of: region.map { $0.map(pixel) }, mask: mask, width: w, height: h) {
+                    let path = simplifyLine(line.path.map { place($0.x, $0.y) }[...], tolerance: max(0.1, pixelWidth, pixelHeight))
+                    if path.count >= 2, AreaGeometry.pathLength(path) >= 1 {
+                        var object = RunObject(name: "\(thread.name) line \(index + 1)", nodes: path.map { PathNode($0) }, color: thread)
+                        object.closed = line.closed
+                        var settings = DigitizingSettings(kind: .run); settings.runPasses = 3; object.digitizing = settings
+                        objects.append(object); lines += 1
+                        continue
+                    }
+                }
                 var object = RunObject(name: "\(thread.name) area \(index + 1)", nodes: region[0].map { PathNode($0) }, color: thread)
                 object.closed = true; object.holes = region.count > 1 ? region.dropFirst().map { $0.map { PathNode($0) } } : nil
                 object.digitizing = DigitizingSettings(kind: .fill)
+                // At most 8 mm across (the short side of the smallest box around it): satin, stitches straight across.
+                // A curved strip has a wider box and stays tatami: one stitch direction can't follow its bends.
+                if turnedBox(region[0]).short <= 8 { object.digitizing?.fillStyle = .satin; satins += 1 } else { tatamis += 1 }
                 objects.append(object)
             }
             colors.append(AutoDigitizeColor(color: thread, area: Double(areas[label]) * pixelArea, parts: parts.count, background: false))
@@ -147,7 +165,12 @@ public enum AutoDigitize {
         if hasTransparency && options.skipBackground == false { warnings.append("Transparent parts of the image are always left out.") }
         if smallParts > 0 { warnings.append("\(smallParts) patch\(smallParts == 1 ? " was" : "es were") smaller than \(options.smallestArea.formatted()) mm² and left out.") }
         if filledHoles > 0 { warnings.append("\(filledHoles) small hole\(filledHoles == 1 ? " was" : "s were") filled in, so \(filledHoles == 1 ? "it's" : "they're") sewn over.") }
-        if thinParts > 0 { warnings.append("\(thinParts) part\(thinParts == 1 ? " is" : "s are") narrower than about 1.2 mm. Fill sews thin parts poorly; consider redrawing them as satin or running stitch.") }
+        if lines + satins > 0 {
+            // (how many, one, several, why)
+            let kinds = [(lines, "running stitch line", "running stitch lines", "thinner than 1 mm"), (satins, "satin", "satin", "up to 8 mm across"), (tatamis, "tatami", "tatami", "wider")]
+                .filter { $0.0 > 0 }.map { "\($0.0) \($0.0 == 1 ? $0.1 : $0.2) (\($0.3))" }
+            warnings.append("Each part's stitch follows its width: " + kinds.joined(separator: ", ") + ".")
+        }
         if failedParts > 0 { warnings.append("\(failedParts) part\(failedParts == 1 ? "" : "s") couldn't be traced cleanly and \(failedParts == 1 ? "was" : "were") left out. Try fewer colors or a larger smallest part.") }
         guard !objects.isEmpty else { throw DesignError.invalid("Nothing large enough to stitch was found. Try more colors, turn off Skip background, or lower the smallest part.") }
         guard objects.count <= 500 else { throw DesignError.invalid("The picture traced into \(objects.count) parts, which is too many. Use fewer colors or a larger smallest part.") }
@@ -161,8 +184,8 @@ public enum AutoDigitize {
 
     /// Each part starts where the one before it finishes, so the needle travels less in between: the same start
     /// points as Auto Start Points, found faster. That command sews everything before a part to see where it ends,
-    /// which takes minutes for hundreds of parts; plain fills end in the same place sewn on their own, so here each
-    /// part is sewn once.
+    /// which takes minutes for hundreds of parts; plain fills and lines end in the same place sewn on their own, so
+    /// here each part is sewn once.
     static func setStartPoints(_ objects: inout [RunObject]) throws {
         for i in objects.indices.dropFirst() {
             try Task.checkCancellation()
@@ -195,17 +218,20 @@ public enum AutoDigitize {
         return ordered
     }
 
-    /// Gives each fill its stitch angle, in sewing order. Rows run along the shape's long side (fewer turns, and
-    /// the stitches follow the shape). When a fill touches one sewn before it whose angle is within 30° of its own,
+    /// Gives each fill its stitch angle, in sewing order. Tatami rows run along the shape's long side (fewer turns,
+    /// and the stitches follow the shape); satin stitches run across it, so they stay short. When a fill touches one sewn before it whose angle is within 30° of its own,
     /// it turns 45° (or -45°, or 90°, whichever first clears every such neighbor), so neighbors read as separate
-    /// shapes instead of one patch. Shapes about as wide as they are long keep the default angle.
+    /// shapes instead of one patch. Shapes about as wide as they are long keep the default angle. Lines have no angle.
     static func setAngles(_ objects: inout [RunObject], touching gap: Double) {
         let regions = objects.map { [$0.nodes.map(\.point)] + ($0.holes ?? []).map { $0.map(\.point) } }
         // How far apart two angles are, in degrees: 0–90, since rows at 10° and 190° are the same rows.
         func apart(_ a: Double, _ b: Double) -> Double { let d = abs(a - b).truncatingRemainder(dividingBy: 180); return min(d, 180 - d) }
-        for i in objects.indices {
-            let base = longAxis(regions[i][0]) ?? objects[i].settings.angle
-            let neighbors = (0..<i).filter { touches(regions[i], regions[$0], within: gap) }.map { objects[$0].settings.angle }
+        let fills = objects.indices.filter { objects[$0].kind == .fill }
+        for i in fills {
+            let box = turnedBox(regions[i][0]), satin = objects[i].settings.fillStyle == .satin
+            // A shape about as wide as it is long has no long side to follow.
+            let base = box.short < 0.9 * box.long ? box.angle + (satin ? 90 : 0) : objects[i].settings.angle
+            let neighbors = fills.filter { $0 < i && touches(regions[i], regions[$0], within: gap) }.map { objects[$0].settings.angle }
             let choices = [base, base + 45, base - 45, base + 90]
             // How far a choice is from its closest neighbor; with no neighbors, as far as can be.
             func clearance(_ angle: Double) -> Double { neighbors.map { apart(angle, $0) }.min() ?? 90 }
@@ -215,10 +241,9 @@ public enum AutoDigitize {
         }
     }
 
-    /// The direction of a shape's long side, in whole degrees (0–179), or nil when it has none (about as wide as it
-    /// is long, like a dot or a square). The long side is that of the smallest box that fits around the shape when the
-    /// box may turn; every whole degree is tried, which is plenty for stitch angles.
-    static func longAxis(_ outline: [Point]) -> Double? {
+    /// The smallest box that fits around a shape when the box may turn: the direction of its long side in whole
+    /// degrees (0–179), and its long and short sides in mm. Every whole degree is tried, which is plenty for stitch angles.
+    static func turnedBox(_ outline: [Point]) -> (angle: Double, long: Double, short: Double) {
         var best: (area: Double, angle: Double, long: Double, short: Double)?
         for degrees in 0..<90 {   // a box turned 90° is the same box on its side, so 0–89° covers them all
             // Turning the shape back by `degrees` lines that direction up with x, so the box is plain min/max.
@@ -228,8 +253,7 @@ public enum AutoDigitize {
                 best = (width * height, Double(width >= height ? degrees : degrees + 90), max(width, height), min(width, height))
             }
         }
-        guard let best, best.short < 0.9 * best.long else { return nil }
-        return best.angle
+        return (best!.angle, best!.long, best!.short)
     }
 
     /// Whether two regions (outline and holes each) come within `gap` mm of each other anywhere along their edges.
@@ -428,18 +452,99 @@ public enum AutoDigitize {
         guard ring.count > 4 else { return ring }
         // Split the ring at its first point and the point farthest from it, then simplify the two halves as lines.
         let far = ring.indices.max { ring[0].distance(to: ring[$0]) < ring[0].distance(to: ring[$1]) }!
-        func line(_ points: ArraySlice<Point>) -> [Point] {
-            guard points.count > 2, let first = points.first, let last = points.last else { return Array(points) }
-            var worst = points.startIndex, worstDistance = 0.0
-            for i in points.indices.dropFirst().dropLast() {
-                let d = points[i].distance(to: AreaGeometry.projection(points[i], first, last))
-                if d > worstDistance { worst = i; worstDistance = d }
-            }
-            guard worstDistance > tolerance else { return [first, last] }
-            return line(points[points.startIndex...worst]).dropLast() + line(points[worst...])
-        }
-        let firstHalf = line(ring[0...far]), secondHalf = line((ring + [ring[0]])[far...])
+        let firstHalf = simplifyLine(ring[0...far], tolerance: tolerance), secondHalf = simplifyLine((ring + [ring[0]])[far...], tolerance: tolerance)
         let result = Array(firstHalf.dropLast() + secondHalf.dropLast())
         return result.count >= 3 ? result : ring
+    }
+
+    /// Douglas–Peucker for an open line: keeps both ends, and splits at the point farthest from the straight line
+    /// between them, again and again, while that point is more than `tolerance` away.
+    static func simplifyLine(_ points: ArraySlice<Point>, tolerance: Double) -> [Point] {
+        guard points.count > 2, let first = points.first, let last = points.last else { return Array(points) }
+        var worst = points.startIndex, worstDistance = 0.0
+        for i in points.indices.dropFirst().dropLast() {
+            let d = points[i].distance(to: AreaGeometry.projection(points[i], first, last))
+            if d > worstDistance { worst = i; worstDistance = d }
+        }
+        guard worstDistance > tolerance else { return [first, last] }
+        return simplifyLine(points[points.startIndex...worst], tolerance: tolerance).dropLast() + simplifyLine(points[worst...], tolerance: tolerance)
+    }
+
+    /// The middle of a thin part as one path through pixel centers (in image pixels), and whether it is a loop (a
+    /// thin ring). The part's pixels (those of `mask` whose centers are inside `region`, given in pixels) are thinned
+    /// to a line one pixel wide, which is then walked from one end. Side branches are sewn out and back, shortest
+    /// first, so the walk can end at the far end of the longest one. nil when thinning leaves nothing.
+    static func centerline(of region: [[Point]], mask: [Bool], width w: Int, height h: Int) -> (path: [Point], closed: Bool)? {
+        let points = region.flatMap { $0 }
+        let x0 = max(0, Int(points.map(\.x).min()!)), x1 = min(w - 1, Int(points.map(\.x).max()!))
+        let y0 = max(0, Int(points.map(\.y).min()!)), y1 = min(h - 1, Int(points.map(\.y).max()!))
+        guard x0 <= x1, y0 <= y1 else { return nil }
+        // Work in the part's box only, with an empty one-pixel border so every pixel has eight neighbors.
+        let bw = x1 - x0 + 3, bh = y1 - y0 + 3
+        var on = [Bool](repeating: false, count: bw * bh)
+        for y in y0...y1 { for x in x0...x1 where mask[y * w + x] && AreaGeometry.contains(Point(Double(x) + 0.5, Double(y) + 0.5), rings: region) {
+            on[(y - y0 + 1) * bw + x - x0 + 1] = true
+        } }
+        thin(&on, width: bw, height: bh)
+        let pixels = on.indices.filter { on[$0] }
+        guard let any = pixels.first else { return nil }
+        // Neighbors along the sides first, then on the diagonals, so the walk prefers the straight step.
+        let steps = [-bw, 1, bw, -1, -bw + 1, bw + 1, bw - 1, -bw - 1]
+        func neighbors(_ i: Int) -> [Int] { steps.map { i + $0 }.filter { on[$0] } }
+        let start = pixels.first { neighbors($0).count == 1 } ?? any   // an end of the line; a loop has none
+        // A tree of the line's pixels from `start`, and each pixel's reach: how many pixels the longest way on from it
+        // is. Depth-first, claiming a pixel only when stepping onto it, so the tree follows the line (a loop is walked
+        // all the way round instead of splitting into two halves at the start).
+        var children = [Int: [Int]](), order: [Int] = [], seen = Set<Int>(), stack = [(pixel: start, parent: -1)]
+        while let (pixel, parent) = stack.popLast() {
+            guard seen.insert(pixel).inserted else { continue }
+            if parent >= 0 { children[parent, default: []].append(pixel) }
+            order.append(pixel)
+            // Reversed, so the straight step (listed first) comes off the stack first.
+            for next in neighbors(pixel).reversed() where !seen.contains(next) { stack.append((next, pixel)) }
+        }
+        var reach = [Int: Int]()
+        for pixel in order.reversed() { reach[pixel] = (children[pixel] ?? []).map { reach[$0]! + 1 }.max() ?? 0 }
+        // Walk the tree: into each child, shortest reach first, and back. After the last new pixel, stop: the walk
+        // ends at the far end of the longest branch instead of coming all the way back.
+        var walk = [start], newEnd = 1, path: [(pixel: Int, next: Int)] = [(start, 0)]
+        while var top = path.popLast() {
+            let kids = (children[top.pixel] ?? []).sorted { reach[$0]! < reach[$1]! }
+            if top.next < kids.count {
+                let child = kids[top.next]; top.next += 1
+                path.append(top); path.append((child, 0)); walk.append(child); newEnd = walk.count
+            } else if let parent = path.last { walk.append(parent.pixel) }
+        }
+        walk.removeSubrange(newEnd...)
+        let closed = neighbors(start).count != 1 && walk.count > 3 && neighbors(walk.last!).contains(start)
+        return (walk.map { Point(Double($0 % bw + x0 - 1) + 0.5, Double($0 / bw + y0 - 1) + 0.5) }, closed)
+    }
+
+    /// Zhang–Suen thinning: peels edge pixels off the filled ones, in passes that alternate between the lower-right
+    /// and upper-left edges so both sides wear away evenly, until a line one pixel wide is left down the middle. A
+    /// pixel is peeled only if that keeps the line in one piece and doesn't shorten its ends. The grid's outer border
+    /// must be empty.
+    static func thin(_ on: inout [Bool], width w: Int, height h: Int) {
+        var changed = true
+        while changed {
+            changed = false
+            for pass in 0..<2 {
+                var peel: [Int] = []
+                for y in 1..<(h - 1) { for x in 1..<(w - 1) where on[y * w + x] {
+                    let i = y * w + x
+                    // The eight neighbors, clockwise from the one above: up, up-right, right, … , up-left.
+                    let n = [i - w, i - w + 1, i + 1, i + w + 1, i + w, i + w - 1, i - 1, i - w - 1].map { on[$0] }
+                    let filled = n.filter { $0 }.count
+                    let gaps = (0..<8).filter { !n[$0] && n[($0 + 1) % 8] }.count   // empty-then-filled steps going round
+                    // 2–6 filled neighbors: not an end of the line, not deep inside. One gap: peeling it can't split anything.
+                    guard (2...6).contains(filled), gaps == 1 else { continue }
+                    // Pass 1 peels pixels on the right or bottom edge (or top-left corner); pass 2 the left or top edge.
+                    let up = n[0], right = n[2], down = n[4], left = n[6]
+                    if pass == 0 ? !(up && right && down) && !(right && down && left) : !(up && right && left) && !(up && down && left) { peel.append(i) }
+                } }
+                for i in peel { on[i] = false }
+                if !peel.isEmpty { changed = true }
+            }
+        }
     }
 }
