@@ -19,7 +19,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
     case selectTool, artworkTool, runTool, satinTool, fillTool, holeTool, removeHoles, nodeTool, panTool, entryExitTool, autoStartPoints, clearStartEnd, lettering, editLettering, autoDigitize, satinBorder, outlinesOffsets, applique, done, finishPath, cancelPath, removePoint, insertNode, deleteNode, toggleNodeType, breakApartLettering, densityMap, testSwatches, useAsFillGuide, putLetteringOnLine, renameObject, convertFill, convertRun, convertSatin, toggleUnderlay, showUnderlay, focusSpacing, focusAngle
     case openShapeTool, closedShapeTool, freehandOpenTool, freehandClosedTool, rectangleTool, ellipseTool, basicShapeTool, knifeTool, weldObjects, removeOverlaps, smoothShapes, laydown, wreath, repeatAlongLine, scatter, branching, addStitchAngles, removeStitchAngles, editStitches, addMonogram, editMonogram
     case undo, redo, delete, selectAll, sequenceBySelection, sequenceByColor, alignLeft, alignCentersVertically, alignRight, alignTop, alignCentersHorizontally, alignBottom, alignCenters, spaceAcross, spaceDown, duplicate, mirrorH, mirrorV, rotateLeft, rotateRight, earlier, later, closePath, lockObject, hideObject, tieIn, tieOut, trimAfter, stopAfter, group, ungroup, threadChart, cutObjects, copyObjects, pasteObjects, createMotif
-    case zoomIn, zoomOut, zoomFit, zoomDesign, zoomBoxTool, zoomActual, zoomSelected, showStitches, showOutlines, showConnectors, hideOthers, measureTool, hoopingsTool, grid, snap, clearGuides, needles, threadView, reviewSewingOrder, artwork, inspector, palette, restoreWorkspace, saveWorkspace, useInches, showRulers, paletteUnderCanvas
+    case zoomIn, zoomOut, zoomFit, zoomDesign, zoomBoxTool, zoomActual, zoomSelected, showStitches, showOutlines, showConnectors, hideOthers, measureTool, hoopingsTool, grid, snap, clearGuides, needles, threadView, reviewSewingOrder, artwork, artworkOnTop, inspector, palette, restoreWorkspace, saveWorkspace, useInches, showRulers, paletteUnderCanvas
     case panelSewingOrder, panelDesign, panelReference, nextTab, previousTab, customizeTools
     case nudgeLeft, nudgeRight, nudgeUp, nudgeDown, play, rewind, focusLength
     case stepForward, stepBackward, stepForward10, stepBackward10, nextColor, previousColor, nextObject, previousObject, nextTrim, previousTrim, toEnd
@@ -61,7 +61,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .zoomBoxTool: return "Zoom Box"; case .zoomActual: return "Zoom 1:1 (Real Size)"; case .zoomSelected: return "Zoom to Selected"; case .zoomDesign: return "Zoom to Design"
         case .showStitches: return "Show Stitches"; case .showOutlines: return "Show Outlines"; case .showConnectors: return "Show Connectors (Travel)"; case .hideOthers: return "Hide Unselected"; case .measureTool: return "Measure"; case .hoopingsTool: return "Hoopings"
         case .grid: return "Show Grid"; case .snap: return "Snap to Grid"; case .clearGuides: return "Clear Guides"; case .needles: return "Show Needle Points"; case .threadView: return "Thread View"; case .reviewSewingOrder: return "Review Sewing Order"; case .useInches: return "Use Inches"; case .showRulers: return "Show Rulers & Guides"
-        case .artwork: return "Show Reference Image"; case .inspector: return "Properties Panel"; case .palette: return "Threads Panel"; case .paletteUnderCanvas: return "Palette Under Canvas"
+        case .artwork: return "Show Reference Image"; case .artworkOnTop: return "Reference Image on Top"; case .inspector: return "Properties Panel"; case .palette: return "Threads Panel"; case .paletteUnderCanvas: return "Palette Under Canvas"
         case .panelSewingOrder: return "Sewing Order Panel"; case .panelDesign: return "Design Panel"; case .panelReference: return "Reference Image Panel"
         case .nextTab: return "Show Next Design Tab"; case .previousTab: return "Show Previous Design Tab"
         case .restoreWorkspace: return "Reset Panel Layout"; case .saveWorkspace: return "Save Panel Layout…"; case .customizeTools: return "Customize Tools…"
@@ -211,6 +211,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .showRulers: return "Show or hide the rulers and the guide lines dragged from them. Hidden guides stay in the design."
         case .useInches: return "Show and type sizes and positions in inches instead of millimeters. Stitch settings stay in millimeters."
         case .artwork: return "Show or hide the reference image."
+        case .artworkOnTop: return "Draw the reference image over all the stitches, to see details you've covered. Only changes the view: nothing is sewn or saved."
         case .inspector: return "Show or hide the Properties panel."
         case .palette: return "Show or hide the Threads panel."
         case .paletteUnderCanvas: return "Show the design's thread palette in a strip under the canvas, or dock it at the top of the Threads panel."
@@ -241,7 +242,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .new, .open, .save, .saveAs, .close, .importImage, .importSVG, .importMachine, .exportMachine, .exportThreadList, .productionWorksheet, .sample, .stitchSampler: return "File"
         case .selectTool, .runTool, .satinTool, .fillTool, .holeTool, .nodeTool, .panTool, .entryExitTool, .autoStartPoints, .clearStartEnd, .lettering, .editLettering, .autoDigitize, .satinBorder, .outlinesOffsets, .applique, .done, .artworkTool, .finishPath, .cancelPath, .removePoint, .openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool, .knifeTool, .laydown, .wreath, .repeatAlongLine, .scatter, .branching, .addStitchAngles, .removeStitchAngles, .useAsFillGuide, .putLetteringOnLine, .editStitches, .addMonogram, .editMonogram: return "Digitizing"
         case .settings, .inspector, .palette, .restoreWorkspace, .saveWorkspace, .panelSewingOrder, .panelDesign, .panelReference, .nextTab, .previousTab, .customizeTools: return "Workspace"
-        case .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .hoopingsTool, .grid, .snap, .clearGuides, .needles, .threadView, .reviewSewingOrder, .artwork, .play, .rewind, .useInches, .showRulers, .paletteUnderCanvas, .densityMap,
+        case .zoomIn, .zoomOut, .zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected, .showStitches, .showOutlines, .showConnectors, .hideOthers, .measureTool, .hoopingsTool, .grid, .snap, .clearGuides, .needles, .threadView, .reviewSewingOrder, .artwork, .artworkOnTop, .play, .rewind, .useInches, .showRulers, .paletteUnderCanvas, .densityMap,
              .stepForward, .stepBackward, .stepForward10, .stepBackward10, .nextColor, .previousColor, .nextObject, .previousObject, .nextTrim, .previousTrim, .toEnd: return "View"
         default: return "Edit"
         }
@@ -346,7 +347,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .hoopingsTool: return [.init("h", 6)]   // ⌥⇧H: other embroidery software has no key for it
         case .grid: return [.init("g", 2)]; case .snap: return [.init("g", 3)]; case .clearGuides: return [.init("x", 3)]; case .needles: return [.init(".")]
         case .threadView: return [.init("t")]; case .reviewSewingOrder: return [.init("r", 6)]; case .showRulers: return [.init("r", 1)]   // ⌘R, the Mac's usual rulers key (other embroidery software gives rulers none)
-        case .artwork: return [.init("d")]
+        case .artwork: return [.init("d")]; case .artworkOnTop: return [.init("d", 2)]   // ⇧D: other embroidery software has no key for it
         case .play: return [.init("space"), .init("r", 2)]; case .rewind: return [.init("home")]
         // Stepping the player: the arrow keys with nothing selected (stepWithoutSelection), and these
         case .toEnd: return [.init("end")]; case .nextColor: return [.init("pagedown")]; case .previousColor: return [.init("pageup")]
