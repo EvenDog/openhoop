@@ -391,6 +391,10 @@ final class AutoDigitizeTests: XCTestCase {
         XCTAssertNil(trace.patch(at: Point(9, 9)), "the background is no patch")
         XCTAssertEqual(trace.patches[disc].suggested, .tatami); XCTAssertEqual(trace.patches[bar].suggested, .satin)
         XCTAssertEqual(try trace.build().objects.map(\.name), try run(image, colors: 3).objects.map(\.name), "left alone, it's plain auto-digitize")
+        // A stitch for a whole color sets each of its patches, except those already suggested it.
+        let red = trace.patches[disc].thread, black = trace.patches[bar].thread
+        XCTAssertEqual(trace.suggestions(for: red), [.tatami]); XCTAssertEqual(trace.suggestions(for: black), [.satin])
+        XCTAssertEqual(trace.choices(byThread: [red: .satin, black: .satin]), [disc: .satin], "the bar is satin already")
 
         /// The objects stitching the patch in `color`, as built with `choices`.
         func built(_ choices: [Int: PatchStitch], _ color: Int) throws -> [RunObject] { try trace.build(choices).objects.filter { $0.color.hex == color } }

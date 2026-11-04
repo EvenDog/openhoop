@@ -141,8 +141,8 @@ struct StitchPaintOptions: View {
                 Text(state.paintChoices.isEmpty ? "All as auto-digitize chose" : "\(state.paintChoices.count) set by hand")
                     .font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
                 Spacer(minLength: 8)
-                Button("Reset") { state.paintChoices = [:] }.disabled(state.paintChoices.isEmpty || state.paintBuilding)
-                    .help("Give every part auto-digitize's choice again")
+                Button("Reset") { state.paintChoices = state.paintStart }.disabled(state.paintChoices == state.paintStart || state.paintBuilding)
+                    .help("Put back the stitches the parts had when you came from the Auto-Digitize window")
             }
             .controlSize(.small)
             HStack {

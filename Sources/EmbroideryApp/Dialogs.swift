@@ -39,6 +39,9 @@ struct DialogFrame<Content: View>: View {
     var primary: String
     /// The other button's label; it closes the dialog as Cancel does.
     var secondary = "Cancel"
+    /// An optional button between the two, with its own action (it doesn't close the dialog by itself).
+    var extra: String? = nil
+    var extraAction: () -> Void = {}
     var finish: (Bool) -> Void
     @ViewBuilder var content: Content
     var body: some View {
@@ -54,6 +57,7 @@ struct DialogFrame<Content: View>: View {
             HStack {
                 Spacer()
                 Button(secondary) { finish(false) }.keyboardShortcut(.cancelAction).buttonStyle(ThemedButtonStyle())
+                if let extra { Button(extra, action: extraAction).buttonStyle(ThemedButtonStyle()) }
                 Button(primary) { finish(true) }.keyboardShortcut(.defaultAction).buttonStyle(ThemedButtonStyle(prominent: true))
             }.padding(.horizontal, 28).padding(.vertical, 16)
         }
@@ -273,7 +277,7 @@ extension GuidedDialog {
 }
 
 /// What the Auto-Digitize dialog ends with: stitches to add, or the traced picture to paint stitches on by hand.
-enum AutoDigitizeOutcome { case stitches(AutoDigitizeResult), paint(AutoDigitizeTrace) }
+enum AutoDigitizeOutcome { case stitches(AutoDigitizeResult), paint(AutoDigitizeTrace, choices: [Int: PatchStitch]) }
 
 /// Choose how many thread colors to trace, whether to skip the background and the smallest part to keep,
 /// and compare the picture with the traced fills. Tracing reruns in the background after every change.
@@ -282,21 +286,27 @@ struct AutoDigitizeView: View {
     @State var options: AutoDigitizeOptions
     /// Called with the options and what to do next (nil for Cancel).
     let done: (AutoDigitizeOptions, AutoDigitizeOutcome?) -> Void
-    @State private var traced: Result<(trace: AutoDigitizeTrace, result: AutoDigitizeResult), Error>?   // nil while tracing
-    /// Choose each part's stitch on the canvas (Paint Stitches) instead of adding the stitches straight away.
-    @State private var paintByHand = AutoDigitizeView.lastPaintByHand
-    nonisolated(unsafe) static var lastPaintByHand = false
+    @State private var traced: Result<AutoDigitizeTrace, Error>?   // nil while tracing
+    @State private var built: Result<AutoDigitizeResult, Error>?   // the stitches as chosen; nil while they're made
+    @State private var traceNumber = 0                             // counts traces, so each new one is built
+    /// The stitch picked for each thread color's parts; a color not in here is Auto (each part by its width).
+    @State private var colorStitches: [ThreadColor: PatchStitch] = [:]
+    /// What the preview is built from: changing either rebuilds it (without tracing again).
+    private struct BuildKey: Equatable { var trace: Int; var stitches: [ThreadColor: PatchStitch] }
     private let smallestChoices: [Double] = [0.5, 1, 2, 5, 10]
     /// How tall the colors-and-notes column is (it scrolls past that).
     static let columnHeight: CGFloat = 240
 
     var body: some View {
         DialogFrame(eyebrow: "Auto-digitize", title: "Trace your image into fills",
-                    subtitle: "The picture is reduced to a few thread colors and each patch of color is stitched by its width, placed exactly over your image: thin lines in running stitch, narrow parts in satin, wide areas in tatami. Check the result: small text and curved strips may look better redrawn by hand.",
-                    primary: paintByHand ? "Choose Stitches" : "Add Stitches",
+                    subtitle: "The picture is reduced to a few thread colors and each patch of color is stitched by its width, placed exactly over your image: thin lines in running stitch, narrow parts in satin, wide areas in tatami. Pick another stitch for a whole color beside it, or Fine-tune on Canvas to change single parts.",
+                    primary: "Add Stitches",
+                    extra: "Fine-tune on Canvas…",
+                    extraAction: {
+                        if case .success(let trace)? = traced { done(options, .paint(trace, choices: trace.choices(byThread: colorStitches))) }
+                    },
                     finish: { add in
-                        AutoDigitizeView.lastPaintByHand = paintByHand
-                        if !add { done(options, nil) } else if case .success(let traced) = traced { done(options, paintByHand ? .paint(traced.trace) : .stitches(traced.result)) }
+                        if !add { done(options, nil) } else if case .success(let result)? = built { done(options, .stitches(result)) }
                     }) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top, spacing: 16) {
@@ -304,9 +314,9 @@ struct AutoDigitizeView: View {
                         if let image = NSImage(data: artwork.data) { Image(nsImage: image).resizable().scaledToFit().padding(14) }
                     }
                     picture("Traced stitches") {
-                        switch traced {
+                        switch built {
                         case .none: ProgressView().controlSize(.small)
-                        case .success(let traced)?: StitchThumbnail(objects: traced.result.objects, label: "Preview of the traced stitches")
+                        case .success(let result)?: StitchThumbnail(objects: result.objects, label: "Preview of the traced stitches")
                         case .failure(let error)?: Text(error.localizedDescription).font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).multilineTextAlignment(.center).padding()
                         }
                     }
@@ -318,7 +328,7 @@ struct AutoDigitizeView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 16) {
                             colorList
-                            if case .success(let traced)? = traced, !traced.result.warnings.isEmpty { NotesList(title: "Notes", notes: traced.result.warnings, scrolls: false) }
+                            if case .success(let result)? = built, !result.warnings.isEmpty { NotesList(title: "Notes", notes: result.warnings, scrolls: false) }
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }.frame(height: AutoDigitizeView.columnHeight)
                 }
@@ -326,15 +336,28 @@ struct AutoDigitizeView: View {
         }
         // .task(id:) restarts whenever the options change, cancelling the previous trace if it hasn't finished.
         .task(id: options) {
-            traced = nil
+            traced = nil; built = nil
             let artwork = artwork, options = options
-            let result = await Task.detached(priority: .userInitiated) {
-                Result { () throws -> (trace: AutoDigitizeTrace, result: AutoDigitizeResult) in
-                    let trace = try AutoDigitize.trace(artwork, options: options)
-                    return (trace, try trace.build())
-                }
-            }.value
-            if !Task.isCancelled { traced = result }
+            let result = await Task.detached(priority: .userInitiated) { Result { try AutoDigitize.trace(artwork, options: options) } }.value
+            guard !Task.isCancelled else { return }
+            // A color the new trace no longer has loses its stitch.
+            if case .success(let trace) = result {
+                let threads = Set(trace.patches.map(\.thread)); colorStitches = colorStitches.filter { threads.contains($0.key) }
+            }
+            traced = result; traceNumber += 1
+        }
+        // Builds the stitches from the latest trace whenever it or a color's stitch changes, so picking a stitch
+        // doesn't trace the picture again.
+        .task(id: BuildKey(trace: traceNumber, stitches: colorStitches)) {
+            switch traced {
+            case .failure(let error)?: built = .failure(error)
+            case .success(let trace)?:
+                built = nil
+                let choices = trace.choices(byThread: colorStitches)
+                let result = await Task.detached(priority: .userInitiated) { Result { try trace.build(choices) } }.value
+                if !Task.isCancelled { built = result }
+            case nil: break
+            }
         }
     }
 
@@ -362,23 +385,38 @@ struct AutoDigitizeView: View {
                     ForEach(smallestChoices, id: \.self) { Text("\($0.formatted()) mm²").tag($0) }
                 }.pickerStyle(.segmented).labelsHidden()
             }
-            Toggle("Choose each part's stitch myself", isOn: $paintByHand).font(Theme.body(13, weight: .semibold))
-            Text("Next, click parts on the canvas to make them tatami, satin or a line, or leave them out.")
-                .font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    /// "Auto · tatami" when auto-digitize gives every part in a color the same stitch, "Auto · mixed" otherwise.
+    private func autoLabel(_ suggestions: [PatchStitch]) -> String {
+        suggestions.count == 1 ? "Auto · \(suggestions[0].title.lowercased())" : suggestions.isEmpty ? "Auto" : "Auto · mixed"
     }
 
     private var colorList: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Colors found").font(Theme.body(12, weight: .bold))
-            if case .success(let traced)? = traced {
-                ForEach(traced.result.colors, id: \.color.name) { found in
+            if case .success(let result)? = built, case .success(let trace)? = traced {
+                ForEach(result.colors, id: \.color.name) { found in
                     HStack(spacing: 8) {
                         Circle().fill(Color(nsColor: found.color.nsColor)).frame(width: 16, height: 16).overlay(Circle().strokeBorder(Theme.controlBorder))
-                        Text(found.color.name).fontWeight(.semibold)
-                        if !found.background, let label = found.color.chartLabel { Text(label) }
-                        Text(found.background ? "background · left out" : "\(found.parts) part\(found.parts == 1 ? "" : "s") · \(Int(found.area.rounded()).formatted()) mm²")
-                            .foregroundStyle(Theme.inkSecondary)
+                        VStack(alignment: .leading, spacing: 1) {
+                            HStack(spacing: 6) {
+                                Text(found.color.name).fontWeight(.semibold)
+                                if !found.background, let label = found.color.chartLabel { Text(label) }
+                            }
+                            Text(found.background ? "background · left out" : "\(found.parts) part\(found.parts == 1 ? "" : "s") · \(Int(found.area.rounded()).formatted()) mm²")
+                                .foregroundStyle(Theme.inkSecondary)
+                        }
+                        Spacer(minLength: 8)
+                        // The stitch for every part in this color: Auto lets each part's width decide.
+                        if !found.background {
+                            Picker("Stitch for \(found.color.name)", selection: Binding(get: { colorStitches[found.color] }, set: { colorStitches[found.color] = $0 })) {
+                                Text(autoLabel(trace.suggestions(for: found.color))).tag(PatchStitch?.none)
+                                ForEach(PatchStitch.allCases, id: \.self) { Text($0.title).tag(PatchStitch?.some($0)) }
+                            }
+                            .labelsHidden().fixedSize().help("The stitch for every part in \(found.color.name). Auto picks each part's by its width.")
+                        }
                     }.font(Theme.body(12))
                 }
             } else {

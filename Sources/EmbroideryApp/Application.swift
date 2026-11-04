@@ -859,8 +859,8 @@ import EmbroideryCore
         switch outcome {
         case .stitches(let traced):
             do { try state.addAutoDigitized(traced) } catch { showError(error) }
-        case .paint(let trace):
-            state.startStitchPaint(trace); state.focusCanvas(); state.canvas?.window?.invalidateCursorRects(for: state.canvas!)
+        case .paint(let trace, let choices):
+            state.startStitchPaint(trace, choices: choices); state.focusCanvas(); state.canvas?.window?.invalidateCursorRects(for: state.canvas!)
         }
     }
     /// Add Satin Border: the dialog builds a border around each selected closed shape; each border is placed right

@@ -87,6 +87,22 @@ public struct AutoDigitizeTrace: Sendable {
     /// The index of the patch at `point` (in mm), or nil if it's on none, e.g. on the background.
     public func patch(at point: Point) -> Int? { patches.indices.first { AreaGeometry.contains(point, rings: patches[$0].region) } }
 
+    /// Choices for `build` that sew every patch in a thread as `stitches` gives for that thread; threads not in it
+    /// keep their suggestions. A patch already suggested that stitch is left out, so it doesn't count as set by hand.
+    public func choices(byThread stitches: [ThreadColor: PatchStitch]) -> [Int: PatchStitch] {
+        var choices: [Int: PatchStitch] = [:]
+        for (index, patch) in patches.enumerated() {
+            if let stitch = stitches[patch.thread], stitch != patch.suggested { choices[index] = stitch }
+        }
+        return choices
+    }
+
+    /// The stitches suggested for the patches in `thread`, each once, in the order `PatchStitch` lists them.
+    public func suggestions(for thread: ThreadColor) -> [PatchStitch] {
+        let suggested = Set(patches.filter { $0.thread == thread }.map(\.suggested))
+        return PatchStitch.allCases.filter(suggested.contains)
+    }
+
     /// Stitches the patches: each as `choices` says (keyed by its index in `patches`), the rest as suggested.
     public func build(_ choices: [Int: PatchStitch] = [:]) throws -> AutoDigitizeResult { try AutoDigitize.build(self, choices: choices) }
 }

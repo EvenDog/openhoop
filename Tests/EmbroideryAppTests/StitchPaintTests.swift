@@ -63,4 +63,16 @@ final class StitchPaintTests: XCTestCase {
         XCTAssertTrue(state.design.objects.isEmpty)
         document.close()
     }
+
+    /// Fine-tune on Canvas: painting starts with the stitches picked per color in the Auto-Digitize window.
+    @MainActor func testPaintingStartsWithTheColorsStitches() throws {
+        _ = NSApplication.shared
+        let document = DesignDocument(); let state = document.state
+        let trace = try trace()
+        let disc = try XCTUnwrap(trace.patch(at: Point(-4, 0)))
+        state.startStitchPaint(trace, choices: trace.choices(byThread: [trace.patches[disc].thread: .line]))
+        XCTAssertEqual(state.paintedStitch(disc), .line)
+        XCTAssertEqual(state.paintStart, [disc: .line], "Reset goes back to these")
+        document.close()
+    }
 }

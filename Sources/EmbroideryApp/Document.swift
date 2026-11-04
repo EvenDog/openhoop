@@ -529,11 +529,14 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     /// stitches are being made.
     @Published var stitchPaint: AutoDigitizeTrace?
     @Published var paintChoices: [Int: PatchStitch] = [:]
+    /// The choices painting started with (each color's stitch from the Auto-Digitize window), which Reset puts back.
+    var paintStart: [Int: PatchStitch] = [:]
     @Published var paintBrush: PatchStitch = .tatami
     @Published var paintBuilding = false
-    /// Starts Paint Stitches on a traced picture, every patch with auto-digitize's choice.
-    func startStitchPaint(_ trace: AutoDigitizeTrace) {
-        tool = .paintStitches; stitchPaint = trace; paintChoices = [:]; paintBuilding = false; selection = []; selectedNode = nil
+    /// Starts Paint Stitches on a traced picture: patches in `choices` (by index) start with that stitch, the rest
+    /// with auto-digitize's.
+    func startStitchPaint(_ trace: AutoDigitizeTrace, choices: [Int: PatchStitch] = [:]) {
+        tool = .paintStitches; stitchPaint = trace; paintChoices = choices; paintStart = choices; paintBuilding = false; selection = []; selectedNode = nil
         status = "Paint stitches · Pick a stitch in Properties, then click or drag over parts · Return adds the stitches · Esc cancels"
     }
     /// The stitch patch `index` will get: the one painted on it, or auto-digitize's.
