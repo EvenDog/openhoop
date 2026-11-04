@@ -131,6 +131,15 @@ final class ColorBlendTests: XCTestCase {
         XCTAssertEqual(design.objects[1].settings.angle, ColorBlend.angle(for: 270))
     }
 
+    func testEditingABlendsFirstThread() {
+        var design = blended()
+        let green = ThreadColor("Green", 0x00aa00)
+        design.editBlend(containing: design.objects[1].id, first: green, second: blue, direction: 0, fade: .whole)
+        XCTAssertEqual(design.objects.map(\.color), [green, blue])
+        design.editBlend(containing: design.objects[0].id, second: red, direction: 0, fade: .whole)
+        XCTAssertEqual(design.objects[0].color, green, "No first thread given keeps the one it has")
+    }
+
     func testDirectionReadsBackAsMade() {
         for direction in stride(from: 0.0, to: 360, by: 45) {
             XCTAssertEqual(ColorBlend.direction(of: ColorBlend.layers(of: square(), second: blue, direction: direction)[0]), direction, accuracy: 1e-9)

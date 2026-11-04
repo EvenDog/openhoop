@@ -99,9 +99,11 @@ extension Design {
         return nil
     }
 
-    /// Gives the blend that `id` is a layer of a new second thread, direction and fade (see `ColorBlend.layers`).
-    public mutating func editBlend(containing id: UUID, second: ThreadColor, direction: Double, fade: BlendFade) {
+    /// Gives the blend that `id` is a layer of new threads (a nil `first` keeps the first layer's), direction and fade
+    /// (see `ColorBlend.layers`).
+    public mutating func editBlend(containing id: UUID, first: ThreadColor? = nil, second: ThreadColor, direction: Double, fade: BlendFade) {
         guard let (base, top) = blend(containing: id) else { return }
+        if let first { objects[base].color = first }
         objects[base].digitizing?.angle = ColorBlend.angle(for: direction)
         objects[top].digitizing?.angle = ColorBlend.angle(for: direction + 180)
         objects[top].color = second

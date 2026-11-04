@@ -4,9 +4,9 @@
 import SwiftUI
 import EmbroideryCore
 
-/// What the Color Blend dialog was closed with: the second thread, the way the blend runs (degrees), and where the
-/// colors mix, seen from the first color's side.
-struct BlendChoice { var second: ThreadColor; var direction: Double; var fade: BlendFade }
+/// What the Color Blend dialog was closed with: the first thread (nil keeps each fill's own), the second thread, the
+/// way the blend runs (degrees), and where the colors mix, seen from the first color's side.
+struct BlendChoice { var first: ThreadColor?; var second: ThreadColor; var direction: Double; var fade: BlendFade }
 
 extension GuidedDialog {
     static var lastBlendDirection = 0.0
@@ -40,11 +40,15 @@ struct ColorBlendView: View {
     @State var fade: BlendFade
     /// Called with the choices, or nil for Cancel.
     let done: (BlendChoice?) -> Void
+    /// The first thread for every selected fill; nil keeps each fill's own (offered while their threads differ).
+    @State private var first: ThreadColor?
     @State private var second: ThreadColor?
     /// Threads picked from the thread chart, shown as swatches beside the palette's.
     @State private var picked: [ThreadColor] = []
     /// The two layers' stitches; nil while they're worked out.
     @State private var preview: StitchPlan?
+    /// True draws the preview as real thread (Thread View), false as plain stitch lines. Starts as the canvas is.
+    @State private var threadView = Preferences.shared.threadView
 
     /// The eight directions offered: degrees (0 = left to right, counterclockwise), an arrow, and words for it.
     private static let directions: [(degrees: Double, arrow: String, words: String)] = [
@@ -56,44 +60,44 @@ struct ColorBlendView: View {
     private var directionChoices: [(degrees: Double, arrow: String, words: String)] {
         Self.directions.contains { $0.degrees == startDirection } ? Self.directions : Self.directions + [(startDirection, "safari", "As it is now, \(Int(startDirection.rounded()))°")]
     }
-    private var first: ThreadColor { fills[0].color }
-    /// Swatches to pick the second thread from: the palette, then threads picked from the chart, each once, leaving
-    /// out the shape's own thread.
-    private var swatches: [ThreadColor] {
+    /// The selected fills' own threads, each once.
+    private var ownThreads: [ThreadColor] {
         var list: [ThreadColor] = []
-        for thread in palette + picked where thread != first && !list.contains(thread) { list.append(thread) }
+        for fill in fills where !list.contains(fill.color) { list.append(fill.color) }
         return list
     }
-    private struct PreviewKey: Equatable { var second: ThreadColor?; var direction: Double; var fade: BlendFade }
+    /// The first thread as shown: the one chosen, or the first fill's own.
+    private var shownFirst: ThreadColor { first ?? fills[0].color }
+    /// Threads to pick from: the fills' own, the palette, then threads picked from the chart, each once, leaving out
+    /// `excluded` (the thread chosen for the blend's other end).
+    private func swatches(excluding excluded: ThreadColor?) -> [ThreadColor] {
+        var list: [ThreadColor] = []
+        for thread in ownThreads + palette + picked where thread != excluded && !list.contains(thread) { list.append(thread) }
+        return list
+    }
+    private struct PreviewKey: Equatable { var first: ThreadColor?; var second: ThreadColor?; var direction: Double; var fade: BlendFade }
 
     var body: some View {
         DialogFrame(eyebrow: "Color blend", title: editing ? "Change the blend" : "Blend two threads",
                     subtitle: "Two gradient fills of the same shape, one on top of the other: the first thread solid where the blend starts, the second solid where it ends, mixing in between.",
                     primary: editing ? "Update Blend" : "Add Blend",
                     finish: { add in
-                        if !add { done(nil) } else if let second { done(BlendChoice(second: second, direction: direction, fade: fade)) }
+                        if !add { done(nil) } else if let second { done(BlendChoice(first: first, second: second, direction: direction, fade: fade)) }
                     }) {
             HStack(alignment: .top, spacing: 20) {
                 VStack(alignment: .leading, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("From").font(Theme.body(13, weight: .semibold))
-                        HStack(spacing: 6) {
-                            Circle().fill(Color(nsColor: first.nsColor)).frame(width: 14, height: 14)
-                            Text(fills.count == 1 ? "\(first.name), the shape's thread" : "Each shape's own thread").foregroundStyle(Theme.inkSecondary)
-                        }.font(Theme.body(12))
+                        if ownThreads.count > 1 {
+                            Toggle("Each shape's own thread", isOn: Binding(get: { first == nil }, set: { first = $0 ? nil : ownThreads[0] }))
+                                .toggleStyle(.checkbox).font(Theme.body(12))
+                        }
+                        threadPicker(selected: first, excluding: second) { first = $0 }
+                        Text(first?.name ?? "Each shape's own thread").font(Theme.body(12)).foregroundStyle(Theme.inkSecondary)
                     }
                     VStack(alignment: .leading, spacing: 8) {
                         Text("To").font(Theme.body(13, weight: .semibold))
-                        // LazyVGrid lays the swatches out in rows of up to eight.
-                        LazyVGrid(columns: Array(repeating: GridItem(.fixed(22), spacing: 6), count: 8), alignment: .leading, spacing: 6) {
-                            ForEach(swatches, id: \.self) { thread in
-                                Button { second = thread } label: {
-                                    Circle().fill(Color(nsColor: thread.nsColor)).frame(width: 20, height: 20)
-                                        .overlay(Circle().stroke(Theme.ink, lineWidth: second == thread ? 2 : 0).padding(-3))
-                                }.buttonStyle(.plain).help(thread.name)
-                            }
-                        }
-                        Button("Thread Chart…") { chooseFromChart() }.buttonStyle(ThemedButtonStyle())
+                        threadPicker(selected: second, excluding: shownFirst) { second = $0 }
                         if let second { Text(second.name).font(Theme.body(12)).foregroundStyle(Theme.inkSecondary) }
                     }
                     VStack(alignment: .leading, spacing: 8) {
@@ -110,27 +114,35 @@ struct ColorBlendView: View {
                     if let second {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Mix").font(Theme.body(13, weight: .semibold))
-                            LevelsBar(fade: fade, first: first, second: second, onChange: { fade = $0 })
+                            LevelsBar(fade: fade, first: shownFirst, second: second, onChange: { fade = $0 })
                         }
                     }
                     Text("The two layers keep one shape: reshape or turn either and the other follows.")
                         .font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
                 }.frame(width: 280, alignment: .leading)
-                ZStack {
-                    Theme.ground
-                    if let preview { StitchPlanPicture(plan: preview).padding(14) } else { ProgressView().controlSize(.small) }
-                }.frame(height: 300).clipShape(RoundedRectangle(cornerRadius: 14))
+                VStack(alignment: .trailing, spacing: 8) {
+                    Picker("Preview", selection: $threadView) {
+                        Text("Stitches").tag(false)
+                        Text("Thread View").tag(true)
+                    }.pickerStyle(.segmented).labelsHidden().frame(width: 200)
+                    ZStack {
+                        Theme.ground
+                        if let preview { StitchPlanPicture(plan: preview, threadView: threadView).padding(14) } else { ProgressView().controlSize(.small) }
+                    }.frame(height: 340).clipShape(RoundedRectangle(cornerRadius: 14))
+                }
             }
         }
         .onAppear {
-            if let startSecond, !swatches.contains(startSecond) { picked.append(startSecond) }   // a thread no longer in the palette still shows
-            if second == nil { second = startSecond ?? swatches.first }
+            if ownThreads.count == 1 { first = ownThreads[0] }
+            if let startSecond, !swatches(excluding: nil).contains(startSecond) { picked.append(startSecond) }   // a thread no longer in the palette still shows
+            if second == nil { second = startSecond ?? swatches(excluding: shownFirst).first }
         }
-        // Work out the layers' stitches in the background whenever the thread or direction changes.
-        .task(id: PreviewKey(second: second, direction: direction, fade: fade)) {
+        // Work out the layers' stitches in the background whenever a thread, the direction or the mix changes.
+        .task(id: PreviewKey(first: first, second: second, direction: direction, fade: fade)) {
             preview = nil
             guard let second else { return }
-            let fills = fills, direction = direction, fade = fade
+            let fills = fills.map { fill -> RunObject in var fill = fill; if let first { fill.color = first }; return fill }
+            let direction = direction, fade = fade
             let plan = await Task.detached(priority: .userInitiated) { () -> StitchPlan? in
                 var sample = Design()
                 sample.objects = fills.flatMap { ColorBlend.layers(of: $0, second: second, direction: direction, fade: fade) }
@@ -140,33 +152,64 @@ struct ColorBlendView: View {
         }
     }
 
-    /// Opens the thread chart over this dialog; a thread chosen there becomes the second thread.
-    private func chooseFromChart() {
-        guard case .use(let thread)? = GuidedDialog.threadChart(current: second ?? first, designThreads: palette) else { return }
+    /// Swatches in rows of up to eight, then a Thread Chart… button. `selected` gets a ring; `choose` hears the thread
+    /// picked from either.
+    private func threadPicker(selected: ThreadColor?, excluding: ThreadColor?, choose: @escaping (ThreadColor) -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // LazyVGrid lays the swatches out in rows of up to eight.
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(22), spacing: 6), count: 8), alignment: .leading, spacing: 6) {
+                ForEach(swatches(excluding: excluding), id: \.self) { thread in
+                    Button { choose(thread) } label: {
+                        Circle().fill(Color(nsColor: thread.nsColor)).frame(width: 20, height: 20)
+                            .overlay(Circle().stroke(Theme.ink, lineWidth: selected == thread ? 2 : 0).padding(-3))
+                    }.buttonStyle(.plain).help(thread.name)
+                }
+            }
+            Button("Thread Chart…") { if let thread = chartThread(current: selected ?? shownFirst) { choose(thread) } }.buttonStyle(ThemedButtonStyle())
+        }
+    }
+    /// Opens the thread chart over this dialog and returns the thread chosen there (also kept as a swatch), or nil.
+    private func chartThread(current: ThreadColor) -> ThreadColor? {
+        guard case .use(let thread)? = GuidedDialog.threadChart(current: current, designThreads: palette) else { return nil }
         if !picked.contains(thread) { picked.append(thread) }
-        second = thread
+        return thread
     }
 }
 
-/// A stitch plan drawn as its stitches, each in its thread's color, scaled to fit.
+/// A stitch plan scaled to fit: each stitch as a thin line in its thread's color, or with `threadView` as real thread,
+/// drawn the way the canvas's Thread View draws it.
 struct StitchPlanPicture: View {
     let plan: StitchPlan
+    var threadView = false
     var body: some View {
         Canvas { context, size in
             let points = plan.commands.map(\.point)
             guard let minX = points.map(\.x).min(), let maxX = points.map(\.x).max(), let minY = points.map(\.y).min(), let maxY = points.map(\.y).max() else { return }
             let scale = min(size.width / max(maxX - minX, 0.1), size.height / max(maxY - minY, 0.1))
             let left = (size.width - (maxX - minX) * scale) / 2, bottom = (size.height - (maxY - minY) * scale) / 2
+            if threadView {
+                // withCGContext hands over the drawing as Core Graphics, which DesignCanvas.drawThread uses. Flipping it
+                // to point up, as the design and the canvas do, keeps the light and shadows falling the same way.
+                context.withCGContext { cg in
+                    cg.translateBy(x: 0, y: size.height); cg.scaleBy(x: 1, y: -1)
+                    DesignCanvas.drawThread(cg, plan.commands[...], from: plan.commands.first?.point ?? Point(0, 0), threads: plan.threads, hidden: [], showUnderlay: true,
+                                            width: max(1.2, 0.45 * scale), visibleArea: CGRect(origin: .zero, size: size)) { p in
+                        CGPoint(x: left + (p.x - minX) * scale, y: bottom + (p.y - minY) * scale)
+                    }
+                }
+                return
+            }
             // Design coordinates point up; screen coordinates point down, so y is flipped here.
             func place(_ p: Point) -> CGPoint { CGPoint(x: left + (p.x - minX) * scale, y: size.height - (bottom + (p.y - minY) * scale)) }
-            // A stitch is the thread from the needle's last place (after a stitch or a jump) to the new one.
+            // A stitch is the thread from the needle's last place (after a stitch or a jump) to the new one. zip pairs
+            // each command with the one after it.
             for (previous, command) in zip(plan.commands, plan.commands.dropFirst())
             where command.op == .stitch && [.stitch, .jump].contains(previous.op) && plan.threads.indices.contains(command.thread) {
                 var line = Path(); line.move(to: place(previous.point)); line.addLine(to: place(command.point))
                 context.stroke(line, with: .color(Color(nsColor: plan.threads[command.thread].nsColor)), lineWidth: 0.6)
             }
         }
-        .accessibilityLabel("Preview of the blend's stitches")
+        .accessibilityLabel(threadView ? "Preview of the blend in Thread View" : "Preview of the blend's stitches")
     }
 }
 
