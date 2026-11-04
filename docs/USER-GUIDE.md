@@ -478,7 +478,7 @@ These are the starting keys; every one can be changed. Tools on a function key a
 ### Machine-file import details
 
 - Stitches come in exactly as stored, without added ties or resampling. Stitches over 10 mm are reported.
-- PES/PEC repeated colors stay as thread changes (they may be stops). DST jump sequences aren't turned into trims. JEF color zero is read as a stop.
+- PES/PEC repeated colors stay as thread changes (they may be stops). DST and JEF have no trim command of their own, so three or more jumps in a row after sewing come in as a trim (the jumps stay too), as most machines read them. JEF color zero is read as a stop.
 - Header settings, separate color files, thumbnails and original digitizing objects aren't kept.
 - Limits: 5 MB, 100,000 commands and 1,000 thread blocks.
 
