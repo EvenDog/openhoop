@@ -49,6 +49,9 @@ struct ColorBlendView: View {
     @State private var preview: StitchPlan?
     /// True draws the preview as real thread (Thread View), false as plain stitch lines. Starts as the canvas is.
     @State private var threadView = Preferences.shared.threadView
+    /// The direction line drawn across the preview (in its points): while dragging, and after, until the direction is
+    /// changed another way. `degrees` is the direction it set.
+    @State private var drawnLine: (start: CGPoint, end: CGPoint, degrees: Double?)?
 
     /// The eight directions offered: degrees (0 = left to right, counterclockwise), an arrow, and words for it.
     private static let directions: [(degrees: Double, arrow: String, words: String)] = [
@@ -56,9 +59,12 @@ struct ColorBlendView: View {
         (135, "arrow.up.left", "Up and to the left"), (180, "arrow.left", "Right to left"), (225, "arrow.down.left", "Down and to the left"),
         (270, "arrow.down", "Top to bottom"), (315, "arrow.down.right", "Down and to the right"),
     ]
-    /// The eight directions, plus the one the dialog opened with if it's another.
+    /// The eight directions, plus the current one if it's another: drawn on the preview, or as the blend was when the
+    /// dialog opened (an angle typed in Properties).
     private var directionChoices: [(degrees: Double, arrow: String, words: String)] {
-        Self.directions.contains { $0.degrees == startDirection } ? Self.directions : Self.directions + [(startDirection, "safari", "As it is now, \(Int(startDirection.rounded()))°")]
+        guard !Self.directions.contains(where: { $0.degrees == direction }) else { return Self.directions }
+        let words = direction == startDirection && drawnLine == nil ? "As it is now" : "Drawn"
+        return Self.directions + [(direction, "pencil.and.outline", "\(words), \(Int(direction.rounded()))°")]
     }
     /// The selected fills' own threads, each once.
     private var ownThreads: [ThreadColor] {
@@ -128,7 +134,14 @@ struct ColorBlendView: View {
                     ZStack {
                         Theme.ground
                         if let preview { StitchPlanPicture(plan: preview, threadView: threadView).padding(14) } else { ProgressView().controlSize(.small) }
-                    }.frame(height: 340).clipShape(RoundedRectangle(cornerRadius: 14))
+                        // The drawn direction, shown while it's the blend's direction.
+                        if let line = drawnLine, line.degrees == nil || line.degrees == direction { DirectionArrow(start: line.start, end: line.end) }
+                    }
+                    .frame(height: 340).clipShape(RoundedRectangle(cornerRadius: 14))
+                    .contentShape(Rectangle())
+                    .gesture(drawDirection)
+                    .help("Drag across the preview to draw which way the blend runs, from the first thread toward the second. Hold Shift for 15° steps.")
+                    Text("Drag across the preview to draw the direction.").font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
                 }
             }
         }
@@ -150,6 +163,27 @@ struct ColorBlendView: View {
             }.value
             if !Task.isCancelled { preview = plan }
         }
+    }
+
+    /// Drawing the direction on the preview: from where the first thread should be solid toward the second. The
+    /// screen's y runs down and the design's up, so y is turned over. Whole degrees, or 15° steps with Shift; a drag
+    /// shorter than 8 points (a click) changes nothing.
+    private var drawDirection: some Gesture {
+        DragGesture(minimumDistance: 4)
+            .onChanged { drag in drawnLine = (drag.startLocation, drag.location, nil) }
+            .onEnded { drag in
+                guard let degrees = Self.drawnDirection(from: drag.startLocation, to: drag.location, step: NSEvent.modifierFlags.contains(.shift) ? 15 : 1) else { drawnLine = nil; return }
+                drawnLine = (drag.startLocation, drag.location, degrees)
+                direction = degrees
+            }
+    }
+    /// The blend direction (degrees, 0 = left to right, counterclockwise, 0 up to 360) of a line drawn on screen from
+    /// `start` to `end`, rounded to `step` degrees; nil for a line under 8 points long.
+    static func drawnDirection(from start: CGPoint, to end: CGPoint, step: Double) -> Double? {
+        let dx = Double(end.x - start.x), dy = Double(end.y - start.y)
+        guard hypot(dx, dy) >= 8 else { return nil }
+        let degrees = (atan2(-dy, dx) * 180 / .pi / step).rounded() * step   // -dy: the screen's y runs down
+        return degrees < 0 ? degrees + 360 : degrees >= 360 ? degrees - 360 : degrees
     }
 
     /// Swatches in rows of up to eight, then a Thread Chart… button. `selected` gets a ring; `choose` hears the thread
@@ -300,5 +334,29 @@ struct LevelsTriangle: Shape {
 struct LevelsDiamond: Shape {
     func path(in rect: CGRect) -> Path {
         Path { p in p.move(to: CGPoint(x: rect.midX, y: rect.minY)); p.addLine(to: CGPoint(x: rect.maxX, y: rect.midY)); p.addLine(to: CGPoint(x: rect.midX, y: rect.maxY)); p.addLine(to: CGPoint(x: rect.minX, y: rect.midY)); p.closeSubpath() }
+    }
+}
+
+/// The direction drawn on the Color Blend preview: a dot where it starts and an arrowhead where it points, dark with a
+/// light edge so it shows on any thread color.
+struct DirectionArrow: View {
+    let start: CGPoint
+    let end: CGPoint
+    var body: some View {
+        let angle = Double(atan2(end.y - start.y, end.x - start.x)), head = 10.0
+        let left = CGPoint(x: end.x - head * cos(angle - .pi / 6), y: end.y - head * sin(angle - .pi / 6))
+        let right = CGPoint(x: end.x - head * cos(angle + .pi / 6), y: end.y - head * sin(angle + .pi / 6))
+        let shape = Path { p in
+            p.move(to: start); p.addLine(to: end)
+            p.move(to: left); p.addLine(to: end); p.addLine(to: right)
+        }
+        ZStack {
+            shape.stroke(Color.white.opacity(0.9), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+            shape.stroke(Color.black.opacity(0.85), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            Circle().fill(Color.black.opacity(0.85)).overlay(Circle().stroke(Color.white.opacity(0.9), lineWidth: 1.5))
+                .frame(width: 9, height: 9).position(start)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
