@@ -379,6 +379,40 @@ final class AutoDigitizeTests: XCTestCase {
         XCTAssertFalse(result.warnings.contains { $0.contains("satin column") || $0.contains("tapered satin") }, "\(result.warnings)")
     }
 
+    func testPatchesCanBeSetByHand() throws {
+        // Shown 20 mm wide (0.2 mm per pixel): a red disc 10 mm across on the left, a black bar 3 × 12 mm on the right.
+        let image = picture(100) { x, y in
+            if hypot(Double(x) - 29.5, Double(y) - 49.5) < 25 { return 0xD02020 }
+            return x >= 65 && x < 80 && y >= 20 && y < 80 ? 0x000000 : 0xFFFFFF
+        }
+        var options = AutoDigitizeOptions(); options.colors = 3
+        let trace = try AutoDigitize.trace(image, center: Point(0, 0), width: 20, height: 20, options: options)
+        let disc = try XCTUnwrap(trace.patch(at: Point(-4, 0))), bar = try XCTUnwrap(trace.patch(at: Point(4.5, 0)))
+        XCTAssertNil(trace.patch(at: Point(9, 9)), "the background is no patch")
+        XCTAssertEqual(trace.patches[disc].suggested, .tatami); XCTAssertEqual(trace.patches[bar].suggested, .satin)
+        XCTAssertEqual(try trace.build().objects.map(\.name), try run(image, colors: 3).objects.map(\.name), "left alone, it's plain auto-digitize")
+
+        /// The objects stitching the patch in `color`, as built with `choices`.
+        func built(_ choices: [Int: PatchStitch], _ color: Int) throws -> [RunObject] { try trace.build(choices).objects.filter { $0.color.hex == color } }
+        let satinDisc = try XCTUnwrap(built([disc: .satin], 0xD02020).first)
+        XCTAssertEqual(satinDisc.kind, .fill); XCTAssertEqual(satinDisc.settings.fillStyle, .satin)
+        let tatamiBar = try XCTUnwrap(built([bar: .tatami], 0x000000).first)
+        XCTAssertEqual(tatamiBar.kind, .fill); XCTAssertNotEqual(tatamiBar.settings.fillStyle, .satin)
+        // A line: down the middle of the 3 mm bar, round the edge of the 10 mm disc.
+        let barLine = try built([bar: .line], 0x000000)
+        XCTAssertEqual(barLine.count, 1); XCTAssertEqual(barLine[0].kind, .run); XCTAssertFalse(barLine[0].closed)
+        XCTAssertEqual(barLine[0].nodes.map(\.point.x).max()! - barLine[0].nodes.map(\.point.x).min()!, 0, accuracy: 0.5, "straight down the bar's middle")
+        let discLine = try built([disc: .line], 0xD02020)
+        XCTAssertEqual(discLine.count, 1); XCTAssertEqual(discLine[0].kind, .run); XCTAssertTrue(discLine[0].closed)
+        XCTAssertEqual(discLine[0].nodes.map { hypot($0.point.x + 4, $0.point.y) }.max()!, 5, accuracy: 0.3, "round the disc's edge")
+        XCTAssertTrue(try built([bar: .leaveOut], 0x000000).isEmpty)
+        let result = try trace.build([bar: .leaveOut, disc: .satin])
+        XCTAssertTrue(result.warnings.contains("2 parts were set by hand. Stitches: 1 satin."), "\(result.warnings)")
+        XCTAssertThrowsError(try trace.build([bar: .leaveOut, disc: .leaveOut]))
+        var design = Design(); design.objects = try trace.build([bar: .line, disc: .line]).objects
+        XCTAssertNoThrow(try StitchEngine.compile(design))
+    }
+
     func testOutlineColorsSewLast() throws {
         // Shown 20 mm wide: a red disc (radius 20 px, 4 mm) inside a black ring outline (radius 20–35 px, 3 mm wide),
         // on white. Black covers the larger area, so by area it would sew first; as an outline it sews last, on top.

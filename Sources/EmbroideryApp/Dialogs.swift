@@ -258,28 +258,34 @@ enum EmbroideryFontLibrary {
 extension GuidedDialog {
     static var lastAutoDigitize = AutoDigitizeOptions()
     /// The auto-digitize dialog: returns the traced fills, or nil if the person cancelled.
-    static func autoDigitize(_ artwork: Artwork) -> AutoDigitizeResult? {
-        var made: AutoDigitizeResult?   // the dialog's closure writes the result here before it closes
+    static func autoDigitize(_ artwork: Artwork) -> AutoDigitizeOutcome? {
+        var made: AutoDigitizeOutcome?   // the dialog's closure writes the outcome here before it closes
         // Colors become threads from the chart chosen in Threads (none chosen: the picture's own colors).
         var options = lastAutoDigitize
         options.chart = ThreadChartLibrary.charts().first { $0.name == Preferences.shared.data.threadChart }
         let confirmed = run(width: 820) { finish in
-            AutoDigitizeView(artwork: artwork, options: options) { options, result in
-                lastAutoDigitize = options; made = result; finish(result != nil)
+            AutoDigitizeView(artwork: artwork, options: options) { options, outcome in
+                lastAutoDigitize = options; made = outcome; finish(outcome != nil)
             }
         }
         return confirmed ? made : nil
     }
 }
 
+/// What the Auto-Digitize dialog ends with: stitches to add, or the traced picture to paint stitches on by hand.
+enum AutoDigitizeOutcome { case stitches(AutoDigitizeResult), paint(AutoDigitizeTrace) }
+
 /// Choose how many thread colors to trace, whether to skip the background and the smallest part to keep,
 /// and compare the picture with the traced fills. Tracing reruns in the background after every change.
 struct AutoDigitizeView: View {
     let artwork: Artwork
     @State var options: AutoDigitizeOptions
-    /// Called with the options and the traced fills (nil for Cancel).
-    let done: (AutoDigitizeOptions, AutoDigitizeResult?) -> Void
-    @State private var traced: Result<AutoDigitizeResult, Error>?   // nil while tracing
+    /// Called with the options and what to do next (nil for Cancel).
+    let done: (AutoDigitizeOptions, AutoDigitizeOutcome?) -> Void
+    @State private var traced: Result<(trace: AutoDigitizeTrace, result: AutoDigitizeResult), Error>?   // nil while tracing
+    /// Choose each part's stitch on the canvas (Paint Stitches) instead of adding the stitches straight away.
+    @State private var paintByHand = AutoDigitizeView.lastPaintByHand
+    nonisolated(unsafe) static var lastPaintByHand = false
     private let smallestChoices: [Double] = [0.5, 1, 2, 5, 10]
     /// How tall the colors-and-notes column is (it scrolls past that).
     static let columnHeight: CGFloat = 240
@@ -287,9 +293,10 @@ struct AutoDigitizeView: View {
     var body: some View {
         DialogFrame(eyebrow: "Auto-digitize", title: "Trace your image into fills",
                     subtitle: "The picture is reduced to a few thread colors and each patch of color is stitched by its width, placed exactly over your image: thin lines in running stitch, narrow parts in satin, wide areas in tatami. Check the result: small text and curved strips may look better redrawn by hand.",
-                    primary: "Add Stitches",
+                    primary: paintByHand ? "Choose Stitches" : "Add Stitches",
                     finish: { add in
-                        if !add { done(options, nil) } else if case .success(let result) = traced { done(options, result) }
+                        AutoDigitizeView.lastPaintByHand = paintByHand
+                        if !add { done(options, nil) } else if case .success(let traced) = traced { done(options, paintByHand ? .paint(traced.trace) : .stitches(traced.result)) }
                     }) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top, spacing: 16) {
@@ -299,7 +306,7 @@ struct AutoDigitizeView: View {
                     picture("Traced stitches") {
                         switch traced {
                         case .none: ProgressView().controlSize(.small)
-                        case .success(let result)?: StitchThumbnail(objects: result.objects, label: "Preview of the traced stitches")
+                        case .success(let traced)?: StitchThumbnail(objects: traced.result.objects, label: "Preview of the traced stitches")
                         case .failure(let error)?: Text(error.localizedDescription).font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).multilineTextAlignment(.center).padding()
                         }
                     }
@@ -311,7 +318,7 @@ struct AutoDigitizeView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 16) {
                             colorList
-                            if case .success(let result)? = traced, !result.warnings.isEmpty { NotesList(title: "Notes", notes: result.warnings, scrolls: false) }
+                            if case .success(let traced)? = traced, !traced.result.warnings.isEmpty { NotesList(title: "Notes", notes: traced.result.warnings, scrolls: false) }
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }.frame(height: AutoDigitizeView.columnHeight)
                 }
@@ -321,7 +328,12 @@ struct AutoDigitizeView: View {
         .task(id: options) {
             traced = nil
             let artwork = artwork, options = options
-            let result = await Task.detached(priority: .userInitiated) { Result { try AutoDigitize.run(artwork, options: options) } }.value
+            let result = await Task.detached(priority: .userInitiated) {
+                Result { () throws -> (trace: AutoDigitizeTrace, result: AutoDigitizeResult) in
+                    let trace = try AutoDigitize.trace(artwork, options: options)
+                    return (trace, try trace.build())
+                }
+            }.value
             if !Task.isCancelled { traced = result }
         }
     }
@@ -350,14 +362,17 @@ struct AutoDigitizeView: View {
                     ForEach(smallestChoices, id: \.self) { Text("\($0.formatted()) mm²").tag($0) }
                 }.pickerStyle(.segmented).labelsHidden()
             }
+            Toggle("Choose each part's stitch myself", isOn: $paintByHand).font(Theme.body(13, weight: .semibold))
+            Text("Next, click parts on the canvas to make them tatami, satin or a line, or leave them out.")
+                .font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
         }
     }
 
     private var colorList: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Colors found").font(Theme.body(12, weight: .bold))
-            if case .success(let result)? = traced {
-                ForEach(result.colors, id: \.color.name) { found in
+            if case .success(let traced)? = traced {
+                ForEach(traced.result.colors, id: \.color.name) { found in
                     HStack(spacing: 8) {
                         Circle().fill(Color(nsColor: found.color.nsColor)).frame(width: 16, height: 16).overlay(Circle().strokeBorder(Theme.controlBorder))
                         Text(found.color.name).fontWeight(.semibold)

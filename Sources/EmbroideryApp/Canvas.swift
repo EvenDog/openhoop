@@ -340,7 +340,7 @@ final class DesignCanvas: NSView {
     }
     /// The pointer the current tool uses on the canvas.
     private var toolCursor: NSCursor {
-        state.tool == .pan || state.tool == .artwork ? .openHand : state.tool == .text ? .iBeam : state.tool.draws || state.tool.dragsShape || state.tool.freehand || state.tool == .entryExit || state.tool == .zoomBox || state.tool == .measure || state.tool == .branch || state.tool == .wreath || state.tool == .addAngles || state.tool == .removeAngles || state.tool == .stitchEdit ? .crosshair : .arrow
+        state.tool == .pan || state.tool == .artwork ? .openHand : state.tool == .text ? .iBeam : state.tool.draws || state.tool.dragsShape || state.tool.freehand || state.tool == .entryExit || state.tool == .zoomBox || state.tool == .measure || state.tool == .branch || state.tool == .wreath || state.tool == .paintStitches || state.tool == .addAngles || state.tool == .removeAngles || state.tool == .stitchEdit ? .crosshair : .arrow
     }
     /// ↔ for an up-and-down guide, ↕ for a side-to-side one.
     private func guideCursor(vertical: Bool) -> NSCursor { vertical ? .resizeLeftRight : .resizeUpDown }
@@ -645,6 +645,7 @@ final class DesignCanvas: NSView {
         if state.tool == .node { for letter in letterHandles(in: design) { drawLetterHandle(letter.point, active: letterDrag?.key == letter.key && letterDrag?.lettering == letter.lettering) } }
         if state.tool == .branch, let start = state.branchPoints.first { drawMarker(start, label: "Branch start", color: Theme.Canvas.entry) }
         if state.tool == .wreath { drawWreathPreview() }
+        if state.tool == .paintStitches { drawStitchPaint() }
         if state.tool == .scatter { drawScatterPreview() }
         if let box = zoomBox ?? selectBox {
             let rect = NSBezierPath(rect: CGRect(x: min(box.start.x, box.end.x), y: min(box.start.y, box.end.y), width: abs(box.end.x - box.start.x), height: abs(box.end.y - box.start.y)))
@@ -1068,6 +1069,22 @@ final class DesignCanvas: NSView {
         }
         drawMarker(center, label: "Center", color: Theme.Canvas.handle)
     }
+    /// Paint Stitches: each traced part tinted by the stitch it will get (Leave out: just a dashed outline), so the
+    /// picture underneath reads like a paint-by-numbers sheet.
+    private func drawStitchPaint() {
+        guard let trace = state.stitchPaint else { return }
+        for (index, patch) in trace.patches.enumerated() {
+            let path = NSBezierPath(); path.windingRule = .evenOdd
+            for ring in patch.region where ring.count >= 3 {
+                path.move(to: screen(ring[0])); for p in ring.dropFirst() { path.line(to: screen(p)) }; path.close()
+            }
+            let stitch = state.paintedStitch(index)
+            if stitch != .leaveOut { stitch.tint.withAlphaComponent(0.5).setFill(); path.fill() }
+            stitch.tint.setStroke(); path.lineWidth = state.paintChoices[index] == nil ? 1 : 2   // set by hand: a bolder edge
+            if stitch == .leaveOut { path.setLineDash([4, 3], count: 2, phase: 0) }
+            path.stroke()
+        }
+    }
     /// Scatter's copies as dashed outlines in their thread colors, where Apply would put them.
     private func drawScatterPreview() {
         guard let preview = state.scatterPreview?.design else { return }
@@ -1178,6 +1195,7 @@ final class DesignCanvas: NSView {
         if state.tool == .text { state.addLettering(at: snapped(model(location))); return }
         if state.tool == .branch { state.addBranchPoint(snapped(model(location))); return }
         if state.tool == .scatter { return }   // its choices are all in Properties
+        if state.tool == .paintStitches { state.paintPatch(at: model(location)); return }
         if state.tool == .wreath {
             state.wreathCenter = snapped(model(location))
             state.status = "Wreath · Click again to move the center · Return or Apply makes it · Esc cancels"; return
@@ -1337,6 +1355,7 @@ final class DesignCanvas: NSView {
         if let start = screenStart { pan = CGPoint(x: panStart.x + location.x - start.x, y: panStart.y + location.y - start.y); needsDisplay = true; return }
         if let box = zoomBox { zoomBox = (box.start, location); needsDisplay = true; return }
         if let box = selectBox { selectBox = (box.start, location); needsDisplay = true; return }
+        if state.tool == .paintStitches { state.paintPatch(at: model(location)); return }   // dragging paints every part it crosses
         if dropDragIfDesignChanged() { return }
         if let drag = guideDrag, var next = dragSnapshot {
             let p = model(location), raw = drag.vertical ? p.x : p.y
