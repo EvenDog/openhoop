@@ -362,6 +362,23 @@ final class AutoDigitizeTests: XCTestCase {
         XCTAssertGreaterThan(longest, 3); XCTAssertLessThan(longest, 7.5)
     }
 
+    func testASpikyRingIsNotAStrip() throws {
+        // A sun, shown 68 mm wide (0.2 mm per pixel): a yellow face (radius 106 px) inside an orange band out to 134 px,
+        // with 10 pointed rays reaching out to 165 px. Down the band's middle the orange looks like an even ring, but
+        // the rays stick far out of it, so satin along that middle would cut them off: the orange stays a fill.
+        let sun = picture(340) { x, y in
+            let dx = Double(x) - 169.5, dy = Double(y) - 169.5, r = hypot(dx, dy)
+            let turn = (atan2(dy, dx) / (2 * .pi) * 10 + 10).truncatingRemainder(dividingBy: 1)   // 0 to 1 between tips
+            let rayEdge = 134 + 31 * max(0, abs(2 * turn - 1) - 0.25) / 0.75   // 165 at the tips, 134 between rays
+            return r < 106 ? 0xFFC020 : r < rayEdge ? 0xF08020 : 0xFFFFFF
+        }
+        let result = try run(sun, colors: 3, size: 68)
+        let orange = try XCTUnwrap(result.objects.first { $0.color.hex == 0xF08020 })
+        XCTAssertEqual(orange.kind, .fill); XCTAssertNil(orange.settings.angleLines)
+        XCTAssertEqual(orange.nodes.map { hypot($0.point.x, $0.point.y) }.max()!, 33, accuracy: 0.6, "the rays' tips are kept")
+        XCTAssertFalse(result.warnings.contains { $0.contains("satin column") || $0.contains("tapered satin") }, "\(result.warnings)")
+    }
+
     func testOutlineColorsSewLast() throws {
         // Shown 20 mm wide: a red disc (radius 20 px, 4 mm) inside a black ring outline (radius 20–35 px, 3 mm wide),
         // on white. Black covers the larger area, so by area it would sew first; as an outline it sews last, on top.
