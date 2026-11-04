@@ -16,6 +16,13 @@ import EmbroideryCore
         let host = NSHostingView(rootView: content(finish).frame(width: width))
         window.contentView = host
         window.setContentSize(host.fittingSize)   // size the window to fit the dialog's content
+        // A dialog taller than the screen scrolls inside its window instead of running off the bottom.
+        let tallest = (NSScreen.main?.visibleFrame.height ?? 800) - 60
+        if host.fittingSize.height > tallest {
+            let scrolling = NSHostingView(rootView: ScrollView { content(finish).frame(width: width) }.frame(width: width, height: tallest))
+            window.contentView = scrolling
+            window.setContentSize(scrolling.fittingSize)
+        }
         window.center()
         let response = NSApp.runModal(for: window)
         window.orderOut(nil)
@@ -181,10 +188,12 @@ struct StitchThumbnail: View {
 struct NotesList: View {
     var title: String
     var notes: [String]
+    /// More than three notes scroll in a box of their own; false when the list already sits in a scrolling area.
+    var scrolls = true
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title).font(Theme.body(13, weight: .bold))
-            if notes.count > 3 { ScrollView { cards }.frame(height: 230) } else { cards }
+            if scrolls && notes.count > 3 { ScrollView { cards }.frame(height: 230) } else { cards }
         }
     }
     private var cards: some View {
@@ -272,6 +281,8 @@ struct AutoDigitizeView: View {
     let done: (AutoDigitizeOptions, AutoDigitizeResult?) -> Void
     @State private var traced: Result<AutoDigitizeResult, Error>?   // nil while tracing
     private let smallestChoices: [Double] = [0.5, 1, 2, 5, 10]
+    /// How tall the colors-and-notes column is (it scrolls past that).
+    static let columnHeight: CGFloat = 240
 
     var body: some View {
         DialogFrame(eyebrow: "Auto-digitize", title: "Trace your image into fills",
@@ -295,9 +306,15 @@ struct AutoDigitizeView: View {
                 }
                 HStack(alignment: .top, spacing: 24) {
                     controls.frame(width: 300, alignment: .leading)
-                    colorList.frame(maxWidth: .infinity, alignment: .leading)
+                    // The colors and notes share one scrolling column about as tall as the options, so the dialog's
+                    // height stays the same however many there are, and it fits a laptop screen.
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            colorList
+                            if case .success(let result)? = traced, !result.warnings.isEmpty { NotesList(title: "Notes", notes: result.warnings, scrolls: false) }
+                        }.frame(maxWidth: .infinity, alignment: .leading)
+                    }.frame(height: AutoDigitizeView.columnHeight)
                 }
-                if case .success(let result)? = traced, !result.warnings.isEmpty { NotesList(title: "Notes", notes: result.warnings) }
             }
         }
         // .task(id:) restarts whenever the options change, cancelling the previous trace if it hasn't finished.
