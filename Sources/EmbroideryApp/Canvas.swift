@@ -1213,7 +1213,7 @@ final class DesignCanvas: NSView {
             // With nothing drawn yet, a click on an end of a selected open line (Running tool) or satin column (Satin
             // tool) picks it up there, to carry on drawing it.
             if state.draft.isEmpty, let end = continuableEnd(near: location) { state.continueDrawing(end.id, fromStart: end.fromStart); return }
-            state.draft.append(PathNode(point, smooth: event.modifierFlags.contains(.control)))
+            state.addDraftPoint(point, smooth: event.modifierFlags.contains(.control), reach: 3 / state.zoom)   // 3 screen points
             drawingHandle = state.draft.count - 1; return
         }
         if state.tool.dragsShape { shapeStart = point; return }
@@ -1315,7 +1315,7 @@ final class DesignCanvas: NSView {
     override func rightMouseDown(with event: NSEvent) {
         state.focusCanvas()
         let point = snapped(model(convert(event.locationInWindow, from: nil)))
-        if state.tool.draws && !state.hasVersionMismatch { state.draft.append(PathNode(point, smooth: true)) }
+        if state.tool.draws && !state.hasVersionMismatch { state.addDraftPoint(point, smooth: true, reach: 3 / state.zoom) }
         // Right-click on a point switches it between corner and smooth. It's picked where the pointer really is, as a
         // left-click is (Snap could otherwise pick its neighbour).
         else if state.tool == .node,let location=nearestNode(model(convert(event.locationInWindow,from:nil))) {

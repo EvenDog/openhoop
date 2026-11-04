@@ -331,6 +331,17 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         }
         status = smooth ? "Smooth point: the outline curves through it. Drag its handles to shape the curve." : "Corner point: the outline turns sharply here."
     }
+    /// Adds a point to the path being drawn (`smooth`: a curve point, else a corner). A click on the point just placed
+    /// (within `reach` mm) changes that point's type instead of adding a second point on the same spot, which would
+    /// only make a tiny loop: right-click makes it a curve point, left-click a corner.
+    func addDraftPoint(_ point: Point, smooth: Bool, reach: Double) {
+        if let last = draft.last, last.point.distance(to: point) <= reach {
+            draft[draft.count - 1].smooth = smooth
+            status = smooth ? "That point is now a curve point." : "That point is now a corner."
+            return
+        }
+        draft.append(PathNode(point, smooth: smooth))
+    }
     func finishPath() {
         guard !hasVersionMismatch else{return}
         if let shape=tool.draggedShape {

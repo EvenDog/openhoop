@@ -18,8 +18,11 @@ public enum RunningEngine {
 
     /// The four Bézier control points of the segment from node `i` to the next node.
     /// Explicit handles win; otherwise a smooth node uses its automatic handle and a corner gives a straight line.
+    /// Two nodes on the same spot (a point placed twice) have nothing between them: their handles would only make
+    /// a tiny loop out and back, which a fill's outline can't have.
     public static func controls(_ nodes: [PathNode], closed: Bool, segment i: Int) -> (Point, Point, Point, Point) {
         let j = (i + 1) % nodes.count, a = nodes[i], b = nodes[j]
+        if a.point.distance(to: b.point) < 1e-6 { return (a.point, a.point, b.point, b.point) }
         let c1 = a.outHandle ?? (a.smooth ? automaticHandles(nodes, closed: closed, index: i).outgoing : a.point + (b.point - a.point) * (1.0 / 3))
         let c2 = b.inHandle ?? (b.smooth ? automaticHandles(nodes, closed: closed, index: j).incoming : b.point - (b.point - a.point) * (1.0 / 3))
         return (a.point, c1, c2, b.point)
