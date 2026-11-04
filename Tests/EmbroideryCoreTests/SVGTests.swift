@@ -172,6 +172,75 @@ final class SVGTests:XCTestCase {
         XCTAssertThrowsError(try SVGImporter.load(Data("<?xml-stylesheet href='https://example.com/style.css'?><svg><rect width='5' height='5'/></svg>".utf8)))
         XCTAssertThrowsError(try load("<style>@import url('https://example.com/style.css');</style><rect width='5' height='5'/>"))
     }
+    // MARK: <use> and symbols
+
+    func testUseDrawsTheReferencedShapeMoved()throws {
+        let result=try load("<defs><rect id='r' width='5' height='5' fill='red'/><circle id='c' r='2'/></defs><use href='#r'/><use xlink:href='#r' x='10' fill='blue'/><use href='#c' x='30' y='30' fill='green'/>",
+                            attributes:"xmlns:xlink='http://www.w3.org/1999/xlink' width='40mm' height='40mm' viewBox='0 0 40 40'")
+        XCTAssertEqual(result.objects.count,3,"Shapes in <defs> are drawn only where a <use> points at them")
+        // The rect's own fill wins over the <use>'s; the circle has none, so it takes the <use>'s.
+        XCTAssertEqual(result.objects.map(\.color.hex),[0xff0000,0xff0000,0x008000])
+        func left(_ object:RunObject)->Double{object.outlinePaths.flatMap{$0}.map(\.x).min()!}
+        XCTAssertEqual(left(result.objects[1])-left(result.objects[0]),10,accuracy:0.001)
+        XCTAssertEqual(left(result.objects[2])-left(result.objects[0]),28,accuracy:0.01)
+    }
+    func testSymbolIsScaledToTheUseSize()throws {
+        let result=try load("<symbol id='s' viewBox='0 0 10 10'><rect width='10' height='10'/></symbol><use href='#s' width='20' height='20'/>")
+        XCTAssertEqual(result.objects.count,1,"A symbol is drawn only through a <use>")
+        XCTAssertEqual(result.width,20,accuracy:0.001)
+    }
+    func testUseLoopsAndMissingTargets()throws {
+        XCTAssertThrowsError(try load("<g id='g'><rect width='5' height='5'/><use href='#g'/></g>"))
+        let result=try load("<rect width='5' height='5'/><use href='#nothing'/>")
+        XCTAssertEqual(result.objects.count,1)
+        XCTAssertTrue(result.warnings.contains{$0.contains("<use>")})
+    }
+
+    // MARK: Gradients
+
+    /// Sews `object` as the fill it becomes when Fill is pressed (no underlay, so only the gradient rows count) and
+    /// returns how many of its stitches land on each side of `split`, measured along `axis`.
+    func stitchesEachSide(_ object:RunObject,axis:KeyPath<Point,Double>,split:Double)throws->(low:Int,high:Int) {
+        var fill=object;fill.digitizing=DigitizingSettings.fill(from:object.digitizing);fill.digitizing?.underlay = .none;fill.closed=true
+        var design=Design();design.objects=[fill]
+        let points=try StitchEngine.compile(design).commands.filter{$0.op == .stitch}.map(\.point)
+        return (points.filter{$0[keyPath:axis]<split}.count,points.filter{$0[keyPath:axis]>split}.count)
+    }
+    /// A two-color gradient becomes two stacked outlines: the start color solid at the start and sheer at the end,
+    /// the end color the other way round. Pressing Fill keeps that.
+    func testLinearGradientBecomesTwoBlendingFills()throws {
+        let result=try load("<defs><linearGradient id='g'><stop offset='0' stop-color='red'/><stop offset='1' stop-color='blue'/></linearGradient></defs><rect width='30' height='10' fill='url(#g)'/>")
+        XCTAssertEqual(result.objects.map(\.color.hex),[0xff0000,0x0000ff])
+        XCTAssertTrue(result.objects.allSatisfy{$0.kind == .vector},"Still outlines until Fill is pressed")
+        let red=try stitchesEachSide(result.objects[0],axis:\.x,split:0),blue=try stitchesEachSide(result.objects[1],axis:\.x,split:0)
+        XCTAssertGreaterThan(red.low,red.high*2,"Red is solid on the left, where the gradient starts")
+        XCTAssertGreaterThan(blue.high,blue.low*2,"Blue is solid on the right")
+    }
+    /// The way some drawing apps save gradients: one holds the stops, another points at it (href) and sets the
+    /// direction in user units. Stop colors may come from style="…" or a class.
+    func testGradientStopsThroughHrefInUserUnits()throws {
+        let result=try load("<style>.end{stop-color:#0000ff}</style><defs><linearGradient id='base'><stop offset='0' style='stop-color:#ff0000'/><stop class='end' offset='1'/></linearGradient><linearGradient id='g' href='#base' gradientUnits='userSpaceOnUse' x1='0' y1='0' x2='0' y2='20'/></defs><rect width='20' height='20' fill='url(#g)'/>")
+        XCTAssertEqual(result.objects.map(\.color.hex),[0xff0000,0x0000ff])
+        let red=try stitchesEachSide(result.objects[0],axis:\.y,split:0)
+        XCTAssertGreaterThan(red.high,red.low*2,"Red is solid at the top, where the gradient starts (SVG y runs down, the canvas up)")
+    }
+    func testRadialGradientBecomesItsMiddleColor()throws {
+        let result=try load("<radialGradient id='g'><stop offset='0' stop-color='red'/><stop offset='1' stop-color='blue'/></radialGradient><circle r='5' fill='url(#g)'/>")
+        XCTAssertEqual(result.objects.count,1)
+        XCTAssertEqual(result.objects[0].color.hex,0x800080)
+        XCTAssertNotEqual(result.objects[0].settings.fillStyle,.gradient)
+        XCTAssertTrue(result.warnings.contains{$0.lowercased().contains("radial")})
+    }
+    func testGradientWithMoreColorsBlendsItsEnds()throws {
+        let result=try load("<linearGradient id='g'><stop offset='0' stop-color='red'/><stop offset='0.5' stop-color='orange'/><stop offset='1' stop-color='yellow'/></linearGradient><rect width='10' height='10' fill='url(#g)'/>")
+        XCTAssertEqual(result.objects.map(\.color.hex),[0xff0000,0xffff00])
+        XCTAssertTrue(result.warnings.contains{$0.contains("middle")})
+    }
+    func testFillFromAPlainOutlineIsAPlainFill() {
+        XCTAssertEqual(DigitizingSettings.fill(from:DigitizingSettings(kind:.vector)),DigitizingSettings(kind:.fill))
+        XCTAssertEqual(DigitizingSettings.fill(from:nil),DigitizingSettings(kind:.fill))
+    }
+
     func testAllCSSColorNames()throws {
         let result=try load("<rect fill='CornflowerBlue' width='5' height='5'/><rect fill='rebeccapurple' x='6' width='5' height='5'/><rect fill='darkred' x='12' width='5' height='5'/>")
         XCTAssertEqual(result.objects.map(\.color.hex),[0x6495ed,0x663399,0x8b0000])
