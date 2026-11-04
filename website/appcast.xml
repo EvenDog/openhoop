@@ -6,6 +6,44 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.9.2</title>
+            <pubDate>Wed, 04 Nov 2026 01:28:54 GMT</pubDate>
+            <sparkle:version>39</sparkle:version>
+            <sparkle:shortVersionString>0.9.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.9.2</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.9.2</h3>
+<h4>Auto-Digitize follows standard digitizing practice</h4>
+<ul>
+<li><b>Real threads.</b> With a thread chart chosen in Threads, each color found becomes that chart's closest thread, and no two colors share one.</li>
+<li><b>Stitch type by width.</b> Lines thinner than 1 mm become a triple (bean) running stitch down their middle; parts up to 8 mm across become satin; wider areas stay tatami.</li>
+<li><b>Satin columns along curved strips.</b> Curved strips of even width (an outline around a shape, a swoosh) become satin columns that follow the curve, split where branches meet.</li>
+<li><b>Outlines sew last.</b> A color that is mostly outlines sews after the others, on top of the fills it outlines.</li>
+<li><b>No gaps between colors.</b> Fills reach 0.8 mm under the parts sewn on top of them, so no fabric shows along the seams once the stitches pull in.</li>
+<li><b>Better angles and order.</b> Fill rows run along each shape's long side, touching fills get clearly different angles, the nearest part sews next, and each part starts where the one before it ended.</li>
+<li>The Auto-Digitize window now fits a laptop screen: its notes sit beside the colors.</li>
+</ul>
+<h4>Sewing order</h4>
+<ul>
+<li>Drag rows to change when they sew.</li>
+<li>Right-click a row for <b>Show Only Selected</b>, <b>Zoom to Selected</b>, <b>Trim After</b>, <b>Stop After</b>, <b>Group</b>/<b>Ungroup</b>, and <b>Cut</b>, <b>Copy</b>, <b>Paste</b>, <b>Duplicate</b> and <b>Delete</b>, as well as Rename, Lock and Hide. It acts on the whole selection when the row is part of it.</li>
+</ul>
+<h4>Reference image</h4>
+<ul>
+<li>New designs open on the Reference image tab; importing a picture switches to Sewing order.</li>
+<li><b>View › Show › Reference Image on Top</b> (⇧D) shows the picture over the stitches, handy for tracing. There's also a button for it on the picture's row in Sewing order.</li>
+</ul>
+<h4>Fixes</h4>
+<ul>
+<li>A point placed twice on the same spot (a corner, then a curve point) made a tiny loop, so the fill wouldn't sew ("Outline edges cross or touch"). Such designs now sew as they are, and clicking the point you just placed changes its type instead of adding a second one.</li>
+<li>Closing the last design now leaves a new blank design open instead of an empty app. The window's red close button quits OpenHoop, asking to save any changes first.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.9.2/OpenHoop-0.9.2.dmg" sparkle:edSignature="bWXB1/6evG5TyyiAcSJZw0S0x6VicDpJP4Fr4bZX//pRCA8sOmjXbunpL2zvloJHRSzt4392+gaK5V7NH+LPBg==" length="38244704" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.9.1</title>
             <pubDate>Mon, 02 Nov 2026 02:32:16 GMT</pubDate>
             <sparkle:version>38</sparkle:version>
