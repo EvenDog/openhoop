@@ -132,11 +132,50 @@ final class SVGTests:XCTestCase {
         XCTAssertEqual(result.height,12.7,accuracy:0.001)
         XCTAssertTrue(result.warnings.contains{$0.contains("96 dpi")})
     }
-    func testStylesheetsAndClassesCannotSilentlyChangePaint() {
-        for body in ["<style>.x{fill:red}</style><rect width='5' height='5'/>","<defs><style>rect{fill:red}</style></defs><rect width='5' height='5'/>","<rect class='x' width='5' height='5'/>"] {
-            XCTAssertThrowsError(try load(body))
-        }
+    /// The way Illustrator saves SVG by default: a <style> block in <defs>, shapes colored by class.
+    func testStyleBlockClassesColorShapes()throws {
+        let result=try load("<defs><style>.cls-1{fill:#e63946;}.cls-2{fill:none;stroke:#1d3557;stroke-width:2px;}</style></defs><rect class='cls-1' width='10' height='10'/><path class='cls-2' d='M0 20L30 20'/>")
+        XCTAssertEqual(result.objects.count,2)
+        XCTAssertEqual(result.objects[0].color.hex,0xe63946);XCTAssertTrue(result.objects[0].closed)
+        XCTAssertEqual(result.objects[1].color.hex,0x1d3557);XCTAssertFalse(result.objects[1].closed)
+    }
+    /// Attributes lose to style rules, which lose to style="…"; among rules #id beats .class beats a tag name, and
+    /// the later rule wins a tie. A shape can have several classes.
+    func testStyleRulesFollowCSSPriority()throws {
+        let css="<style>rect{fill:#000001} .a{fill:#000002} .b{fill:#000003} #top{fill:#000004} rect.a{fill:#000005}</style>"
+        let result=try load(css+"""
+            <rect fill='#0000ff' width='5' height='5'/>
+            <rect class='a' x='6' width='5' height='5'/>
+            <rect class='a b' x='12' width='5' height='5'/>
+            <circle class='b' cx='22' cy='3' r='2'/>
+            <rect id='top' class='a' x='26' width='5' height='5'/>
+            <rect class='a' style='fill:#000006' x='32' width='5' height='5'/>
+            """)
+        XCTAssertEqual(result.objects.map(\.color.hex),[0x000001,0x000005,0x000005,0x000003,0x000004,0x000006])
+    }
+    func testStyleBlockAfterTheShapesStillApplies()throws {
+        let result=try load("<g class='leaf'><rect width='5' height='5'/></g><style><![CDATA[ /* green */ .leaf { fill: green } ]]></style>")
+        XCTAssertEqual(result.objects[0].color.hex,0x008000)
+    }
+    func testStyleRulesCanHideShapes()throws {
+        let result=try load("<style>.hidden{display:none}</style><rect width='5' height='5'/><rect class='hidden' x='10' width='5' height='5'/>")
+        XCTAssertEqual(result.objects.count,1)
+    }
+    /// Rules with selectors this importer doesn't match (combinators, pseudo-classes, @-blocks) are skipped with a
+    /// warning; the simple rules beside them still apply.
+    func testComplexStyleRulesAreSkippedWithWarning()throws {
+        let result=try load("<style>@media print{.a{fill:blue}} g > .a{fill:blue} .a:hover{fill:blue} .a{fill:red}</style><g><rect class='a' width='5' height='5'/></g>")
+        XCTAssertEqual(result.objects[0].color.hex,0xff0000)
+        XCTAssertTrue(result.warnings.contains{$0.contains("style rules")})
+    }
+    func testExternalStylesheetsAreRefused() {
         XCTAssertThrowsError(try SVGImporter.load(Data("<?xml-stylesheet href='https://example.com/style.css'?><svg><rect width='5' height='5'/></svg>".utf8)))
+        XCTAssertThrowsError(try load("<style>@import url('https://example.com/style.css');</style><rect width='5' height='5'/>"))
+    }
+    func testAllCSSColorNames()throws {
+        let result=try load("<rect fill='CornflowerBlue' width='5' height='5'/><rect fill='rebeccapurple' x='6' width='5' height='5'/><rect fill='darkred' x='12' width='5' height='5'/>")
+        XCTAssertEqual(result.objects.map(\.color.hex),[0x6495ed,0x663399,0x8b0000])
+        XCTAssertEqual(SVGStyles.colorNames.count,148)
     }
     func testLinkedArtworkAndZeroWidthStroke()throws {
         let result=try load("<a href='https://example.com'><rect width='5' height='5'/></a><path d='M0 0L30 30' fill='none' stroke='red' stroke-width='0'/>")
@@ -165,7 +204,7 @@ final class SVGTests:XCTestCase {
         }
     }
     func testUnsupportedColorSyntaxHasActionableConversionMessage() {
-        for paint in ["darkred","rgba(1,2,3,0.5)","hsl(120,50%,50%)","#1234","rgb(0 0 0 / 50%)"] {
+        for paint in ["rgba(1,2,3,0.5)","hsl(120,50%,50%)","#1234","rgb(0 0 0 / 50%)"] {
             XCTAssertThrowsError(try load("<rect width='5' height='5' fill='\(paint)'/>")){error in
                 XCTAssertTrue(error.localizedDescription.contains("#RRGGBB"))
             }

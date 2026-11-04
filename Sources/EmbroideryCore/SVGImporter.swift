@@ -16,8 +16,10 @@ public enum SVGImporter {
         guard data.count<=5_000_000,let text=String(data:data,encoding:.utf8) else{throw DesignError.invalid("Choose a UTF-8 SVG under 5 MB.")}
         guard !text.contains("<!DOCTYPE"),!text.contains("<!ENTITY") else{throw DesignError.invalid("SVG document types and entities are not supported. Save a plain SVG without a DTD.")}
         let delegate=SVGReader(),parser=XMLParser(data:data)
+        if text.contains("<style") || text.contains(":style") {delegate.styles=try SVGStyles.collect(data)}
         parser.shouldResolveExternalEntities=false;parser.shouldProcessNamespaces=true;parser.delegate=delegate
         guard parser.parse(),delegate.failure==nil else{throw delegate.failure ?? DesignError.invalid("SVG XML could not be read: \(parser.parserError?.localizedDescription ?? "invalid document")")}
+        if delegate.styles.skippedRules>0 {delegate.warn("Some SVG style rules use selectors this importer can't match (such as g > path, :hover or @media) and were skipped; check the imported colors.")}
         guard delegate.rootSeen,!delegate.objects.isEmpty else{throw DesignError.invalid("No supported visible vector geometry was found. \(delegate.warnings.joined(separator:" "))")}
         var objects=delegate.objects
         // Measure the flattened curves: a curve can bulge beyond its nodes.
@@ -32,7 +34,7 @@ public enum SVGImporter {
 
 final class SVGReader:NSObject,XMLParserDelegate {
     struct Context {var matrix=SVGMatrix();var style:[String:String]=["fill":"black","stroke":"none","fill-rule":"nonzero"];var skip=false}
-    var stack:[Context]=[],objects:[RunObject]=[],warnings:[String]=[],failure:Error?,rootSeen=false,elements=0,totalNodes=0
+    var styles=SVGStyles(),stack:[Context]=[],objects:[RunObject]=[],warnings:[String]=[],failure:Error?,rootSeen=false,elements=0,totalNodes=0
     func warn(_ text:String){if warnings.count<50 && !warnings.contains(text){warnings.append(text)}}
     func parser(_ parser:XMLParser,foundProcessingInstructionWithTarget target:String,data:String?){if target=="xml-stylesheet"{fail(parser,DesignError.invalid("External SVG stylesheets are not supported. Export SVG with inline styles or presentation attributes."))}}
     func fail(_ parser:XMLParser,_ error:Error){failure=error;parser.abortParsing()}
@@ -47,12 +49,14 @@ final class SVGReader:NSObject,XMLParserDelegate {
                 rootSeen=true;ctx.matrix=try viewport(a)
             } else if name=="svg" {ctx.skip=true;warn("Nested SVG viewports were skipped; flatten them before importing.")}
             if let namespaceURI,!namespaceURI.isEmpty,namespaceURI != "http://www.w3.org/2000/svg" {ctx.skip=true;warn("Non-SVG metadata or elements were skipped.")}
-            if name=="style" || a["class"] != nil {throw DesignError.invalid("SVG stylesheets and CSS classes are not supported. Export SVG with inline styles or presentation attributes to preserve its appearance.")}
             if ctx.skip {stack.append(ctx);return}
             let supported=["svg","g","a","path","rect","circle","ellipse","line","polyline","polygon"]
-            if !supported.contains(name) {ctx.skip=true;if !["title","desc","metadata","defs"].contains(name){warn("Unsupported <\(name)> content was skipped.")};stack.append(ctx);return}
+            if !supported.contains(name) {ctx.skip=true;if !["title","desc","metadata","defs","style"].contains(name){warn("Unsupported <\(name)> content was skipped.")};stack.append(ctx);return}
             let inherited=["fill","stroke","fill-rule","visibility","fill-opacity","stroke-opacity","stroke-width","stroke-dasharray","color"]
+            // Priority, lowest first: attributes like fill='red', then <style> rules, then style='…' on the element.
             var local=a
+            let classes=(a["class"] ?? "").split(whereSeparator:\.isWhitespace).map(String.init)
+            for (key,value) in styles.declarations(tag:name,id:a["id"],classes:classes){local[key]=value}
             if let inline=a["style"] {
                 for entry in inline.split(separator:";") {
                     let parts=entry.split(separator:":",maxSplits:1).map{String($0).trimmingCharacters(in:.whitespacesAndNewlines)}
@@ -154,8 +158,7 @@ final class SVGReader:NSObject,XMLParserDelegate {
         let s=value.trimmingCharacters(in:.whitespacesAndNewlines).lowercased()
         if s=="none" || s=="transparent"{return nil}
         if s=="currentcolor"{return try color(current?.lowercased()=="currentcolor" ? "black":current ?? "black",current:nil)}
-        let named:[String:Int]=["black":0,"white":0xffffff,"red":0xff0000,"green":0x008000,"blue":0x0000ff,"yellow":0xffff00,"gray":0x808080,"grey":0x808080,"orange":0xffa500,"purple":0x800080,"navy":0x000080,"teal":0x008080,"aqua":0x00ffff,"fuchsia":0xff00ff,"lime":0x00ff00,"maroon":0x800000,"olive":0x808000,"silver":0xc0c0c0]
-        if let hex=named[s]{return ThreadColor(value,hex)}
+        if let hex=SVGStyles.colorNames[s]{return ThreadColor(value,hex)}
         if s.hasPrefix("#") {
             var digits=String(s.dropFirst());if digits.count==3{digits=digits.map{String(repeating:String($0),count:2)}.joined()}
             if digits.count==6,let hex=Int(digits,radix:16){return ThreadColor(value,hex)}
@@ -164,7 +167,7 @@ final class SVGReader:NSObject,XMLParserDelegate {
             let parts=s.dropFirst(4).dropLast().split(whereSeparator:{$0=="," || $0.isWhitespace})
             if parts.count==3 {var hex=0;for part in parts {let percent=part.hasSuffix("%"),text=percent ? String(part.dropLast()):String(part);guard let value=Double(text),value.isFinite else{throw DesignError.invalid("Invalid SVG color.")};let n=Int(max(0,min(255,(percent ? value*2.55:value).rounded())));hex=(hex<<8)|n};return ThreadColor(value,hex)}
         }
-        throw DesignError.invalid("Unsupported SVG paint ‘\(value)’. Convert colors to six-digit #RRGGBB or rgb(r,g,b) before importing. Gradients and paint servers are not supported.")
+        throw DesignError.invalid("Unsupported SVG paint ‘\(value)’. Convert colors to six-digit #RRGGBB, rgb(r,g,b) or a CSS color name before importing. Gradients and paint servers are not supported.")
     }
     static func transform(_ text:String)throws->SVGMatrix {
         var scan=SVGScanner(text),result=SVGMatrix()

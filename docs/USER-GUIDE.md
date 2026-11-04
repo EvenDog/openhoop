@@ -468,8 +468,8 @@ These are the starting keys; every one can be changed. Tools on a function key a
 
 ### SVG support
 
-- **Supported:** paths (all commands), rectangles, circles, ellipses, lines, polylines and polygons; group transforms; `viewBox`; px, mm, cm, in, pt and pc units; solid fill and stroke colors (hex, `rgb()` and 18 basic names); even-odd and nonzero fills with holes.
-- **Not supported** (reported or refused): CSS stylesheets and classes, text, `use`/symbols, nested viewports, masks, clipping, filters, markers, gradients and external files. Export such files with inline styles and outlined text.
+- **Supported:** paths (all commands), rectangles, circles, ellipses, lines, polylines and polygons; group transforms; `viewBox`; px, mm, cm, in, pt and pc units; solid fill and stroke colors (hex, `rgb()` and all 148 CSS color names); even-odd and nonzero fills with holes; `<style>` blocks whose rules pick shapes by tag, `.class` or `#id` (as design apps write them).
+- **Not supported** (reported or refused): style rules with other selectors (such as `g > path` or `:hover`, skipped with a note), linked stylesheets, text, `use`/symbols, nested viewports, masks, clipping, filters, markers, gradients and external files. Export such files with inline styles and outlined text.
 - **Limits:** UTF-8, 5 MB, and 2,000 points per shape. Overlapping shapes are merged as points (the report says so). Strokes become center lines; their width isn't digitized.
 
 ### Machine-file import details
