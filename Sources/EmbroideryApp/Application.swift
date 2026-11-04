@@ -153,8 +153,10 @@ import EmbroideryCore
         refreshTabs()
         if panes.isEmpty { closingAll = false; Self.open.removeAll { $0 === self }; window?.close() }
     }
-    /// The close button: close every tab, asking to save each; stops if one is cancelled.
+    /// The close button: on the app's last design window it quits, as Quit does (asking to save each changed design).
+    /// Otherwise it closes every tab, asking to save each, and stops if one is cancelled.
     @objc private func closeWindowClicked(_ sender: Any?) {
+        if Self.open.allSatisfy({ $0 === self || $0.panes.isEmpty }) { NSApp.terminate(nil); return }
         guard let first = selectedPane else { window?.close(); return }
         closingAll = true
         closeTab(first)
