@@ -6,6 +6,30 @@
 
 import Foundation
 
+/// How one layer of a color blend fades, measured across the shape from the layer's solid side (0) to its far side
+/// (1): solid up to `start`, covering half the fabric at `middle`, and no stitches from `end` on, changing in a
+/// straight line in between. The other layer's fade is the mirror image (`mirrored`), so together the two cover the
+/// fabric once everywhere: as one thins out, the other fills in.
+public struct BlendFade: Codable, Hashable, Sendable {
+    public var start: Double
+    public var middle: Double
+    public var end: Double
+    public init(start: Double, middle: Double, end: Double) { self.start = start; self.middle = middle; self.end = end }
+    /// A blend across the whole shape, mixing half and half in the middle: what a new blend starts with.
+    public static let whole = BlendFade(start: 0, middle: 0.5, end: 1)
+    /// The three points in order, inside the shape: 0 ≤ start < middle < end ≤ 1.
+    public var isValid: Bool { [start, middle, end].allSatisfy(\.isFinite) && 0 <= start && start < middle && middle < end && end <= 1 }
+    /// How much of the fabric this layer covers at `t` (0–1 across from its solid side): 1 down to 0.
+    public func coverage(at t: Double) -> Double {
+        if t <= start { return 1 }
+        if t >= end { return 0 }
+        if t < middle { return 1 - 0.5 * (t - start) / (middle - start) }
+        return 0.5 - 0.5 * (t - middle) / (end - middle)
+    }
+    /// The other layer's fade: the same blend seen from that layer's own solid side.
+    public var mirrored: BlendFade { BlendFade(start: 1 - end, middle: 1 - middle, end: 1 - start) }
+}
+
 public enum ColorBlend {
     /// Whether `object` can be turned into a blend: an unlocked fill that isn't part of lettering or a monogram (those
     /// are rebuilt from their text, which would leave the blend's second layer behind). A layer of a blend already
@@ -18,11 +42,14 @@ public enum ColorBlend {
     /// - the bottom layer, in `fill`'s own thread, solid where the blend starts, with `fill`'s underlay;
     /// - the top layer, in `second`, solid where the blend ends, with no underlay (the bottom one's already covers it).
     /// `direction` is the way the blend runs from the first color to the second, in degrees: 0 is left to right, 90
-    /// bottom to top. The layers share `fill`'s group, or a new one, so they select and move together.
-    public static func layers(of fill: RunObject, second: ThreadColor, direction: Double) -> [RunObject] {
+    /// bottom to top. `fade` is where the colors mix, seen from the first color's side (the second's is its mirror).
+    /// The layers share `fill`'s group, or a new one, so they select and move together.
+    public static func layers(of fill: RunObject, second: ThreadColor, direction: Double, fade: BlendFade = .whole) -> [RunObject] {
         var bottom = fill
         var settings = fill.settings
         settings.fillStyle = .gradient
+        settings.blendFade = fade
+        settings.gradientEnd = sparsest
         settings.angleLines = nil   // gradient rows run straight across, square to the blend
         settings.angle = angle(for: direction)
         bottom.digitizing = settings
@@ -35,6 +62,7 @@ public enum ColorBlend {
         top.color = second
         top.digitizing?.angle = angle(for: direction + 180)
         top.digitizing?.underlay = .none
+        top.digitizing?.blendFade = fade.mirrored
         top.blendOf = bottom.id
         return [bottom, top]
     }
@@ -43,6 +71,9 @@ public enum ColorBlend {
     /// angle θ is solid on one side and thins out toward (−sin θ, cos θ) (AreaEngine.sweptRows), which points along
     /// `direction` when θ = direction − 90. Kept within -180…180, as fill angles are.
     public static func angle(for direction: Double) -> Double { normalized(direction - 90) }
+    /// A blend layer's Spacing at end: rows further apart than this (mm) are left out, so past its fade a color sews
+    /// nothing and the other is pure.
+    public static let sparsest = 5.0
     /// The way a blend whose first color's layer is `base` runs, in degrees from 0 up to 360 (the reverse of `angle(for:)`).
     public static func direction(of base: RunObject) -> Double {
         let direction = (base.settings.angle + 90).truncatingRemainder(dividingBy: 360)
@@ -68,19 +99,27 @@ extension Design {
         return nil
     }
 
-    /// Gives the blend that `id` is a layer of a new second thread and direction (see `ColorBlend.layers`).
-    public mutating func editBlend(containing id: UUID, second: ThreadColor, direction: Double) {
+    /// Gives the blend that `id` is a layer of a new second thread, direction and fade (see `ColorBlend.layers`).
+    public mutating func editBlend(containing id: UUID, second: ThreadColor, direction: Double, fade: BlendFade) {
         guard let (base, top) = blend(containing: id) else { return }
         objects[base].digitizing?.angle = ColorBlend.angle(for: direction)
         objects[top].digitizing?.angle = ColorBlend.angle(for: direction + 180)
         objects[top].color = second
+        setBlendFade(containing: id, fade)
+    }
+    /// Sets where the blend that `id` is a layer of mixes, `fade` seen from its first color's side.
+    public mutating func setBlendFade(containing id: UUID, _ fade: BlendFade) {
+        guard let (base, top) = blend(containing: id) else { return }
+        objects[base].digitizing?.blendFade = fade
+        objects[top].digitizing?.blendFade = fade.mirrored
     }
 
     /// Brings each color blend's two layers back in step after an edit, comparing them with `previous` (the design
     /// before it):
     /// - shape (outline, holes, closed): if only the second color's layer was reshaped or moved, the first takes its
     ///   shape; otherwise the second takes the first's (so moving both together, or a new blend, changes nothing);
-    /// - angle: the same, but the one that follows takes the opposite angle (+180°), so they stay solid at opposite ends.
+    /// - angle: the same, but the one that follows takes the opposite angle (+180°), so they stay solid at opposite ends;
+    /// - fade: the same, the one that follows taking the mirror image, so together they still cover the fabric once.
     /// A blend whose layers aren't both gradient fills any more, or whose first layer is gone, comes apart: the second
     /// layer becomes an ordinary gradient fill (Undo puts the link back).
     public mutating func syncBlends(from previous: Design) {
@@ -114,6 +153,15 @@ extension Design {
                 objects[b].digitizing?.angle = ColorBlend.normalized(top.settings.angle + 180)
             } else {
                 objects[t].digitizing?.angle = ColorBlend.normalized(base.settings.angle + 180)
+            }
+            func refaded(_ object: RunObject, new: Bool) -> Bool {
+                guard let old = before[object.id] else { return new }
+                return old.settings.blendFade != object.settings.blendFade
+            }
+            if refaded(top, new: false) && !refaded(base, new: true) {
+                objects[b].digitizing?.blendFade = top.settings.blendFade?.mirrored
+            } else {
+                objects[t].digitizing?.blendFade = base.settings.blendFade?.mirrored
             }
         }
     }

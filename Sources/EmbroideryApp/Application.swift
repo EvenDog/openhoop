@@ -893,8 +893,9 @@ import EmbroideryCore
         if let layer = state.design.objects.first(where: { state.selection.contains($0.id) && state.design.blend(containing: $0.id) != nil }),
            let (b, t) = state.design.blend(containing: layer.id) {
             let base = state.design.objects[b], top = state.design.objects[t]
-            guard let blend = GuidedDialog.colorBlend([base], palette: state.design.paletteThreads, editing: (top.color, ColorBlend.direction(of: base))) else { state.status = "Color blend unchanged."; return }
-            state.edit("Edit Color Blend") { $0.editBlend(containing: base.id, second: blend.second, direction: blend.direction); $0.addToPalette(blend.second) }
+            let current = BlendChoice(second: top.color, direction: ColorBlend.direction(of: base), fade: base.settings.blendFade ?? .whole)
+            guard let blend = GuidedDialog.colorBlend([base], palette: state.design.paletteThreads, editing: current) else { state.status = "Color blend unchanged."; return }
+            state.edit("Edit Color Blend") { $0.editBlend(containing: base.id, second: blend.second, direction: blend.direction, fade: blend.fade); $0.addToPalette(blend.second) }
             state.selection = [base.id, top.id]
             state.status = "The blend now runs into \(blend.second.name)."
             return
@@ -906,7 +907,7 @@ import EmbroideryCore
             var candidate = state.design, made: Set<UUID> = []
             for fill in fills {
                 guard let index = candidate.objects.firstIndex(where: { $0.id == fill.id }) else { continue }
-                let layers = ColorBlend.layers(of: fill, second: blend.second, direction: blend.direction)
+                let layers = ColorBlend.layers(of: fill, second: blend.second, direction: blend.direction, fade: blend.fade)
                 candidate.objects.replaceSubrange(index...index, with: layers)   // the fill's place now holds both layers
                 made.formUnion(layers.map(\.id))
             }

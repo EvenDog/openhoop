@@ -109,7 +109,7 @@ final class ColorBlendTests: XCTestCase {
     func testEachLayerKeepsItsOwnSpacing() {
         let next = edited(blended()) { $0.objects[1].digitizing?.gradientEnd = 4 }
         XCTAssertEqual(next.objects[1].settings.gradientEnd, 4)
-        XCTAssertNil(next.objects[0].settings.gradientEnd, "So one color can reach further than the other")
+        XCTAssertEqual(next.objects[0].settings.gradientEnd, ColorBlend.sparsest, "So one color can reach further than the other")
     }
 
     func testABlendComesApartWhenALayerIsNoLongerAGradient() {
@@ -118,12 +118,14 @@ final class ColorBlendTests: XCTestCase {
         XCTAssertNil(restyled.objects[1].blendOf)
         let deleted = edited(design) { $0.objects.remove(at: 0) }
         XCTAssertNil(deleted.objects[0].blendOf)
-        XCTAssertFalse(deleted.needsSchemaSeventeen)
+        XCTAssertNotNil(deleted.objects[0].settings.blendFade, "It keeps its fade, so it sews as it did")
     }
 
     func testEditingABlend() {
         var design = blended()
-        design.editBlend(containing: design.objects[1].id, second: red, direction: 90)
+        design.editBlend(containing: design.objects[1].id, second: red, direction: 90, fade: BlendFade(start: 0.2, middle: 0.4, end: 0.9))
+        XCTAssertEqual(design.objects[0].settings.blendFade, BlendFade(start: 0.2, middle: 0.4, end: 0.9))
+        XCTAssertEqual(design.objects[1].settings.blendFade, BlendFade(start: 0.2, middle: 0.4, end: 0.9).mirrored)
         XCTAssertEqual(design.objects[1].color, red)
         XCTAssertEqual(ColorBlend.direction(of: design.objects[0]), 90)
         XCTAssertEqual(design.objects[1].settings.angle, ColorBlend.angle(for: 270))
@@ -149,6 +151,58 @@ final class ColorBlendTests: XCTestCase {
     func testRemoveOverlapsLeavesABlendsLayersAlone() throws {
         let design = blended()
         XCTAssertNil(try OverlapCutout.pieces(of: design.objects[0], under: [design.objects[1]]), "The second layer doesn't cut the first away")
+    }
+
+    // MARK: Where the colors mix
+
+    /// x positions of every stitch the layers sew, without underlay (so only their gradient rows count).
+    func stitchXs(_ layers: [RunObject]) throws -> [Double] {
+        var design = Design()
+        design.objects = layers.map { var layer = $0; layer.digitizing?.underlay = .none; layer.blendOf = nil; return layer }
+        return try StitchEngine.compile(design).commands.filter { $0.op == .stitch }.map(\.point.x)
+    }
+    /// How many of `xs` fall in each 10 mm band across the 30 mm square: left, middle, right.
+    func bands(_ xs: [Double]) -> [Int] { [xs.filter { $0 < -5 }.count, xs.filter { abs($0) <= 5 }.count, xs.filter { $0 > 5 }.count] }
+
+    /// The two layers together cover the fabric about once everywhere: the middle of the blend has about as many
+    /// stitches as its ends. Before fades, each layer thinned out evenly from 0.4 to 2.5 mm across the whole shape, and
+    /// the middle came out much thinner.
+    func testABlendCoversTheFabricEvenly() throws {
+        let even = bands(try stitchXs(ColorBlend.layers(of: square(), second: blue, direction: 0)))
+        XCTAssertEqual(Double(even[1]), Double(even[0] + even[2]) / 2, accuracy: Double(even[0]) * 0.2, "\(even)")
+        let old = ColorBlend.layers(of: square(), second: blue, direction: 0).map { layer -> RunObject in
+            var layer = layer; layer.digitizing?.blendFade = nil; layer.digitizing?.gradientEnd = nil; return layer
+        }
+        let thin = bands(try stitchXs(old))
+        XCTAssertLessThan(Double(thin[1]), Double(thin[0] + thin[2]) / 2 * 0.75, "Without a fade the middle is thin: \(thin)")
+    }
+
+    /// Past the end of its fade a color sews nothing, so the other is pure; before its start it's solid.
+    func testPastItsFadeAColorSewsNothing() throws {
+        let layers = ColorBlend.layers(of: square(), second: blue, direction: 0, fade: BlendFade(start: 0.3, middle: 0.5, end: 0.7))
+        let red = try stitchXs([layers[0]]), blue = try stitchXs([layers[1]])
+        XCTAssertTrue(red.allSatisfy { $0 < 6.5 }, "Red ends 70% of the way across (x = 6)")
+        XCTAssertTrue(blue.allSatisfy { $0 > -6.5 }, "Blue starts 30% of the way across (x = -6)")
+        XCTAssertGreaterThan(red.filter { $0 < -6 }.count, red.filter { $0 > -6 }.count, "Red is solid at the left")
+    }
+
+    func testFadeCoverage() {
+        let fade = BlendFade(start: 0.2, middle: 0.5, end: 0.6)
+        XCTAssertEqual(fade.coverage(at: 0.1), 1); XCTAssertEqual(fade.coverage(at: 0.5), 0.5); XCTAssertEqual(fade.coverage(at: 0.7), 0)
+        for t in stride(from: 0.0, through: 1, by: 0.05) {
+            XCTAssertEqual(fade.coverage(at: t) + fade.mirrored.coverage(at: 1 - t), 1, accuracy: 1e-9, "Mirrored layers add up to one at \(t)")
+        }
+        XCTAssertTrue(BlendFade.whole.isValid)
+        XCTAssertFalse(BlendFade(start: 0.5, middle: 0.5, end: 0.9).isValid)
+        XCTAssertFalse(BlendFade(start: -0.1, middle: 0.5, end: 0.9).isValid)
+    }
+
+    func testFadesStayMirrored() {
+        let design = blended()
+        let topChanged = edited(design) { $0.objects[1].digitizing?.blendFade = BlendFade(start: 0.1, middle: 0.3, end: 0.5) }
+        XCTAssertEqual(topChanged.objects[0].settings.blendFade, BlendFade(start: 0.1, middle: 0.3, end: 0.5).mirrored)
+        let baseChanged = edited(design) { $0.setBlendFade(containing: $0.objects[0].id, BlendFade(start: 0.4, middle: 0.6, end: 0.8)) }
+        XCTAssertEqual(baseChanged.objects[1].settings.blendFade, BlendFade(start: 0.4, middle: 0.6, end: 0.8).mirrored)
     }
 
     func testBlendKeepsAnExistingGroup() {

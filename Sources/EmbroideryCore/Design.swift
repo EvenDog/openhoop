@@ -541,6 +541,9 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     public var gradientStart:Double?
     public var gradientEnd:Double?
     public static let defaultGradientStart=0.4, defaultGradientEnd=2.5, gradientSpacingRange=0.2...6.0
+    /// Gradient fills in a color blend: where this layer is solid, half covered and gone (ColorBlend.swift). With it,
+    /// rows are spaced for even coverage between the blend's two layers instead of evenly from start to end spacing.
+    public var blendFade:BlendFade?
     /// Satin only: padding sewn lengthwise inside the column before the satin, so it stands up off the fabric.
     /// nil (the default, and in older files) means flat.
     public var raised:Bool?
@@ -747,7 +750,7 @@ public struct Design: Codable, Equatable, Sendable {
     /// versions of the app, which would lose the link between the copies and their line, refuse it instead.
     public var needsSchemaSixteen: Bool { objects.contains { $0.lineRepeat != nil || $0.repeatCopy != nil } }
     /// Schema 17 marks projects with color blends, so older versions refuse them instead of losing the link.
-    public var needsSchemaSeventeen: Bool { objects.contains { $0.blendOf != nil } }
+    public var needsSchemaSeventeen: Bool { objects.contains { $0.blendOf != nil || $0.digitizing?.blendFade != nil } }
     /// True when a design has satins with smart corners (added in file version 10) that actually have a sharp corner,
     /// so it's saved as version 10 and older versions of the app, which would sew those corners fanned round the seam,
     /// refuse it instead. A satin with the setting but no sharp corner sews the same in older versions.
@@ -818,7 +821,8 @@ public struct Design: Codable, Equatable, Sendable {
                   object.settings.radialCenter.map({ $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 }) ?? true,
                   object.settings.tatamiPattern.map({ TatamiPattern.named($0) != nil }) ?? true,
                   object.settings.patternSize.map(DigitizingSettings.patternSizeRange.contains) ?? true, object.settings.patternGap.map(DigitizingSettings.patternGapRange.contains) ?? true,
-                  [object.settings.gradientStart, object.settings.gradientEnd].allSatisfy({ $0.map(DigitizingSettings.gradientSpacingRange.contains) ?? true }) else { throw DesignError.invalid("Invalid line stitch or pattern size in \(object.name).") }
+                  [object.settings.gradientStart, object.settings.gradientEnd].allSatisfy({ $0.map(DigitizingSettings.gradientSpacingRange.contains) ?? true }),
+                  object.settings.blendFade?.isValid ?? true else { throw DesignError.invalid("Invalid line stitch or pattern size in \(object.name).") }
             guard object.color.isValid else{throw DesignError.invalid("Invalid thread color.")}
             if let raw=object.rawStitches {
                 guard object.nodes.isEmpty,(object.holes ?? []).isEmpty,object.digitizing==nil,MachineFormat(rawValue:raw.sourceFormat) != nil,
