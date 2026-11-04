@@ -20,15 +20,16 @@ final class AutoDigitizeTests: XCTestCase {
     }
 
     func testRingBecomesOneFillWithAHole() throws {
-        // A red ring (outer radius 40 px, inner 20 px) on white, shown 20 mm wide: 0.2 mm per pixel.
+        // A red ring (outer radius 40 px, inner 20 px) on white, shown 60 mm wide: 0.6 mm per pixel, so the ring is
+        // 12 mm wide, too wide for satin.
         let ring = picture(100) { x, y in let r = hypot(Double(x) - 49.5, Double(y) - 49.5); return r < 40 && r > 20 ? 0xD02020 : 0xFFFFFF }
-        let result = try run(ring)
+        let result = try run(ring, size: 60)
         XCTAssertEqual(result.objects.count, 1)
         let fill = result.objects[0]
         XCTAssertEqual(fill.kind, .fill); XCTAssertEqual(fill.holes?.count, 1)
         XCTAssertEqual(fill.color.hex, 0xD02020)
         let area = abs(AreaGeometry.area(fill.nodes.map(\.point))) - abs(AreaGeometry.area(fill.holes![0].map(\.point)))
-        XCTAssertEqual(area, Double.pi * (8 * 8 - 4 * 4), accuracy: 6, "Ring area in mm² (outer 8 mm, inner 4 mm radius)")
+        XCTAssertEqual(area, Double.pi * (24 * 24 - 12 * 12), accuracy: 54, "Ring area in mm² (outer 24 mm, inner 12 mm radius)")
         XCTAssertEqual(result.colors.filter(\.background).map(\.color.hex), [0xFFFFFF], "White around the edges is the background")
         XCTAssertLessThan(fill.nodes.count, 120, "The pixel staircase is smoothed into far fewer points")
     }
@@ -296,5 +297,59 @@ final class AutoDigitizeTests: XCTestCase {
         XCTAssertEqual(objects.map(\.kind), [.fill, .fill, .run])
         let halves = objects.prefix(2).map { $0.nodes.map(\.point) }.sorted { $0.map(\.x).min()! < $1.map(\.x).min()! }
         XCTAssertGreaterThan(halves[0].map(\.x).max()!, halves[1].map(\.x).min()!, "the two halves overlap under the line")
+    }
+
+    /// The width of a satin column: how far apart each pair of rail points is, on average.
+    private func satinWidth(_ satin: RunObject) -> Double {
+        let points = satin.nodes.map(\.point)
+        let pairs = stride(from: 0, to: points.count - 1, by: 2).map { points[$0].distance(to: points[$0 + 1]) }
+        return pairs.reduce(0, +) / Double(pairs.count)
+    }
+
+    func testACurvedStripBecomesASatinColumn() throws {
+        // A red ring (outer radius 40 px, inner 20 px) shown 20 mm wide: a strip 4 mm wide bent all the way round,
+        // too curved for satin fill's single stitch direction.
+        let ring = picture(100) { x, y in let r = hypot(Double(x) - 49.5, Double(y) - 49.5); return r < 40 && r > 20 ? 0xD02020 : 0xFFFFFF }
+        let result = try run(ring)
+        XCTAssertEqual(result.objects.count, 1)
+        let satin = result.objects[0]
+        XCTAssertEqual(satin.kind, .satin); XCTAssertTrue(satin.closed, "one closed column all the way round")
+        XCTAssertEqual(satinWidth(satin), 4, accuracy: 0.4)
+        let middles = stride(from: 0, to: satin.nodes.count - 1, by: 2).map { (satin.nodes[$0].point + satin.nodes[$0 + 1].point) * 0.5 }
+        XCTAssertTrue(middles.allSatisfy { abs(hypot($0.x, $0.y) - 6) < 0.5 }, "the column runs down the middle of the ring")
+        XCTAssertTrue(result.warnings.contains { $0.contains("1 satin column (along curved strips)") }, "\(result.warnings)")
+        var design = Design(); design.objects = result.objects
+        XCTAssertNoThrow(try StitchEngine.compile(design))
+    }
+
+    func testStripsSplitIntoColumnsWhereTheyMeet() throws {
+        // A black T of strips 15 px (3 mm) wide, shown 20 mm wide: a bar across the top and a stem down from its middle.
+        let tee = picture(100) { x, y in
+            (y >= 20 && y < 35 && x >= 10 && x < 90) || (x >= 42 && x < 57 && y >= 35 && y < 90) ? 0x000000 : 0xFFFFFF
+        }
+        let objects = try run(tee).objects
+        XCTAssertEqual(objects.map(\.kind), [.satin, .satin, .satin], "the bar's two halves and the stem, meeting at the junction")
+        for satin in objects { XCTAssertEqual(satinWidth(satin), 3, accuracy: 0.4) }
+        // Each loose end reaches out to the tip of its strip (thinning alone stops about half the width short).
+        let ends = objects.flatMap { $0.nodes.map(\.point) }
+        XCTAssertEqual(ends.map(\.x).min()!, -8, accuracy: 0.4, "the bar's left tip")
+        XCTAssertEqual(ends.map(\.x).max()!, 8, accuracy: 0.4, "the bar's right tip")
+        XCTAssertEqual(ends.map(\.y).min()!, -8, accuracy: 0.4, "the stem's tip")
+        var design = Design(); design.objects = objects
+        XCTAssertNoThrow(try StitchEngine.compile(design))
+    }
+
+    func testATaperedStripStaysAFill() throws {
+        // A crescent, shown 20 mm wide: a disc (radius 8 mm) with the same disc moved up 6 mm cut out. It is 6 mm thick
+        // at the bottom, tapers to points, and its box is about 16 × 11 mm, too bent for satin fill. An even-width
+        // column can't follow it either, so it stays tatami.
+        let moon = picture(100) { x, y in
+            hypot(Double(x) - 49.5, Double(y) - 49.5) < 40 && hypot(Double(x) - 49.5, Double(y) - 19.5) >= 40 ? 0xF0C020 : 0xFFFFFF
+        }
+        let objects = try run(moon).objects
+        XCTAssertEqual(objects.map(\.kind), [.fill])
+        XCTAssertEqual(objects[0].settings.fillStyle ?? .tatami, .tatami)
+        // Without the even-width check it would have been a column: the strip itself qualifies otherwise.
+        XCTAssertGreaterThan(AutoDigitize.turnedBox(objects[0].nodes.map(\.point)).short, 8)
     }
 }
