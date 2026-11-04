@@ -647,6 +647,27 @@ public enum AutoDigitize {
         var grid: PartGrid
         var branches: [(pixels: [Int], closed: Bool)]
         var widths: [Int: Double]
+        var part: [Bool]        // the part's pixels before thinning, on the same grid
+        var pixelSize: Double   // mm per pixel
+
+        /// True if satin down the centerline, reaching `halfWidth(pixel)` mm to each side of each centerline pixel,
+        /// covers nearly all of the part: at most 1% of its pixels lie more than 1 mm beyond it. Points sticking out of
+        /// a strip (a sun's rays round a ring) have their bits of centerline trimmed off as spurs, so satin along it
+        /// would leave them out; such a part is better sewn as a fill.
+        func coversPart(halfWidth: (Int) -> Double) -> Bool {
+            let w = grid.width, h = grid.height
+            var reached = [Bool](repeating: false, count: part.count)
+            // Mark a circle round each centerline pixel, as far as the satin reaches there plus 1 mm, in pixels.
+            for pixel in grid.on.indices where grid.on[pixel] {
+                let x = pixel % w, y = pixel / w, reach = (halfWidth(pixel) + 1) / pixelSize, steps = Int(reach)
+                for dy in -steps...steps { for dx in -steps...steps where Double(dx * dx + dy * dy) <= reach * reach {
+                    let nx = x + dx, ny = y + dy
+                    if nx >= 0, nx < w, ny >= 0, ny < h { reached[ny * w + nx] = true }
+                } }
+            }
+            let filled = part.indices.filter { part[$0] }
+            return filled.filter { !reached[$0] }.count <= filled.count / 100
+        }
     }
 
     /// The middle of a curved strip, or nil when the part isn't a strip. `region` is the part in image pixels, `width`
@@ -658,6 +679,7 @@ public enum AutoDigitize {
         // A strip is nowhere much wider than its width; a blob with holes (whose long outline makes its width
         // look small) is. Checking now skips thinning it.
         guard (2 * distance.max()! - 0.5) * pixelSize <= 2 * width else { return nil }
+        let part = grid.on   // kept to check the satin covers it (StripMiddle.coversPart)
         thin(&grid.on, width: grid.width, height: grid.height)
         removeCorners(&grid)
         pruneSpurs(&grid, shorterThan: Int((width / pixelSize).rounded()))
@@ -670,15 +692,18 @@ public enum AutoDigitize {
         guard !branches.isEmpty else { return nil }
         let length = branches.reduce(0.0) { total, branch in total + AreaGeometry.pathLength(branch.pixels.map(grid.center)) * pixelSize }
         guard length >= 4 * width else { return nil }
-        return StripMiddle(grid: grid, branches: branches, widths: widths)
+        return StripMiddle(grid: grid, branches: branches, widths: widths, part: part, pixelSize: pixelSize)
     }
 
     /// Satin columns down `middle`, one per branch, `width` mm wide, or nil when the strip isn't even: columns are
-    /// even, so the widest stretches may be at most 1.5 times the narrowest. `place` turns image pixels into canvas
-    /// mm. Also nil if any column can't sew, so the part is sewn another way.
+    /// even, so the widest stretches may be at most 1.5 times the narrowest, and the columns must cover the part (see
+    /// `StripMiddle.coversPart`). `place` turns image pixels into canvas mm. Also nil if any column can't sew, so the
+    /// part is sewn another way.
     static func satinColumns(along middle: StripMiddle, width: Double, pixelSize: Double, place: (Point) -> Point, name: String, thread: ThreadColor) -> [RunObject]? {
         let widths = middle.widths.values.sorted()
         guard widths[widths.count * 4 / 5] <= 1.5 * widths[widths.count / 5] else { return nil }
+        // Each column is `width` wide all along, so it must reach all of the part from there.
+        guard middle.coversPart(halfWidth: { _ in width / 2 }) else { return nil }
         let grid = middle.grid
         var branches = middle.branches
         // Sew the branches one after another, each starting at the end nearest where the last one finished.
@@ -716,10 +741,13 @@ public enum AutoDigitize {
     /// A tapered strip (a crescent, a swoosh thinning to a point) as a turning satin fill: `region` (in mm) sewn in
     /// satin, its stitches turning along stitch angle lines placed straight across the strip about every 3 mm, each a
     /// little longer than the strip is wide there. The edges are the traced outline, so tips taper exactly. nil when
-    /// the strip branches (a turning fill can't turn where three lines meet), is wider than 8 mm somewhere, or its
-    /// stitches can't be worked out (lines crossing in a tight bend).
+    /// the strip branches (a turning fill can't turn where three lines meet), is wider than 8 mm somewhere, has points
+    /// sticking out of it (see `StripMiddle.coversPart`), or its stitches can't be worked out (lines crossing in a
+    /// tight bend).
     static func turningSatin(_ region: [[Point]], along middle: StripMiddle, place: (Point) -> Point, name: String, thread: ThreadColor) -> RunObject? {
         guard middle.branches.count == 1, middle.widths.values.max()! <= 8 else { return nil }
+        // Its stitches turn along the centerline, as wide as the strip is at each point.
+        guard middle.coversPart(halfWidth: { middle.widths[$0]! / 2 }) else { return nil }
         let branch = middle.branches[0]
         var path = branch.pixels.map { place(middle.grid.center($0)) }, widths = branch.pixels.map { middle.widths[$0]! }
         if branch.closed { path.append(path[0]); widths.append(widths[0]) }
