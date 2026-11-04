@@ -468,8 +468,9 @@ These are the starting keys; every one can be changed. Tools on a function key a
 
 ### SVG support
 
-- **Supported:** paths (all commands), rectangles, circles, ellipses, lines, polylines and polygons; group transforms; `viewBox`; px, mm, cm, in, pt and pc units; solid fill and stroke colors (hex, `rgb()` and all 148 CSS color names); even-odd and nonzero fills with holes; `<style>` blocks whose rules pick shapes by tag, `.class` or `#id` (as design apps write them).
-- **Not supported** (reported or refused): style rules with other selectors (such as `g > path` or `:hover`, skipped with a note), linked stylesheets, text, `use`/symbols, nested viewports, masks, clipping, filters, markers, gradients and external files. Export such files with inline styles and outlined text.
+- **Supported:** paths (all commands), rectangles, circles, ellipses, lines, polylines and polygons; group transforms; `viewBox`; px, mm, cm, in, pt and pc units; solid fill and stroke colors (hex, `rgb()` and all 148 CSS color names); even-odd and nonzero fills with holes; `<style>` blocks whose rules pick shapes by tag, `.class` or `#id` (as design apps write them); `<use>` copies and symbols.
+- **Gradients:** a straight (linear) gradient comes in as two outlines on top of each other, one per end color. Select both (drag a box around them) and choose **Fill**: each becomes a gradient fill, the first color solid where the artwork's gradient starts and the second solid where it ends, so they blend across the shape. Gradients with more than two colors blend their end colors only; radial (circular) gradients come in as one flat color, their middle one.
+- **Not supported** (reported or refused): style rules with other selectors (such as `g > path` or `:hover`, skipped with a note), linked stylesheets, text, nested viewports, masks, clipping, filters, markers, patterns and external files. Export such files with inline styles and outlined text.
 - **Limits:** UTF-8, 5 MB, and 2,000 points per shape. Overlapping shapes are merged as points (the report says so). Strokes become center lines; their width isn't digitized.
 
 ### Machine-file import details
