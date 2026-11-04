@@ -671,7 +671,7 @@ extension InspectorPanel {
         }
     }
 
-    /// "Satin border" with an Add button, for shapes that can have one.
+    /// "Satin border", "Outlines & offsets" and "Appliqué" buttons for shapes that can have them, and "Color blend" for fills.
     @ViewBuilder private func border(_ object: RunObject) -> some View {
         if SatinBorder.canBorder(object) {
             proRow("Satin border", help: "A satin column around this shape's outside edge, like the finished edge of a patch") {
@@ -682,6 +682,11 @@ extension InspectorPanel {
             }
             proRow("Appliqué", help: "Sew a piece of fabric in this shape: placement line, tack-down and a satin edge, with stops to lay and trim the fabric") {
                 Button("Make…") { AppDelegate.shared.perform(.applique) }.buttonStyle(ThemedButtonStyle())
+            }
+        }
+        if ColorBlend.canBlend(object) {
+            proRow("Color blend", help: preferences.hint(.colorBlend)) {
+                Button("Make…") { AppDelegate.shared.perform(.colorBlend) }.buttonStyle(ThemedButtonStyle())
             }
         }
     }
