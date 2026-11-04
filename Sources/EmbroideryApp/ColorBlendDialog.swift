@@ -5,13 +5,15 @@ import EmbroideryCore
 
 extension GuidedDialog {
     static var lastBlendDirection = 0.0
-    /// Shows the Color Blend dialog for `fills`, offering `palette` (the design's threads) as swatches. Returns the
-    /// second thread and the blend's direction in degrees, or nil if the person cancelled.
-    static func colorBlend(_ fills: [RunObject], palette: [ThreadColor]) -> (second: ThreadColor, direction: Double)? {
+    /// Shows the Color Blend dialog for `fills`, offering `palette` (the design's threads) as swatches. `editing` is
+    /// an existing blend's second thread and direction, to change them (`fills` is then its first color's layer).
+    /// Returns the second thread and the blend's direction in degrees, or nil if the person cancelled.
+    static func colorBlend(_ fills: [RunObject], palette: [ThreadColor], editing: (second: ThreadColor, direction: Double)? = nil) -> (second: ThreadColor, direction: Double)? {
         var chosen: (second: ThreadColor, direction: Double)?   // the dialog's closure writes the choice here before it closes
         let confirmed = run(width: 720) { finish in
-            ColorBlendView(fills: fills, palette: palette, direction: lastBlendDirection) { choice in
-                if let choice { lastBlendDirection = choice.direction }
+            ColorBlendView(fills: fills, palette: palette, direction: editing?.direction ?? lastBlendDirection, startDirection: editing?.direction ?? lastBlendDirection,
+                           editing: editing != nil, startSecond: editing?.second) { choice in
+                if let choice, editing == nil { lastBlendDirection = choice.direction }
                 chosen = choice; finish(choice != nil)
             }
         }
@@ -23,6 +25,12 @@ struct ColorBlendView: View {
     let fills: [RunObject]
     let palette: [ThreadColor]
     @State var direction: Double
+    /// The direction the dialog opened with: offered in the menu too when it isn't one of the eight (an edited blend
+    /// whose angle was typed in Properties).
+    let startDirection: Double
+    /// True when changing a blend that's already made, starting from its second thread `startSecond`.
+    var editing = false
+    var startSecond: ThreadColor? = nil
     /// Called with the second thread and the direction, or nil for Cancel.
     let done: ((second: ThreadColor, direction: Double)?) -> Void
     @State private var second: ThreadColor?
@@ -37,6 +45,10 @@ struct ColorBlendView: View {
         (135, "arrow.up.left", "Up and to the left"), (180, "arrow.left", "Right to left"), (225, "arrow.down.left", "Down and to the left"),
         (270, "arrow.down", "Top to bottom"), (315, "arrow.down.right", "Down and to the right"),
     ]
+    /// The eight directions, plus the one the dialog opened with if it's another.
+    private var directionChoices: [(degrees: Double, arrow: String, words: String)] {
+        Self.directions.contains { $0.degrees == startDirection } ? Self.directions : Self.directions + [(startDirection, "safari", "As it is now, \(Int(startDirection.rounded()))°")]
+    }
     private var first: ThreadColor { fills[0].color }
     /// Swatches to pick the second thread from: the palette, then threads picked from the chart, each once, leaving
     /// out the shape's own thread.
@@ -48,9 +60,9 @@ struct ColorBlendView: View {
     private struct PreviewKey: Equatable { var second: ThreadColor?; var direction: Double }
 
     var body: some View {
-        DialogFrame(eyebrow: "Color blend", title: "Blend two threads",
+        DialogFrame(eyebrow: "Color blend", title: editing ? "Change the blend" : "Blend two threads",
                     subtitle: "Two gradient fills of the same shape, one on top of the other: the first thread solid where the blend starts, the second solid where it ends, mixing in between.",
-                    primary: "Add Blend",
+                    primary: editing ? "Update Blend" : "Add Blend",
                     finish: { add in
                         if !add { done(nil) } else if let second { done((second, direction)) }
                     }) {
@@ -81,14 +93,14 @@ struct ColorBlendView: View {
                         Text("Direction").font(Theme.body(13, weight: .semibold))
                         HStack {
                             Picker("Direction", selection: $direction) {
-                                ForEach(Self.directions, id: \.degrees) { Label($0.words, systemImage: $0.arrow).tag($0.degrees) }
+                                ForEach(directionChoices, id: \.degrees) { Label($0.words, systemImage: $0.arrow).tag($0.degrees) }
                             }.labelsHidden().pickerStyle(.menu).frame(width: 190)
                             // Swapping the colors is the same as running the blend the other way.
                             Button { direction = (direction + 180).truncatingRemainder(dividingBy: 360) } label: { Image(systemName: "arrow.left.arrow.right") }
                                 .buttonStyle(ThemedButtonStyle()).help("Swap colors")
                         }
                     }
-                    Text("Afterward each layer is an ordinary gradient fill. To let one color reach further, change its layer's spacing in Properties.")
+                    Text("The two layers keep one shape: reshape or turn either and the other follows. To let one color reach further, change its layer's spacing in Properties.")
                         .font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
                 }.frame(width: 260, alignment: .leading)
                 ZStack {
@@ -97,7 +109,10 @@ struct ColorBlendView: View {
                 }.frame(height: 300).clipShape(RoundedRectangle(cornerRadius: 14))
             }
         }
-        .onAppear { if second == nil { second = swatches.first } }
+        .onAppear {
+            if let startSecond, !swatches.contains(startSecond) { picked.append(startSecond) }   // a thread no longer in the palette still shows
+            if second == nil { second = startSecond ?? swatches.first }
+        }
         // Work out the layers' stitches in the background whenever the thread or direction changes.
         .task(id: PreviewKey(second: second, direction: direction)) {
             preview = nil

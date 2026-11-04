@@ -115,11 +115,13 @@ extension Design {
     }
 
     /// After copying objects (`copies` maps each original's id, and each original lettering's id, to its copy's),
-    /// links each copied guide to the copy of what it guided. A guide copied alone is just an unstitched line.
+    /// links each copied guide to the copy of what it guided, and each copied blend layer to its copied partner. A
+    /// guide copied alone is just an unstitched line; a blend's second color copied alone is just a gradient fill.
     public mutating func relinkCopiedGuides(_ copies: [UUID: UUID]) {
         let made = Set(copies.values)
         for i in objects.indices where made.contains(objects[i].id) {
             if let old = objects[i].guideFor { objects[i].guideFor = copies[old] }
+            if let old = objects[i].blendOf { objects[i].blendOf = copies[old] }   // a copied blend's second color lies on the copied first
         }
     }
 }

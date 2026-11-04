@@ -684,9 +684,10 @@ extension InspectorPanel {
                 Button("Make…") { AppDelegate.shared.perform(.applique) }.buttonStyle(ThemedButtonStyle())
             }
         }
-        if ColorBlend.canBlend(object) {
-            proRow("Color blend", help: preferences.hint(.colorBlend)) {
-                Button("Make…") { AppDelegate.shared.perform(.colorBlend) }.buttonStyle(ThemedButtonStyle())
+        let inBlend = state.design.blend(containing: object.id) != nil
+        if ColorBlend.canBlend(object) || inBlend {
+            proRow("Color blend", help: inBlend ? "Change this blend's second thread or the way it runs. Its two layers keep one shape." : preferences.hint(.colorBlend)) {
+                Button(inBlend ? "Edit…" : "Make…") { AppDelegate.shared.perform(.colorBlend) }.buttonStyle(ThemedButtonStyle())
             }
         }
     }

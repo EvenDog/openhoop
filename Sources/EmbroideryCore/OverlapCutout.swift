@@ -34,7 +34,8 @@ public enum OverlapCutout {
     public static func pieces(of fill: RunObject, under later: [RunObject]) throws -> [[[Point]]]? {
         let original = ([fill.nodes] + (fill.holes ?? [])).map { AreaGeometry.ring($0) }
         var pieces = [original]
-        for cover in later {
+        // A color blend's two layers lie on each other on purpose: neither cuts the other away.
+        for cover in later where cover.blendOf != fill.id && fill.blendOf != cover.id {
             try Task.checkCancellation()
             guard let area = coveredArea(cover), area.allSatisfy({ $0.count >= 3 }) else { continue }
             // Shrink the cover first, so the fill reaches `tuck` mm under its edge. Covers thinner than that vanish.

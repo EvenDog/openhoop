@@ -886,9 +886,19 @@ import EmbroideryCore
         } catch { showError(error) }
     }
     /// Color Blend: the dialog picks a second thread and the blend's direction; each selected fill becomes two gradient
-    /// layers (ColorBlend.layers) in its place in the sewing order, all in one step you can undo.
+    /// layers (ColorBlend.layers) in its place in the sewing order, all in one step you can undo. With a layer of a
+    /// blend selected, the dialog changes that blend instead.
     private func makeColorBlend(_ state: EditorState) {
         guard !state.hasVersionMismatch, state.draft.isEmpty else { state.status = "Finish the current path and regenerate older projects before making a blend."; return }
+        if let layer = state.design.objects.first(where: { state.selection.contains($0.id) && state.design.blend(containing: $0.id) != nil }),
+           let (b, t) = state.design.blend(containing: layer.id) {
+            let base = state.design.objects[b], top = state.design.objects[t]
+            guard let blend = GuidedDialog.colorBlend([base], palette: state.design.paletteThreads, editing: (top.color, ColorBlend.direction(of: base))) else { state.status = "Color blend unchanged."; return }
+            state.edit("Edit Color Blend") { $0.editBlend(containing: base.id, second: blend.second, direction: blend.direction); $0.addToPalette(blend.second) }
+            state.selection = [base.id, top.id]
+            state.status = "The blend now runs into \(blend.second.name)."
+            return
+        }
         let fills = state.design.objects.filter { state.selection.contains($0.id) && ColorBlend.canBlend($0) }
         guard !fills.isEmpty else { state.status = "Select a fill first (not lettering), then blend it into a second thread."; return }
         guard let blend = GuidedDialog.colorBlend(fills, palette: state.design.paletteThreads) else { state.status = "Color blend cancelled."; return }
