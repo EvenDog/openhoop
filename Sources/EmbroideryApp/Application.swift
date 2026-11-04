@@ -26,6 +26,9 @@ import EmbroideryCore
     nonisolated(unsafe) static var replacesLastDesign = true
     /// The design that was on screen when a background tab's × was clicked, shown again once that tab is closed.
     private weak var returnAfterClose: DesignPane?
+    /// The design being closed by hand (its tab's ×, ⌘W, the close button), while it closes. Only closing the last
+    /// design by hand opens a blank in its place; designs closed by macOS (quitting, logging out) just close.
+    private weak var closingByHand: NSDocument?
 
     init(document: DesignDocument) {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1250, height: 820), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -126,7 +129,9 @@ import EmbroideryCore
     }
     @objc private func document(_ document: NSDocument, shouldClose: Bool, contextInfo: UnsafeMutableRawPointer?) {
         let returnTo = returnAfterClose; returnAfterClose = nil
-        if shouldClose { document.close() }   // DesignDocument.close takes its tab out of this window
+        if shouldClose {   // DesignDocument.close takes its tab out of this window
+            closingByHand = document; document.close(); closingByHand = nil
+        }
         else { closingAll = false }
         if let returnTo, panes.contains(where: { $0 === returnTo }) { select(returnTo) }
         if shouldClose, closingAll, let next = selectedPane { closeTab(next) }
@@ -136,8 +141,9 @@ import EmbroideryCore
     func removeTab(for document: DesignDocument) {
         guard let index = panes.firstIndex(where: { $0.document === document }) else { return }
         // The app's last design: a blank one opens first, as a tab in this window (which still has a tab for it to
-        // join), so the window stays. Not while quitting, and not when another window still has designs.
-        if panes.count == 1, Self.replacesLastDesign, !AppDelegate.shared.quitting, Self.open.allSatisfy({ $0 === self || $0.panes.isEmpty }) {
+        // join), so the window stays. Only when closed by hand (quitting closes every design first, before the app
+        // hears it's quitting), and not when another window still has designs.
+        if panes.count == 1, Self.replacesLastDesign, document === closingByHand, Self.open.allSatisfy({ $0 === self || $0.panes.isEmpty }) {
             closingAll = false   // the close button's close-everything run ends here, instead of closing the blank too
             AppDelegate.shared.newDocument(sample: false)
         }
@@ -311,15 +317,11 @@ import EmbroideryCore
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { true }
     func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool { newDocument(sample: false); return true }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
-    /// True while quitting, so closing the last design doesn't open a blank one in its place.
-    var quitting = false
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        quitting = true
         NSDocumentController.shared.closeAllDocuments(withDelegate: self, didCloseAllSelector: #selector(didCloseAll(_:didCloseAll:contextInfo:)), contextInfo: nil)
         return .terminateLater
     }
     @objc private func didCloseAll(_ controller: NSDocumentController, didCloseAll: Bool, contextInfo: UnsafeMutableRawPointer?) {
-        if !didCloseAll { quitting = false }   // Cancel in a save question stops the quit
         NSApp.reply(toApplicationShouldTerminate: didCloseAll)
     }
     /// Make Test Swatches: the dialog picks a setting of the selected object and the values to try; the swatches

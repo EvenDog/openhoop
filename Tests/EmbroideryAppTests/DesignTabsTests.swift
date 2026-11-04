@@ -16,7 +16,7 @@ final class DesignTabsTests: XCTestCase {
         let design = DesignDocument()
         design.makeWindowControllers()
         let window = try XCTUnwrap(EditorWindowController.host(of: design))
-        design.close()
+        window.closeTab(try XCTUnwrap(window.panes.first))   // closed by hand, as its tab's × does
         XCTAssertEqual(window.panes.count, 1, "the window stays, with one tab")
         let blank = try XCTUnwrap(window.panes.first?.document)
         XCTAssertFalse(blank === design)
@@ -24,11 +24,10 @@ final class DesignTabsTests: XCTestCase {
         XCTAssertTrue(window.document === blank)
         XCTAssertNotNil(window.window)
 
-        // Quitting closes the last design for good.
-        AppDelegate.shared.quitting = true
-        defer { AppDelegate.shared.quitting = false }
+        // Quitting: macOS closes every design itself, before the app hears it's quitting. The last one closes for
+        // good (opening a blank here made quitting open blank after blank).
         blank.close()
-        XCTAssertTrue(window.panes.isEmpty, "while quitting, the window closes with its last design")
+        XCTAssertTrue(window.panes.isEmpty, "closed by macOS, the window closes with its last design")
     }
 
     func testTabPickedAfterClosingIsTheRightNeighborElseTheLeft() {
