@@ -339,18 +339,27 @@ final class AutoDigitizeTests: XCTestCase {
         XCTAssertNoThrow(try StitchEngine.compile(design))
     }
 
-    func testATaperedStripStaysAFill() throws {
+    func testATaperedStripBecomesATurningSatin() throws {
         // A crescent, shown 20 mm wide: a disc (radius 8 mm) with the same disc moved up 6 mm cut out. It is 6 mm thick
-        // at the bottom, tapers to points, and its box is about 16 × 11 mm, too bent for satin fill. An even-width
-        // column can't follow it either, so it stays tatami.
+        // at the bottom and tapers to points; its box is about 16 × 11 mm, too bent for satin fill's one direction,
+        // and an even-width column can't follow it. It becomes a satin fill whose stitches turn with the strip.
         let moon = picture(100) { x, y in
             hypot(Double(x) - 49.5, Double(y) - 49.5) < 40 && hypot(Double(x) - 49.5, Double(y) - 19.5) >= 40 ? 0xF0C020 : 0xFFFFFF
         }
-        let objects = try run(moon).objects
-        XCTAssertEqual(objects.map(\.kind), [.fill])
-        XCTAssertEqual(objects[0].settings.fillStyle ?? .tatami, .tatami)
-        // Without the even-width check it would have been a column: the strip itself qualifies otherwise.
-        XCTAssertGreaterThan(AutoDigitize.turnedBox(objects[0].nodes.map(\.point)).short, 8)
+        let result = try run(moon)
+        XCTAssertEqual(result.objects.count, 1)
+        let fill = result.objects[0]
+        XCTAssertEqual(fill.kind, .fill); XCTAssertEqual(fill.settings.fillStyle, .satin)
+        let lines = try XCTUnwrap(fill.settings.angleLines)
+        XCTAssertGreaterThanOrEqual(lines.count, 3, "stitch angle lines across the strip")
+        XCTAssertGreaterThan(AutoDigitize.turnedBox(fill.nodes.map(\.point)).short, 8, "the outline is the traced crescent, tips and all")
+        XCTAssertTrue(result.warnings.contains { $0.contains("1 tapered satin (turning with the strip)") }, "\(result.warnings)")
+        // Sewn, every stitch crosses the strip (at most 6 mm thick, plus compensation): none runs along it.
+        var design = Design(); design.objects = result.objects
+        let commands = try StitchEngine.compile(design).commands
+        var longest = 0.0
+        for (a, b) in zip(commands, commands.dropFirst()) where a.op == .stitch && b.op == .stitch { longest = max(longest, a.point.distance(to: b.point)) }
+        XCTAssertGreaterThan(longest, 3); XCTAssertLessThan(longest, 7.5)
     }
 
     func testOutlineColorsSewLast() throws {
