@@ -411,7 +411,7 @@ import EmbroideryCore
     private static let reviewSteps: [CommandID: Int] = [.nudgeRight: 1, .nudgeDown: 1, .stepForward: 1, .nextObject: 1,
                                                         .nudgeLeft: -1, .nudgeUp: -1, .stepBackward: -1, .previousObject: -1]
     /// Commands that open a dialog and wait for it to close.
-    private static let opensDialog: Set<CommandID> = [.laydown, .testSwatches, .addMonogram, .editMonogram, .autoDigitize, .satinBorder, .outlinesOffsets, .applique, .threadChart, .renameObject, .importImage, .createMotif]
+    private static let opensDialog: Set<CommandID> = [.laydown, .testSwatches, .addMonogram, .editMonogram, .autoDigitize, .satinBorder, .colorBlend, .outlinesOffsets, .applique, .threadChart, .renameObject, .importImage, .createMotif]
     /// `now` is false unless the command was already put off by one beat (see below).
     func perform(_ command: CommandID, now: Bool = false) {
         // A dialog opened inside a SwiftUI button's action never updates (no typing, no setup), because SwiftUI
@@ -573,6 +573,7 @@ import EmbroideryCore
         case .breakApartLettering: state.breakApartLettering()
         case .autoDigitize: autoDigitize(state)
         case .satinBorder: addSatinBorder(state)
+        case .colorBlend: makeColorBlend(state)
         case .outlinesOffsets: addOutlinesOffsets(state)
         case .applique: makeApplique(state)
         case .laydown: addLaydown(state)
@@ -882,6 +883,38 @@ import EmbroideryCore
             state.edit("Add Satin Border") { $0 = candidate }
             state.selection = Set(borders.map(\.border.id)); state.selectedNode = nil; state.tool = .select; state.focusCanvas()
             state.status = "Added \(borders.count) satin border\(borders.count == 1 ? "" : "s"). Each sews right after its shape; reorder or recolor it like any object."
+        } catch { showError(error) }
+    }
+    /// Color Blend: the dialog picks a second thread and the blend's direction; each selected fill becomes two gradient
+    /// layers (ColorBlend.layers) in its place in the sewing order, all in one step you can undo. With a layer of a
+    /// blend selected, the dialog changes that blend instead.
+    private func makeColorBlend(_ state: EditorState) {
+        guard !state.hasVersionMismatch, state.draft.isEmpty else { state.status = "Finish the current path and regenerate older projects before making a blend."; return }
+        if let layer = state.design.objects.first(where: { state.selection.contains($0.id) && state.design.blend(containing: $0.id) != nil }),
+           let (b, t) = state.design.blend(containing: layer.id) {
+            let base = state.design.objects[b], top = state.design.objects[t]
+            guard let blend = GuidedDialog.colorBlend([base], palette: state.design.paletteThreads, editing: (top.color, ColorBlend.direction(of: base))) else { state.status = "Color blend unchanged."; return }
+            state.edit("Edit Color Blend") { $0.editBlend(containing: base.id, second: blend.second, direction: blend.direction); $0.addToPalette(blend.second) }
+            state.selection = [base.id, top.id]
+            state.status = "The blend now runs into \(blend.second.name)."
+            return
+        }
+        let fills = state.design.objects.filter { state.selection.contains($0.id) && ColorBlend.canBlend($0) }
+        guard !fills.isEmpty else { state.status = "Select a fill first (not lettering), then blend it into a second thread."; return }
+        guard let blend = GuidedDialog.colorBlend(fills, palette: state.design.paletteThreads) else { state.status = "Color blend cancelled."; return }
+        do {
+            var candidate = state.design, made: Set<UUID> = []
+            for fill in fills {
+                guard let index = candidate.objects.firstIndex(where: { $0.id == fill.id }) else { continue }
+                let layers = ColorBlend.layers(of: fill, second: blend.second, direction: blend.direction)
+                candidate.objects.replaceSubrange(index...index, with: layers)   // the fill's place now holds both layers
+                made.formUnion(layers.map(\.id))
+            }
+            candidate.addToPalette(blend.second)
+            try candidate.validate()
+            state.edit("Color Blend") { $0 = candidate }
+            state.selection = made; state.selectedNode = nil; state.tool = .select; state.focusCanvas()
+            state.status = "Blended \(fills.count == 1 ? "the fill" : "\(fills.count) fills") into \(blend.second.name): two gradient layers each, grouped, the second sewn right after the first."
         } catch { showError(error) }
     }
     /// Outlines & Offsets: the dialog builds the outlines around each selected closed shape; each shape's outlines
@@ -1278,7 +1311,7 @@ import EmbroideryCore
                     .convertRun, .convertSatin, .convertFill, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool,
                    .finishPath, .removePoint, .cancelPath]),
-        ("Add", [.lettering, .editLettering, .breakApartLettering, .putLetteringOnLine, .addMonogram, .editMonogram, .satinBorder, .outlinesOffsets, .applique, .autoDigitize, .laydown, .wreath, .repeatAlongLine, .scatter, .testSwatches])
+        ("Add", [.lettering, .editLettering, .breakApartLettering, .putLetteringOnLine, .addMonogram, .editMonogram, .satinBorder, .colorBlend, .outlinesOffsets, .applique, .autoDigitize, .laydown, .wreath, .repeatAlongLine, .scatter, .testSwatches])
     ]
     /// One line of a menu: a command, or a submenu of commands (its groups split by dividers).
     enum MenuEntry { case command(CommandID), submenu(String, [[CommandID]]) }

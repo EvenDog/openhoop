@@ -121,6 +121,9 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
     public var lineRepeat: LineRepeat?
     /// Set on each object of a copy along a line (LineRepeat.swift): which set and copy it belongs to.
     public var repeatCopy: RepeatCopy?
+    /// Set on the second color of a color blend (ColorBlend.swift): the id of the first color's layer, the gradient
+    /// fill it lies on. The two keep the same shape and opposite angles (`Design.syncBlends`).
+    public var blendOf: UUID?
     public var kind: StitchKind { rawStitches != nil ? .raw : digitizing?.kind ?? .run }
     public var settings: DigitizingSettings { digitizing ?? DigitizingSettings(kind: .run) }
     /// What the stitches are called in lists: the stitch kind, naming the fill style for fills (such as "Contour Fill").
@@ -750,6 +753,8 @@ public struct Design: Codable, Equatable, Sendable {
     /// True when a design has copies along a line (added in file version 16), so it's saved as version 16 and older
     /// versions of the app, which would lose the link between the copies and their line, refuse it instead.
     public var needsSchemaSixteen: Bool { objects.contains { $0.lineRepeat != nil || $0.repeatCopy != nil } }
+    /// Schema 17 marks projects with color blends, so older versions refuse them instead of losing the link.
+    public var needsSchemaSeventeen: Bool { objects.contains { $0.blendOf != nil } }
     /// True when a design has satins with smart corners (added in file version 10) that actually have a sharp corner,
     /// so it's saved as version 10 and older versions of the app, which would sew those corners fanned round the seam,
     /// refuse it instead. A satin with the setting but no sharp corner sews the same in older versions.
@@ -782,7 +787,7 @@ public struct Design: Codable, Equatable, Sendable {
 
     /// Reject corrupt or unreasonable input before it reaches the renderer or generator.
     public func validate() throws {
-        guard (1...16).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
+        guard (1...17).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }

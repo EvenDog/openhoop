@@ -26,7 +26,7 @@ struct ToolStrip: View {
         ("Pick & shape", [.selectTool, .nodeTool, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .removeOverlaps, .branching, .entryExitTool, .panTool, .artworkTool]),
         ("Stitch", [.runTool, .satinTool, .fillTool, .holeTool, .addStitchAngles, .removeStitchAngles]),
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool]),
-        ("Add", [.lettering, .addMonogram, .satinBorder, .outlinesOffsets, .applique, .autoDigitize, .laydown, .wreath, .repeatAlongLine, .scatter]),
+        ("Add", [.lettering, .addMonogram, .satinBorder, .colorBlend, .outlinesOffsets, .applique, .autoDigitize, .laydown, .wreath, .repeatAlongLine, .scatter]),
         ("View", [.measureTool, .hoopingsTool, .grid, .snap, .threadView, .reviewSewingOrder]),
         ("Show", [.showStitches, .showOutlines, .showConnectors, .needles, .showUnderlay, .hideOthers, .showRulers, .densityMap]),
         ("Zoom", [.zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected])
@@ -192,6 +192,7 @@ struct ToolStrip: View {
         case .repeatAlongLine: return state.shapesAndLine != nil
         case .scatter: return state.shapesAndArea != nil
         case .satinBorder, .outlinesOffsets, .applique: return state.design.objects.contains { state.selection.contains($0.id) && !$0.locked && SatinBorder.canBorder($0) }
+        case .colorBlend: return state.design.objects.contains { state.selection.contains($0.id) && (ColorBlend.canBlend($0) || state.design.blend(containing: $0.id) != nil) }
         case .autoDigitize: return state.design.artwork != nil
         case .weldObjects: return state.design.objects.filter { state.selection.contains($0.id) && !$0.locked && $0.areaRings != nil }.count >= 2
         case .removeOverlaps: return state.design.objects.contains { (state.selection.isEmpty || state.selection.contains($0.id)) && $0.kind == .fill && !$0.locked }
