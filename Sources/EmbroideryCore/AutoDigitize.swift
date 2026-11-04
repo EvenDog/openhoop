@@ -2,10 +2,10 @@
 // traces the outline of every patch of each color along the pixel edges, smooths away the pixel "staircase",
 // and stitches each patch by its width (thin lines as running stitch, narrow parts as satin, curved strips as satin
 // columns along their middle, the rest as tatami), placed exactly over the image. With a thread chart chosen, each
-// color becomes that chart's closest thread. Parts
-// sew nearest first, fills at angles that follow each shape (touching shapes at clearly different angles), fills
-// reach a little under the parts sewn on top of them (so no fabric shows at the seams), and each part starts where
-// the one before it ends.
+// color becomes that chart's closest thread. Colors that are mostly outlines sew last, on top. Parts sew nearest
+// first, fills at angles that follow each shape (touching shapes at clearly different angles), fills reach a little
+// under the parts sewn on top of them (so no fabric shows at the seams), and each part starts where the one before
+// it ends.
 import Foundation
 import CoreGraphics
 import ImageIO
@@ -112,6 +112,9 @@ public enum AutoDigitize {
         let order = centers.indices.filter { areas[$0] > 0 }.sorted { areas[$0] > areas[$1] }   // big areas sew first, details on top
         var objects: [RunObject] = [], colors: [AutoDigitizeColor] = [], warnings: [String] = []
         var shapes: [[[Point]]] = []   // each object's traced part (outline and holes), before any overlap
+        // Each sewn color's parts as traced: the region, the objects stitching it, and whether it is a strip (a running
+        // line or satin columns). They're put in sewing order and named once all colors are traced.
+        var tracedColors: [(thread: ThreadColor, colorIndex: Int, parts: [(region: [[Point]], objects: [RunObject], strip: Bool)])] = []
         var smallParts = 0, failedParts = 0, filledHoles = 0, lines = 0, satins = 0, columnCount = 0, tatamis = 0
         let sewn = order.filter { $0 != background }
         let chartThreads = options.chart.map { threads(for: sewn.map { centers[$0] }, from: $0) }
@@ -137,10 +140,10 @@ public enum AutoDigitize {
                 guard (try? AreaGeometry.validate(region)) != nil else { failedParts += 1; continue }
                 parts.append(region)
             }
-            parts = nearestFirst(parts, after: objects.last.map { AreaGeometry.centroid($0.nodes.map(\.point)) })
+            var made: [(region: [[Point]], objects: [RunObject], strip: Bool)] = []
             // Millimeters on the canvas → pixel corners in the image (the reverse of `place`).
             func pixel(_ p: Point) -> Point { Point((p.x - left) / pixelWidth, (top - p.y) / pixelHeight) }
-            for (index, region) in parts.enumerated() {
+            for region in parts {
                 // The stitch type follows the part's width. Area ÷ half the outline is about a strip's width (a dot's radius).
                 let area = AreaGeometry.area(region[0]).magnitude - region.dropFirst().reduce(0) { $0 + AreaGeometry.area($1).magnitude }
                 let perimeter = region.reduce(0) { $0 + AreaGeometry.pathLength($1 + [$1[0]]) }
@@ -148,10 +151,10 @@ public enum AutoDigitize {
                 if 2 * area / perimeter < 1, let line = centerline(of: region.map { $0.map(pixel) }, mask: mask, width: w, height: h) {
                     let path = simplifyLine(line.path.map { place($0.x, $0.y) }[...], tolerance: max(0.1, pixelWidth, pixelHeight))
                     if path.count >= 2, AreaGeometry.pathLength(path) >= 1 {
-                        var object = RunObject(name: "\(thread.name) line \(index + 1)", nodes: path.map { PathNode($0) }, color: thread)
+                        var object = RunObject(name: "\(thread.name) line", nodes: path.map { PathNode($0) }, color: thread)
                         object.closed = line.closed
                         var settings = DigitizingSettings(kind: .run); settings.runPasses = 3; object.digitizing = settings
-                        objects.append(object); shapes.append(region); lines += 1
+                        made.append((region, [object], true)); lines += 1
                         continue
                     }
                 }
@@ -159,19 +162,46 @@ public enum AutoDigitize {
                 let width = 2 * area / perimeter
                 if width >= 1 && width <= 8 && turnedBox(region[0]).short > 8,
                    let columns = satinColumns(of: region.map { $0.map(pixel) }, mask: mask, imageWidth: w, imageHeight: h, width: width,
-                                              pixelSize: (pixelWidth + pixelHeight) / 2, place: { place($0.x, $0.y) }, name: "\(thread.name) satin \(index + 1)", thread: thread) {
-                    objects += columns; shapes += Array(repeating: region, count: columns.count); columnCount += columns.count
+                                              pixelSize: (pixelWidth + pixelHeight) / 2, place: { place($0.x, $0.y) }, name: "\(thread.name) satin", thread: thread) {
+                    made.append((region, columns, true)); columnCount += columns.count
                     continue
                 }
-                var object = RunObject(name: "\(thread.name) area \(index + 1)", nodes: region[0].map { PathNode($0) }, color: thread)
+                var object = RunObject(name: "\(thread.name) area", nodes: region[0].map { PathNode($0) }, color: thread)
                 object.closed = true; object.holes = region.count > 1 ? region.dropFirst().map { $0.map { PathNode($0) } } : nil
                 object.digitizing = DigitizingSettings(kind: .fill)
                 // At most 8 mm across (the short side of the smallest box around it): satin, stitches straight across.
                 // A curved strip has a wider box and stays tatami: one stitch direction can't follow its bends.
                 if turnedBox(region[0]).short <= 8 { object.digitizing?.fillStyle = .satin; satins += 1 } else { tatamis += 1 }
-                objects.append(object); shapes.append(region)
+                made.append((region, [object], false))
             }
+            tracedColors.append((thread: thread, colorIndex: colors.count, parts: made))
             colors.append(AutoDigitizeColor(color: thread, area: Double(areas[label]) * pixelArea, parts: parts.count, background: false))
+        }
+        // A color that is mostly outlines (at least half its area in running stitch lines and satin columns) sews last,
+        // on top of the fills it outlines: its edges cover theirs, and they reach under it (see `overlap`).
+        func area(_ region: [[Point]]) -> Double { AreaGeometry.area(region[0]).magnitude - region.dropFirst().reduce(0) { $0 + AreaGeometry.area($1).magnitude } }
+        let outlines = tracedColors.count < 2 ? [] : tracedColors.indices.filter { c in
+            let all = tracedColors[c].parts.reduce(0) { $0 + area($1.region) }, strips = tracedColors[c].parts.filter(\.strip).reduce(0) { $0 + area($1.region) }
+            return all > 0 && strips >= all / 2
+        }
+        for c in tracedColors.indices.filter({ !outlines.contains($0) }) + outlines {
+            // Nearest part next, starting near where the color before ended.
+            let parts = nearestFirst(tracedColors[c].parts, region: \.region, after: objects.last.map { AreaGeometry.centroid($0.nodes.map(\.point)) })
+            for (number, part) in parts.enumerated() {
+                for (column, object) in part.objects.enumerated() {
+                    // Named in sewing order, e.g. "Black satin 3", or "Black satin 3.2" for a strip's second column.
+                    var object = object
+                    object.name += " \(number + 1)" + (part.objects.count > 1 ? ".\(column + 1)" : "")
+                    objects.append(object); shapes.append(part.region)
+                }
+            }
+        }
+        if !outlines.isEmpty {
+            let colorIndexes = outlines.map { tracedColors[$0].colorIndex }
+            colors = colors.indices.filter { !colorIndexes.contains($0) }.map { colors[$0] } + colorIndexes.map { colors[$0] }   // listed in sewing order
+            let names = outlines.map { tracedColors[$0].thread.name }
+            let list = names.count == 1 ? names[0] : names.dropLast().joined(separator: ", ") + " and " + names.last!
+            warnings.append("\(list) \(names.count == 1 ? "is" : "are") mostly outlines, so \(names.count == 1 ? "it sews" : "they sew") last, on top of the other colors.")
         }
         if hasTransparency && options.skipBackground == false { warnings.append("Transparent parts of the image are always left out.") }
         if smallParts > 0 { warnings.append("\(smallParts) patch\(smallParts == 1 ? " was" : "es were") smaller than \(options.smallestArea.formatted()) mm² and left out.") }
@@ -249,12 +279,12 @@ public enum AutoDigitize {
         }
     }
 
-    /// `parts` (each an outline and its holes) put in sewing order, nearest part next so the needle travels less:
-    /// after the part sewn last, the one whose middle is closest to its middle. `after` is the middle of the part
-    /// sewn just before these (the color before ends there); nil starts with the top-left part, where you'd start
-    /// reading the picture.
-    static func nearestFirst(_ parts: [[[Point]]], after: Point?) -> [[[Point]]] {
-        var left = parts.map { (region: $0, middle: AreaGeometry.centroid($0[0])) }, ordered: [[[Point]]] = []
+    /// `parts` put in sewing order, nearest part next so the needle travels less: after the part sewn last, the one
+    /// whose middle is closest to its middle. `region` gives each part's shape (outline and holes). `after` is the
+    /// middle of the part sewn just before these (the color before ends there); nil starts with the top-left part,
+    /// where you'd start reading the picture.
+    static func nearestFirst<Part>(_ parts: [Part], region: (Part) -> [[Point]], after: Point?) -> [Part] {
+        var left = parts.map { (part: $0, region: region($0), middle: AreaGeometry.centroid(region($0)[0])) }, ordered: [Part] = []
         var last = after
         while !left.isEmpty {
             let next: Int
@@ -267,7 +297,7 @@ public enum AutoDigitize {
                     return abs(ya - yb) > 1 ? ya > yb : left[a].region[0].map(\.x).min()! < left[b].region[0].map(\.x).min()!
                 }!
             }
-            ordered.append(left[next].region); last = left[next].middle
+            ordered.append(left[next].part); last = left[next].middle
             left.remove(at: next)
         }
         return ordered
@@ -654,7 +684,8 @@ public enum AutoDigitize {
             var line = RunObject(name: "\(name) \(columns.count + 1)", nodes: path.map { PathNode($0) }, color: thread)
             line.closed = branch.closed && path.count >= 3
             line.digitizing = DigitizingSettings(kind: .run)
-            guard let column = try? SatinLine.column(from: line, width: width) else { return nil }
+            guard var column = try? SatinLine.column(from: line, width: width) else { return nil }
+            column.name = name
             columns.append(column)
         }
         return columns.isEmpty ? nil : columns

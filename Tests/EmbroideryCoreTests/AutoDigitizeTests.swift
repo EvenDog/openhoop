@@ -352,4 +352,22 @@ final class AutoDigitizeTests: XCTestCase {
         // Without the even-width check it would have been a column: the strip itself qualifies otherwise.
         XCTAssertGreaterThan(AutoDigitize.turnedBox(objects[0].nodes.map(\.point)).short, 8)
     }
+
+    func testOutlineColorsSewLast() throws {
+        // Shown 20 mm wide: a red disc (radius 20 px, 4 mm) inside a black ring outline (radius 20–35 px, 3 mm wide),
+        // on white. Black covers the larger area, so by area it would sew first; as an outline it sews last, on top.
+        let image = picture(100) { x, y in
+            let r = hypot(Double(x) - 49.5, Double(y) - 49.5)
+            return r < 20 ? 0xD02020 : r < 35 ? 0x000000 : 0xFFFFFF
+        }
+        let result = try run(image, colors: 3)
+        XCTAssertEqual(result.objects.map(\.color.hex), [0xD02020, 0x000000], "the fill first, its outline on top")
+        XCTAssertEqual(result.objects[1].kind, .satin)
+        XCTAssertEqual(result.objects.map(\.name), ["Color 3 area 1", "Color 2 satin 1"], "named in sewing order (white, the background, is Color 1)")
+        XCTAssertEqual(result.colors.filter { !$0.background }.map(\.color.hex), [0xD02020, 0x000000], "listed in sewing order")
+        XCTAssertTrue(result.warnings.contains("Color 2 is mostly outlines, so it sews last, on top of the other colors."), "\(result.warnings)")
+        // Sewn before the outline, the red disc reaches under it.
+        let radii = result.objects[0].nodes.map { hypot($0.point.x, $0.point.y) }
+        XCTAssertEqual(radii.max()!, 4 + AutoDigitize.overlapAmount, accuracy: 0.15)
+    }
 }
