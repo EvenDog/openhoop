@@ -165,7 +165,8 @@ final class DesignCanvas: NSView {
     /// ones while each batch costs only a few fills per sheen level. Travel moves and needle points aren't drawn: the
     /// machine trims the travel, and the needle holes are hidden under the thread. Stitches off screen are skipped.
     /// `start` is where the needle stands before the first command (the end of the stitches drawn before these).
-    private func drawThread(_ context: CGContext, _ commands: ArraySlice<StitchCommand>, from start: Point = Point(0, 0), threads: [ThreadColor], hidden: Set<UUID>, showUnderlay: Bool,
+    /// Static so the Color Blend dialog's preview can draw Thread View too.
+    static func drawThread(_ context: CGContext, _ commands: ArraySlice<StitchCommand>, from start: Point = Point(0, 0), threads: [ThreadColor], hidden: Set<UUID>, showUnderlay: Bool,
                             width: Double, visibleArea: CGRect, onScreen: (Point) -> CGPoint) {
         // The strand is built from stacked layers, each a little shorter, narrower and lighter than the one below,
         // which together shade it from dark ends to a bright middle. `tone` darkens (below 0) or lightens (above 0)
@@ -482,7 +483,7 @@ final class DesignCanvas: NSView {
         var activeColor: CGColor?
         /// Draws `part` of the stitches (thread or thin lines, and travel moves), carrying on from where the last part ended.
         func drawStitches(_ part: ArraySlice<StitchCommand>) {
-            if threadView && showStitches { drawThread(context, part, from: previous, threads: threads, hidden: hidden, showUnderlay: showUnderlay, width: max(1.2, 0.45 * zoom), visibleArea: visibleArea, onScreen: onScreen) }
+            if threadView && showStitches { Self.drawThread(context, part, from: previous, threads: threads, hidden: hidden, showUnderlay: showUnderlay, width: max(1.2, 0.45 * zoom), visibleArea: visibleArea, onScreen: onScreen) }
             // The thin-line stitch view, travel moves dashed, and needle points (in either view).
             for command in part where thinLines || showConnectors || showNeedles {
                 let visible = (command.objectID.map { !hidden.contains($0) } ?? true) && (showUnderlay || command.underlay != true)

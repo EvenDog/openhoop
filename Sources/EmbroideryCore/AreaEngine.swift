@@ -10,6 +10,10 @@ public struct StitchSection: Sendable {
 }
 public struct ObjectStitches: Sendable {public var sections:[StitchSection]=[];public var warnings:[String]=[]}
 
+/// A gradient fill's rows, as `AreaEngine.rows` takes them: spacing `from` at the start and `to` at the end, between
+/// heights `low` and `high` across the rows, and a color blend layer's `fade`, if it is one.
+public typealias GradientRows=(from:Double,to:Double,low:Double,high:Double,fade:BlendFade?)
+
 public enum AreaEngine {
     /// The region a fill's top stitches are laid in: its outline and holes grown by its compensation. Straight rows
     /// grow only at their ends (thread pulls fabric in along its stitches) and shrink along their sides by the push
@@ -217,7 +221,7 @@ public enum AreaEngine {
         // Gradient fills: the rows' spacing grows from start to end across the whole shape, measured once here, so a
         // fill split in two by its end point still shades smoothly from one side to the other.
         let heightsAcross=region.flatMap{$0}.map{AreaGeometry.rotate($0,degrees:-s.angle).y}
-        let gradient=s.fillStyle == .gradient ? (from:s.gradientStart ?? DigitizingSettings.defaultGradientStart,to:s.gradientEnd ?? DigitizingSettings.defaultGradientEnd,low:heightsAcross.min() ?? 0,high:heightsAcross.max() ?? 0) : nil
+        let gradient:GradientRows?=s.fillStyle == .gradient ? (from:s.gradientStart ?? DigitizingSettings.defaultGradientStart,to:s.gradientEnd ?? DigitizingSettings.defaultGradientEnd,low:heightsAcross.min() ?? 0,high:heightsAcross.max() ?? 0,fade:s.blendFade) : nil
         let pattern=(s.fillStyle ?? .tatami) == .tatami ? TatamiPattern.of(s) : .smooth
         /// Of the ways to sew `part` (from the sides in `fromTop`, the first row either way), the one with the lowest score.
         func best(_ part:[[Point]],fromTop:[Bool],_ score:([[Point]])->Double) throws -> (rows:[[Point]],covered:Set<Int>) {
@@ -259,15 +263,17 @@ public enum AreaEngine {
     /// level), straight rows are laid in the bent shape, and bending them back turns them into waves that still fill
     /// the real shape edge to edge. The shape's edges are cut into short pieces first so they bend smoothly.
     /// `gradient`: rows from `low` to `high` (across the rows, after turning by `angle`) whose spacing grows steadily
-    /// from `from` to `to`, instead of all `spacing` apart. `pattern`: where each row's needle holes start.
+    /// from `from` to `to`, instead of all `spacing` apart; or, with a `fade` (a color blend's layer), rows `from` apart
+    /// divided by how much of the fabric the layer covers there, left out where they'd be over `to` apart.
+    /// `pattern`: where each row's needle holes start.
     public static func rows(in region:[[Point]],angle:Double,spacing:Double,length:Double,fromTop:Bool=false,startReversed:Bool=false,wave:(height:Double,length:Double)?=nil,
-                            gradient:(from:Double,to:Double,low:Double,high:Double)?=nil,pattern:TatamiPattern = .smooth) throws -> [[Point]] {
+                            gradient:GradientRows?=nil,pattern:TatamiPattern = .smooth) throws -> [[Point]] {
         try rowSections(in:region,angle:angle,spacing:spacing,length:length,fromTop:fromTop,startReversed:startReversed,wave:wave,gradient:gradient,pattern:pattern).rows.filter{$0.count>=2}
     }
     /// The same rows, sewn in one sweep with every travel run hidden (see `sweepOrder`). `covered`: the sections the
     /// needle reaches by travelling through bare rows that are sewn over it afterwards, so that travel may be long.
     static func sweptRows(in region:[[Point]],angle:Double,spacing:Double,length:Double,fromTop:Bool=false,startReversed:Bool=false,wave:(height:Double,length:Double)?=nil,
-                          gradient:(from:Double,to:Double,low:Double,high:Double)?=nil,pattern:TatamiPattern = .smooth) throws -> (rows:[[Point]],covered:Set<Int>) {
+                          gradient:GradientRows?=nil,pattern:TatamiPattern = .smooth) throws -> (rows:[[Point]],covered:Set<Int>) {
         let scan=try rowSections(in:region,angle:angle,spacing:spacing,length:length,fromTop:fromTop,startReversed:startReversed,wave:wave,gradient:gradient,pattern:pattern)
         return sweepOrder(scan.rows,links:scan.links,lastRows:scan.lastRows)
     }
@@ -275,7 +281,7 @@ public enum AreaEngine {
     /// starts where the shape splits or joins, paired with each section it carries on from (parent, child). `lastRows`:
     /// the number of each section's last row, counted from the first row sewn.
     static func rowSections(in region:[[Point]],angle:Double,spacing:Double,length:Double,fromTop:Bool,startReversed:Bool,wave:(height:Double,length:Double)?,
-                            gradient:(from:Double,to:Double,low:Double,high:Double)?,pattern:TatamiPattern = .smooth) throws -> (rows:[[Point]],links:[(parent:Int,child:Int)],lastRows:[Int]) {
+                            gradient:GradientRows?,pattern:TatamiPattern = .smooth) throws -> (rows:[[Point]],links:[(parent:Int,child:Int)],lastRows:[Int]) {
         var rings=region.map{$0.map{AreaGeometry.rotate($0,degrees:-angle)}}
         var ripple:(Double)->Double={_ in 0}
         if let wave,wave.height>0,wave.length>0 {
@@ -287,7 +293,19 @@ public enum AreaEngine {
         guard let minY=points.map(\.y).min(),let maxY=points.map(\.y).max(),let minX=points.map(\.x).min(),let maxX=points.map(\.x).max(),maxY-minY>0.0001 else{return ([],[],[])}
         // Where each row runs: evenly `spacing` apart, or for a gradient further apart the further across it is.
         var heights:[Double]=[]
-        if let gradient,gradient.high>gradient.low {
+        if let gradient,gradient.high>gradient.low,let fade=gradient.fade {
+            // A color blend's layer: its rows cover what its fade says and the other layer the rest, so the two
+            // together cover the fabric once. Coverage only falls across the shape, so once the rows would be too
+            // far apart, there are no more.
+            var y=gradient.low+gradient.from/2
+            while y<gradient.high && heights.count<=20000 {
+                let cover=fade.coverage(at:min(1,max(0,(y-gradient.low)/(gradient.high-gradient.low))))
+                guard cover>0,gradient.from/cover<=gradient.to else{break}
+                if y>minY && y<maxY {heights.append(y)}
+                y+=gradient.from/cover
+            }
+            if fromTop {heights.reverse()}
+        } else if let gradient,gradient.high>gradient.low {
             var y=gradient.low+gradient.from/2
             while y<gradient.high && heights.count<=20000 {
                 if y>minY && y<maxY {heights.append(y)}

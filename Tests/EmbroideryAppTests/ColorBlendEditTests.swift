@@ -29,4 +29,15 @@ final class ColorBlendEditTests: XCTestCase {
         XCTAssertEqual(state.design.objects[0].nodes[2].point, Point(15, 15), "Undo puts both back")
         XCTAssertEqual(state.design.objects[1].nodes[2].point, Point(15, 15))
     }
+
+    /// Drawing on the preview: screen y runs down, so dragging up is 90° (bottom to top).
+    func testDrawnDirection() {
+        let o = CGPoint(x: 100, y: 100)
+        XCTAssertEqual(ColorBlendView.drawnDirection(from: o, to: CGPoint(x: 160, y: 100), step: 1), 0)
+        XCTAssertEqual(ColorBlendView.drawnDirection(from: o, to: CGPoint(x: 100, y: 40), step: 1), 90)
+        XCTAssertEqual(ColorBlendView.drawnDirection(from: o, to: CGPoint(x: 40, y: 160), step: 1), 225)
+        XCTAssertEqual(ColorBlendView.drawnDirection(from: o, to: CGPoint(x: 160, y: 75), step: 1), 23, "Whole degrees")
+        XCTAssertEqual(ColorBlendView.drawnDirection(from: o, to: CGPoint(x: 160, y: 75), step: 15), 30, "15° steps with Shift")
+        XCTAssertNil(ColorBlendView.drawnDirection(from: o, to: CGPoint(x: 103, y: 102), step: 1), "A click isn't a line")
+    }
 }

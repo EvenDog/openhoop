@@ -687,7 +687,18 @@ struct InspectorPanel: View {
         case .crossStitch:
             number("Square size", value: s.patternSize ?? DigitizingSettings.defaultPatternSize(.crossStitch), range: DigitizingSettings.patternSizeRange, help: "The size of each cross-stitch square (mm). Smaller squares follow the shape more closely and take more stitches.") { value in settings(.fill, "Square Size") { $0.patternSize = value } }
         case .gradient:
-            let gradientHelp = "Row spacing where the rows start (the solid end) and where they finish (the open end), in mm. The rows run at the fill angle and open up from one side of the shape to the other; turning the angle by 180° swaps the sides."
+            let gradientHelp = s.blendFade != nil
+                ? "Spacing at start: the rows where this color is solid, in mm. Spacing at end: rows further apart than this are left out, so past its fade this color sews nothing."
+                : "Row spacing where the rows start (the solid end) and where they finish (the open end), in mm. The rows run at the fill angle and open up from one side of the shape to the other; turning the angle by 180° swaps the sides."
+            // A color blend's layers: where the two threads mix, as one bar for both layers.
+            if let blend = state.design.blend(containing: object.id), let fade = state.design.objects[blend.base].settings.blendFade {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Mix").font(Theme.body(11, weight: .regular))
+                    LevelsBar(fade: fade, first: state.design.objects[blend.base].color, second: state.design.objects[blend.top].color,
+                              onCommit: { fade in state.edit("Blend Mix") { $0.setBlendFade(containing: object.id, fade) } })
+                }
+                .help("Where the two threads mix: drag the left handle to where the first stops being solid, the diamond to where they're half and half, the right handle to where the second is solid.")
+            }
             number("Spacing at start", value: s.gradientStart ?? DigitizingSettings.defaultGradientStart, range: DigitizingSettings.gradientSpacingRange, help: gradientHelp) { value in settings(.fill, "Gradient Start") { $0.gradientStart = value } }
             number("Spacing at end", value: s.gradientEnd ?? DigitizingSettings.defaultGradientEnd, range: DigitizingSettings.gradientSpacingRange, help: gradientHelp) { value in settings(.fill, "Gradient End") { $0.gradientEnd = value } }
         case .satin:
