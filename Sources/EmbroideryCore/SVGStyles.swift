@@ -3,9 +3,6 @@
 // (g > path, :hover, @media…) are skipped and counted, so the importer can say so.
 
 import Foundation
-#if canImport(FoundationXML)
-import FoundationXML
-#endif
 
 struct SVGStyles {
     /// One simple selector, such as `path.cls-1` or `#logo`. A nil tag (or "*") matches any element.
@@ -29,15 +26,6 @@ struct SVGStyles {
     var rules: [Rule] = []
     /// Rules (or comma-separated parts of one) that were left out because their selector or block isn't supported.
     var skippedRules = 0
-
-    /// Reads every <style> block in an SVG file. They're read before the shapes because a style block may come
-    /// after the shapes it colors. Throws for a style that loads another file (@import).
-    static func collect(_ data: Data) throws -> SVGStyles {
-        let collector = StyleCollector(), parser = XMLParser(data: data)
-        parser.shouldResolveExternalEntities = false; parser.shouldProcessNamespaces = true; parser.delegate = collector
-        _ = parser.parse()   // a broken file is reported by the main import pass
-        return try SVGStyles(css: collector.css)
-    }
 
     /// No rules: an SVG without <style> blocks.
     init() {}
@@ -178,18 +166,4 @@ struct SVGStyles {
         "tomato": 0xff6347, "turquoise": 0x40e0d0, "violet": 0xee82ee, "wheat": 0xf5deb3, "white": 0xffffff,
         "whitesmoke": 0xf5f5f5, "yellow": 0xffff00, "yellowgreen": 0x9acd32,
     ]
-}
-
-/// Gathers the text inside <style> elements (plain or in a CDATA section) while an XMLParser reads the file.
-private final class StyleCollector: NSObject, XMLParserDelegate {
-    var css = "", inStyle = 0
-    func parser(_ parser: XMLParser, didStartElement name: String, namespaceURI: String?, qualifiedName: String?, attributes: [String: String]) {
-        if name == "style" { inStyle += 1; css += "\n" }
-    }
-    func parser(_ parser: XMLParser, didEndElement name: String, namespaceURI: String?, qualifiedName: String?) {
-        if name == "style" { inStyle -= 1 }
-    }
-    func parser(_ parser: XMLParser, foundCharacters string: String) { if inStyle > 0 { css += string } }
-    func parser(_ parser: XMLParser, foundCDATA block: Data) { if inStyle > 0 { css += String(decoding: block, as: UTF8.self) } }
-    func parser(_ parser: XMLParser, resolveExternalEntityName name: String, systemID: String?) -> Data? { nil }
 }

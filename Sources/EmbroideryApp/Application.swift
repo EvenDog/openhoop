@@ -677,7 +677,7 @@ import EmbroideryCore
             let fabricDesign=state.design
             state.editSelected(command.title){object in
                 if object.kind == .satin {object.nodes=object.nodes.enumerated().filter{$0.offset%2==0}.map(\.element)+object.nodes.enumerated().filter{$0.offset%2==1}.map(\.element).reversed().map(\.reversedDirection);object.closed=true}
-                if command == .convertFill{object.digitizing=DigitizingSettings(kind:.fill);object.closed=true;object.stitchLength=3;object=fabricDesign.withFabric(object)}
+                if command == .convertFill{object.digitizing=DigitizingSettings.fill(from:object.digitizing);object.closed=true;object.stitchLength=3;object=fabricDesign.withFabric(object)}
                 else{object.digitizing=nil;object.holes=nil}
             }
         case .removeHoles:state.editSelected(command.title){if $0.kind == .fill{$0.holes=[]}}

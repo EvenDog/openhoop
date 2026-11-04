@@ -577,6 +577,13 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
         if kind == .fill {secondUnderlay = .tatami;secondInset=inset;secondSpacing=underlaySpacing}   // an edge run, then tatami rows
         if kind == .satin {shortStitches=true;autoSplit=true;pullPercent=Self.defaultPullPercent}
     }
+    /// Settings for an outline turned into a fill (Fill in Properties): a fresh fill, except that an outline imported
+    /// from an SVG gradient keeps its gradient style and angle, so the fill fades the way the artwork did.
+    public static func fill(from outline:DigitizingSettings?) -> DigitizingSettings {
+        var settings=DigitizingSettings(kind:.fill)
+        if let outline,outline.kind == .vector,outline.fillStyle == .gradient {settings.fillStyle = .gradient;settings.angle=outline.angle}
+        return settings
+    }
 }
 
 public struct Hoop: Codable, Hashable, Sendable {
