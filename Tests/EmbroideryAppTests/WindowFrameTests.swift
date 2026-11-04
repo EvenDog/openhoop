@@ -5,6 +5,8 @@ import AppKit
 @testable import EmbroideryApp
 
 final class WindowFrameTests: XCTestCase {
+    override func setUp() { super.setUp(); EditorWindowController.replacesLastDesign = false }   // closing the last design closes the window
+    override func tearDown() { EditorWindowController.replacesLastDesign = true; super.tearDown() }
     @MainActor func testTheWindowReopensAtTheSizeItWasClosedAt() throws {
         _ = NSApplication.shared
         let key = "NSWindow Frame DesignWindow"

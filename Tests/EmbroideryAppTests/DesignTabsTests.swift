@@ -1,11 +1,36 @@
 // Checks OpenHoop's own design tabs: new designs join the front window as tabs, the window's document link
-// follows the tab on screen, and closing a design takes out only its tab (the window closes with the last one).
+// follows the tab on screen, and closing a design takes out only its tab. Closing the last design opens a blank one
+// in its place; most tests turn that off, so the window closes with its last design and doesn't linger.
 import XCTest
 import AppKit
 import EmbroideryCore
 @testable import EmbroideryApp
 
 final class DesignTabsTests: XCTestCase {
+    override func setUp() { super.setUp(); EditorWindowController.replacesLastDesign = false }
+    override func tearDown() { EditorWindowController.replacesLastDesign = true; super.tearDown() }
+
+    @MainActor func testClosingTheLastDesignOpensABlankOneInItsPlace() throws {
+        _ = NSApplication.shared
+        EditorWindowController.replacesLastDesign = true
+        let design = DesignDocument()
+        design.makeWindowControllers()
+        let window = try XCTUnwrap(EditorWindowController.host(of: design))
+        design.close()
+        XCTAssertEqual(window.panes.count, 1, "the window stays, with one tab")
+        let blank = try XCTUnwrap(window.panes.first?.document)
+        XCTAssertFalse(blank === design)
+        XCTAssertNil(blank.fileURL); XCTAssertTrue(blank.state.design.objects.isEmpty, "a new blank design")
+        XCTAssertTrue(window.document === blank)
+        XCTAssertNotNil(window.window)
+
+        // Quitting closes the last design for good.
+        AppDelegate.shared.quitting = true
+        defer { AppDelegate.shared.quitting = false }
+        blank.close()
+        XCTAssertTrue(window.panes.isEmpty, "while quitting, the window closes with its last design")
+    }
+
     func testTabPickedAfterClosingIsTheRightNeighborElseTheLeft() {
         XCTAssertEqual(tabToSelect(afterClosing: 0, count: 3), 0)   // the old second tab moves into first place
         XCTAssertEqual(tabToSelect(afterClosing: 1, count: 3), 1)

@@ -21,6 +21,9 @@ import EmbroideryCore
     private var observers: [NSObjectProtocol] = []
     /// True while the window's close button is closing every tab in turn.
     private var closingAll = false
+    /// Closing the app's last design opens a blank one in its place, so the app never looks closed: only Quit closes
+    /// the last window. (Tests that close their designs turn this off.)
+    nonisolated(unsafe) static var replacesLastDesign = true
     /// The design that was on screen when a background tab's × was clicked, shown again once that tab is closed.
     private weak var returnAfterClose: DesignPane?
 
@@ -128,9 +131,16 @@ import EmbroideryCore
         if let returnTo, panes.contains(where: { $0 === returnTo }) { select(returnTo) }
         if shouldClose, closingAll, let next = selectedPane { closeTab(next) }
     }
-    /// Takes a closing design's tab out, showing its neighbor; the window closes with its last tab.
+    /// Takes a closing design's tab out, showing its neighbor; the window closes with its last tab (unless a blank
+    /// design takes its place, see `replacesLastDesign`).
     func removeTab(for document: DesignDocument) {
         guard let index = panes.firstIndex(where: { $0.document === document }) else { return }
+        // The app's last design: a blank one opens first, as a tab in this window (which still has a tab for it to
+        // join), so the window stays. Not while quitting, and not when another window still has designs.
+        if panes.count == 1, Self.replacesLastDesign, !AppDelegate.shared.quitting, Self.open.allSatisfy({ $0 === self || $0.panes.isEmpty }) {
+            closingAll = false   // the close button's close-everything run ends here, instead of closing the blank too
+            AppDelegate.shared.newDocument(sample: false)
+        }
         let pane = panes[index]
         if pane === selectedPane {
             Preferences.shared.data.workspace.panels = pane.capturePanels()
@@ -143,8 +153,10 @@ import EmbroideryCore
         refreshTabs()
         if panes.isEmpty { closingAll = false; Self.open.removeAll { $0 === self }; window?.close() }
     }
-    /// The close button: close every tab, asking to save each; stops if one is cancelled.
+    /// The close button: on the app's last design window it quits, as Quit does (asking to save each changed design).
+    /// Otherwise it closes every tab, asking to save each, and stops if one is cancelled.
     @objc private func closeWindowClicked(_ sender: Any?) {
+        if Self.open.allSatisfy({ $0 === self || $0.panes.isEmpty }) { NSApp.terminate(nil); return }
         guard let first = selectedPane else { window?.close(); return }
         closingAll = true
         closeTab(first)
@@ -299,11 +311,17 @@ import EmbroideryCore
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { true }
     func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool { newDocument(sample: false); return true }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+    /// True while quitting, so closing the last design doesn't open a blank one in its place.
+    var quitting = false
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        quitting = true
         NSDocumentController.shared.closeAllDocuments(withDelegate: self, didCloseAllSelector: #selector(didCloseAll(_:didCloseAll:contextInfo:)), contextInfo: nil)
         return .terminateLater
     }
-    @objc private func didCloseAll(_ controller: NSDocumentController, didCloseAll: Bool, contextInfo: UnsafeMutableRawPointer?) { NSApp.reply(toApplicationShouldTerminate: didCloseAll) }
+    @objc private func didCloseAll(_ controller: NSDocumentController, didCloseAll: Bool, contextInfo: UnsafeMutableRawPointer?) {
+        if !didCloseAll { quitting = false }   // Cancel in a save question stops the quit
+        NSApp.reply(toApplicationShouldTerminate: didCloseAll)
+    }
     /// Make Test Swatches: the dialog picks a setting of the selected object and the values to try; the swatches
     /// open as a new design in the same hoop and fabric, ready to export and sew.
     private func makeTestSwatches(_ state: EditorState) {
