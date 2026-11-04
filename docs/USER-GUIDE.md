@@ -54,7 +54,7 @@ Your machine's manual lists the formats it reads; if in doubt, it's the one its 
 
 **Import SVG outlines.** **⇧⌘I** imports an SVG as unstitched outlines at its real size. Select an outline and choose **Running Stitch** or **Tatami Fill** in Properties to make it sew. Curves keep their Bézier handles; strokes come in as center lines. The import report lists anything it couldn't use. [What SVG content is supported](#svg-support).
 
-**Auto-digitize.** **⌥M** traces the reference image into fills. Choose how many colors to reduce it to (2–8, counting the background), whether to skip the background, and the smallest part to keep. You'll see your image beside the traced result before anything is added. Each color patch becomes a tatami fill with its holes, placed over the image, largest colors first. Thin lines and small text trace poorly; redraw those as satin or running stitch.
+**Auto-digitize.** **⌥M** traces the reference image into fills. Choose how many colors to reduce it to (2–8, counting the background), whether to skip the background, and the smallest part to keep. You'll see your image beside the traced result before anything is added. Colors are matched to the nearest threads in your thread chart. Each part's width picks its stitch: thinner than 1 mm, a triple running stitch down the middle; a curved strip 1–8 mm wide, satin along the strip (turning with it where it tapers); any other part up to 8 mm across, a satin fill; anything wider, a tatami fill with its holes. Fills run along each part's long side, and touching fills get different angles so they read as separate shapes. Each fill reaches 0.8 mm under the parts sewn on top of it, so no fabric shows where colors meet. Colors that are mostly outlines sew last, and within a color the nearest part sews next. Very small text traces poorly; redraw it as lettering.
 
 **Choose the stitches (paint by numbers).** Beside each color in the Auto-Digitize window, a menu picks the stitch for all of that color's parts: **Auto** (each part by its width, as above), **Tatami**, **Satin**, **Line** or **Leave out**. The preview updates as you pick. To change single parts, click **Fine-tune on Canvas…**: every traced part shows on the canvas over your picture, tinted by the stitch it will get (blue for tatami, orange for satin, green for a line, a dashed outline for parts left out). In Properties, pick a stitch, then click parts (or drag across several) to give them that stitch; parts you change get a bolder edge. A line runs down the middle of a part up to 3 mm wide, or round the edge of a wider one. **Reset** puts back the stitches you picked in the window. **Add Stitches** (or Return) adds them all as one step you can undo; **Esc** adds nothing.
 
@@ -462,9 +462,9 @@ These are the starting keys; every one can be changed. Tools on a function key a
 
 **Lettering:** arched lettering is one line (make each curved line its own lettering). Updating lettering rebuilds every letter, so hand edits (and stitch settings changed in Properties) are lost; Undo brings them back. Letters moved with Edit Nodes are kept. The embroidery fonts were tuned for Ink/Stitch, whose underlay and compensation differ a little, so test-sew small text.
 
-**Auto-digitize** makes fills only, and touching colors are traced separately, so check where they meet. Photos and gradients reduce to flat color patches.
+**Auto-digitize** traces touching colors separately; fills reach under the parts sewn over them, but check where colors meet at the sew-out. Photos and gradients reduce to flat color patches.
 
-**Not yet available:** nested groups, and automatic satin or running-stitch digitizing.
+**Not yet available:** nested groups.
 
 ### SVG support
 
