@@ -157,6 +157,7 @@ struct ToolStrip: View {
         case .removeAngles: return ("Remove angles", "click a line to remove it")
         case .wreath: return ("Wreath", state.wreathCenter == nil ? "click the center" : "click to move the center" + key(.finishPath, "makes it"))
         case .scatter: return ("Scatter", "set the copies in Properties · Shuffle for another layout" + key(.finishPath, "makes it"))
+        case .paintStitches: return ("Paint stitches", "click or drag over parts to make them \(state.paintBrush.title.lowercased())" + key(.finishPath, "adds the stitches"))
         case .branch: return ("Branching", state.branchPoints.isEmpty ? "click where it starts · ↩ chooses for you" : "click where it ends · ↩ chooses for you")
         }
     }

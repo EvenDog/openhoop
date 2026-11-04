@@ -364,6 +364,7 @@ import EmbroideryCore
         // With Wreath, Return makes it.
         if editor.state.tool == .wreath, key == KeyBinding("return") { editor.state.applyWreath(); return true }
         if editor.state.tool == .scatter, key == KeyBinding("return") { editor.state.applyScatter(); return true }
+        if editor.state.tool == .paintStitches, key == KeyBinding("return") { editor.state.applyStitchPaint(); return true }
         guard let command = Preferences.shared.profile.command(for: key, context: context, repeating: event.isARepeat) else { return false }
         // With Edit Nodes and a point selected, the Play key (Space) switches the point between corner and smooth instead.
         if command == .play, editor.state.tool == .node, editor.state.selectedPathNode != nil { perform(.toggleNodeType); return true }
@@ -849,17 +850,18 @@ import EmbroideryCore
         state.focusLetteringText()
         state.status = "Type the new text. In Properties, click a font and press ↑ ↓ to try others."
     }
-    /// Auto-Digitize Artwork: the dialog traces the reference image, then the fills are added as one step you can undo.
+    /// Auto-Digitize Artwork: the dialog traces the reference image, then the stitches are added as one step you can
+    /// undo, or (Choose Stitches) Paint Stitches starts, to set each part's stitch on the canvas first.
     private func autoDigitize(_ state: EditorState) {
         guard !state.hasVersionMismatch, state.draft.isEmpty else { state.status = "Finish the current path and regenerate older projects before auto-digitizing."; return }
         guard let artwork = state.design.artwork else { state.status = "Import a reference image first (⌘I), then auto-digitize it."; return }
-        guard let traced = GuidedDialog.autoDigitize(artwork) else { state.status = "Auto-digitize cancelled."; return }
-        do {
-            var candidate = state.design; candidate.objects += traced.objects.map(state.design.withFabric); try candidate.validate()
-            state.edit("Auto-Digitize Artwork") { $0 = candidate }
-            state.selection = Set(traced.objects.map(\.id)); state.selectedNode = nil; state.tool = .select; state.focusCanvas()
-            state.status = "Added \(traced.objects.count) parts over your image. Press \(Preferences.shared.key(.artwork)) to hide the image and check the shapes."
-        } catch { showError(error) }
+        guard let outcome = GuidedDialog.autoDigitize(artwork) else { state.status = "Auto-digitize cancelled."; return }
+        switch outcome {
+        case .stitches(let traced):
+            do { try state.addAutoDigitized(traced) } catch { showError(error) }
+        case .paint(let trace, let choices):
+            state.startStitchPaint(trace, choices: choices); state.focusCanvas(); state.canvas?.window?.invalidateCursorRects(for: state.canvas!)
+        }
     }
     /// Add Satin Border: the dialog builds a border around each selected closed shape; each border is placed right
     /// after its shape in the sewing order, all in one step you can undo.

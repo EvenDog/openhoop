@@ -10,7 +10,7 @@ struct ToolOptions: View {
     @ObservedObject var state: EditorState
     @ObservedObject var preferences = Preferences.shared
     /// True for the tools whose choices live in Properties, so picking one opens the panel if it's closed.
-    static func applies(to tool: Tool) -> Bool { NextShapeOptions.shows(tool) || tool == .node || tool == .stitchEdit || tool == .hooping || tool == .wreath || tool == .scatter }
+    static func applies(to tool: Tool) -> Bool { NextShapeOptions.shows(tool) || tool == .node || tool == .stitchEdit || tool == .hooping || tool == .wreath || tool == .scatter || tool == .paintStitches }
     /// True when Properties shows the next shape's choices: with a shape tool on, while nothing is selected or just
     /// after the tool was picked. They then stand in for the selection's properties.
     static func showsNextShape(_ state: EditorState) -> Bool {
@@ -23,6 +23,8 @@ struct ToolOptions: View {
             WreathOptions(state: state)
         } else if state.tool == .scatter {
             ScatterOptions(state: state)
+        } else if state.tool == .paintStitches {
+            StitchPaintOptions(state: state)
         } else if state.tool == .hooping {
             HoopingOptions(state: state)   // HoopingOptions.swift
         } else if state.tool == .node, let node = state.selectedPathNode {
@@ -77,6 +79,79 @@ struct WreathOptions: View {
             .controlSize(.small)
             Text(state.wreathCenter == nil ? "Click the center on the canvas." : "Click again to move the center.")
                 .font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
+        }
+        .font(Theme.body(12))
+        Divider()
+    }
+}
+
+extension PatchStitch {
+    var title: String { switch self { case .tatami: "Tatami"; case .satin: "Satin"; case .line: "Line"; case .leaveOut: "Leave out" } }
+    var hint: String {
+        switch self {
+        case .tatami: "Rows of fill stitches, for wide areas"
+        case .satin: "Smooth stitches across, for parts up to about 8 mm; wider ones get split stitches"
+        case .line: "A triple running stitch down a thin part's middle, or round a wider part's edge"
+        case .leaveOut: "Not stitched, so the fabric shows"
+        }
+    }
+    /// Its color on the canvas and in Properties: tatami denim, satin terracotta, line green, leave out grey.
+    var tint: NSColor {
+        switch self {
+        case .tatami: NSColor(srgbRed: 0.20, green: 0.38, blue: 0.70, alpha: 1)
+        case .satin: NSColor(srgbRed: 0.85, green: 0.38, blue: 0.16, alpha: 1)
+        case .line: NSColor(srgbRed: 0.18, green: 0.60, blue: 0.32, alpha: 1)
+        case .leaveOut: NSColor(white: 0.5, alpha: 1)
+        }
+    }
+}
+
+/// Paint Stitches' choices: the brush (each with how many parts have its stitch), how many were set by hand with a
+/// way back to auto-digitize's choices, then Add Stitches or Cancel. The canvas tints each part by its stitch.
+struct StitchPaintOptions: View {
+    @ObservedObject var state: EditorState
+    @ObservedObject var preferences = Preferences.shared
+    var body: some View {
+        let count = state.stitchPaint?.patches.count ?? 0
+        let counts = Dictionary(grouping: (0..<count).map(state.paintedStitch), by: { $0 }).mapValues(\.count)
+        VStack(alignment: .leading, spacing: 8) {
+            ToolCaption(text: "PAINT STITCHES")
+            Text("Pick a stitch, then click parts on the canvas, or drag across several, to give them that stitch.")
+                .font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
+            ForEach(PatchStitch.allCases, id: \.self) { stitch in
+                let picked = state.paintBrush == stitch
+                Button { state.paintBrush = stitch } label: {
+                    HStack(spacing: 8) {
+                        RoundedRectangle(cornerRadius: 3).fill(Color(nsColor: stitch.tint).opacity(stitch == .leaveOut ? 0 : 0.6))
+                            .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Color(nsColor: stitch.tint), style: StrokeStyle(lineWidth: 1.5, dash: stitch == .leaveOut ? [3, 2] : [])))
+                            .frame(width: 16, height: 16)
+                        Text(stitch.title).font(Theme.body(12, weight: picked ? .bold : .regular))
+                        Spacer(minLength: 8)
+                        Text("\(counts[stitch] ?? 0)").monospacedDigit().foregroundStyle(Theme.inkSecondary)
+                    }
+                    .padding(.horizontal, 8).padding(.vertical, 5).contentShape(Rectangle())
+                    .background(RoundedRectangle(cornerRadius: 6).fill(picked ? Theme.accent.opacity(0.15) : .clear))
+                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(picked ? Theme.accent : .clear))
+                }
+                .buttonStyle(.plain).help(stitch.hint)
+                .accessibilityLabel("\(stitch.title), \(counts[stitch] ?? 0) parts").accessibilityAddTraits(picked ? .isSelected : [])
+            }
+            Text(state.paintBrush.hint).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Text(state.paintChoices.isEmpty ? "All as auto-digitize chose" : "\(state.paintChoices.count) set by hand")
+                    .font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
+                Spacer(minLength: 8)
+                Button("Reset") { state.paintChoices = state.paintStart }.disabled(state.paintChoices == state.paintStart || state.paintBuilding)
+                    .help("Put back the stitches the parts had when you came from the Auto-Digitize window")
+            }
+            .controlSize(.small)
+            HStack {
+                Button("Add Stitches") { state.applyStitchPaint() }.disabled(state.paintBuilding)
+                    .help("Make the stitches and add them over your image (\(preferences.key(.finishPath)))")
+                Button("Cancel") { AppDelegate.shared.perform(.done) }.help("Add nothing (\(preferences.key(.done)))")
+                if state.paintBuilding { ProgressView().controlSize(.small) }
+            }
+            .controlSize(.small)
         }
         .font(Theme.body(12))
         Divider()

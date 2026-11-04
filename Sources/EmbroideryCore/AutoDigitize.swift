@@ -2,8 +2,8 @@
 // traces the outline of every patch of each color along the pixel edges, smooths away the pixel "staircase",
 // and stitches each patch by its width (thin lines as running stitch, narrow parts as satin, curved strips as satin
 // columns along their middle or, when tapered, satin turning with the strip; the rest as tatami), placed exactly
-// over the image. With a thread chart chosen, each color becomes that chart's closest thread. Colors that are mostly
-// outlines sew last, on top. Parts sew nearest first, fills at angles that follow each shape (touching shapes at
+// over the image; or, painted by hand, each patch as chosen (paint by numbers). With a thread chart chosen, each
+// color becomes that chart's closest thread. Colors that are mostly outlines sew last, on top. Parts sew nearest first, fills at angles that follow each shape (touching shapes at
 // clearly different angles), fills reach a little under the parts sewn on top of them (so no fabric shows at the
 // seams), and each part starts where the one before it ends.
 import Foundation
@@ -63,6 +63,50 @@ public struct AutoDigitizeColor: Sendable, Equatable {
     public var background: Bool   // left out as the background
 }
 
+/// What a traced patch is sewn as when set by hand (paint-by-numbers auto-digitizing). See
+/// `AutoDigitize.stitch(_:as:in:mask:thread:)` for what each one makes.
+public enum PatchStitch: String, CaseIterable, Sendable { case tatami, satin, line, leaveOut }
+
+/// A picture traced into patches of color, each with the stitch auto-digitize suggests for it, before anything is
+/// stitched. `build` stitches it: as suggested, or with some patches set by hand.
+public struct AutoDigitizeTrace: Sendable {
+    public struct Patch: Sendable {
+        public var region: [[Point]]       // outline, then holes, in mm on the canvas
+        public var thread: ThreadColor
+        public var suggested: PatchStitch  // what its width picks
+        var color: Int                     // its color's index in `colors`
+        var made: [RunObject]              // its stitches as suggested
+        var kind: AutoDigitize.PartKind
+    }
+    public var patches: [Patch]
+    var colors: [AutoDigitizeColor]
+    var masks: [Int: [Bool]]               // each sewn color's pixels, by its index in `colors`
+    var geometry: AutoDigitize.TraceGeometry
+    var warnings: [String]                 // notes from tracing (small parts left out, holes filled in)
+
+    /// The index of the patch at `point` (in mm), or nil if it's on none, e.g. on the background.
+    public func patch(at point: Point) -> Int? { patches.indices.first { AreaGeometry.contains(point, rings: patches[$0].region) } }
+
+    /// Choices for `build` that sew every patch in a thread as `stitches` gives for that thread; threads not in it
+    /// keep their suggestions. A patch already suggested that stitch is left out, so it doesn't count as set by hand.
+    public func choices(byThread stitches: [ThreadColor: PatchStitch]) -> [Int: PatchStitch] {
+        var choices: [Int: PatchStitch] = [:]
+        for (index, patch) in patches.enumerated() {
+            if let stitch = stitches[patch.thread], stitch != patch.suggested { choices[index] = stitch }
+        }
+        return choices
+    }
+
+    /// The stitches suggested for the patches in `thread`, each once, in the order `PatchStitch` lists them.
+    public func suggestions(for thread: ThreadColor) -> [PatchStitch] {
+        let suggested = Set(patches.filter { $0.thread == thread }.map(\.suggested))
+        return PatchStitch.allCases.filter(suggested.contains)
+    }
+
+    /// Stitches the patches: each as `choices` says (keyed by its index in `patches`), the rest as suggested.
+    public func build(_ choices: [Int: PatchStitch] = [:]) throws -> AutoDigitizeResult { try AutoDigitize.build(self, choices: choices) }
+}
+
 public struct AutoDigitizeResult: Sendable {
     public var objects: [RunObject]
     public var colors: [AutoDigitizeColor]
@@ -77,12 +121,23 @@ public enum AutoDigitize {
 
     /// Traces the artwork's image into fill objects that sit exactly over it on the canvas.
     public static func run(_ artwork: Artwork, options: AutoDigitizeOptions) throws -> AutoDigitizeResult {
-        let image = try PixelImage(data: artwork.data, maxSide: tracingSize(for: artwork))
-        return try run(image, center: artwork.center, width: artwork.width, height: artwork.height, options: options)
+        try trace(artwork, options: options).build()
     }
 
     /// Traces `image`, shown `width` × `height` mm and centered on `center`, into fill objects.
     public static func run(_ image: PixelImage, center: Point, width: Double, height: Double, options: AutoDigitizeOptions) throws -> AutoDigitizeResult {
+        try trace(image, center: center, width: width, height: height, options: options).build()
+    }
+
+    /// Traces the artwork's image into patches of color, each with the stitch auto-digitize suggests, ready to build.
+    public static func trace(_ artwork: Artwork, options: AutoDigitizeOptions) throws -> AutoDigitizeTrace {
+        let image = try PixelImage(data: artwork.data, maxSide: tracingSize(for: artwork))
+        return try trace(image, center: artwork.center, width: artwork.width, height: artwork.height, options: options)
+    }
+
+    /// Traces `image`, shown `width` × `height` mm and centered on `center`, into patches of color: each patch's
+    /// outline and holes, its thread, and the stitches its width suggests (see `stitch(_:as:in:mask:thread:)`).
+    public static func trace(_ image: PixelImage, center: Point, width: Double, height: Double, options: AutoDigitizeOptions) throws -> AutoDigitizeTrace {
         guard image.width > 1, image.height > 1, image.rgba.count == image.width * image.height * 4, width > 0, height > 0 else { throw DesignError.invalid("The reference image is empty.") }
         guard AutoDigitizeOptions.colorRange.contains(options.colors) else { throw DesignError.invalid("Choose between 2 and 8 colors.") }
         let w = image.width, h = image.height
@@ -104,18 +159,13 @@ public enum AutoDigitize {
         }
 
         // Pixel corner (x, y) in image coordinates → millimeters on the canvas (image rows run down, the canvas runs up).
-        let left = center.x - width / 2, top = center.y + height / 2
-        func place(_ x: Double, _ y: Double) -> Point { Point(left + x * pixelWidth, top - y * pixelHeight) }
+        let geometry = TraceGeometry(width: w, height: h, pixelWidth: pixelWidth, pixelHeight: pixelHeight, left: center.x - width / 2, top: center.y + height / 2)
 
         var areas = [Int](repeating: 0, count: centers.count)
         for label in labels where label >= 0 { areas[label] += 1 }
         let order = centers.indices.filter { areas[$0] > 0 }.sorted { areas[$0] > areas[$1] }   // big areas sew first, details on top
-        var objects: [RunObject] = [], colors: [AutoDigitizeColor] = [], warnings: [String] = []
-        var shapes: [[[Point]]] = []   // each object's traced part (outline and holes), before any overlap
-        // Each sewn color's parts as traced: the region, the objects stitching it, and whether it is a strip (a running
-        // line or satin columns). They're put in sewing order and named once all colors are traced.
-        var tracedColors: [(thread: ThreadColor, colorIndex: Int, parts: [(region: [[Point]], objects: [RunObject], strip: Bool)])] = []
-        var smallParts = 0, failedParts = 0, filledHoles = 0, lines = 0, satins = 0, columnCount = 0, turningCount = 0, tatamis = 0
+        var colors: [AutoDigitizeColor] = [], patches: [AutoDigitizeTrace.Patch] = [], masks: [Int: [Bool]] = [:], warnings: [String] = []
+        var smallParts = 0, failedParts = 0, filledHoles = 0
         let sewn = order.filter { $0 != background }
         let chartThreads = options.chart.map { threads(for: sewn.map { centers[$0] }, from: $0) }
         for (number, label) in order.enumerated() {
@@ -130,7 +180,7 @@ public enum AutoDigitize {
             let traced = traceRings(mask, width: w, height: h)
             // Soften the pixel steps, then smooth by one pixel (at least 0.1 mm): enough to iron out uneven steps on
             // slanted edges, still finer than a thread is wide. Fewer points also keep stitch generation fast.
-            let rings = traced.map { simplify(softened($0), tolerance: max(1, 0.1 / min(pixelWidth, pixelHeight))) }.filter { $0.count >= 3 }.map { $0.map { place($0.x, $0.y) } }
+            let rings = traced.map { simplify(softened($0), tolerance: max(1, 0.1 / min(pixelWidth, pixelHeight))) }.filter { $0.count >= 3 }.map { $0.map { geometry.place($0.x, $0.y) } }
             var parts: [[[Point]]] = []
             for traced in try AreaGeometry.svgRegions(rings, nonzero: false) {
                 guard let (region, filled) = fitted(traced, smallest: max(options.smallestArea, 0.05)) else { failedParts += 1; continue }
@@ -140,49 +190,124 @@ public enum AutoDigitize {
                 guard (try? AreaGeometry.validate(region)) != nil else { failedParts += 1; continue }
                 parts.append(region)
             }
-            var made: [(region: [[Point]], objects: [RunObject], strip: Bool)] = []
-            // Millimeters on the canvas → pixel corners in the image (the reverse of `place`).
-            func pixel(_ p: Point) -> Point { Point((p.x - left) / pixelWidth, (top - p.y) / pixelHeight) }
+            let colorIndex = colors.count
+            masks[colorIndex] = mask
             for region in parts {
-                // The stitch type follows the part's width. Area ÷ half the outline is about a strip's width (a dot's radius).
-                let area = AreaGeometry.area(region[0]).magnitude - region.dropFirst().reduce(0) { $0 + AreaGeometry.area($1).magnitude }
-                let perimeter = region.reduce(0) { $0 + AreaGeometry.pathLength($1 + [$1[0]]) }
-                // Thinner than 1 mm: a triple running stitch down the middle of the line, if it has one at least 1 mm long.
-                if 2 * area / perimeter < 1, let line = centerline(of: region.map { $0.map(pixel) }, mask: mask, width: w, height: h) {
-                    let path = simplifyLine(line.path.map { place($0.x, $0.y) }[...], tolerance: max(0.1, pixelWidth, pixelHeight))
-                    if path.count >= 2, AreaGeometry.pathLength(path) >= 1 {
-                        var object = RunObject(name: "\(thread.name) line", nodes: path.map { PathNode($0) }, color: thread)
-                        object.closed = line.closed
-                        var settings = DigitizingSettings(kind: .run); settings.runPasses = 3; object.digitizing = settings
-                        made.append((region, [object], true)); lines += 1
-                        continue
-                    }
-                }
-                // A curved strip 1–8 mm wide, too bent for satin fill's one stitch direction: satin columns along its middle.
-                let width = 2 * area / perimeter
-                // Even strips get satin columns; tapered ones (crescents, swooshes) a satin fill turning with the strip.
-                if width >= 1 && width <= 8 && turnedBox(region[0]).short > 8,
-                   let middle = stripMiddle(of: region.map { $0.map(pixel) }, mask: mask, imageWidth: w, imageHeight: h, width: width, pixelSize: (pixelWidth + pixelHeight) / 2) {
-                    if let columns = satinColumns(along: middle, width: width, pixelSize: (pixelWidth + pixelHeight) / 2, place: { place($0.x, $0.y) }, name: "\(thread.name) satin", thread: thread) {
-                        made.append((region, columns, true)); columnCount += columns.count
-                        continue
-                    }
-                    if let turning = turningSatin(region, along: middle, place: { place($0.x, $0.y) }, name: "\(thread.name) satin", thread: thread) {
-                        made.append((region, [turning], true)); turningCount += 1
-                        continue
-                    }
-                }
-                var object = RunObject(name: "\(thread.name) area", nodes: region[0].map { PathNode($0) }, color: thread)
-                object.closed = true; object.holes = region.count > 1 ? region.dropFirst().map { $0.map { PathNode($0) } } : nil
-                object.digitizing = DigitizingSettings(kind: .fill)
-                // At most 8 mm across (the short side of the smallest box around it): satin, stitches straight across.
-                // A curved strip has a wider box and stays tatami: one stitch direction can't follow its bends.
-                if turnedBox(region[0]).short <= 8 { object.digitizing?.fillStyle = .satin; satins += 1 } else { tatamis += 1 }
-                made.append((region, [object], false))
+                // Left to its width, a patch always gets stitches (a fill if nothing else suits it).
+                guard let made = stitch(region, as: nil, in: geometry, mask: mask, thread: thread) else { continue }
+                patches.append(AutoDigitizeTrace.Patch(region: region, thread: thread, suggested: made.kind.stitch, color: colorIndex, made: made.objects, kind: made.kind))
             }
-            tracedColors.append((thread: thread, colorIndex: colors.count, parts: made))
             colors.append(AutoDigitizeColor(color: thread, area: Double(areas[label]) * pixelArea, parts: parts.count, background: false))
         }
+        if hasTransparency && options.skipBackground == false { warnings.append("Transparent parts of the image are always left out.") }
+        if smallParts > 0 { warnings.append("\(smallParts) patch\(smallParts == 1 ? " was" : "es were") smaller than \(options.smallestArea.formatted()) mm² and left out.") }
+        if filledHoles > 0 { warnings.append("\(filledHoles) small hole\(filledHoles == 1 ? " was" : "s were") filled in, so \(filledHoles == 1 ? "it's" : "they're") sewn over.") }
+        if failedParts > 0 { warnings.append("\(failedParts) part\(failedParts == 1 ? "" : "s") couldn't be traced cleanly and \(failedParts == 1 ? "was" : "were") left out. Try fewer colors or a larger smallest part.") }
+        return AutoDigitizeTrace(patches: patches, colors: colors, masks: masks, geometry: geometry, warnings: warnings)
+    }
+
+    /// Where a traced image sits: its size in pixels, mm per pixel, and its top left corner on the canvas.
+    struct TraceGeometry: Sendable {
+        var width: Int, height: Int, pixelWidth: Double, pixelHeight: Double, left: Double, top: Double
+        var pixelSize: Double { (pixelWidth + pixelHeight) / 2 }
+        /// Pixel corner (x, y) → millimeters on the canvas (image rows run down, the canvas runs up).
+        func place(_ x: Double, _ y: Double) -> Point { Point(left + x * pixelWidth, top - y * pixelHeight) }
+        /// Millimeters on the canvas → pixel corners in the image (the reverse of `place`).
+        func pixel(_ p: Point) -> Point { Point((p.x - left) / pixelWidth, (top - p.y) / pixelHeight) }
+    }
+
+    /// How one patch ended up stitched; `stitch` says which brush it counts as, `strip` whether it's an outline-like
+    /// strip (a running line or satin along its middle), which decides whether its color sews last.
+    enum PartKind: Sendable {
+        case line, outline, satin, column, tapered, tatami
+        var stitch: PatchStitch { switch self { case .line, .outline: .line; case .satin, .column, .tapered: .satin; case .tatami: .tatami } }
+        var strip: Bool { [.line, .outline, .column, .tapered].contains(self) }
+    }
+
+    /// Stitches one traced patch: `region` (outline and holes, in mm), `mask` its color's pixels, sewn in `thread`.
+    /// With `choice` nil its width decides, as auto-digitize always has; otherwise it is sewn as chosen by hand:
+    /// - Line: a triple running stitch down the middle (thinner than 1 mm when its width decides; up to 3 mm when
+    ///   chosen), or when chosen for a wider patch, a triple running stitch round each of its edges, as an outline.
+    /// - Satin: satin columns along a curved strip 1–8 mm wide, or satin turning with it when tapered; otherwise a
+    ///   satin fill, straight across (its width picks this only up to 8 mm across).
+    /// - Tatami: a tatami fill.
+    /// Returns the objects (not yet named in sewing order) and how it was stitched; nil for Leave out.
+    static func stitch(_ region: [[Point]], as choice: PatchStitch?, in geometry: TraceGeometry, mask: [Bool], thread: ThreadColor) -> (objects: [RunObject], kind: PartKind)? {
+        if choice == .leaveOut { return nil }
+        let g = geometry
+        // Area ÷ half the outline is about a strip's width (a dot's radius).
+        let area = AreaGeometry.area(region[0]).magnitude - region.dropFirst().reduce(0) { $0 + AreaGeometry.area($1).magnitude }
+        let perimeter = region.reduce(0) { $0 + AreaGeometry.pathLength($1 + [$1[0]]) }
+        let width = 2 * area / perimeter
+        let pixels = region.map { $0.map(g.pixel) }
+        // A triple running stitch down the middle of the line, if it has one at least 1 mm long.
+        if choice == nil ? width < 1 : choice == .line && width <= 3,
+           let line = centerline(of: pixels, mask: mask, width: g.width, height: g.height) {
+            let path = simplifyLine(line.path.map { g.place($0.x, $0.y) }[...], tolerance: max(0.1, g.pixelWidth, g.pixelHeight))
+            if path.count >= 2, AreaGeometry.pathLength(path) >= 1 {
+                var object = RunObject(name: "\(thread.name) line", nodes: path.map { PathNode($0) }, color: thread)
+                object.closed = line.closed
+                var settings = DigitizingSettings(kind: .run); settings.runPasses = 3; object.digitizing = settings
+                return ([object], .line)
+            }
+        }
+        if choice == .line {
+            // Too wide for one line down the middle: a triple running stitch round each edge, as an outline.
+            let rings = region.map { ring -> RunObject in
+                var object = RunObject(name: "\(thread.name) line", nodes: ring.map { PathNode($0) }, color: thread)
+                object.closed = true
+                var settings = DigitizingSettings(kind: .run); settings.runPasses = 3; object.digitizing = settings
+                return object
+            }
+            return (rings, .outline)
+        }
+        // A curved strip 1–8 mm wide, too bent for satin fill's one stitch direction: even strips get satin columns
+        // along their middle, tapered ones (crescents, swooshes) a satin fill turning with the strip.
+        if choice != .tatami, width >= 1 && width <= 8 && turnedBox(region[0]).short > 8,
+           let middle = stripMiddle(of: pixels, mask: mask, imageWidth: g.width, imageHeight: g.height, width: width, pixelSize: g.pixelSize) {
+            if let columns = satinColumns(along: middle, width: width, pixelSize: g.pixelSize, place: { g.place($0.x, $0.y) }, name: "\(thread.name) satin", thread: thread) {
+                return (columns, .column)
+            }
+            if let turning = turningSatin(region, along: middle, place: { g.place($0.x, $0.y) }, name: "\(thread.name) satin", thread: thread) {
+                return ([turning], .tapered)
+            }
+        }
+        var object = RunObject(name: "\(thread.name) area", nodes: region[0].map { PathNode($0) }, color: thread)
+        object.closed = true; object.holes = region.count > 1 ? region.dropFirst().map { $0.map { PathNode($0) } } : nil
+        object.digitizing = DigitizingSettings(kind: .fill)
+        // Left to its width: at most 8 mm across (the short side of the smallest box around it) is satin, stitches
+        // straight across. A curved strip has a wider box and stays tatami: one stitch direction can't follow its bends.
+        if choice == .satin || (choice == nil && turnedBox(region[0]).short <= 8) {
+            object.digitizing?.fillStyle = .satin
+            return ([object], .satin)
+        }
+        return ([object], .tatami)
+    }
+
+    /// Stitches a trace's patches: each as `choices` says (keyed by its index in `trace.patches`), the rest as
+    /// suggested. Then outline colors sew last, nearest parts next, fills get their angles and reach under later
+    /// parts, and each part starts where the one before ended.
+    static func build(_ trace: AutoDigitizeTrace, choices: [Int: PatchStitch]) throws -> AutoDigitizeResult {
+        var colors = trace.colors, warnings: [String] = []
+        // Each sewn color's parts: the region, the objects stitching it, and whether it is a strip (a running line or
+        // satin along its middle). They're put in sewing order and named once all colors are stitched.
+        var tracedColors: [(thread: ThreadColor, colorIndex: Int, parts: [(region: [[Point]], objects: [RunObject], strip: Bool)])] =
+            colors.indices.filter { !colors[$0].background }.map { (thread: colors[$0].color, colorIndex: $0, parts: []) }
+        var counts: [PartKind: Int] = [:], byHand = 0
+        for (index, patch) in trace.patches.enumerated() {
+            try Task.checkCancellation()
+            let choice = choices[index] ?? patch.suggested
+            var stitched: (objects: [RunObject], kind: PartKind)? = (patch.made, patch.kind)
+            if choice != patch.suggested {
+                byHand += 1
+                stitched = stitch(patch.region, as: choice, in: trace.geometry, mask: trace.masks[patch.color] ?? [], thread: patch.thread)
+            }
+            guard let stitched, let c = tracedColors.firstIndex(where: { $0.colorIndex == patch.color }) else { continue }
+            tracedColors[c].parts.append((patch.region, stitched.objects, stitched.kind.strip))
+            counts[stitched.kind, default: 0] += stitched.kind == .column ? stitched.objects.count : 1
+        }
+        for color in tracedColors { colors[color.colorIndex].parts = color.parts.count }
+        var objects: [RunObject] = [], shapes: [[[Point]]] = []   // each object's traced part (outline and holes), before any overlap
         // A color that is mostly outlines (at least half its area in running stitch lines and satin columns) sews last,
         // on top of the fills it outlines: its edges cover theirs, and they reach under it (see `overlap`).
         func area(_ region: [[Point]]) -> Double { AreaGeometry.area(region[0]).magnitude - region.dropFirst().reduce(0) { $0 + AreaGeometry.area($1).magnitude } }
@@ -209,23 +334,26 @@ public enum AutoDigitize {
             let list = names.count == 1 ? names[0] : names.dropLast().joined(separator: ", ") + " and " + names.last!
             warnings.append("\(list) \(names.count == 1 ? "is" : "are") mostly outlines, so \(names.count == 1 ? "it sews" : "they sew") last, on top of the other colors.")
         }
-        if hasTransparency && options.skipBackground == false { warnings.append("Transparent parts of the image are always left out.") }
-        if smallParts > 0 { warnings.append("\(smallParts) patch\(smallParts == 1 ? " was" : "es were") smaller than \(options.smallestArea.formatted()) mm² and left out.") }
-        if filledHoles > 0 { warnings.append("\(filledHoles) small hole\(filledHoles == 1 ? " was" : "s were") filled in, so \(filledHoles == 1 ? "it's" : "they're") sewn over.") }
-        if lines + satins + columnCount + turningCount > 0 {
-            // (how many, one, several, why)
-            let kinds = [(lines, "running stitch line", "running stitch lines", "thinner than 1 mm"), (satins, "satin", "satin", "up to 8 mm across"),
-                         (columnCount, "satin column", "satin columns", "along curved strips"),
-                         (turningCount, "tapered satin", "tapered satins", "turning with the strip"), (tatamis, "tatami", "tatami", "wider")]
-                .filter { $0.0 > 0 }.map { "\($0.0) \($0.0 == 1 ? $0.1 : $0.2) (\($0.3))" }
-            warnings.append("Each part's stitch follows its width: " + kinds.joined(separator: ", ") + ".")
+        warnings += trace.warnings
+        // (kind, one, several, why its width chose it)
+        let kinds: [(PartKind, String, String, String)] = [(.line, "running stitch line", "running stitch lines", "thinner than 1 mm"),
+            (.outline, "running outline", "running outlines", ""), (.satin, "satin", "satin", "up to 8 mm across"),
+            (.column, "satin column", "satin columns", "along curved strips"), (.tapered, "tapered satin", "tapered satins", "turning with the strip"),
+            (.tatami, "tatami", "tatami", "wider")]
+        let used = kinds.filter { counts[$0.0, default: 0] > 0 }
+        if byHand > 0 {
+            let list = used.map { "\(counts[$0.0]!) \(counts[$0.0]! == 1 ? $0.1 : $0.2)" }.joined(separator: ", ")
+            warnings.append("\(byHand) part\(byHand == 1 ? " was" : "s were") set by hand." + (list.isEmpty ? "" : " Stitches: \(list)."))
+        } else if used.contains(where: { $0.0 != .tatami }) {
+            warnings.append("Each part's stitch follows its width: " + used.map { "\(counts[$0.0]!) \(counts[$0.0]! == 1 ? $0.1 : $0.2) (\($0.3))" }.joined(separator: ", ") + ".")
         }
-        if failedParts > 0 { warnings.append("\(failedParts) part\(failedParts == 1 ? "" : "s") couldn't be traced cleanly and \(failedParts == 1 ? "was" : "were") left out. Try fewer colors or a larger smallest part.") }
-        guard !objects.isEmpty else { throw DesignError.invalid("Nothing large enough to stitch was found. Try more colors, turn off Skip background, or lower the smallest part.") }
+        guard !objects.isEmpty else {
+            throw DesignError.invalid(byHand > 0 ? "Every part is left out, so there is nothing to stitch." : "Nothing large enough to stitch was found. Try more colors, turn off Skip background, or lower the smallest part.")
+        }
         guard objects.count <= 500 else { throw DesignError.invalid("The picture traced into \(objects.count) parts, which is too many. Use fewer colors or a larger smallest part.") }
         // Neighbors traced from the same pixel edge end up at most a smoothing step or two apart, so closer than
         // three pixels (at least 0.3 mm) counts as touching.
-        let touching = 3 * max(0.1, pixelWidth, pixelHeight)
+        let touching = 3 * max(0.1, trace.geometry.pixelWidth, trace.geometry.pixelHeight)
         setAngles(&objects, touching: touching)
         // After the angles and stitch types, which follow the traced shapes; before the start points, which follow the grown ones.
         let grown = try overlap(&objects, shapes: shapes, by: overlapAmount, sliver: touching)

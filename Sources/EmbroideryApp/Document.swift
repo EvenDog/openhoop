@@ -16,6 +16,7 @@ enum Tool: String, Codable { case select, run, satin, fill, hole, node, pan, ent
     branch,    // Branching: click where the branch starts, then where it ends (Return lets OpenHoop choose)
     wreath,    // Wreath: click the center, then set the copies in Properties and apply
     scatter,   // Scatter: set the copies in Properties, Shuffle until it looks right, and apply
+    paintStitches,   // Paint stitches: auto-digitize's patches over the picture; click them with a brush to set each one's stitch
     zoomBox,   // drag a box to zoom into it, then go back to the tool before
     measure,   // drag to measure a distance and angle
     hooping,   // Hoopings: drag the hoopings of a multi-hooped design, click one to see what it sews
@@ -102,6 +103,8 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             if ![.node, .addAngles, .removeAngles].contains(tool) { selectedAngle = nil }; canvas?.toolDidChange()
             // Reviewing carries on with the tools that look and set start and end points; drawing tools finish it.
             if reviewing && ![.select, .entryExit, .node, .pan, .zoomBox].contains(tool) { reviewing = false }
+            // Leaving Paint Stitches (Esc, another tool) drops the painting; zooming keeps it.
+            if oldValue == .paintStitches && ![.paintStitches, .zoomBox, .pan].contains(tool) { stitchPaint = nil; paintChoices = [:]; paintBuilding = false }
             // A tool with choices in Properties (the next shape's, a point's type) opens the panel if it's closed.
             if tool != oldValue, ToolOptions.applies(to: tool), !Preferences.shared.panels.isVisible(.properties) {
                 Preferences.shared.updatePanels { $0.show(.properties) }
@@ -520,6 +523,52 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             status = "Branched \(ids.count) objects in \(next.objects.first { $0.id == ids[0] }?.color.name ?? "one thread"). Where they touch, the needle travels inside them instead of trimming. Ungroup to undo the branch."
         } catch { status = error.localizedDescription }
     }
+    // MARK: Paint stitches (paint-by-numbers auto-digitizing)
+    /// While painting: the traced picture (its patches and the stitch auto-digitize suggests for each), the stitch
+    /// set by hand for a patch (by its index; patches not in here keep the suggestion), the brush, and whether the
+    /// stitches are being made.
+    @Published var stitchPaint: AutoDigitizeTrace?
+    @Published var paintChoices: [Int: PatchStitch] = [:]
+    /// The choices painting started with (each color's stitch from the Auto-Digitize window), which Reset puts back.
+    var paintStart: [Int: PatchStitch] = [:]
+    @Published var paintBrush: PatchStitch = .tatami
+    @Published var paintBuilding = false
+    /// Starts Paint Stitches on a traced picture: patches in `choices` (by index) start with that stitch, the rest
+    /// with auto-digitize's.
+    func startStitchPaint(_ trace: AutoDigitizeTrace, choices: [Int: PatchStitch] = [:]) {
+        tool = .paintStitches; stitchPaint = trace; paintChoices = choices; paintStart = choices; paintBuilding = false; selection = []; selectedNode = nil
+        status = "Paint stitches · Pick a stitch in Properties, then click or drag over parts · Return adds the stitches · Esc cancels"
+    }
+    /// The stitch patch `index` will get: the one painted on it, or auto-digitize's.
+    func paintedStitch(_ index: Int) -> PatchStitch { paintChoices[index] ?? stitchPaint?.patches[index].suggested ?? .tatami }
+    /// Gives the patch at `point` (in mm) the brush's stitch. Painting a patch back to its suggestion clears it, so
+    /// "set by hand" counts only real changes.
+    func paintPatch(at point: Point) {
+        guard let trace = stitchPaint, !paintBuilding, let index = trace.patch(at: point) else { return }
+        let choice: PatchStitch? = paintBrush == trace.patches[index].suggested ? nil : paintBrush
+        if paintChoices[index] != choice { paintChoices[index] = choice }
+    }
+    /// Makes the painted stitches (in the background, as it can take a second or two on a big picture) and adds them
+    /// as one step you can undo.
+    func applyStitchPaint() {
+        guard let trace = stitchPaint, !paintBuilding else { return }
+        paintBuilding = true; status = "Making the stitches…"
+        let choices = paintChoices
+        Task {
+            let result = await Task.detached(priority: .userInitiated) { Result { try trace.build(choices) } }.value
+            guard stitchPaint != nil, paintBuilding else { return }   // cancelled while the stitches were made
+            paintBuilding = false
+            do { try addAutoDigitized(result.get()) } catch { status = error.localizedDescription }
+        }
+    }
+    /// Adds auto-digitized stitches over the picture as one step you can undo, selects them and goes back to Select.
+    func addAutoDigitized(_ result: AutoDigitizeResult) throws {
+        var candidate = design; candidate.objects += result.objects.map(design.withFabric); try candidate.validate()
+        edit("Auto-Digitize Artwork") { $0 = candidate }
+        selection = Set(result.objects.map(\.id)); selectedNode = nil; tool = .select; focusCanvas()
+        status = "Added \(result.objects.count) parts over your image. Press \(Preferences.shared.key(.artwork)) to hide the image and check the shapes."
+    }
+
     /// Wreath: the objects being repeated, the center clicked on the canvas (nil until the first click), how many
     /// copies go round (counting the originals) and whether every other one is mirrored (kaleidoscope).
     var wreathTargets: Set<UUID> = []
