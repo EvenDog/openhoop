@@ -1,7 +1,8 @@
 // Auto-digitizing turns the reference image into stitches. It reduces the picture to a few thread colors,
 // traces the outline of every patch of each color along the pixel edges, smooths away the pixel "staircase",
-// and stitches each patch by its width (thin lines as running stitch, narrow parts as satin, the rest as tatami),
-// placed exactly over the image. With a thread chart chosen, each color becomes that chart's closest thread. Parts
+// and stitches each patch by its width (thin lines as running stitch, narrow parts as satin, curved strips as satin
+// columns along their middle, the rest as tatami), placed exactly over the image. With a thread chart chosen, each
+// color becomes that chart's closest thread. Parts
 // sew nearest first, fills at angles that follow each shape (touching shapes at clearly different angles), fills
 // reach a little under the parts sewn on top of them (so no fabric shows at the seams), and each part starts where
 // the one before it ends.
@@ -111,7 +112,7 @@ public enum AutoDigitize {
         let order = centers.indices.filter { areas[$0] > 0 }.sorted { areas[$0] > areas[$1] }   // big areas sew first, details on top
         var objects: [RunObject] = [], colors: [AutoDigitizeColor] = [], warnings: [String] = []
         var shapes: [[[Point]]] = []   // each object's traced part (outline and holes), before any overlap
-        var smallParts = 0, failedParts = 0, filledHoles = 0, lines = 0, satins = 0, tatamis = 0
+        var smallParts = 0, failedParts = 0, filledHoles = 0, lines = 0, satins = 0, columnCount = 0, tatamis = 0
         let sewn = order.filter { $0 != background }
         let chartThreads = options.chart.map { threads(for: sewn.map { centers[$0] }, from: $0) }
         for (number, label) in order.enumerated() {
@@ -154,6 +155,14 @@ public enum AutoDigitize {
                         continue
                     }
                 }
+                // A curved strip 1–8 mm wide, too bent for satin fill's one stitch direction: satin columns along its middle.
+                let width = 2 * area / perimeter
+                if width >= 1 && width <= 8 && turnedBox(region[0]).short > 8,
+                   let columns = satinColumns(of: region.map { $0.map(pixel) }, mask: mask, imageWidth: w, imageHeight: h, width: width,
+                                              pixelSize: (pixelWidth + pixelHeight) / 2, place: { place($0.x, $0.y) }, name: "\(thread.name) satin \(index + 1)", thread: thread) {
+                    objects += columns; shapes += Array(repeating: region, count: columns.count); columnCount += columns.count
+                    continue
+                }
                 var object = RunObject(name: "\(thread.name) area \(index + 1)", nodes: region[0].map { PathNode($0) }, color: thread)
                 object.closed = true; object.holes = region.count > 1 ? region.dropFirst().map { $0.map { PathNode($0) } } : nil
                 object.digitizing = DigitizingSettings(kind: .fill)
@@ -167,9 +176,10 @@ public enum AutoDigitize {
         if hasTransparency && options.skipBackground == false { warnings.append("Transparent parts of the image are always left out.") }
         if smallParts > 0 { warnings.append("\(smallParts) patch\(smallParts == 1 ? " was" : "es were") smaller than \(options.smallestArea.formatted()) mm² and left out.") }
         if filledHoles > 0 { warnings.append("\(filledHoles) small hole\(filledHoles == 1 ? " was" : "s were") filled in, so \(filledHoles == 1 ? "it's" : "they're") sewn over.") }
-        if lines + satins > 0 {
+        if lines + satins + columnCount > 0 {
             // (how many, one, several, why)
-            let kinds = [(lines, "running stitch line", "running stitch lines", "thinner than 1 mm"), (satins, "satin", "satin", "up to 8 mm across"), (tatamis, "tatami", "tatami", "wider")]
+            let kinds = [(lines, "running stitch line", "running stitch lines", "thinner than 1 mm"), (satins, "satin", "satin", "up to 8 mm across"),
+                         (columnCount, "satin column", "satin columns", "along curved strips"), (tatamis, "tatami", "tatami", "wider")]
                 .filter { $0.0 > 0 }.map { "\($0.0) \($0.0 == 1 ? $0.1 : $0.2) (\($0.3))" }
             warnings.append("Each part's stitch follows its width: " + kinds.joined(separator: ", ") + ".")
         }
@@ -515,27 +525,56 @@ public enum AutoDigitize {
         return simplifyLine(points[points.startIndex...worst], tolerance: tolerance).dropLast() + simplifyLine(points[worst...], tolerance: tolerance)
     }
 
+    /// One part's pixels: a grid over the part's box (in the traced image) with an empty one-pixel border, so every
+    /// pixel has eight neighbors. Pixels are numbered row by row.
+    struct PartGrid {
+        var on: [Bool]
+        let width: Int, height: Int, x0: Int, y0: Int   // x0, y0: the image pixel at the box's top left
+
+        /// The part's pixels in `mask` (the whole image, `imageWidth` × `imageHeight`): the patch of touching mask
+        /// pixels that `region` (an outline and holes in image pixels) was traced from. One pixel inside the region is
+        /// found, then the patch is flooded out from it through side neighbors (traced patches touch only along sides,
+        /// see `separateDiagonals`), which is much faster than testing every pixel against the outline. nil if no
+        /// mask pixel is inside the region.
+        init?(region: [[Point]], mask: [Bool], imageWidth w: Int, imageHeight h: Int) {
+            let points = region.flatMap { $0 }
+            let x0 = max(0, Int(points.map(\.x).min()!)), x1 = min(w - 1, Int(points.map(\.x).max()!))
+            let y0 = max(0, Int(points.map(\.y).min()!)), y1 = min(h - 1, Int(points.map(\.y).max()!))
+            guard x0 <= x1, y0 <= y1 else { return nil }
+            self.x0 = x0; self.y0 = y0; width = x1 - x0 + 3; height = y1 - y0 + 3
+            // The first mask pixel (row by row) inside the region.
+            var seed: Int?
+            search: for y in y0...y1 { for x in x0...x1 where mask[y * w + x] && AreaGeometry.contains(Point(Double(x) + 0.5, Double(y) + 0.5), rings: region) {
+                seed = (y - y0 + 1) * width + x - x0 + 1; break search
+            } }
+            guard let seed else { return nil }
+            var on = [Bool](repeating: false, count: width * height), stack = [seed]
+            on[seed] = true
+            while let i = stack.popLast() {
+                for next in [i - width, i + 1, i + width, i - 1] where !on[next] {
+                    let x = next % width + x0 - 1, y = next / width + y0 - 1
+                    guard x >= x0, x <= x1, y >= y0, y <= y1, mask[y * w + x] else { continue }
+                    on[next] = true; stack.append(next)
+                }
+            }
+            self.on = on
+        }
+        /// The filled pixels next to pixel `i`: those along the sides first, then on the diagonals, so walks prefer the straight step.
+        func neighbors(_ i: Int) -> [Int] { [-width, 1, width, -1, -width + 1, width + 1, width - 1, -width - 1].map { i + $0 }.filter { on[$0] } }
+        /// Pixel `i`'s center, in image pixels.
+        func center(_ i: Int) -> Point { Point(Double(i % width + x0 - 1) + 0.5, Double(i / width + y0 - 1) + 0.5) }
+    }
+
     /// The middle of a thin part as one path through pixel centers (in image pixels), and whether it is a loop (a
     /// thin ring). The part's pixels (those of `mask` whose centers are inside `region`, given in pixels) are thinned
     /// to a line one pixel wide, which is then walked from one end. Side branches are sewn out and back, shortest
     /// first, so the walk can end at the far end of the longest one. nil when thinning leaves nothing.
     static func centerline(of region: [[Point]], mask: [Bool], width w: Int, height h: Int) -> (path: [Point], closed: Bool)? {
-        let points = region.flatMap { $0 }
-        let x0 = max(0, Int(points.map(\.x).min()!)), x1 = min(w - 1, Int(points.map(\.x).max()!))
-        let y0 = max(0, Int(points.map(\.y).min()!)), y1 = min(h - 1, Int(points.map(\.y).max()!))
-        guard x0 <= x1, y0 <= y1 else { return nil }
-        // Work in the part's box only, with an empty one-pixel border so every pixel has eight neighbors.
-        let bw = x1 - x0 + 3, bh = y1 - y0 + 3
-        var on = [Bool](repeating: false, count: bw * bh)
-        for y in y0...y1 { for x in x0...x1 where mask[y * w + x] && AreaGeometry.contains(Point(Double(x) + 0.5, Double(y) + 0.5), rings: region) {
-            on[(y - y0 + 1) * bw + x - x0 + 1] = true
-        } }
-        thin(&on, width: bw, height: bh)
-        let pixels = on.indices.filter { on[$0] }
+        guard var grid = PartGrid(region: region, mask: mask, imageWidth: w, imageHeight: h) else { return nil }
+        thin(&grid.on, width: grid.width, height: grid.height)
+        let pixels = grid.on.indices.filter { grid.on[$0] }
         guard let any = pixels.first else { return nil }
-        // Neighbors along the sides first, then on the diagonals, so the walk prefers the straight step.
-        let steps = [-bw, 1, bw, -1, -bw + 1, bw + 1, bw - 1, -bw - 1]
-        func neighbors(_ i: Int) -> [Int] { steps.map { i + $0 }.filter { on[$0] } }
+        let neighbors = grid.neighbors
         let start = pixels.first { neighbors($0).count == 1 } ?? any   // an end of the line; a loop has none
         // A tree of the line's pixels from `start`, and each pixel's reach: how many pixels the longest way on from it
         // is. Depth-first, claiming a pixel only when stepping onto it, so the tree follows the line (a loop is walked
@@ -562,7 +601,157 @@ public enum AutoDigitize {
         }
         walk.removeSubrange(newEnd...)
         let closed = neighbors(start).count != 1 && walk.count > 3 && neighbors(walk.last!).contains(start)
-        return (walk.map { Point(Double($0 % bw + x0 - 1) + 0.5, Double($0 / bw + y0 - 1) + 0.5) }, closed)
+        return (walk.map(grid.center), closed)
+    }
+
+    /// Satin columns down the middle of a curved strip, or nil when the part isn't an even strip. `region` is the
+    /// part in image pixels, `width` its width in mm (area ÷ half the outline), `pixelSize` mm per pixel, `place` turns
+    /// image pixels into canvas mm. The strip is thinned to its centerline, cut into branches where three or more meet
+    /// (a satin can't sew out and back like a running line), and each branch becomes a satin column `width` wide.
+    /// It's an even strip if the centerline is at least four times as long as the strip is wide (not a blob) and
+    /// the strip is about as wide all along (the widest stretches at most 1.5 times the narrowest), because columns
+    /// are even. Also nil if any column can't sew, so the part stays a fill.
+    static func satinColumns(of region: [[Point]], mask: [Bool], imageWidth: Int, imageHeight: Int, width: Double, pixelSize: Double,
+                             place: (Point) -> Point, name: String, thread: ThreadColor) -> [RunObject]? {
+        guard var grid = PartGrid(region: region, mask: mask, imageWidth: imageWidth, imageHeight: imageHeight) else { return nil }
+        let distance = distances(grid)   // measured before thinning, from every pixel of the strip
+        // A strip is nowhere much wider than its width; a blob with holes (whose long outline makes its width
+        // look small) is. Checking now skips thinning it.
+        guard (2 * distance.max()! - 0.5) * pixelSize <= 2 * width else { return nil }
+        thin(&grid.on, width: grid.width, height: grid.height)
+        removeCorners(&grid)
+        pruneSpurs(&grid, shorterThan: Int((width / pixelSize).rounded()))
+        removeCorners(&grid)
+        // The strip's width at each centerline pixel: twice the way to the nearest edge (centers are half a pixel in).
+        let widths = grid.on.indices.filter { grid.on[$0] }.map { (2 * distance[$0] - 0.5) * pixelSize }.sorted()
+        guard widths.count >= 5, widths[widths.count * 4 / 5] <= 1.5 * widths[widths.count / 5] else { return nil }
+        var branches = branches(of: grid)
+        guard !branches.isEmpty else { return nil }
+        let length = branches.reduce(0.0) { total, branch in total + AreaGeometry.pathLength(branch.pixels.map(grid.center)) * pixelSize }
+        guard length >= 4 * width else { return nil }
+        // Sew the branches one after another, each starting at the end nearest where the last one finished.
+        var ordered = [branches.removeFirst()]
+        while !branches.isEmpty {
+            let last = grid.center(ordered.last!.pixels.last!)
+            func gap(_ pixel: Int) -> Double { grid.center(pixel).distance(to: last) }
+            let next = branches.indices.min { min(gap(branches[$0].pixels.first!), gap(branches[$0].pixels.last!)) < min(gap(branches[$1].pixels.first!), gap(branches[$1].pixels.last!)) }!
+            var branch = branches.remove(at: next)
+            if gap(branch.pixels.last!) < gap(branch.pixels.first!) { branch.pixels.reverse() }
+            ordered.append(branch)
+        }
+        var columns: [RunObject] = []
+        for branch in ordered {
+            var path = simplifyLine(branch.pixels.map { place(grid.center($0)) }[...], tolerance: max(0.1, pixelSize))
+            guard path.count >= 2 else { continue }
+            if !branch.closed {
+                // Thinning stops about half the width short of a loose end, so the column reaches on to the tip.
+                // (Ends at a junction stay: the other branches cover it.)
+                func reach(_ end: Point, from inside: Point) -> Point { let d = end - inside, l = hypot(d.x, d.y); return l > 0 ? end + d * (width / 2 / l) : end }
+                if grid.neighbors(branch.pixels.first!).count == 1 { path[0] = reach(path[0], from: path[1]) }
+                if grid.neighbors(branch.pixels.last!).count == 1 { path[path.count - 1] = reach(path[path.count - 1], from: path[path.count - 2]) }
+            }
+            guard AreaGeometry.pathLength(path) >= 1 else { continue }   // a stub between two junctions close together
+            var line = RunObject(name: "\(name) \(columns.count + 1)", nodes: path.map { PathNode($0) }, color: thread)
+            line.closed = branch.closed && path.count >= 3
+            line.digitizing = DigitizingSettings(kind: .run)
+            guard let column = try? SatinLine.column(from: line, width: width) else { return nil }
+            columns.append(column)
+        }
+        return columns.isEmpty ? nil : columns
+    }
+
+    /// For each filled pixel of `grid`, how far its center is from the nearest empty pixel's center, in pixels (1 to a
+    /// side neighbor, about 1.4 to a diagonal one); 0 for empty pixels. Two sweeps, down the grid and back up, each
+    /// handing distances on from the neighbors it has already passed (a "chamfer distance transform").
+    static func distances(_ grid: PartGrid) -> [Double] {
+        let w = grid.width, h = grid.height, diagonal = 2.0.squareRoot()
+        var d = grid.on.map { $0 ? Double.infinity : 0 }
+        for y in 1..<(h - 1) { for x in 1..<(w - 1) where grid.on[y * w + x] {
+            let i = y * w + x
+            d[i] = min(d[i], d[i - 1] + 1, d[i - w] + 1, d[i - w - 1] + diagonal, d[i - w + 1] + diagonal)
+        } }
+        for y in stride(from: h - 2, through: 1, by: -1) { for x in stride(from: w - 2, through: 1, by: -1) where grid.on[y * w + x] {
+            let i = y * w + x
+            d[i] = min(d[i], d[i + 1] + 1, d[i + w] + 1, d[i + w + 1] + diagonal, d[i + w - 1] + diagonal)
+        } }
+        return d
+    }
+
+    /// Takes the extra pixels out of a thinned line, so it is one pixel wide everywhere: thinning leaves staircase
+    /// detours and, where the line runs at 45°, stretches two pixels thick. A pixel can go if its filled neighbors
+    /// all touch each other without it (one connected group), so removing it can't break the line; ends (one
+    /// neighbor) stay, and so do junctions, whose arms meet only through them. Afterwards every pixel on a plain
+    /// stretch of line has exactly two neighbors, so only real junctions have three or more.
+    static func removeCorners(_ grid: inout PartGrid) {
+        let w = grid.width
+        // Each neighbor's offset as (dx, dy), to tell which neighbors touch each other.
+        let offsets = [(0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1)]
+        var changed = true
+        while changed {
+            changed = false
+            for i in grid.on.indices where grid.on[i] {
+                let filled = offsets.filter { grid.on[i + $0.1 * w + $0.0] }
+                guard filled.count >= 2 else { continue }
+                // Grow one group from the first neighbor through neighbors that touch (at most one step apart each way).
+                var group = [filled[0]], rest = Array(filled.dropFirst())
+                var k = 0
+                while k < group.count {
+                    let (gx, gy) = group[k]
+                    let touching = rest.filter { abs($0.0 - gx) <= 1 && abs($0.1 - gy) <= 1 }
+                    group += touching; rest.removeAll { r in touching.contains { $0 == r } }
+                    k += 1
+                }
+                if rest.isEmpty { grid.on[i] = false; changed = true }
+            }
+        }
+    }
+
+    /// Cuts off twigs shorter than `length` pixels: thinning leaves short side branches where a strip has a corner or
+    /// a bump. Each loose end is followed back to where it meets the rest of the line; if that comes sooner than
+    /// `length`, the twig is removed. A line with no junction at all is left alone.
+    static func pruneSpurs(_ grid: inout PartGrid, shorterThan length: Int) {
+        for end in grid.on.indices where grid.on[end] && grid.neighbors(end).count == 1 {
+            var twig: [Int] = [], previous = -1, current = end
+            while twig.count < length {
+                twig.append(current)
+                let next = grid.neighbors(current).filter { $0 != previous }
+                guard next.count == 1 else { break }   // the line's other end: no junction
+                if grid.neighbors(next[0]).count >= 3 { for i in twig { grid.on[i] = false }; break }   // reached a junction
+                previous = current; current = next[0]
+            }
+        }
+    }
+
+    /// A thinned line cut into branches where three or more meet: each a path of pixels from one end or junction to
+    /// the next (both included), or a loop with neither (closed, its first pixel not repeated).
+    static func branches(of grid: PartGrid) -> [(pixels: [Int], closed: Bool)] {
+        func isStop(_ i: Int) -> Bool { grid.neighbors(i).count != 2 }   // an end or a junction
+        let pixels = grid.on.indices.filter { grid.on[$0] }
+        var used = Set<Int>(), result: [(pixels: [Int], closed: Bool)] = []
+        for stop in pixels where isStop(stop) {
+            for first in grid.neighbors(stop) where !used.contains(first) && !isStop(first) {
+                var path = [stop, first], previous = stop, current = first
+                used.insert(first)
+                while !isStop(current) {
+                    let next = grid.neighbors(current).first { $0 != previous }!
+                    path.append(next); previous = current; current = next
+                    if !isStop(next) { used.insert(next) }
+                }
+                result.append((path, false))
+            }
+        }
+        // What's left are loops with no ends or junctions: walk each round once.
+        for start in pixels where !used.contains(start) && !isStop(start) {
+            var path = [start], previous = start, current = grid.neighbors(start)[0]
+            used.insert(start)
+            while current != start {
+                path.append(current); used.insert(current)
+                let next = grid.neighbors(current).first { $0 != previous }!
+                previous = current; current = next
+            }
+            result.append((path, true))
+        }
+        return result
     }
 
     /// Zhang–Suen thinning: peels edge pixels off the filled ones, in passes that alternate between the lower-right
