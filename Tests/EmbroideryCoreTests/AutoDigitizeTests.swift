@@ -259,4 +259,42 @@ final class AutoDigitizeTests: XCTestCase {
         XCTAssertEqual(rows, [4], "one row, down the middle")
         XCTAssertGreaterThan(on.filter { $0 }.count, 14, "the line keeps most of its length")
     }
+
+    func testEarlierPartsReachUnderLaterOnes() throws {
+        // Shown 100 mm wide at 0.25 mm per pixel (about as fine as real tracing), on white: a big blue square, and
+        // a smaller red one touching the middle of its right side. Blue is the larger area, so it sews first and
+        // reaches under red. (In mm from the picture's top left: blue 10–60 across, 20–80 down; red 60–85, 30–70.)
+        let image = picture(400) { x, y in
+            let x = x / 4, y = y / 4
+            if x >= 10 && x < 60 && y >= 20 && y < 80 { return 0x2040A0 }
+            if x >= 60 && x < 85 && y >= 30 && y < 70 { return 0xD02020 }
+            return 0xFFFFFF
+        }
+        let result = try run(image, colors: 3, size: 100)
+        let blue = result.objects[0], red = result.objects[1]
+        XCTAssertEqual(blue.color.hex, 0x2040A0)
+        let b = blue.nodes.map(\.point), r = red.nodes.map(\.point)
+        // Picture mm → canvas mm: x - 50 across, 50 - y up.
+        XCTAssertEqual(b.map(\.x).max()!, 10 + AutoDigitize.overlapAmount, accuracy: 0.1, "blue reaches under red")
+        XCTAssertEqual(b.map(\.x).min()!, -40, accuracy: 0.05, "blue's edges on bare fabric stay put")
+        XCTAssertEqual(b.map(\.y).max()!, 30, accuracy: 0.05); XCTAssertEqual(b.map(\.y).min()!, -30, accuracy: 0.05)
+        // Above and below red, blue's right edge stays at 10 mm: only the part beside red grew.
+        XCTAssertTrue(b.filter { abs($0.y) > 20.5 }.allSatisfy { $0.x <= 10.05 }, "\(b)")
+        XCTAssertEqual(abs(AreaGeometry.area(b)), 50 * 60 + 40 * AutoDigitize.overlapAmount, accuracy: 3)
+        XCTAssertEqual(r.map(\.x).min()!, 10, accuracy: 0.05, "red, sewn on top, keeps its shape")
+        XCTAssertTrue(result.warnings.contains { $0.hasPrefix("1 part reaches 0.8 mm under") }, "\(result.warnings)")
+    }
+
+    func testFillsMeetUnderAThinLine() throws {
+        // Shown 40 mm wide (0.4 mm per pixel): a blue square cut in two by a black line 2 pixels (0.8 mm) wide. The
+        // line is the smaller area, so it sews last, on top; both blue halves reach under it, leaving no fabric bare.
+        let image = picture(100) { x, y in
+            guard x >= 10 && x < 90 && y >= 10 && y < 90 else { return 0xFFFFFF }
+            return x == 49 || x == 50 ? 0x000000 : 0x2040A0
+        }
+        let objects = try run(image, colors: 3, size: 40).objects
+        XCTAssertEqual(objects.map(\.kind), [.fill, .fill, .run])
+        let halves = objects.prefix(2).map { $0.nodes.map(\.point) }.sorted { $0.map(\.x).min()! < $1.map(\.x).min()! }
+        XCTAssertGreaterThan(halves[0].map(\.x).max()!, halves[1].map(\.x).min()!, "the two halves overlap under the line")
+    }
 }

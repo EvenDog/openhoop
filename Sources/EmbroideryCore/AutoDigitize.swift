@@ -2,8 +2,9 @@
 // traces the outline of every patch of each color along the pixel edges, smooths away the pixel "staircase",
 // and stitches each patch by its width (thin lines as running stitch, narrow parts as satin, the rest as tatami),
 // placed exactly over the image. With a thread chart chosen, each color becomes that chart's closest thread. Parts
-// sew nearest first, fills at angles that follow each shape (touching shapes at clearly different angles), and each
-// part starts where the one before it ends.
+// sew nearest first, fills at angles that follow each shape (touching shapes at clearly different angles), fills
+// reach a little under the parts sewn on top of them (so no fabric shows at the seams), and each part starts where
+// the one before it ends.
 import Foundation
 import CoreGraphics
 import ImageIO
@@ -109,6 +110,7 @@ public enum AutoDigitize {
         for label in labels where label >= 0 { areas[label] += 1 }
         let order = centers.indices.filter { areas[$0] > 0 }.sorted { areas[$0] > areas[$1] }   // big areas sew first, details on top
         var objects: [RunObject] = [], colors: [AutoDigitizeColor] = [], warnings: [String] = []
+        var shapes: [[[Point]]] = []   // each object's traced part (outline and holes), before any overlap
         var smallParts = 0, failedParts = 0, filledHoles = 0, lines = 0, satins = 0, tatamis = 0
         let sewn = order.filter { $0 != background }
         let chartThreads = options.chart.map { threads(for: sewn.map { centers[$0] }, from: $0) }
@@ -148,7 +150,7 @@ public enum AutoDigitize {
                         var object = RunObject(name: "\(thread.name) line \(index + 1)", nodes: path.map { PathNode($0) }, color: thread)
                         object.closed = line.closed
                         var settings = DigitizingSettings(kind: .run); settings.runPasses = 3; object.digitizing = settings
-                        objects.append(object); lines += 1
+                        objects.append(object); shapes.append(region); lines += 1
                         continue
                     }
                 }
@@ -158,7 +160,7 @@ public enum AutoDigitize {
                 // At most 8 mm across (the short side of the smallest box around it): satin, stitches straight across.
                 // A curved strip has a wider box and stays tatami: one stitch direction can't follow its bends.
                 if turnedBox(region[0]).short <= 8 { object.digitizing?.fillStyle = .satin; satins += 1 } else { tatamis += 1 }
-                objects.append(object)
+                objects.append(object); shapes.append(region)
             }
             colors.append(AutoDigitizeColor(color: thread, area: Double(areas[label]) * pixelArea, parts: parts.count, background: false))
         }
@@ -176,10 +178,53 @@ public enum AutoDigitize {
         guard objects.count <= 500 else { throw DesignError.invalid("The picture traced into \(objects.count) parts, which is too many. Use fewer colors or a larger smallest part.") }
         // Neighbors traced from the same pixel edge end up at most a smoothing step or two apart, so closer than
         // three pixels (at least 0.3 mm) counts as touching.
-        setAngles(&objects, touching: 3 * max(0.1, pixelWidth, pixelHeight))
+        let touching = 3 * max(0.1, pixelWidth, pixelHeight)
+        setAngles(&objects, touching: touching)
+        // After the angles and stitch types, which follow the traced shapes; before the start points, which follow the grown ones.
+        let grown = try overlap(&objects, shapes: shapes, by: overlapAmount, sliver: touching)
+        if grown > 0 { warnings.append("\(grown) part\(grown == 1 ? " reaches" : "s reach") \(overlapAmount.formatted()) mm under the parts sewn on top of \(grown == 1 ? "it" : "them"), so no fabric shows between them.") }
         try setStartPoints(&objects)
         var check = Design(); check.objects = objects; try check.validate()
         return AutoDigitizeResult(objects: objects, colors: colors, warnings: warnings)
+    }
+
+    /// How far a fill reaches under the parts sewn on top of it, in mm, so no fabric shows along the seam.
+    static let overlapAmount = 0.8
+
+    /// Grows each fill (tatami or satin) `amount` mm under the parts sewn after it, so no fabric shows between
+    /// neighbors once the stitches pull in. Only growth that lands under a later part (fill or line) is kept: edges
+    /// facing bare fabric, or parts sewn earlier, stay where they are. `shapes` are the traced parts, one per object.
+    /// Neighbors' outlines are smoothed one at a time, which leaves hair-thin slivers between them; those narrower
+    /// than `sliver` mm count as covered, so the grown fill gets no tiny holes. A fill whose growth can't be worked
+    /// out keeps its traced shape. Returns how many fills grew.
+    static func overlap(_ objects: inout [RunObject], shapes: [[[Point]]], by amount: Double, sliver: Double) throws -> Int {
+        // Outline counterclockwise, holes clockwise, so overlapping parts join into one area when offset together.
+        func oriented(_ region: [[Point]]) -> [[Point]] {
+            region.enumerated().map { k, ring in (AreaGeometry.area(ring) > 0) == (k == 0) ? ring : ring.reversed() }
+        }
+        var grownCount = 0
+        for i in objects.indices where objects[i].kind == .fill {
+            try Task.checkCancellation()
+            let later = objects.indices.filter { $0 > i && touches(shapes[i], shapes[$0], within: amount) }
+            guard !later.isEmpty else { continue }
+            do {
+                let grown = try AreaGeometry.offset(oriented(shapes[i]), by: amount)
+                // Where it may reach: itself and the later parts, joined, with the slivers between them closed up
+                // (everything grown by half a sliver, then shrunk back, which leaves outer edges where they were).
+                let joined = ([i] + later).flatMap { oriented(shapes[$0]) }
+                let allowed = try AreaGeometry.offset(AreaGeometry.offset(joined, by: sliver / 2), by: -sliver / 2)
+                // Cut away the growth that landed anywhere else (bare fabric, parts sewn earlier).
+                let elsewhere = try AreaGeometry.subtracting(allowed, from: grown)
+                let pieces = try AreaGeometry.subtracting(elsewhere.flatMap { $0 }, from: grown)
+                // One piece is expected; keep the largest in case a speck broke off.
+                guard let piece = pieces.max(by: { AreaGeometry.area($0[0]).magnitude < AreaGeometry.area($1[0]).magnitude }),
+                      let (region, _) = fitted(piece, smallest: 0.05), (try? AreaGeometry.validate(region)) != nil else { continue }
+                objects[i].nodes = region[0].map { PathNode($0) }
+                objects[i].holes = region.count > 1 ? region.dropFirst().map { $0.map { PathNode($0) } } : nil
+                grownCount += 1
+            } catch let stop as CancellationError { throw stop } catch { continue }   // stop if the dialog moved on; otherwise keep the traced shape
+        }
+        return grownCount
     }
 
     /// Each part starts where the one before it finishes, so the needle travels less in between: the same start
