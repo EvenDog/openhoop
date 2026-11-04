@@ -55,11 +55,36 @@ class MachineImportTests(unittest.TestCase):
         self.assertEqual(sum(c['op']=='stop' for c in result['plan']['commands']),0)
         self.assertEqual(result['stitchCount'],32)
 
-    def test_dst_jump_sequences_are_not_inferred_or_clipped(self):
-        # Three zero jumps after a needle could be a trim convention; retain all three.
+    def test_dst_three_jumps_after_sewing_are_a_trim(self):
+        # DST has no trim record: three or more jumps in a row after sewing mean "cut the thread here", the
+        # convention OpenHoop's own export writes. The trim goes before the jumps, where the needle stands; the jumps
+        # are kept (even zero-length ones), so the needle still moves where the file says.
         data=b'LA:test\r'.ljust(512,b' ')+bytes([1,0,3, 0,0,0x83, 0,0,0x83, 0,0,0x83, 0,0,0xf3])
-        result=import_machine(request(data,'dst'))
-        self.assertEqual([c['op'] for c in result['plan']['commands']],['stitch','jump','jump','jump','end'])
+        commands=import_machine(request(data,'dst'))['plan']['commands']
+        self.assertEqual([c['op'] for c in commands],['stitch','trim','jump','jump','jump','end'])
+        self.assertEqual(commands[1]['point'],commands[0]['point'])
+
+    def test_dst_fewer_jumps_and_the_opening_move_stay_jumps(self):
+        # Two jumps are just a long move (DST stitches reach only 12.1 mm), and jumps before the first stitch only
+        # bring the needle to the start: neither is a trim.
+        data=b'LA:test\r'.ljust(512,b' ')+bytes([0,0,0x83, 0,0,0x83, 0,0,0x83, 1,0,3, 1,0,0x83, 1,0,0x83, 1,0,3, 0,0,0xf3])
+        ops=[c['op'] for c in import_machine(request(data,'dst'))['plan']['commands']]
+        self.assertEqual(ops,['jump','jump','jump','stitch','jump','jump','stitch','end'])
+
+    def test_exported_trims_come_back_as_trims(self):
+        # DST and JEF both write a trim as jumps in a row; importing what OpenHoop exported gets the trim back.
+        commands=[{'op':'jump','point':{'x':0,'y':0},'thread':0}]
+        commands+=[{'op':'stitch','point':{'x':float(x),'y':0},'thread':0} for x in range(0,6)]
+        commands+=[{'op':'trim','point':{'x':5,'y':0},'thread':0},{'op':'jump','point':{'x':20,'y':0},'thread':0}]
+        commands+=[{'op':'stitch','point':{'x':float(x),'y':0},'thread':0} for x in range(20,26)]
+        commands+=[{'op':'end','point':{'x':25,'y':0},'thread':0}]
+        source=fixture(); source['plan']=dict(source['plan'],commands=commands)
+        for fmt in ('dst','jef'):
+            with self.subTest(format=fmt):
+                encoded=export(dict(source,format=fmt))
+                ops=[c['op'] for c in import_machine(request(base64.b64decode(encoded['bytes']),fmt))['plan']['commands']]
+                self.assertEqual(ops.count('trim'),1,ops)
+                self.assertEqual(ops.count('stitch'),12)
 
     def test_unsupported_sequin_rejects_import(self):
         data=b'LA:test\r'.ljust(512,b' ')+bytes([1,0,3, 0,0,0x43, 0,0,0xf3])

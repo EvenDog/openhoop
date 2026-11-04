@@ -6,6 +6,9 @@ import pyembroidery as e
 import strict_vp3
 
 FORMATS = ('pes', 'pec', 'dst', 'exp', 'jef', 'vp3', 'xxx')
+# DST and JEF have no trim record of their own: a trim is written as this many jumps in a row (OpenHoop's export
+# does the same), so reading them back, that many jumps right after sewing become a trim.
+JUMPS_PER_TRIM = 3
 OPS = {e.STITCH:'stitch', e.JUMP:'jump', e.TRIM:'trim', e.STOP:'stop', e.COLOR_CHANGE:'colorChange', e.END:'end'}
 
 class BoundedPattern(e.EmbPattern):
@@ -149,7 +152,11 @@ def import_machine(request):
     if fmt == 'vp3':
         strict_vp3.read(io.BytesIO(data),pattern)
     else:
-        getattr(e, 'read_'+fmt)(io.BytesIO(data), settings={'trim_at':None, 'trim_distance':None, 'clipping':False, 'trims':False}, pattern=pattern)
+        # trim_at turns on pyembroidery's interpolate_trims for DST and JEF: it puts a trim before a run of
+        # JUMPS_PER_TRIM jumps after sewing. Jumps are counted only (no trim_distance), and zero-length jumps are
+        # kept (clipping off), so every needle move in the file stays.
+        trim_at = JUMPS_PER_TRIM if fmt in ('dst', 'jef') else None
+        getattr(e, 'read_'+fmt)(io.BytesIO(data), settings={'trim_at':trim_at, 'trim_distance':None, 'clipping':False, 'trims':False}, pattern=pattern)
     return decoded_plan(pattern, fmt)
 
 
@@ -157,9 +164,10 @@ def decoded_plan(pattern, fmt):
     warnings = ['Imported needle positions stay at their source size and placement. Scaling changes stitch density; it does not regenerate digitizing objects.',
                 'Only decoded stitches and thread colors are imported. Machine setup/header metadata and original digitizing outlines are not retained.']
     if fmt == 'dst':
-        warnings.append('DST trim-like jump sequences are kept as jumps; trim behavior depends on the controller. Sequin commands are unsupported.')
+        warnings.append('DST has no trim command: three or more jumps in a row after sewing are read as a trim, as most machines treat them. Sequin commands are unsupported.')
     if fmt == 'jef':
         warnings.append('JEF thread-table entries with palette index zero are decoded as stops by the format reader.')
+        warnings.append('JEF trims are read from three or more jumps in a row after sewing.')
     if fmt in ('pes', 'pec'):
         warnings.append('Repeated same-color boundaries remain color changes. The source may have used them as stops; resume with the intended thread.')
     commands, threads = [], []
