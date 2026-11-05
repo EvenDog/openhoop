@@ -597,7 +597,7 @@ public enum AreaEngine {
                 // middle. Round a sharp corner they cross near the inner edge instead, fanning like a hand of cards,
                 // which sews fine, so only a crossing in the middle is refused.
                 if let previous=lastRung {
-                    guard relaxed || !crossInMiddle(previous,(l,r)) else{throw DesignError.invalid("Satin rungs cross or reverse. Use consistent left/right pairs and split tight corners.")}
+                    guard relaxed || !crossInMiddle(previous,(l,r)) else{throw DesignError.invalid("Satin rungs cross or reverse. Use consistent left/right pairs (Untangle in Properties swaps a pair clicked right-then-left) and split tight corners.")}
                 }
                 if let prior=pairs.last {warningCrowded = warningCrowded || min(prior.0.distance(to:cl),prior.1.distance(to:cr))<0.15}
                 lastRung=(l,r)
