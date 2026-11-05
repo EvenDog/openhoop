@@ -88,12 +88,47 @@ final class ShapeTests: XCTestCase {
         for shape in BasicShape.basicChoices {
             let nodes = ShapeGeometry.nodes(shape, in: small, keepProportions: true)
             XCTAssertGreaterThanOrEqual(nodes.count, 3, shape.title)   // finishing a dragged shape needs 3 nodes
-            let made = try ShapeStitching.closedShape(nodes, fill: .tatami, outline: .running, name: shape.title, color: .palette[0])
+            let holes = ShapeGeometry.holes(shape, around: nodes)
+            XCTAssertEqual(holes.count, shape.isFrame ? 1 : 0, shape.title)
+            let made = try ShapeStitching.closedShape(nodes, holes: holes, fill: .tatami, outline: .running, name: shape.title, color: .palette[0])
             XCTAssertFalse(try AreaEngine.fill(made[0]).sections.isEmpty, shape.title)
             XCTAssertFalse(try StitchEngine.fresh(made[1], under: []).sections.isEmpty, shape.title)
             var picked = ShapeSettings(); picked.basicShape = shape
             XCTAssertEqual(try JSONDecoder().decode(ShapeSettings.self, from: JSONEncoder().encode(picked)).basicShape, shape)
         }
+    }
+
+    /// A frame leaves its middle open: the hole sits the band width in from the outside edge all round (from the
+    /// scallops' valleys for the scalloped frame), no fill stitch lands in it, and an outline goes round both edges,
+    /// all grouped. A band too wide for the frame leaves no hole; a saved band width is kept in range.
+    func testFramesLeaveTheirMiddleOpen() throws {
+        var settings = ShapeSettings(); settings.frameWidth = 3
+        for shape in BasicShape.allCases where shape.isFrame {
+            let nodes = ShapeGeometry.nodes(shape, in: box, settings: settings)
+            let holes = ShapeGeometry.holes(shape, around: nodes, settings: settings)
+            XCTAssertEqual(holes.count, 1, shape.title)
+            let hole = bounds(outline(holes[0]))
+            if shape == .scallopFrame {
+                XCTAssertGreaterThan(hole.min.x, box.min.x + 3, shape.title); XCTAssertLessThan(hole.max.y, box.max.y - 3, shape.title)
+            } else {
+                assertNear(hole.min, box.min + Point(3, 3), 0.05); assertNear(hole.max, box.max - Point(3, 3), 0.05)
+            }
+            let made = try ShapeStitching.closedShape(nodes, holes: holes, fill: .tatami, outline: .running, name: shape.title, color: .palette[0])
+            XCTAssertEqual(made.map(\.name), [shape.title, "\(shape.title) outline", "\(shape.title) inner outline"])
+            XCTAssertEqual(Set(made.compactMap(\.groupID)).count, 1, shape.title); XCTAssertEqual(made.compactMap(\.groupID).count, 3, shape.title)
+            XCTAssertEqual(made[2].nodes, holes[0], shape.title)
+            // Nothing sewn well inside the hole (1 mm in from its edge, where the fill's edge stitches can't reach).
+            let stitches = try AreaEngine.fill(made[0]).sections.flatMap(\.points)
+            XCTAssertFalse(stitches.isEmpty, shape.title)
+            let deepInside = (min: hole.min + Point(1, 1), max: hole.max - Point(1, 1))
+            let middle = (deepInside.min + deepInside.max) * 0.5, reach = (deepInside.max - deepInside.min) * 0.5
+            XCTAssertFalse(stitches.contains { pow(($0.x - middle.x) / reach.x, 2) + pow(($0.y - middle.y) / reach.y, 2) < 1 }, shape.title)
+        }
+        var wide = ShapeSettings(); wide.frameWidth = 10   // the box is 20 mm tall: nothing left for a hole
+        XCTAssertTrue(ShapeGeometry.holes(.ring, around: ShapeGeometry.nodes(.ring, in: box), settings: wide).isEmpty)
+        XCTAssertTrue(ShapeGeometry.holes(.heart, around: ShapeGeometry.nodes(.heart, in: box)).isEmpty, "only frames have holes")
+        let saved = try JSONDecoder().decode(ShapeSettings.self, from: Data(#"{"frameWidth": 99}"#.utf8))
+        XCTAssertEqual(saved.frameWidth, ShapeSettings.frameWidthRange.upperBound)
     }
 
     /// Every fill (or none) with every outline (or none): a fill alone, an outline alone, or the fill then the

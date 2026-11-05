@@ -6,7 +6,7 @@ import Foundation
 
 enum ShapeLibrary {
     /// The outline of `shape` in its own small coordinates. Only for the library's shapes: rectangle, ellipse,
-    /// polygon, star, heart and arrow are drawn by ShapeGeometry, and get an empty outline here.
+    /// polygon, star, heart, arrow and the frames are drawn by ShapeGeometry, and get an empty outline here.
     static func outline(_ shape: BasicShape) -> [PathNode] {
         switch shape {
         // Geometric
@@ -111,10 +111,6 @@ enum ShapeLibrary {
             return outline.closed
 
         // Objects
-        case .house:
-            // Walls, a pointed roof and a chimney on its right slope (the roof drops 0.9 for every 1 across).
-            return corners([(0.15, 0), (0.85, 0), (0.85, 0.55), (1, 0.55), (0.82, 0.712), (0.82, 0.95), (0.72, 0.95), (0.72, 0.802), (0.5, 1),
-                            (0, 0.55), (0.15, 0.55)])
         case .apple:
             // Two round shoulders either side of a short stem, a round body and a slight dip underneath.
             return smoothLoop([(0.54, 0.84), (0.58, 1.08), (0.5, 1.08), (0.46, 0.84), (0.24, 0.94), (0, 0.6), (0.22, 0.02), (0.5, 0.06),
@@ -144,7 +140,7 @@ enum ShapeLibrary {
                 PathNode(Point(0.39, 1), smooth: true, inHandle: Point(0.6, 1), outHandle: Point(0.18, 1)),
                 PathNode(Point(0, 0.42), smooth: true, inHandle: Point(0, 0.72), outHandle: Point(0, 0.18))
             ]
-        case .rectangle, .ellipse, .polygon, .star, .heart, .arrow: return []
+        case .rectangle, .ellipse, .polygon, .star, .heart, .arrow, .ring, .squareFrame, .roundedFrame, .scallopFrame: return []
         }
     }
 

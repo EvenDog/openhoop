@@ -670,7 +670,8 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         guard !hasVersionMismatch,draft.count>=3 else{draft=[];return}
         let shapes=Preferences.shared.shapes
         do {
-            let made=try ShapeStitching.closedShape(draft,fill:shapes.closedFill,outline:shapes.closedOutline,satinWidth:satinLineWidth,name:"\(shape.title) \(design.objects.count+1)",color:currentColor)
+            let holes=ShapeGeometry.holes(shape,around:draft,settings:shapes)   // a frame's open middle
+            let made=try ShapeStitching.closedShape(draft,holes:holes,fill:shapes.closedFill,outline:shapes.closedOutline,satinWidth:satinLineWidth,name:"\(shape.title) \(design.objects.count+1)",color:currentColor)
             addDrawn(made,action:"Draw \(shape.title)")
         } catch {draft=[];status=error.localizedDescription}
     }
