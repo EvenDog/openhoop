@@ -6,9 +6,29 @@ import Foundation
 /// The shapes the Rectangle, Ellipse and Basic Shapes tools draw.
 public enum BasicShape: String, Codable, CaseIterable, Sendable {
     case rectangle, ellipse, polygon, star, heart, arrow
-    public var title: String { rawValue.capitalized }
+    // The rest of the Basic Shapes library (outlines in ShapeLibrary.swift). The names are saved in preferences, so
+    // they never change.
+    case triangle, rightTriangle, diamond, parallelogram, trapezoid, roundedSquare, cross, chevron, doubleArrow
+    case shield, scallop, starburst, banner, tag, speechBubble
+    case teardrop, moon, cloud, leaf, flower, pineTree, lightning, sun
+    case house, apple, fish, bone, egg
+    public var title: String {
+        switch self {
+        case .rightTriangle: return "Right triangle"; case .roundedSquare: return "Rounded square"; case .doubleArrow: return "Double arrow"
+        case .scallop: return "Scalloped badge"; case .speechBubble: return "Speech bubble"; case .pineTree: return "Pine tree"
+        case .lightning: return "Lightning bolt"
+        default: return rawValue.capitalized
+        }
+    }
+    /// The Basic Shapes tool's picture grid: its shapes in groups, in order.
+    public static let groups: [(title: String, shapes: [BasicShape])] = [
+        ("Geometric", [.polygon, .star, .triangle, .rightTriangle, .diamond, .parallelogram, .trapezoid, .roundedSquare, .cross, .chevron, .arrow, .doubleArrow]),
+        ("Badges & labels", [.shield, .scallop, .starburst, .banner, .tag, .speechBubble]),
+        ("Nature", [.teardrop, .moon, .cloud, .leaf, .flower, .pineTree, .lightning, .sun]),
+        ("Objects", [.heart, .house, .apple, .fish, .bone, .egg])
+    ]
     /// The shapes the Basic Shapes tool offers (Rectangle and Ellipse have tools of their own).
-    public static let basicChoices: [BasicShape] = [.polygon, .star, .heart, .arrow]
+    public static let basicChoices: [BasicShape] = groups.flatMap(\.shapes)
 }
 
 /// The stitch the Open Shape tool puts on a new line.
@@ -127,6 +147,7 @@ public enum ShapeGeometry {
         case .arrow:
             let corners = [(0, 0.3), (0.6, 0.3), (0.6, 0.05), (1, 0.5), (0.6, 0.95), (0.6, 0.7), (0, 0.7)]
             return place(corners.map { PathNode(Point($0.0, $0.1)) }, in: box, keepProportions: keepProportions)
+        default: return place(ShapeLibrary.outline(shape), in: box, keepProportions: keepProportions)
         }
     }
 
@@ -174,10 +195,14 @@ public enum ShapeGeometry {
         ]
     }()
 
-    /// Moves and scales `unit` (a shape in any small coordinates) so its corner points fill `box`, or, with
-    /// `keepProportions`, fit inside it centered without stretching.
+    /// Moves and scales `unit` (a shape in any small coordinates) so its outline fills `box`, or, with
+    /// `keepProportions`, fits inside it centered without stretching. The outline's curves count, not just its
+    /// nodes, since a round shape's widest point can fall between two nodes.
     static func place(_ unit: [PathNode], in box: (min: Point, max: Point), keepProportions: Bool) -> [PathNode] {
-        let xs = unit.map(\.point.x), ys = unit.map(\.point.y)
+        // Measured 1000 times bigger: curves are flattened to a fixed accuracy in mm, too coarse for an outline
+        // about 1 across.
+        let outline = AreaGeometry.ring(unit.map { node in var big = node; big.transform { $0 * 1000 }; return big }).map { $0 * 0.001 }
+        let xs = outline.map(\.x), ys = outline.map(\.y)
         guard let minX = xs.min(), let maxX = xs.max(), let minY = ys.min(), let maxY = ys.max(), maxX > minX, maxY > minY else { return unit }
         let width = box.max.x - box.min.x, height = box.max.y - box.min.y
         var sx = width / (maxX - minX), sy = height / (maxY - minY)

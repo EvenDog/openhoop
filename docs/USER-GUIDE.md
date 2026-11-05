@@ -144,7 +144,7 @@ Pick a stitch first, then draw. The **Shape** group in the tool strip holds them
 | **Freehand Closed Shape (⌥⇧S)** | The same, and the outline closes itself when you let go | The Closed Shape stitches |
 | **Rectangle (⌥R)** | Drag corner to corner; set **Corners** for rounded ones | The Closed Shape stitch |
 | **Ellipse (⌥J)** | Drag out from the center | The Closed Shape stitch |
-| **Basic Shapes (⌥B)** | Pick Polygon (3–12 sides), Star (4–12 points, shallow to deep), Heart or Arrow, then drag | The Closed Shape stitch |
+| **Basic Shapes (⌥B)** | Click one of 32 shape pictures in four groups (Geometric, Badges & labels, Nature, Objects), then drag. Polygon has 3–12 sides, Star 4–12 points, shallow to deep | The Closed Shape stitch |
 
 With both a fill and an outline, the shape becomes two objects, grouped so they move together: the fill, then the outline sewn on top of its edge (a satin outline is centered on the edge, like a satin border). When you pick a shape tool, the status line says what the next shape will get.
 

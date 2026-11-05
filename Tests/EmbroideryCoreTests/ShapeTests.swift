@@ -77,6 +77,25 @@ final class ShapeTests: XCTestCase {
         }
     }
 
+    /// The Basic Shapes picture grid offers every shape except Rectangle and Ellipse (which have tools of their own),
+    /// each once, under a different name. Drawn small and kept in proportion, each one still sews as a fill with a
+    /// running outline, and a picked shape is remembered.
+    func testBasicShapesGridOffersEveryShapeAndEachSewsSmall() throws {
+        XCTAssertEqual(Set(BasicShape.basicChoices), Set(BasicShape.allCases).subtracting([.rectangle, .ellipse]))
+        XCTAssertEqual(BasicShape.basicChoices.count, BasicShape.allCases.count - 2, "no shape is in two groups")
+        XCTAssertEqual(Set(BasicShape.allCases.map(\.title)).count, BasicShape.allCases.count, "every shape has its own name")
+        let small = (min: Point(0, 0), max: Point(12, 12))
+        for shape in BasicShape.basicChoices {
+            let nodes = ShapeGeometry.nodes(shape, in: small, keepProportions: true)
+            XCTAssertGreaterThanOrEqual(nodes.count, 3, shape.title)   // finishing a dragged shape needs 3 nodes
+            let made = try ShapeStitching.closedShape(nodes, fill: .tatami, outline: .running, name: shape.title, color: .palette[0])
+            XCTAssertFalse(try AreaEngine.fill(made[0]).sections.isEmpty, shape.title)
+            XCTAssertFalse(try StitchEngine.fresh(made[1], under: []).sections.isEmpty, shape.title)
+            var picked = ShapeSettings(); picked.basicShape = shape
+            XCTAssertEqual(try JSONDecoder().decode(ShapeSettings.self, from: JSONEncoder().encode(picked)).basicShape, shape)
+        }
+    }
+
     /// Every fill (or none) with every outline (or none): a fill alone, an outline alone, or the fill then the
     /// outline on its edge, grouped. Each one sews.
     func testClosedShapeGetsThePickedFillAndOutline() throws {
