@@ -38,7 +38,7 @@ extension Design {
         let built = try spec.build(color: color, embroideryFonts: embroideryFonts)
         var line = try takeGuide(lineID, for: id)
         line.name = "“\(spec.text.replacingOccurrences(of: "\n", with: " "))” · line"
-        replaceLettering(id, with: built)
+        replaceLettering(id, with: built, embroideryFonts: embroideryFonts)
         let group = letteringObjects(id).first?.groupID ?? UUID()
         for i in objects.indices where objects[i].lettering?.id == id { objects[i].groupID = group }
         line.groupID = group
@@ -102,7 +102,7 @@ extension Design {
             guard var spec = letters.first?.lettering, let color = letters.first?.color, !Self.samePath(spec.path, path), !letters.contains(where: \.locked) else { continue }
             spec.path = path
             if abs(spec.currentHeight - spec.height) > 0.05 { spec.height = spec.currentHeight }
-            do { replaceLettering(id, with: try spec.build(color: color, embroideryFonts: embroideryFonts)) }
+            do { replaceLettering(id, with: try spec.build(color: color, embroideryFonts: embroideryFonts), embroideryFonts: embroideryFonts) }
             catch { problems.append("“\(spec.text)”: \(error.localizedDescription)") }
         }
         return problems

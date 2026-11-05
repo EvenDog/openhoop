@@ -118,7 +118,7 @@ final class LiveLetteringTests: XCTestCase {
         let group = UUID()
         for i in design.objects.indices { design.objects[i].groupID = group }   // grouped with the lines around it
         var edited = spec; edited.text = "Hey"
-        let ids = design.replaceLettering(spec.id, with: try edited.build(color: ink, embroideryFonts: []))
+        let ids = design.replaceLettering(spec.id, with: try edited.build(color: ink, embroideryFonts: []), embroideryFonts: [])
         XCTAssertEqual(design.objects.first?.name, "Before"); XCTAssertEqual(design.objects.last?.name, "After")
         XCTAssertEqual(Array(design.objects.dropFirst().dropLast().map(\.id)), ids)
         XCTAssertEqual(design.letteringObjects(spec.id).map(\.name), ["Letter H", "Letter e", "Letter y"])

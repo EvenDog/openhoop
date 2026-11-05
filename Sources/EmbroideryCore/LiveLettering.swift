@@ -253,12 +253,21 @@ extension Design {
     }
 
     /// Replaces the lettering with `spec.id` by `result` (from `spec.build`): the new letters take the old ones'
-    /// place in the sewing order and their group. Returns the new objects' IDs.
+    /// place in the sewing order and their group, and keep the stitch settings changed by hand on the old ones
+    /// (LetterSettings.kept; the old recipe is built again to see what was changed, so embroidery fonts are looked up
+    /// in `embroideryFonts`). Returns the new objects' IDs.
     @discardableResult
-    public mutating func replaceLettering(_ id: UUID, with result: LetteringResult) -> [UUID] {
+    public mutating func replaceLettering(_ id: UUID, with result: LetteringResult, embroideryFonts: [EmbroideryFont]) -> [UUID] {
         guard let first = objects.firstIndex(where: { $0.lettering?.id == id }) else { return [] }
         let group = objects[first].groupID
         var letters = result.objects
+        let current = letteringObjects(id)
+        if let old = current.first?.lettering, let color = current.first?.color, let new = letters.first?.lettering,
+           let built = try? old.build(color: color, embroideryFonts: embroideryFonts).objects {
+            // Single-letter changes stay only on lines whose text didn't change.
+            let sameLines = Set(new.lines.indices.filter { old.lines.indices.contains($0) && old.lines[$0] == new.lines[$0] })
+            letters = LetterSettings.kept(current: current, built: built, fresh: letters, sameLines: sameLines)
+        }
         for i in letters.indices { if let group { letters[i].groupID = group } }
         objects.removeAll { $0.lettering?.id == id }
         objects.insert(contentsOf: letters, at: min(first, objects.count))

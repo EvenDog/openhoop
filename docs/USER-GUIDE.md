@@ -462,7 +462,7 @@ These are the starting keys; every one can be changed. Tools on a function key a
 - Contour fills spiral smoothly on round shapes (ovals, rounded corners). Shapes with sharp corners show a short step line from ring to ring; it runs from the Start point toward the middle, so put the start where it shows least. Radial fills crowd a little where the edge comes close to the center.
 - Underlay that won't fit at the chosen inset is left out, with a warning.
 
-**Lettering:** arched lettering is one line (make each curved line its own lettering). Updating lettering rebuilds every letter, so hand edits (and stitch settings changed in Properties) are lost; Undo brings them back. Letters moved with Edit Nodes are kept. The embroidery fonts were tuned for Ink/Stitch, whose underlay and compensation differ a little, so test-sew small text.
+**Lettering:** arched lettering is one line (make each curved line its own lettering). Updating lettering rebuilds every letter. Stitch settings changed in Properties are kept: a change made to every part of one stitch kind (say, all the satins) goes on the new letters too, and a change to single letters stays on them as long as their line's text is the same (a new font, size or shape keeps it). Stitch angle lines and other hand edits to a letter's shape or stitches are lost; Undo brings them back. Letters moved with Edit Nodes are kept. The embroidery fonts were tuned for Ink/Stitch, whose underlay and compensation differ a little, so test-sew small text.
 
 **Auto-digitize** traces touching colors separately; fills reach under the parts sewn over them, but check where colors meet at the sew-out. Photos and gradients reduce to flat color patches.
 

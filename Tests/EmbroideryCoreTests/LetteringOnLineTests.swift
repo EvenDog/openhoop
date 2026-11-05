@@ -80,7 +80,7 @@ final class LetteringOnLineTests: XCTestCase {
 
         // Straight takes the word off the line: the line is no longer its guide.
         var straight = rebuilt[0].lettering!; straight.shape = .straight
-        design.replaceLettering(spec.id, with: try straight.build(color: ink, embroideryFonts: fonts))
+        design.replaceLettering(spec.id, with: try straight.build(color: ink, embroideryFonts: fonts), embroideryFonts: fonts)
         design.syncGuides(embroideryFonts: fonts)
         XCTAssertNil(design.objects.first { $0.id == line.id }?.guideFor)
     }
