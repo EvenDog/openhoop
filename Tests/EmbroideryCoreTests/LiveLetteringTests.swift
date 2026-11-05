@@ -172,11 +172,49 @@ final class LiveLetteringTests: XCTestCase {
         XCTAssertTrue(result.objects.first!.name.hasPrefix("Letter T")); XCTAssertTrue(result.objects.last!.name.hasPrefix("Letter N"))
     }
 
-    func testCurvesAndTooManyLinesAreExplained() {
-        var spec = LetteringSpec(text: "One\nTwo", fontKind: .system, font: "Helvetica", height: 10, shape: .archUp)
-        XCTAssertThrowsError(try spec.build(color: ink, embroideryFonts: [])) { XCTAssertTrue($0.localizedDescription.contains("one line"), $0.localizedDescription) }
-        spec.shape = .straight; spec.text = Array(repeating: "A", count: 11).joined(separator: "\n")
+    func testTooManyLinesAreExplained() {
+        let spec = LetteringSpec(text: Array(repeating: "A", count: 11).joined(separator: "\n"), fontKind: .system, font: "Helvetica", height: 10)
         XCTAssertThrowsError(try spec.build(color: ink, embroideryFonts: [])) { XCTAssertTrue($0.localizedDescription.contains("10 lines"), $0.localizedDescription) }
+    }
+
+    /// The center and radius of the circle through three points.
+    private func circle(_ a: Point, _ b: Point, _ c: Point) -> (center: Point, radius: Double) {
+        let d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y))
+        let a2 = a.x * a.x + a.y * a.y, b2 = b.x * b.x + b.y * b.y, c2 = c.x * c.x + c.y * c.y
+        let center = Point((a2 * (b.y - c.y) + b2 * (c.y - a.y) + c2 * (a.y - b.y)) / d, (a2 * (c.x - b.x) + b2 * (a.x - c.x) + c2 * (b.x - a.x)) / d)
+        return (center, center.distance(to: a))
+    }
+    /// For each line of arched lettering made only of O's: the circle through its first, middle and last O. Every
+    /// O is the same shape, so their middles sit at the same distance from the line's center.
+    private func lineCircles(_ objects: [RunObject]) -> [(center: Point, radius: Double)] {
+        let byLine = Dictionary(grouping: objects, by: { ($0.letterKey ?? 0) / 1000 })
+        return byLine.keys.sorted().map { line in
+            let letters = Dictionary(grouping: byLine[line]!, by: { $0.letterKey ?? 0 }).sorted { $0.key < $1.key }.map { middle(letters: $0.value) }
+            return circle(letters.first!, letters[letters.count / 2], letters.last!)
+        }
+    }
+    private func middle(letters parts: [RunObject]) -> Point {
+        let points = parts.flatMap { $0.outlinePaths.flatMap { $0 } }
+        return Point((points.map(\.x).min()! + points.map(\.x).max()!) / 2, (points.map(\.y).min()! + points.map(\.y).max()!) / 2)
+    }
+
+    /// Arched lettering with several lines sets them as rings around one center, like a round badge: each line's
+    /// radius one line spacing from the last, inward for an arch up and outward for an arch down.
+    func testArchedLinesShareOneCenter() throws {
+        for shape in [LetteringShape.archUp, .archDown] {
+            let spec = LetteringSpec(text: "OOOOO\nOOOO", fontKind: .system, font: "Helvetica-Bold", height: 10, shape: shape, radius: 60)
+            let rings = lineCircles(try spec.build(color: ink, embroideryFonts: []).objects)
+            XCTAssertEqual(rings.count, 2)
+            XCTAssertEqual(rings[0].center.distance(to: rings[1].center), 0, accuracy: 0.3, "\(shape): one center")
+            let step = LetteringSpec.defaultLineSpacing * 10
+            XCTAssertEqual(rings[1].radius - rings[0].radius, shape == .archUp ? -step : step, accuracy: 0.3, "\(shape): one line spacing apart")
+        }
+    }
+
+    func testAnInnerLineTooTightIsExplained() {
+        // Arch up, radius 30: the third line would be 30 - 2 × 14 = 2 mm from the center.
+        let spec = LetteringSpec(text: "ONE\nTWO\nSIX", fontKind: .system, font: "Helvetica-Bold", height: 10, shape: .archUp, radius: 30)
+        XCTAssertThrowsError(try spec.build(color: ink, embroideryFonts: [])) { XCTAssertTrue($0.localizedDescription.contains("at least 43 mm"), $0.localizedDescription) }
     }
 
     func testLetteringIsSavedWithTheProject() throws {
