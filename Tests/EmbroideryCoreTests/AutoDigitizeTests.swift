@@ -299,6 +299,22 @@ final class AutoDigitizeTests: XCTestCase {
         XCTAssertGreaterThan(halves[0].map(\.x).max()!, halves[1].map(\.x).min()!, "the two halves overlap under the line")
     }
 
+    /// Cutting a fill's growth to shape can leave a speck of a hole touching its outline, which a fill can't have.
+    /// That used to throw the whole growth away (fabric then showed along the seam); now the speck is sewn over.
+    func testASpeckTouchingTheOutlineDoesNotStopTheGrowth() throws {
+        let square = [Point(0, 0), Point(10, 0), Point(10, 10), Point(0, 10)]
+        let speck = [Point(9, 4.5), Point(9, 5.5), Point(10, 5)]   // a hole with a corner on the right edge
+        XCTAssertThrowsError(try AreaGeometry.validate([square, speck]))
+        let region = try XCTUnwrap(AutoDigitize.sewable([square, speck]))
+        XCTAssertNoThrow(try AreaGeometry.validate(region))
+        XCTAssertEqual(AreaGeometry.area(region[0]).magnitude, 100, accuracy: 1.5, "the square, a hair smaller")
+        // A shape pinched to a point (two squares meeting at a corner) would come apart, so it isn't used.
+        let pinched = [Point(0, 0), Point(5, 0), Point(5, 5), Point(10, 5), Point(10, 10), Point(5, 10), Point(5, 5), Point(0, 5)]
+        XCTAssertNil(AutoDigitize.sewable([pinched]))
+        // A shape that's fine as it is stays exactly as it is.
+        XCTAssertEqual(AutoDigitize.sewable([square]), [square])
+    }
+
     /// The width of a satin column: how far apart each pair of rail points is, on average.
     private func satinWidth(_ satin: RunObject) -> Double {
         let points = satin.nodes.map(\.point)
