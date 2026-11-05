@@ -393,13 +393,25 @@ public enum AutoDigitize {
                 let pieces = try AreaGeometry.subtracting(elsewhere.flatMap { $0 }, from: grown)
                 // One piece is expected; keep the largest in case a speck broke off.
                 guard let piece = pieces.max(by: { AreaGeometry.area($0[0]).magnitude < AreaGeometry.area($1[0]).magnitude }),
-                      let (region, _) = fitted(piece, smallest: 0.05), (try? AreaGeometry.validate(region)) != nil else { continue }
+                      let region = sewable(piece) else { continue }
                 objects[i].nodes = region[0].map { PathNode($0) }
                 objects[i].holes = region.count > 1 ? region.dropFirst().map { $0.map { PathNode($0) } } : nil
                 grownCount += 1
             } catch let stop as CancellationError { throw stop } catch { continue }   // stop if the dialog moved on; otherwise keep the traced shape
         }
         return grownCount
+    }
+
+    /// `piece` (outline, then holes) as a shape a fill can have, or nil if it can't be made one. Cutting a fill's
+    /// growth away from where it may not go can leave an outline that touches itself, or specks of holes touching
+    /// it; shrinking it 0.02 mm (too little to see) pulls those touching points apart, and specks under 1 mm² are
+    /// sewn over. A shape pinched to a point would come apart in two, which one fill can't sew: nil then.
+    static func sewable(_ piece: [[Point]]) -> [[Point]]? {
+        if let (region, _) = fitted(piece, smallest: 0.05), (try? AreaGeometry.validate(region)) != nil { return region }
+        guard let shrunk = try? AreaGeometry.subtracting([], from: AreaGeometry.offset(piece, by: -0.02)) else { return nil }
+        let parts = shrunk.filter { AreaGeometry.area($0[0]).magnitude >= 1 }
+        guard parts.count == 1, let (region, _) = fitted(parts[0], smallest: 1), (try? AreaGeometry.validate(region)) != nil else { return nil }
+        return region
     }
 
     /// Each part starts where the one before it finishes, so the needle travels less in between: the same start
