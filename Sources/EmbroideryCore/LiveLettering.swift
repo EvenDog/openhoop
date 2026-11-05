@@ -144,11 +144,12 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
         return result
     }
 
-    /// One line of lettering, its letters spaced (and, when `centered`, nudged), each part knowing its letter (line
-    /// × 1000 + place).
-    private func line(_ text: String, number: Int, centered: Bool, color: ThreadColor, embroideryFonts: [EmbroideryFont]) throws -> LetteringResult {
-        let spacing = letterSpacing ?? 0
-        let nudges = centered ? Dictionary(uniqueKeysWithValues: (letterOffsets ?? [:]).filter { $0.key / 1000 == number }.map { ($0.key % 1000, $0.value * height) }) : [:]
+    /// One line of lettering, its letters spaced (and, when `centered` or arched, nudged, so a nudge follows its
+    /// letter's tilt), each part knowing its letter (line × 1000 + place). `arc` is this line's radius when arched
+    /// (nil: `radius`).
+    private func line(_ text: String, number: Int, centered: Bool, arc: Double? = nil, color: ThreadColor, embroideryFonts: [EmbroideryFont]) throws -> LetteringResult {
+        let spacing = letterSpacing ?? 0, radius = arc ?? self.radius
+        let nudges = centered || shape.isArch ? Dictionary(uniqueKeysWithValues: (letterOffsets ?? [:]).filter { $0.key / 1000 == number }.map { ($0.key % 1000, $0.value * height) }) : [:]
         var result: LetteringResult
         switch fontKind {
         case .embroidery:
@@ -171,26 +172,36 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
     }
 
     /// The lettering centered on the hoop, before it's placed by the markers. One line is built as it is (and can
-    /// follow an arc); several lines are built one by one on their own baselines, `lineSpacing` × height apart,
-    /// lined up by `alignment`, and joined into one group sewn line by line.
+    /// follow an arc); several lines are built one by one on their own baselines, `lineSpacing` × height apart, and
+    /// joined into one group sewn line by line. Straight lines are lined up by `alignment`; arched lines are rings
+    /// around one center, like a round badge, each centered on the arch: line k's radius is `radius` less k line
+    /// spacings for an arch up (the lines go inward) or more for an arch down (outward).
     private func stackedLines(color: ThreadColor, embroideryFonts: [EmbroideryFont]) throws -> LetteringResult {
         let lines = self.lines
-        func line(_ text: String, number: Int, centered: Bool) throws -> LetteringResult {
-            try self.line(text, number: number, centered: centered, color: color, embroideryFonts: embroideryFonts)
+        func line(_ text: String, number: Int, centered: Bool, arc: Double? = nil) throws -> LetteringResult {
+            try self.line(text, number: number, centered: centered, arc: arc, color: color, embroideryFonts: embroideryFonts)
         }
         guard lines.count > 1 else { return try line(lines.first ?? text, number: 0, centered: true) }
         guard lines.count <= Self.maximumLines else { throw DesignError.invalid("Lettering can have up to \(Self.maximumLines) lines.") }
-        guard shape == .straight else { throw DesignError.invalid("Curved lettering is one line. Choose Straight for several lines, or make each curved line its own lettering.") }
         let spacing = lineSpacing ?? Self.defaultLineSpacing
         guard Self.lineSpacings.contains(spacing) else { throw DesignError.invalid("Line spacing must be between \(Self.lineSpacings.lowerBound) and \(Self.lineSpacings.upperBound) times the letter height.") }
+        /// Line `index`'s arc radius, when arched.
+        func arc(_ index: Int) -> Double { radius + (shape == .archUp ? -1 : 1) * Double(index) * spacing * height }
+        if shape == .archUp, let last = lines.lastIndex(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }), arc(last) < height * 1.5 {
+            // The arc check for one line would name the innermost line's radius; say what the whole lettering needs.
+            let needed = height * 1.5 + Double(last) * spacing * height
+            throw DesignError.invalid("The innermost line's arc is too tight. With \(last + 1) lines, use a radius of at least \(Int(needed.rounded(.up))) mm, or less line spacing.")
+        }
 
         var objects: [RunObject] = [], warnings: [String] = []
         let group = UUID()
         for (index, text) in lines.enumerated() where !text.trimmingCharacters(in: .whitespaces).isEmpty {   // blank lines just add space
-            var built = try line(text, number: index, centered: false)
-            // Line up the line's left edge, middle or right edge at x = 0, and move it down to its baseline.
+            var built = try line(text, number: index, centered: false, arc: shape.isArch ? arc(index) : nil)
+            // Line up the line's left edge, middle or right edge at x = 0 (an arched line is already centered on its
+            // arch there), and move it down to its baseline.
             let xs = built.objects.flatMap { $0.outlinePaths.flatMap { $0.map(\.x) } }
-            let shift = Point(-(alignment == .left ? xs.min()! : alignment == .right ? xs.max()! : (xs.min()! + xs.max()!) / 2), -Double(index) * spacing * height)
+            let x = shape.isArch ? 0 : -(alignment == .left ? xs.min()! : alignment == .right ? xs.max()! : (xs.min()! + xs.max()!) / 2)
+            let shift = Point(x, -Double(index) * spacing * height)
             for i in built.objects.indices { built.objects[i].transform { $0 + shift }; built.objects[i].groupID = group }
             objects += built.objects
             warnings += built.warnings.filter { !warnings.contains($0) }
@@ -200,8 +211,9 @@ public struct LetteringSpec: Codable, Hashable, Sendable {
         let low = Point(points.map(\.x).min()!, points.map(\.y).min()!), high = Point(points.map(\.x).max()!, points.map(\.y).max()!)
         let center = (low + high) * 0.5
         for i in objects.indices { objects[i].transform { $0 - center } }
-        // Nudged letters move last, after the lines are lined up and centered, so the rest stay put.
-        for i in objects.indices {
+        // Nudged letters move last, after the lines are lined up and centered, so the rest stay put. (Arched lines
+        // nudged theirs already, along each letter's tilt.)
+        for i in objects.indices where !shape.isArch {
             guard let key = objects[i].letterKey, let nudge = letterOffsets?[key] else { continue }
             objects[i].transform { $0 + nudge * height }
         }

@@ -62,12 +62,13 @@ extension InspectorPanel {
                 state.rebuildLettering(next, action: "Letter Spacing")
             }
             if spec.lines.count > 1 {
-                HStack {
+                // Arched lines are each centered on the arch, so lining them up left or right only applies to straight ones.
+                if !spec.shape.isArch { HStack {
                     Text("Lines").font(Theme.body(11, weight: .regular)); Spacer()
                     Picker("Lines", selection: Binding(get: { spec.alignment ?? .center }, set: { alignment in var next = spec; next.alignment = alignment; state.rebuildLettering(next, action: "Line Alignment") })) {
                         ForEach(LetteringAlignment.allCases, id: \.self) { Text($0.title).tag($0) }
                     }.pickerStyle(.segmented).labelsHidden().fixedSize()
-                }
+                } }
                 number("Line spacing", value: spec.lineSpacing ?? LetteringSpec.defaultLineSpacing, range: LetteringSpec.lineSpacings,
                        help: "From one line's baseline to the next, in letter heights (1.4 leaves a little room between lines).") { spacing in
                     var next = spec; next.lineSpacing = spacing
@@ -108,7 +109,7 @@ extension InspectorPanel {
                 }
             }
             if spec.shape.isArch {
-                number("Arc radius", value: spec.radius, range: Lettering.radii, length: true, help: "The circle the letters follow. Smaller is more curved.") { radius in
+                number("Arc radius", value: spec.radius, range: Lettering.radii, length: true, help: spec.lines.count > 1 ? "The circle the first line follows; the other lines are rings around the same center, one line spacing apart. Smaller is more curved." : "The circle the letters follow. Smaller is more curved.") { radius in
                     var next = spec; next.radius = radius
                     state.rebuildLettering(next, action: "Arc Radius")
                 }
