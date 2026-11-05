@@ -460,7 +460,7 @@ extension InspectorPanel {
                 } else {
                     Text(heading(object)).font(Theme.heading(15)).lineLimit(1)
                 }
-                Text(detail + count).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).lineLimit(1)
+                Text(detail + count).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).lineLimit(2).fixedSize(horizontal: false, vertical: true)
             }
         }
         .help(object.kind == .raw ? "Existing stitches: move, rotate, mirror or recolor this thread block. Scaling changes density and stitch lengths; it does not regenerate stitches." : "")
@@ -559,7 +559,7 @@ extension InspectorPanel {
         }
         /// A whole-number setting from `range`, typed in a number field.
         func level(_ title: String, _ value: Int, _ range: ClosedRange<Int>, help: String, set: @escaping (inout HandStitch, Int) -> Void) -> some View {
-            number(title, value: Double(value), range: Double(range.lowerBound)...Double(range.upperBound), help: help) { typed in
+            number(title, value: Double(value), range: Double(range.lowerBound)...Double(range.upperBound), whole: true, help: help) { typed in
                 change("Hand Stitch \(title)") { set(&$0, min(range.upperBound, max(range.lowerBound, Int(typed.rounded())))) }
             }
         }
@@ -568,25 +568,15 @@ extension InspectorPanel {
                 .help("Makes the stitches look sewn by hand: uneven lengths, slightly tilted stitches and, with Count, stitches sewn over more than once. Works best without underlay on small shapes.")
             if let hand {
                 if kind == .satin {
-                    HStack {
-                        Text("Side").font(Theme.body(11, weight: .regular)); Spacer()
-                        Picker("Side", selection: Binding(get: { hand.side }, set: { value in change("Hand Stitch Side") { $0.side = value } })) {
-                            Text("Both").tag(HandStitch.Side?.none)
-                            Text("Left").tag(HandStitch.Side?.some(.left))
-                            Text("Right").tag(HandStitch.Side?.some(.right))
-                        }.pickerStyle(.segmented).labelsHidden().frame(width: 170)
-                    }
-                    .help("Which edge looks sewn by hand, as seen looking along the satin the way it sews. The other edge stays crisp.")
+                    choice("Side", selection: Binding(get: { hand.side }, set: { value in change("Hand Stitch Side") { $0.side = value } }),
+                           options: [("Both", nil), ("Left", .left), ("Right", .right)],
+                           help: "Which edge looks sewn by hand, as seen looking along the satin the way it sews. The other edge stays crisp.")
                 }
                 level("Length", hand.length, HandStitch.levels, help: "Roughness: how much stitch lengths vary, from 0 (not at all) to 5 (up to a fifth of each stitch, either way).") { $0.length = $1 }
                 level("Angle", hand.angle, HandStitch.levels, help: "Roughness: how much stitches tilt, from 0 (not at all) to 5 (up to 10°, either way).") { $0.angle = $1 }
-                HStack {
-                    Text("Count").font(Theme.body(11, weight: .regular)); Spacer()
-                    Picker("Count", selection: Binding(get: { hand.count }, set: { value in change("Hand Stitch Count") { $0.count = value } })) {
-                        ForEach(HandStitch.counts, id: \.self) { Text("\($0)×").tag($0) }
-                    }.pickerStyle(.segmented).labelsHidden().frame(width: 170)
-                }
-                .help("Mass: how many times each stitch is sewn, back and forth in new holes each time, for a fuller, thread-heavy look. Higher counts suit satins with wider row spacing.")
+                choice("Count", selection: Binding(get: { hand.count }, set: { value in change("Hand Stitch Count") { $0.count = value } }),
+                       options: HandStitch.counts.map { ("\($0)×", $0) },
+                       help: "Mass: how many times each stitch is sewn, back and forth in new holes each time, for a fuller, thread-heavy look. Higher counts suit satins with wider row spacing.")
                 level("Random", hand.random, HandStitch.randomLevels, help: "Mass: how often a stitch randomly gets one pass more (or now and then one fewer), from 1 (never) to 5 (often).") { $0.random = $1 }
                 level("Variant", hand.variant, HandStitch.variants, help: "Another random version of the same settings, if you don't like how this one came out.") { $0.variant = $1 }
             }
@@ -598,24 +588,20 @@ extension InspectorPanel {
         /// Changes the set's settings as one undoable step called `title`; the copies are built again from the first.
         func change(_ title: String, _ body: @escaping (inout LineRepeat) -> Void) { state.edit(title) { $0.setLineRepeat(id, body) } }
         return proSection("Copies along line") {
-            number("Copies", value: Double(spec.copies), range: Double(LineRepeat.copyRange.lowerBound)...Double(LineRepeat.copyRange.upperBound),
+            number("Copies", value: Double(spec.copies), range: Double(LineRepeat.copyRange.lowerBound)...Double(LineRepeat.copyRange.upperBound), whole: true,
                    help: "How many copies, spread evenly from one end of the line to the other.") { typed in
                 change("Copies Along Line") { $0.copies = min(LineRepeat.copyRange.upperBound, max(LineRepeat.copyRange.lowerBound, Int(typed.rounded()))) }
             }
             toggle("Turn with line", value: spec.turnsWithLine) { on in change(on ? "Turn Copies With Line" : "Keep Copies Upright") { $0.turnsWithLine = on } }
                 .help("On, each copy turns to follow the line where it sits. Off, they all stay upright.")
-            HStack {
-                Text("Sit").font(Theme.body(11, weight: .regular)); Spacer()
-                Picker("Sit", selection: Binding(get: { spec.placement }, set: { value in change("Copies Sit \(value.title)") { $0.placement = value } })) {
-                    ForEach(LineRepeat.Placement.allCases, id: \.self) { Text($0.title).tag($0) }
-                }.pickerStyle(.segmented).labelsHidden().frame(width: 220)
-            }
-            .help("Center puts each copy on the line; Above and Below set them beside it (above is on the left, looking along the line the way it was drawn); Alternate switches sides.")
+            choice("Sit", selection: Binding(get: { spec.placement }, set: { value in change("Copies Sit \(value.title)") { $0.placement = value } }),
+                   options: LineRepeat.Placement.allCases.map { ($0.title, $0) },
+                   help: "Center puts each copy on the line; Above and Below set them beside it (above is on the left, looking along the line the way it was drawn); Alternate switches sides.")
             toggle("Mirror every other", value: spec.mirrorsEveryOther) { on in change(on ? "Mirror Every Other Copy" : "Don't Mirror Copies") { $0.mirrorsEveryOther = on } }
                 .help("Flips every other copy over the line, like leaves on both sides of a stem.")
-            proRow("Copies", help: "Reshaping the line or changing these settings builds the copies again from the first one, so change that copy's color, stitches or size and the others follow. Break Apart makes them ordinary objects and leaves the line unstitched.") {
-                Button("Break Apart") { state.edit("Break Apart Copies") { $0.breakApartRepeat(id) } }.buttonStyle(ThemedButtonStyle())
-            }
+            // Its own button, not a second row called Copies (the count above).
+            Button("Break apart") { state.edit("Break Apart Copies") { $0.breakApartRepeat(id) } }.buttonStyle(ThemedButtonStyle())
+                .help("Reshaping the line or changing these settings builds the copies again from the first one, so change that copy's color, stitches or size and the others follow. Break apart makes them ordinary objects and leaves the line unstitched.")
         }
     }
 
@@ -630,27 +616,16 @@ extension InspectorPanel {
             toggle("Jagged edge", value: jagged != nil) { on in settings(kind, on ? "Jagged Edge" : "No Jagged Edge") { $0.jaggedEdge = on ? JaggedEdge() : nil } }
                 .help("Gives the satin's edge a rough, uneven look, for fur, grass or feathers: each stitch ends a random distance in from the edge, or out past it.")
             if let jagged {
-                HStack {
-                    Text("Direction").font(Theme.body(11, weight: .regular)); Spacer()
-                    Picker("Direction", selection: Binding(get: { jagged.outward }, set: { value in change("Jagged Edge Direction") { $0.outward = value } })) {
-                        Text("In").tag(false)
-                        Text("Out").tag(true)
-                    }.pickerStyle(.segmented).labelsHidden().frame(width: 170)
-                }
-                .help("In ends stitches short of the edge, so the shape keeps its size. Out sews them past it, so the shape grows a little.")
+                choice("Direction", selection: Binding(get: { jagged.outward }, set: { value in change("Jagged Edge Direction") { $0.outward = value } }),
+                       options: [("In", false), ("Out", true)],
+                       help: "In ends stitches short of the edge, so the shape keeps its size. Out sews them past it, so the shape grows a little.")
                 if kind == .satin {
-                    HStack {
-                        Text("Side").font(Theme.body(11, weight: .regular)); Spacer()
-                        Picker("Side", selection: Binding(get: { jagged.side }, set: { value in change("Jagged Edge Side") { $0.side = value } })) {
-                            Text("Both").tag(HandStitch.Side?.none)
-                            Text("Left").tag(HandStitch.Side?.some(.left))
-                            Text("Right").tag(HandStitch.Side?.some(.right))
-                        }.pickerStyle(.segmented).labelsHidden().frame(width: 170)
-                    }
-                    .help("Which edge is jagged, as seen looking along the satin the way it sews. The other edge stays smooth.")
+                    choice("Side", selection: Binding(get: { jagged.side }, set: { value in change("Jagged Edge Side") { $0.side = value } }),
+                           options: [("Both", nil), ("Left", .left), ("Right", .right)],
+                           help: "Which edge is jagged, as seen looking along the satin the way it sews. The other edge stays smooth.")
                 }
                 number("Amount", value: jagged.amount, range: JaggedEdge.amounts, help: "The most a stitch end moves, in millimeters. Each one moves a random part of it.") { value in change("Jagged Edge Amount") { $0.amount = value } }
-                number("Variant", value: Double(jagged.variant), range: Double(JaggedEdge.variants.lowerBound)...Double(JaggedEdge.variants.upperBound), help: "Another random version of the same settings, if you don't like how this one came out.") { typed in
+                number("Variant", value: Double(jagged.variant), range: Double(JaggedEdge.variants.lowerBound)...Double(JaggedEdge.variants.upperBound), whole: true, help: "Another random version of the same settings, if you don't like how this one came out.") { typed in
                     change("Jagged Edge Variant") { $0.variant = min(JaggedEdge.variants.upperBound, max(JaggedEdge.variants.lowerBound, Int(typed.rounded()))) }
                 }
             }
@@ -752,10 +727,11 @@ extension InspectorPanel {
         let help = (object.kind == .raw ? "" : "Ties are tiny locking stitches so the thread can't unravel. ") + "Trim cuts the thread before the next part; Stop pauses the machine. PES encodes travel moves after the first as trim/jumps, so your machine decides whether to cut."
         return proSection("Finish") {
             if object.kind != .raw {
-                Picker("Then", selection: Binding(get: { object.connectorType }, set: { connector in state.editSelected("Connector") { if $0.kind != .raw { $0.connectorType = connector } } })) {
-                    ForEach(Connector.allCases, id: \.self) { Text($0.title).tag($0) }
+                labeledRow("Then") {
+                    Picker("Then", selection: Binding(get: { object.connectorType }, set: { connector in state.editSelected("Connector") { if $0.kind != .raw { $0.connectorType = connector } } })) {
+                        ForEach(Connector.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }.labelsHidden().fixedSize()
                 }
-                .font(Theme.body(12, weight: .semibold))
                 .help("How the needle gets to the next part. Jump: the frame moves without sewing. Run: running stitches straight there, for the next part to sew over, so there's no trim and no ties. A run only sews when the next part is the same thread and nothing stops in between; otherwise it jumps.")
             }
             trimMenu(object).help(help)
@@ -769,10 +745,11 @@ extension InspectorPanel {
     /// A tie menu: Off, Always, or When far (showing the design's tie distance).
     private func tieMenu(_ title: String, _ rule: TieRule, set: @escaping (TieRule) -> Void) -> some View {
         let distance = preferences.unit.short(state.design.tieDistance ?? Design.defaultTieDistance)
-        return Picker(title, selection: Binding(get: { rule }, set: set)) {
-            ForEach(TieRule.allCases, id: \.self) { rule in Text(rule == .whenFar ? "When far (\(distance))" : rule.title).tag(rule) }
+        return labeledRow(title) {
+            Picker(title, selection: Binding(get: { rule }, set: set)) {
+                ForEach(TieRule.allCases, id: \.self) { rule in Text(rule == .whenFar ? "When far (\(distance))" : rule.title).tag(rule) }
+            }.labelsHidden().fixedSize()
         }
-        .font(Theme.body(12, weight: .semibold))
         .help("Tiny locking stitches so the thread can't unravel. When far ties only after (or before) a move of at least the design's tie distance, or where the thread is cut.")
     }
 

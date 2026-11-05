@@ -270,8 +270,10 @@ struct NumberField: NSViewRepresentable {
     var unit: LengthUnit? = nil
     var commit: (Double) -> Void
     var focusCanvas: () -> Void
-    /// The value as the field shows it, with two decimals (in `unit` for a length).
-    var text: String { String(format: "%.2f", unit?.shown(value) ?? value) }
+    /// True for a count (copies, lines, a variant): shown without decimals.
+    var whole = false
+    /// The value as the field shows it, with two decimals (in `unit` for a length), or none for a count.
+    var text: String { String(format: whole ? "%.0f" : "%.2f", unit?.shown(value) ?? value) }
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> NSTextField {
         let view = NSTextField(string: text)
@@ -331,13 +333,18 @@ struct InspectorPanel: View {
     /// True while the lettering section's Font credits popover is open.
     @State var showFontCredits = false
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 7) {
-                switch section {
-                case .properties: propertiesSection
-                case .design: designSection
-                case .reference: referenceSection
+        // Exactly as wide as the panel: without this, one row too wide for the panel widened every row with it,
+        // pushing all the fields past the right edge. (GeometryReader measures the space the panel is given.)
+        GeometryReader { panel in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 7) {
+                    switch section {
+                    case .properties: propertiesSection
+                    case .design: designSection
+                    case .reference: referenceSection
+                    }
                 }
+                .frame(width: panel.size.width, alignment: .leading)
             }
         }
         .foregroundStyle(Theme.ink)
@@ -436,16 +443,16 @@ struct InspectorPanel: View {
             .buttonStyle(ThemedButtonStyle()).help(preferences.hint(.laydown))
         sectionDivider
         SectionLabel(title: "Connectors")
-        number("Trim when the move is at least", value: state.design.trimDistance ?? Design.defaultTrimDistance, range: Design.trimDistances, length: true,
-               help: "Objects whose Trim after is When far cut the thread only when the next part starts this far away or more.") { value in
+        number("Trim distance", value: state.design.trimDistance ?? Design.defaultTrimDistance, range: Design.trimDistances, length: true,
+               help: "What When far means for trims: objects whose Trim after is When far cut the thread only when the next part starts this far away or more.") { value in
             state.edit("Trim Distance") { $0.trimDistance = value == Design.defaultTrimDistance ? nil : value }
         }
-        number("Tie when the move is at least", value: state.design.tieDistance ?? Design.defaultTieDistance, range: Design.tieDistances, length: true,
-               help: "Objects whose Tie in or Tie off is When far tie only after (or before) a move this long or more, or where the thread is cut.") { value in
+        number("Tie distance", value: state.design.tieDistance ?? Design.defaultTieDistance, range: Design.tieDistances, length: true,
+               help: "What When far means for ties: objects whose Tie in or Tie off is When far tie only after (or before) a move this long or more, or where the thread is cut.") { value in
             state.edit("Tie Distance") { $0.tieDistance = value == Design.defaultTieDistance ? nil : value }
         }
         tieStitchesRow
-        number("Run connector stitch length", value: state.design.runConnectorLength ?? Design.defaultRunConnectorLength, range: Design.runConnectorLengths, length: true,
+        number("Run connector stitch", value: state.design.runConnectorLength ?? Design.defaultRunConnectorLength, range: Design.runConnectorLengths, length: true,
                help: "How long the running stitches of run connectors are (Then: Run, in an object's Finish).") { value in
             state.edit("Run Connector Length") { $0.runConnectorLength = value == Design.defaultRunConnectorLength ? nil : value }
         }
@@ -459,8 +466,22 @@ struct InspectorPanel: View {
     }
     /// Tie stitches: how many lock stitches tie the thread in and off, and how long each is.
     private var tieStitchesRow: some View {
+        labeledRow("Tie stitches") { tieStitchControls }
+            .help("How many tiny locking stitches tie the thread in and off, and how long each one is (1 × 0.6 mm unless changed).")
+    }
+    /// A setting's name with its control at the right, like every row in the panels; where the panel is too narrow
+    /// for both, the control goes on its own line under the name. (Squeezed beside a control that didn't fit, a name
+    /// used to wrap one letter per line.)
+    func labeledRow<Control: View>(_ title: String, @ViewBuilder control: () -> Control) -> some View {
+        let label = Text(title).font(Theme.body(11, weight: .regular)).fixedSize(), control = control()
+        return ViewThatFits(in: .horizontal) {
+            HStack { label; Spacer(); control }
+            VStack(alignment: .leading, spacing: 4) { label; control }
+        }
+    }
+    /// The tie stitch count menu and length field.
+    private var tieStitchControls: some View {
         HStack {
-            Text("Tie stitches").font(Theme.body(11, weight: .regular)); Spacer()
             Picker("Tie stitches", selection: Binding(get: { state.design.tieCount ?? Design.defaultTieCount },
                                                       set: { count in state.edit("Tie Stitches") { $0.tieCount = count == Design.defaultTieCount ? nil : count } })) {
                 ForEach(Array(Design.tieCounts), id: \.self) { Text("\($0)").tag($0) }
@@ -471,15 +492,16 @@ struct InspectorPanel: View {
                         commit: { value in state.edit("Tie Stitch Length") { $0.tieLength = value == Design.defaultTieLength ? nil : value } },
                         focusCanvas: state.focusCanvas).frame(width: 60, height: 21)
             Text(preferences.unit.symbol).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).fixedSize().frame(width: 18, alignment: .leading)
-        }
-        .help("How many tiny locking stitches tie the thread in and off, and how long each one is (1 × 0.6 mm unless changed).")
+        }.fixedSize()
     }
     /// The Trim after menu: Off, Always, or When far (showing the design's trim distance), for every selected object.
     func trimMenu(_ object: RunObject) -> some View {
         let distance = preferences.unit.short(state.design.trimDistance ?? Design.defaultTrimDistance)
-        return Picker("Trim after", selection: Binding(get: { object.trimRule }, set: { rule in state.editSelected("Trim After") { $0.trimRule = rule } })) {
-            ForEach(TrimRule.allCases, id: \.self) { rule in Text(rule == .whenFar ? "When far (\(distance))" : rule.title).tag(rule) }
-        }.font(Theme.body(12, weight: .semibold))
+        return labeledRow("Trim after") {
+            Picker("Trim after", selection: Binding(get: { object.trimRule }, set: { rule in state.editSelected("Trim After") { $0.trimRule = rule } })) {
+                ForEach(TrimRule.allCases, id: \.self) { rule in Text(rule == .whenFar ? "When far (\(distance))" : rule.title).tag(rule) }
+            }.labelsHidden().fixedSize()
+        }
     }
     /// The hoop menu: your own hoops, then the common hoops grouped by brand. Its button shows the current hoop, e.g.
     /// "Brother 5 × 7 in · 130 × 180 mm".
@@ -562,20 +584,20 @@ struct InspectorPanel: View {
                 Spacer()
                 Button(grouped ? "Ungroup" : "Group") { AppDelegate.shared.perform(grouped ? .ungroup : .group) }.buttonStyle(ThemedButtonStyle()).help(preferences.hint(grouped ? .ungroup : .group))
             }
-            HStack {
+            // The buttons and the align icons wrap onto another line where the panel is too narrow for them.
+            FlowLayout(spacing: 6) {
                 Button("Sew in click order") { AppDelegate.shared.perform(.sequenceBySelection) }
                     .help("Sequence by Selection Order: these objects sew one after another in the order you clicked them.")
                 Button("Weld") { AppDelegate.shared.perform(.weldObjects) }
                     .help("Merge these shapes into one fill, with the settings of the topmost (the one sewn last).")
                 Button("Branch") { AppDelegate.shared.perform(.branching) }
                     .help("Branching: sew these one after another in one thread, travelling inside them instead of trimming.")
+                Button("Remove overlaps") { AppDelegate.shared.perform(.removeOverlaps) }.help(preferences.hint(.removeOverlaps))
             }.buttonStyle(ThemedButtonStyle())
-            Button("Remove overlaps") { AppDelegate.shared.perform(.removeOverlaps) }
-                .buttonStyle(ThemedButtonStyle()).help(preferences.hint(.removeOverlaps))
             // Align and space: objects line up with the one selected last.
-            HStack(spacing: 0) {
+            FlowLayout(spacing: 0) {
                 ForEach([CommandID.alignLeft, .alignCentersVertically, .alignRight, .alignTop, .alignCentersHorizontally, .alignBottom, .alignCenters], id: \.self) { alignButton($0) }
-                Theme.controlBorder.frame(width: 1, height: 16).padding(.horizontal, 4)
+                Theme.controlBorder.frame(width: 1, height: 16).padding(.horizontal, 4).padding(.vertical, 3)
                 alignButton(.spaceAcross); alignButton(.spaceDown)
             }
         }
@@ -753,7 +775,7 @@ struct InspectorPanel: View {
         }
         if style == .ripple {
             let range = DigitizingSettings.rippleLineRange
-            number("Lines", value: Double(object.settings.rippleLines ?? DigitizingSettings.defaultRippleLines), range: Double(range.lowerBound)...Double(range.upperBound),
+            number("Lines", value: Double(object.settings.rippleLines ?? DigitizingSettings.defaultRippleLines), range: Double(range.lowerBound)...Double(range.upperBound), whole: true,
                    help: "How many times the line is sewn, each copy smaller. More lines sit closer together.") { value in settings(.run, "Ripple Lines") { $0.rippleLines = Int(value.rounded()) } }
             if object.settings.radialCenter != nil {
                 Button("Reset target") { settings(.run, "Reset Ripple Target") { $0.radialCenter = nil } }.buttonStyle(ThemedButtonStyle())
@@ -763,21 +785,34 @@ struct InspectorPanel: View {
     }
     /// Running stitch passes: Single, or bean stitch sewing each stitch 3 or 5 times.
     func runPasses(_ object: RunObject) -> some View {
-        HStack {
-            Text("Passes").font(Theme.body(11, weight: .regular)); Spacer()
-            Picker("Passes", selection: Binding(get: { object.settings.runPasses ?? 1 }, set: { value in settings(.run, "Running Passes") { $0.runPasses = value == 1 ? nil : value } })) {
-                Text("Single").tag(1); Text("Bean ×3").tag(3); Text("Bean ×5").tag(5)
-            }.pickerStyle(.segmented).labelsHidden().frame(width: 170)
+        choice("Passes", selection: Binding(get: { object.settings.runPasses ?? 1 }, set: { value in settings(.run, "Running Passes") { $0.runPasses = value == 1 ? nil : value } }),
+               options: [("Single", 1), ("Bean ×3", 3), ("Bean ×5", 5)],
+               help: "How many times each stitch is sewn. Bean stitch (3 or 5) goes forward, back and forward again for a bold line.")
+    }
+    /// A setting picked from a few options: its name with the options as buttons beside it; in a panel too narrow for
+    /// both, the buttons on their own line under the name; and if even they don't fit, a menu beside the name.
+    /// (`ViewThatFits` shows the first of its layouts that fits the width; a label squeezed beside buttons that
+    /// didn't fit used to wrap one letter per line, leaving a tall empty gap.)
+    func choice<Value: Hashable>(_ title: String, selection: Binding<Value>, options: [(title: String, value: Value)], help: String) -> some View {
+        let label = Text(title).font(Theme.body(11, weight: .regular)).fixedSize()
+        func picker() -> some View {
+            Picker(title, selection: selection) { ForEach(options, id: \.value) { Text($0.title).tag($0.value) } }.labelsHidden()
         }
-        .help("How many times each stitch is sewn. Bean stitch (3 or 5) goes forward, back and forward again for a bold line.")
+        return ViewThatFits(in: .horizontal) {
+            HStack { label; Spacer(); picker().pickerStyle(.segmented).fixedSize() }
+            VStack(alignment: .leading, spacing: 4) { label; picker().pickerStyle(.segmented).fixedSize() }
+            HStack { label; Spacer(); picker().pickerStyle(.menu).fixedSize() }
+        }
+        .help(help)
     }
     func settings(_ kind:StitchKind,_ title:String,_ body:@escaping(inout DigitizingSettings)->Void){state.editSelected(title){object in guard object.kind==kind else{return};var s=object.settings;body(&s);object.digitizing=s}}
     /// A labeled number field. `help` explains the setting, as a tooltip.
     /// `length` marks a size or position: it's shown and typed in the chosen unit (mm or inches), with the unit beside it.
-    @ViewBuilder func number(_ title: String, value: Double, id: String = "", range: ClosedRange<Double>, length: Bool = false, help: String? = nil, commit: @escaping (Double) -> Void) -> some View {
+    /// `whole` marks a count, shown without decimals.
+    @ViewBuilder func number(_ title: String, value: Double, id: String = "", range: ClosedRange<Double>, length: Bool = false, whole: Bool = false, help: String? = nil, commit: @escaping (Double) -> Void) -> some View {
         HStack {
             Text(title).font(Theme.body(11, weight: .regular)); Spacer()
-            NumberField(value: value, identifier: id, range: range, unit: length ? preferences.unit : nil, commit: commit, focusCanvas: state.focusCanvas).frame(width: 84, height: 21)
+            NumberField(value: value, identifier: id, range: range, unit: length ? preferences.unit : nil, commit: commit, focusCanvas: state.focusCanvas, whole: whole).frame(width: 84, height: 21)
             if length { Text(preferences.unit.symbol).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).fixedSize().frame(width: 18, alignment: .leading) }
         }
         .help(help ?? "")

@@ -52,7 +52,10 @@ struct PanelGroupView: View {
                 Theme.divider.frame(height: 1)
                 PanelContent(panel: group.selected, state: state)
                     .controlSize(.small)   // small buttons, menus and checkboxes, so more settings fit
-                    .padding(8).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(8)
+                    // Exactly the group's width: a row too wide for it is cut off at the edge instead of widening the
+                    // whole panel past its column (which hid every field's right side and the panel's close button).
+                    .frame(width: geometry.size.width, alignment: .topLeading).frame(maxHeight: .infinity, alignment: .topLeading)
             }
             .background(Theme.card)
             .clipShape(RoundedRectangle(cornerRadius: 7))

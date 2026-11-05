@@ -298,7 +298,7 @@ struct AutoDigitizeView: View {
     static let columnHeight: CGFloat = 240
 
     var body: some View {
-        DialogFrame(eyebrow: "Auto-digitize", title: "Trace your image into fills",
+        DialogFrame(eyebrow: "Auto-digitize", title: "Trace your image into stitches",
                     subtitle: "The picture is reduced to a few thread colors and each patch of color is stitched by its width, placed exactly over your image: thin lines in running stitch, narrow parts in satin, wide areas in tatami. Pick another stitch for a whole color beside it, or Fine-tune on Canvas to change single parts.",
                     primary: "Add Stitches",
                     extra: "Fine-tune on Canvas…",

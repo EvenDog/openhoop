@@ -33,12 +33,8 @@ extension InspectorPanel {
                         ForEach(Self.fontStyles(of: family), id: \.name) { Text($0.title).tag($0.name) }
                     }.labelsHidden().frame(width: 130)
                 }
-                HStack {
-                    Text("Stitch").font(Theme.body(11, weight: .regular)); Spacer()
-                    Picker("Stitch", selection: Binding(get: { spec.stitch }, set: { stitch in var next = spec; next.stitch = stitch; state.rebuildLettering(next, action: "Lettering Stitch") })) {
-                        ForEach(LetteringStitch.allCases, id: \.self) { Text($0.title).tag($0) }
-                    }.pickerStyle(.segmented).labelsHidden().frame(width: 130)
-                }
+                choice("Stitch", selection: Binding(get: { spec.stitch }, set: { stitch in var next = spec; next.stitch = stitch; state.rebuildLettering(next, action: "Lettering Stitch") }),
+                       options: LetteringStitch.allCases.map { ($0.title, $0) }, help: "")
             }
             number("Height", value: spec.currentHeight, range: embroideryFont?.heights ?? Lettering.heights, length: true,
                    help: embroideryFont.map { "This font is digitized for letters \(preferences.unit.short($0.heights.lowerBound))–\(preferences.unit.short($0.heights.upperBound)) tall." } ?? "How tall the capital letters are.") { height in
@@ -63,25 +59,19 @@ extension InspectorPanel {
             }
             if spec.lines.count > 1 {
                 // Arched lines are each centered on the arch, so lining them up left or right only applies to straight ones.
-                if !spec.shape.isArch { HStack {
-                    Text("Lines").font(Theme.body(11, weight: .regular)); Spacer()
-                    Picker("Lines", selection: Binding(get: { spec.alignment ?? .center }, set: { alignment in var next = spec; next.alignment = alignment; state.rebuildLettering(next, action: "Line Alignment") })) {
-                        ForEach(LetteringAlignment.allCases, id: \.self) { Text($0.title).tag($0) }
-                    }.pickerStyle(.segmented).labelsHidden().fixedSize()
-                } }
+                if !spec.shape.isArch {
+                    choice("Lines", selection: Binding(get: { spec.alignment ?? .center }, set: { alignment in var next = spec; next.alignment = alignment; state.rebuildLettering(next, action: "Line Alignment") }),
+                           options: LetteringAlignment.allCases.map { ($0.title, $0) }, help: "")
+                }
                 number("Line spacing", value: spec.lineSpacing ?? LetteringSpec.defaultLineSpacing, range: LetteringSpec.lineSpacings,
                        help: "From one line's baseline to the next, in letter heights (1.4 leaves a little room between lines).") { spacing in
                     var next = spec; next.lineSpacing = spacing
                     state.rebuildLettering(next, action: "Line Spacing")
                 }
             }
-            HStack {
-                Text("Baseline").font(Theme.body(11, weight: .regular)).fixedSize(); Spacer()
-                Picker("Baseline", selection: Binding(get: { spec.shape }, set: { shape in var next = spec; next.shape = shape; state.rebuildLettering(next, action: "Lettering Baseline") })) {
-                    // On a line shows only while the lettering is on one (Put Lettering on Line puts it there).
-                    ForEach(LetteringShape.pickable + (spec.shape == .onLine ? [.onLine] : []), id: \.self) { Text($0.title).tag($0) }
-                }.pickerStyle(.segmented).labelsHidden().fixedSize()
-            }
+            // On a line shows only while the lettering is on one (Put Lettering on Line puts it there).
+            choice("Baseline", selection: Binding(get: { spec.shape }, set: { shape in var next = spec; next.shape = shape; state.rebuildLettering(next, action: "Lettering Baseline") }),
+                   options: (LetteringShape.pickable + (spec.shape == .onLine ? [.onLine] : [])).map { ($0.title, $0) }, help: "")
             if spec.shape == .straight {
                 HStack {
                     Text("Envelope").font(Theme.body(11, weight: .regular)).fixedSize(); Spacer()
