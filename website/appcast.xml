@@ -6,6 +6,59 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.9.3</title>
+            <pubDate>Thu, 05 Nov 2026 03:42:55 GMT</pubDate>
+            <sparkle:version>40</sparkle:version>
+            <sparkle:shortVersionString>0.9.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.9.3</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.9.3</h3>
+<h4>35 Basic Shapes</h4>
+<ul>
+<li>The Basic Shapes tool (⌥B) now has 35 shapes, picked from pictures in five groups: <b>Geometric</b> (triangles, diamond, cross, chevron, arrows…), <b>Badges &amp; labels</b> (shield, scalloped badge, starburst, banner, tag, speech bubble), <b>Nature</b> (teardrop, moon, cloud, leaf, flower, pine tree, lightning bolt, sun), <b>Objects</b> (heart, apple, fish, bone, egg) and <b>Frames</b>.</li>
+<li><b>Frames</b> (ring, square, rounded, scalloped) leave their middle open. <b>Band</b> sets how wide they are; an outline goes round both edges.</li>
+</ul>
+<h4>Auto-Digitize</h4>
+<ul>
+<li><b>Pick the stitch per color</b>, and fine-tune single parts on the canvas afterwards.</li>
+<li>Tapered curved strips become satin columns that turn with the strip.</li>
+<li>A spiky ring (a sun's rays) is no longer sewn as one satin column.</li>
+<li>Fills keep their 0.8 mm overlap under neighboring colors even where trimming it would leave tiny specks, so seams stay covered.</li>
+</ul>
+<h4>Color blends</h4>
+<ul>
+<li><b>Color Blend</b> fades a fill from its thread into a second one, with a Levels-style <b>Mix</b> bar and even coverage across the blend.</li>
+</ul>
+<h4>Lettering</h4>
+<ul>
+<li>Arched lettering can have several lines, set as rings around one center.</li>
+<li>Stitch settings changed in Properties are kept when lettering is rebuilt.</li>
+</ul>
+<h4>Stitching</h4>
+<ul>
+<li>Contour fills spiral on shapes with corners too, so squares no longer show a step line.</li>
+<li>Twisted satin columns (a pair of points clicked the wrong way round) are untangled instead of refused.</li>
+</ul>
+<h4>Import</h4>
+<ul>
+<li>SVG: <code>&lt;style&gt;</code> blocks and every CSS color name are read; <code>&lt;use&gt;</code> copies and symbols are drawn; gradients become gradient fills.</li>
+<li>DST and JEF: three jumps in a row are read as a trim.</li>
+</ul>
+<h4>Properties</h4>
+<ul>
+<li>Properties fits a narrow panel: choices wrap or turn into menus instead of being cut off.</li>
+<li>Clearer connector labels (Trim distance, Tie distance, Run connector stitch), whole numbers where only whole numbers make sense, and a <b>Break apart</b> button for copies along a line.</li>
+</ul>
+<h4>Fixes</h4>
+<ul>
+<li>Quitting with unsaved designs no longer opens blank design after blank.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.9.3/OpenHoop-0.9.3.dmg" sparkle:edSignature="2iHLHreboTx4XZsITg8jPCOmwI2URAAkAdKpRgb23B/rsOKqUiRqaD7OP7hCq8Q7O1E7JfF5z4X3Jgt2KSepDQ==" length="39002863" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.9.2</title>
             <pubDate>Wed, 04 Nov 2026 01:28:54 GMT</pubDate>
             <sparkle:version>39</sparkle:version>
