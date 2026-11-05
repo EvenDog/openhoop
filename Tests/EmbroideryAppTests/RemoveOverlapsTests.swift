@@ -44,4 +44,33 @@ final class RemoveOverlapsTests: XCTestCase {
         state.removeOverlaps()
         XCTAssertFalse(cuts("Cover")); XCTAssertTrue(state.status.hasPrefix("Nothing sewn on top"), state.status)
     }
+
+    /// Remove Overlaps records the shapes on top of a fill at that moment: a shape drawn over it afterwards isn't on
+    /// its list (so it doesn't cut it) until Remove Overlaps is chosen again, which adds it rather than switching off.
+    /// The Properties checkbox records the same way, and switching it off forgets the list.
+    @MainActor func testOnlyWhatWasOnTopIsCutOut() {
+        _ = NSApplication.shared
+        let document = DesignDocument(), state = document.state
+        let base = square("Base", x: 0, size: 40), top = square("Top", x: 0, size: 20)
+        state.design.objects = [base, top]
+        func cutters() -> [UUID]? { state.design.objects.first { $0.id == base.id }?.settings.overlapCutters }
+        state.selection = []
+        state.removeOverlaps()
+        XCTAssertEqual(cutters(), [top.id])
+
+        let later = square("Later", x: 14, size: 8)   // drawn over Base afterwards, sewn last
+        state.design.objects.append(later)
+        XCTAssertEqual(cutters(), [top.id], "the new shape isn't on the list")
+        state.removeOverlaps()
+        XCTAssertEqual(cutters(), [top.id, later.id], "choosing it again adds the new shape")
+        XCTAssertTrue(state.status.hasPrefix("Overlaps removed"), state.status)
+        state.removeOverlaps()
+        XCTAssertNil(cutters(), "nothing new on top: it switches off")
+
+        state.selection = [base.id]
+        state.setCutOutOverlaps(true)
+        XCTAssertEqual(cutters(), [top.id, later.id], "the checkbox records what's on top too")
+        state.setCutOutOverlaps(false)
+        XCTAssertNil(cutters()); XCTAssertNotEqual(state.design.objects[0].settings.cutOutOverlaps, true)
+    }
 }

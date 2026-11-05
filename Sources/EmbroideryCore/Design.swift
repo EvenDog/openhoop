@@ -574,6 +574,11 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     /// Fills only: leave out the area that shapes sewn after this one cover (OverlapCutout.swift). nil (the default)
     /// means off: the whole fill sews.
     public var cutOutOverlaps:Bool?
+    /// With `cutOutOverlaps`: the objects sewn on top that the fill leaves out, the ones that overlapped it when
+    /// cutting out was switched on (Remove Overlaps or its checkbox). Shapes drawn or moved over it afterwards don't
+    /// cut it. nil means everything sewn after it, as before file version 18; such projects are brought up to date
+    /// when opened (Design.recordOverlapCutters).
+    public var overlapCutters:[UUID]?
     /// Guided fills: the path of the guide line the rows follow, in mm. It's copied from the fill's guide line (an
     /// unstitched line whose `guideFor` is this fill) after every edit (Design.syncGuides), and kept if that line is
     /// deleted, so the fill still sews the same way.
@@ -758,6 +763,9 @@ public struct Design: Codable, Equatable, Sendable {
     public var needsSchemaSixteen: Bool { objects.contains { $0.lineRepeat != nil || $0.repeatCopy != nil } }
     /// Schema 17 marks projects with color blends, so older versions refuse them instead of losing the link.
     public var needsSchemaSeventeen: Bool { objects.contains { $0.blendOf != nil || $0.digitizing?.blendFade != nil } }
+    /// Schema 18 marks projects whose fills record which shapes on top they leave out, so older versions (which would
+    /// cut out everything sewn on top, shapes added later too) refuse them instead.
+    public var needsSchemaEighteen: Bool { objects.contains { $0.digitizing?.overlapCutters != nil } }
     /// True when a design has satins with smart corners (added in file version 10) that actually have a sharp corner,
     /// so it's saved as version 10 and older versions of the app, which would sew those corners fanned round the seam,
     /// refuse it instead. A satin with the setting but no sharp corner sews the same in older versions.
@@ -790,7 +798,7 @@ public struct Design: Codable, Equatable, Sendable {
 
     /// Reject corrupt or unreasonable input before it reaches the renderer or generator.
     public func validate() throws {
-        guard (1...17).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
+        guard (1...18).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }

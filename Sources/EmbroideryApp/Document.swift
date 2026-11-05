@@ -721,21 +721,44 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     /// The selected objects that edits change (locked ones stay put).
     var editableSelection: Set<UUID> { Set(design.objects.filter { selection.contains($0.id) && !$0.locked }.map(\.id)) }
     /// Remove Overlaps: switches on "Cut out shapes sewn on top" for the selected fills (every fill when nothing is
-    /// selected) that something sewn after them overlaps, as one undoable step. If they all have it on already, it
-    /// switches it off again, so they sew in full. Nothing is cut for good: moving a shape lets the fill fill back in.
+    /// selected) that something sewn after them overlaps, recording those shapes, as one undoable step. Only the
+    /// recorded shapes cut a fill: ones drawn over it later don't (choosing it again adds them). If every fill already
+    /// leaves out everything on it, it switches off instead, so they sew in full. Nothing is cut for good: moving a
+    /// recorded shape moves its hole.
     func removeOverlaps() {
         let scope = selection.isEmpty ? Set(design.objects.map(\.id)) : selection
         let ids = design.fillsWithOverlaps(among: scope)
         guard !ids.isEmpty else {
             status = "Nothing sewn on top overlaps \(selection.isEmpty ? "any fill" : "the selected fills"). Only fills can leave out what's on top of them."; return
         }
-        let restoring = design.objects.filter { ids.contains($0.id) }.allSatisfy { $0.settings.cutOutOverlaps == true }
+        // What's on top of each fill now. `uniqueKeysWithValues` builds a dictionary from (key, value) pairs.
+        let onTop = Dictionary(uniqueKeysWithValues: ids.map { ($0, design.overlapsOnTop(of: $0)) })
+        let restoring = design.objects.filter { ids.contains($0.id) }.allSatisfy {
+            $0.settings.cutOutOverlaps == true && Set($0.settings.overlapCutters ?? []).isSuperset(of: onTop[$0.id] ?? [])
+        }
         edit(restoring ? "Restore Overlaps" : "Remove Overlaps") { design in
-            for i in design.objects.indices where ids.contains(design.objects[i].id) { design.objects[i].digitizing?.cutOutOverlaps = restoring ? nil : true }
+            for i in design.objects.indices where ids.contains(design.objects[i].id) {
+                let id = design.objects[i].id
+                design.objects[i].digitizing?.cutOutOverlaps = restoring ? nil : true
+                design.objects[i].digitizing?.overlapCutters = restoring ? nil : onTop[id]
+            }
         }
         let fills = ids.count == 1 ? "1 fill" : "\(ids.count) fills"
         status = restoring ? "Overlaps restored: \(fills) sew in full again."
-            : "Overlaps removed: \(fills) leave out what's sewn on top, tucking \(OverlapCutout.tuck.formatted()) mm under its edges. Choose \(CommandID.removeOverlaps.title) again to sew them in full."
+            : "Overlaps removed: \(fills) leave out the shapes on top of them now, tucking \(OverlapCutout.tuck.formatted()) mm under their edges. Shapes you add later don't cut them; choose \(CommandID.removeOverlaps.title) again to include those."
+    }
+    /// The Properties checkbox "Cut out shapes sewn on top", for the selected fills: on records what's on top of each
+    /// one now (only those shapes cut it), off sews them in full again. One undoable step.
+    func setCutOutOverlaps(_ on: Bool) {
+        let fills = design.objects.filter { selection.contains($0.id) && $0.kind == .fill }
+        let onTop = on ? Dictionary(uniqueKeysWithValues: fills.map { ($0.id, design.overlapsOnTop(of: $0.id)) }) : [:]
+        editSelected("Cut Out Overlaps") { object in
+            guard object.kind == .fill else { return }
+            var settings = object.settings
+            settings.cutOutOverlaps = on ? true : nil
+            settings.overlapCutters = on ? onTop[object.id] : nil
+            object.digitizing = settings
+        }
     }
     /// Moves the selection so the center of its box lands at the given x and/or y (mm), as one undoable edit.
     func moveSelection(centerX: Double? = nil, centerY: Double? = nil) {
@@ -1072,7 +1095,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         // Copies along a line are new objects when built again too, so a selected set stays selected by its id.
         let selectedRepeats = Set(updated.objects.filter { state.selection.contains($0.id) }.compactMap { $0.repeatCopy?.id ?? $0.lineRepeat?.id })
         let guideProblems = updated.syncGuides(embroideryFonts: EmbroideryFontLibrary.fonts)
-        if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaSeventeen ? 17:updated.needsSchemaSixteen ? 16:updated.needsSchemaFifteen ? 15:updated.needsSchemaFourteen ? 14:updated.needsSchemaThirteen ? 13:updated.needsSchemaTwelve ? 12:updated.needsSchemaEleven ? 11:updated.needsSchemaTen ? 10:updated.needsSchemaNine ? 9:updated.needsSchemaEight ? 8:updated.needsSchemaSeven ? 7:updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
+        if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaEighteen ? 18:updated.needsSchemaSeventeen ? 17:updated.needsSchemaSixteen ? 16:updated.needsSchemaFifteen ? 15:updated.needsSchemaFourteen ? 14:updated.needsSchemaThirteen ? 13:updated.needsSchemaTwelve ? 12:updated.needsSchemaEleven ? 11:updated.needsSchemaTen ? 10:updated.needsSchemaNine ? 9:updated.needsSchemaEight ? 8:updated.needsSchemaSeven ? 7:updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
         // The same check Save makes, before anything is recorded.
         do { try updated.validate() } catch {
             state.status = "\(action) can't be done: \(error.localizedDescription) Nothing was changed."
@@ -1166,6 +1189,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         var design = try JSONDecoder().decode(Design.self, from: bytes)
         design.measureSpacingAcrossTwoRows()   // older files: tatami row spacing is now measured across two rows
         design.splitEdgeAndSparse()   // older files: each underlay now has its own settings
+        design.recordOverlapCutters()   // older files: fills that cut out overlaps now record what's on top of them
         if design.artwork != nil {
             guard let image = fileWrapper.fileWrappers?["artwork.bin"]?.regularFileContents else { throw DesignError.invalid("The project is missing its reference artwork.") }
             design.artwork?.data = image

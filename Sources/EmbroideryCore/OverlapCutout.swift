@@ -29,6 +29,14 @@ public enum OverlapCutout {
         }
     }
 
+    /// The objects sewn after `fill` that it leaves out: the ones it recorded when cutting out was switched on, or,
+    /// for a fill that recorded none (made in code), all of them.
+    static func covers(of fill: RunObject, among later: [RunObject]) -> [RunObject] {
+        guard let ids = fill.settings.overlapCutters else { return later }
+        let recorded = Set(ids)
+        return later.filter { recorded.contains($0.id) }
+    }
+
     /// The pieces of `fill` left after cutting out what `later` objects (sewn after it) cover, each as an outline
     /// followed by its holes. Returns nil when nothing on top overlaps it, so the fill sews as drawn.
     public static func pieces(of fill: RunObject, under later: [RunObject]) throws -> [[[Point]]]? {
@@ -54,7 +62,7 @@ public enum OverlapCutout {
     /// Stitches for a fill with overlaps cut out: each remaining piece is filled as its own small fill (same
     /// settings; radial fills keep fanning from the whole shape's center). Returns nil when nothing is cut.
     static func fill(_ object: RunObject, under later: [RunObject]) throws -> ObjectStitches? {
-        guard let pieces = try pieces(of: object, under: later) else { return nil }
+        guard let pieces = try pieces(of: object, under: covers(of: object, among: later)) else { return nil }
         var result = ObjectStitches()
         guard !pieces.isEmpty else {
             result.warnings.append("\(object.name) is completely covered by the shapes sewn on top, so it isn't sewn.")
@@ -95,6 +103,26 @@ public enum OverlapCutout {
 }
 
 extension Design {
+    /// The fill `id`'s overlaps as they are now: the objects sewn after it that cover part of it. Remove Overlaps
+    /// records these, so only they cut it out.
+    public func overlapsOnTop(of id: UUID) -> [UUID] {
+        guard let index = objects.firstIndex(where: { $0.id == id }) else { return [] }
+        let fill = objects[index]
+        // `pieces` is nil when the cover doesn't change the fill (it misses it, or it's the fill's color blend partner).
+        return objects[(index + 1)...].filter { cover in (try? OverlapCutout.pieces(of: fill, under: [cover])) != nil }.map(\.id)
+    }
+
+    /// Brings a design saved before fills recorded what's on top of them (file version 18) up to date: each fill that
+    /// cuts out overlaps records what overlaps it now, so it sews exactly as before, and shapes added later leave it be.
+    public mutating func recordOverlapCutters() {
+        for i in objects.indices where objects[i].kind == .fill && objects[i].settings.cutOutOverlaps == true && objects[i].digitizing?.overlapCutters == nil {
+            let edited = objects[i].hasCurrentStitchEdits
+            let onTop = overlapsOnTop(of: objects[i].id)   // read first: Swift won't read the design while writing into it
+            objects[i].digitizing?.overlapCutters = onTop
+            if edited { objects[i].refreshStitchEdits() }   // the stitches are the same, so hand edits still fit
+        }
+    }
+
     /// Remove Overlaps: the unlocked fills among `ids` that something sewn after them overlaps, so cutting out what's
     /// on top would change their stitches. Fills whose cut can't be worked out are left out.
     public func fillsWithOverlaps(among ids: Set<UUID>) -> Set<UUID> {

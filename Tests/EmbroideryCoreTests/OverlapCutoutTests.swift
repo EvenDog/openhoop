@@ -82,6 +82,50 @@ final class OverlapCutoutTests: XCTestCase {
         XCTAssertNil(DigitizingSettings(kind: .fill).cutOutOverlaps, "Off unless switched on")
     }
 
+    /// A fill leaves out only the shapes it recorded (what was on top when cutting out was switched on): a shape added
+    /// on top of it later doesn't cut it. A fill that recorded nothing (made in code) still cuts out everything after it.
+    func testOnlyTheRecordedShapesOnTopCutTheFill() throws {
+        var base = square("Base", center: Point(0, 0), size: 40, cut: true)
+        let top = square("Top", center: Point(0, 0), size: 20), later = square("Later", center: Point(14.5, -14.5), size: 9)
+        base.digitizing?.overlapCutters = [top.id]
+        var design = Design(); design.objects = [base, top, later]
+        XCTAssertEqual(design.overlapsOnTop(of: base.id), [top.id, later.id], "both cover part of it now")
+        /// True when Base has a stitch within 2 mm of `point` (well inside a cut, where no edge stitch reaches).
+        func sewsNear(_ point: Point, _ design: Design) throws -> Bool {
+            try StitchEngine.compile(design).commands.contains { $0.objectID == base.id && $0.op == .stitch && abs($0.point.x - point.x) < 2 && abs($0.point.y - point.y) < 2 }
+        }
+        XCTAssertFalse(try sewsNear(Point(0, 0), design), "the recorded shape cuts it")
+        XCTAssertTrue(try sewsNear(Point(14.5, -14.5), design), "the shape added later doesn't")
+        design.objects[0].digitizing?.overlapCutters = nil
+        XCTAssertFalse(try sewsNear(Point(14.5, -14.5), design), "recording nothing: everything sewn after cuts it")
+    }
+
+    /// Projects from before fills recorded their shapes on top are brought up to date when opened: each cutting fill
+    /// records what overlaps it now, so it sews the same. Recording needs file version 18. A copied fill is cut by the
+    /// copies of its shapes, and forgets the ones not copied with it.
+    func testOlderProjectsRecordWhatsOnTopAndCopiesFollow() throws {
+        let base = square("Base", center: Point(0, 0), size: 40, cut: true), top = square("Top", center: Point(0, 0), size: 20)
+        let apart = square("Apart", center: Point(60, 0), size: 10)
+        var design = Design(); design.objects = [base, top, apart]
+        XCTAssertFalse(design.needsSchemaEighteen)
+        let before = try StitchEngine.compile(design)
+        design.recordOverlapCutters()
+        XCTAssertEqual(design.objects[0].settings.overlapCutters, [top.id], "only what overlaps it")
+        XCTAssertNil(design.objects[1].settings.overlapCutters, "fills that don't cut out record nothing")
+        XCTAssertEqual(try StitchEngine.compile(design).commands, before.commands, "it sews exactly as before")
+        XCTAssertTrue(design.needsSchemaEighteen)
+        XCTAssertEqual(try JSONDecoder().decode(Design.self, from: JSONEncoder().encode(design)).objects[0].settings.overlapCutters, [top.id])
+
+        let baseCopy = UUID(), topCopy = UUID()
+        var copied = design.objects[0]; copied.id = baseCopy
+        var copiedTop = design.objects[1]; copiedTop.id = topCopy
+        design.objects += [copied, copiedTop]
+        design.relinkCopiedGuides([base.id: baseCopy, top.id: topCopy])
+        XCTAssertEqual(design.objects[3].settings.overlapCutters, [topCopy], "the copy is cut by the copied shape")
+        design.relinkCopiedGuides([base.id: baseCopy])   // as if the fill was copied alone
+        XCTAssertEqual(design.objects[3].settings.overlapCutters, [], "shapes not copied with it are forgotten")
+    }
+
     func testRemoveOverlapsFindsFillsWithSomethingOnTop() {
         // Base has Top sewn over it; Top has nothing after it; Apart is sewn last but touches nothing.
         let base = square("Base", center: Point(0, 0), size: 40), top = square("Top", center: Point(0, 0), size: 20)

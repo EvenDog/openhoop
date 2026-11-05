@@ -667,8 +667,8 @@ struct InspectorPanel: View {
     }
     /// Fills: the "Cut out shapes sewn on top" checkbox (OverlapCutout.swift). Off unless switched on. Shared with Pro.
     func cutOutToggle(_ object: RunObject) -> some View {
-        toggle("Cut out shapes sewn on top", value: object.settings.cutOutOverlaps == true) { on in settings(.fill, "Cut Out Overlaps") { $0.cutOutOverlaps = on ? true : nil } }
-            .help("Leave out the part of this fill that shapes sewn after it cover, tucking 1 mm under their edges. Select several fills to switch them all.")
+        toggle("Cut out shapes sewn on top", value: object.settings.cutOutOverlaps == true) { on in state.setCutOutOverlaps(on) }
+            .help("Leave out the part of this fill that the shapes sewn on top of it now cover, tucking 1 mm under their edges. Shapes added later don't cut it. Select several fills to switch them all.")
     }
     /// Satin's two automatic helpers, as checkboxes.
     @ViewBuilder func satinOptions(_ object: RunObject) -> some View {

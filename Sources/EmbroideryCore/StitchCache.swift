@@ -27,7 +27,7 @@ final class StitchCache: @unchecked Sendable {
     /// before, otherwise the result of `make`, which is then remembered. Errors aren't remembered.
     func stitches(for object: RunObject, under later: [RunObject], make: () throws -> ObjectStitches) throws -> ObjectStitches {
         let cutsOut = object.kind == .fill && object.settings.cutOutOverlaps == true
-        let key = Key(object: object, later: cutsOut ? later : [])
+        let key = Key(object: object, later: cutsOut ? OverlapCutout.covers(of: object, among: later) : [])
         if let remembered = lock.withLock({ stored[key] }) { return remembered }
         // Worked out outside the lock, so a slow object doesn't hold up other compiles.
         let made = try make()
