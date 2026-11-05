@@ -53,7 +53,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     // stitches can't be worked out (or aren't ready yet).
     @Published var design = Design() { didSet { planFacts = nil; hoopingFacts = nil; stepFacts = nil } }
     // A choice just made in a picture menu stays previewed until these fresh stitches arrive.
-    @Published var plan = StitchPlan() { didSet { planFacts = nil; hoopingFacts = nil; stepFacts = nil; if settingsPreview?.kept == true { settingsPreview = nil } } }
+    @Published var plan = StitchPlan() { didSet { planFacts = nil; hoopingFacts = nil; stepFacts = nil; timelineFacts = nil; if settingsPreview?.kept == true { settingsPreview = nil } } }
     /// While pointing at a choice in a picture menu (Fill style, Pattern): the selected objects' stitches with it (PictureMenu.swift).
     @Published var settingsPreview: SettingsPreview?
     var settingsPreviewTask: Task<StitchPlan, Error>?
@@ -213,6 +213,13 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         let steps = design.sewingSteps(plan: plan); stepFacts = steps; return steps
     }
     private var stepFacts: [SewingStep]?
+    /// The stitch player's timeline (colors, objects, trims and stops), worked out once per plan rather than on every
+    /// frame of playback.
+    var playerTimeline: PlayerTimeline {
+        if let timelineFacts { return timelineFacts }
+        let timeline = plan.timeline; timelineFacts = timeline; return timeline
+    }
+    private var timelineFacts: PlayerTimeline?
     /// While reviewing, the step being looked at: the first one that sews something selected (nil with nothing selected).
     var reviewStep: (index: Int, step: SewingStep)? {
         guard reviewing, !selection.isEmpty, let index = sewingSteps.firstIndex(where: { $0.objects.contains(where: selection.contains) }) else { return nil }
