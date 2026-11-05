@@ -13,14 +13,14 @@ enum FillStyles {
     static func contour(in region: [[Point]], spacing: Double, length: Double, start: Point?) throws -> [[Point]] {
         // Every ring at every depth: each depth's inset can have several rings (lobes, and the edges of holes). The
         // first depth is half a row spacing in from the edge, and each one after is a row spacing further in.
-        var loops: [[Point]] = [], round: [Bool] = [], counterclockwise: [Bool] = [], outermost = 0, total = 0, steps = [region]
+        var loops: [[Point]] = [], sharpest: [Double] = [], counterclockwise: [Bool] = [], outermost = 0, total = 0, steps = [region]
         for level in 0... {
             try Task.checkCancellation()
             let inset = try shrunk(&steps, by: spacing / 2 + Double(level) * spacing)
             if inset.isEmpty { break }
             for ring in inset {
                 let loop = resampled(ring, length: length)
-                if loop.count >= 3 { loops.append(loop); round.append(isRound(ring)); counterclockwise.append(AreaGeometry.area(ring) > 0); total += loop.count }
+                if loop.count >= 3 { loops.append(loop); sharpest.append(sharpestTurn(ring)); counterclockwise.append(AreaGeometry.area(ring) > 0); total += loop.count }
             }
             if level == 0 { outermost = loops.count }   // loops before this index are the first depth's
             guard level < 5000, total <= 1_000_000 else { throw DesignError.invalid("Fill would produce too many stitches. Reduce its size or increase spacing.") }
@@ -29,7 +29,7 @@ enum FillStyles {
 
         // First the order: each ring, starting at the point nearest where the last one ended, and whether the needle
         // can step straight onto it from there (false starts a new section).
-        var order: [(loop: [Point], round: Bool, counterclockwise: Bool, joined: Bool)] = []
+        var order: [(loop: [Point], sharpest: Double, counterclockwise: Bool, joined: Bool)] = []
         var needle = start ?? loops[0][0], remaining = Set(loops.indices)
         let shortStep = 2 * spacing + length   // the longest step that's sewn straight across to the next ring
         while !remaining.isEmpty {
@@ -43,23 +43,30 @@ enum FillStyles {
             }
             let ring = loops[best.ring]
             let loop = Array(ring[best.index...] + ring[..<best.index]) + [ring[best.index]]   // all the way round
-            order.append((loop, round[best.ring], counterclockwise[best.ring], !order.isEmpty && best.distance <= shortStep && AreaGeometry.segmentInside(needle, loop[0], rings: region)))
+            order.append((loop, sharpest[best.ring], counterclockwise[best.ring], !order.isEmpty && best.distance <= shortStep && AreaGeometry.segmentInside(needle, loop[0], rings: region)))
             needle = loop.last!; remaining.remove(best.ring)
         }
         // Then the stitches. Stepping straight across after every ring lines the steps up into a visible seam from the
-        // edge to the middle, so between two round rings the needle spirals instead: over the lap, it drifts from this
-        // ring to the next (by the share of the lap sewn so far), ending where the next ring begins. A run of spiral
-        // laps starts and ends with a plain ring, so the edges stay covered. Rings with sharp corners keep the step:
-        // matching points between them bends the laps across each other near the corners. So do rings running opposite
-        // ways round (an outline's rings and a hole's): drifting from one to the other would swing the stitches across the hole.
+        // edge to the middle, so between two rings the needle spirals instead: over the lap, it drifts from this ring to
+        // the next (by the share of the lap sewn so far), ending where the next ring begins. A run of spiral laps starts
+        // and ends with a plain ring, so the edges stay covered. Rings with corners sharper than 55° (a star's points) keep
+        // the step: their tips are much farther apart than their sides, and with corners close together the laps come out
+        // uneven. So do rings running opposite ways round (an outline's rings and a hole's): drifting from one to the
+        // other would swing the stitches across the hole.
         func spirals(_ k: Int) -> Bool {
-            k >= 0 && k + 1 < order.count && order[k + 1].joined && order[k].round && order[k + 1].round && order[k].counterclockwise == order[k + 1].counterclockwise
+            k >= 0 && k + 1 < order.count && order[k + 1].joined && max(order[k].sharpest, order[k + 1].sharpest) <= 125
+                && order[k].counterclockwise == order[k + 1].counterclockwise
         }
         var sections: [[Point]] = []
         for k in order.indices {
             var stitches: [Point] = []
             if !spirals(k - 1) || !spirals(k) { stitches = order[k].loop }   // a plain ring, all the way round
-            if spirals(k) { stitches += spiral(order[k].loop, into: order[k + 1].loop, length: length).dropFirst(stitches.isEmpty ? 0 : 1) }
+            if spirals(k) {
+                // Round rings match points by the share of the way round; rings with corners by the nearest point, so
+                // each corner drifts into the next ring's corner (by share, a square's laps would cut across its corners).
+                let round = max(order[k].sharpest, order[k + 1].sharpest) <= 60
+                stitches += spiral(order[k].loop, into: order[k + 1].loop, length: length, byNearest: !round).dropFirst(stitches.isEmpty ? 0 : 1)
+            }
             if order[k].joined, var last = sections.popLast() {
                 // A spiral lap already ends on this ring's first point. After a plain ring the needle is still on that
                 // ring, so it steps across to this one's first point, split into stitches no longer than `length`
@@ -232,27 +239,36 @@ enum FillStyles {
         mutating func unit() -> Double { Double(next() >> 11) / Double(1 << 53) }
     }
 
-    /// True when `ring` has no sharp corner: it never turns more than 60° at one point.
-    static func isRound(_ ring: [Point]) -> Bool {
+    /// The sharpest turn `ring` makes at one point, in degrees: up to 60 counts as round; a square's corners turn 90,
+    /// and a 5-point star's tips 144. (A corner of 60° turns 120.) A ring of fewer than 3 points counts as 180.
+    static func sharpestTurn(_ ring: [Point]) -> Double {
         let n = ring.count
-        guard n >= 3 else { return false }
+        guard n >= 3 else { return 180 }
+        var sharpest = 0.0
         for i in 0..<n {
             let a = ring[(i + n - 1) % n], b = ring[i], c = ring[(i + 1) % n], u = b - a, v = c - b
             let lengths = u.distance(to: Point(0, 0)) * v.distance(to: Point(0, 0))
-            if lengths > 0, (u.x * v.x + u.y * v.y) / lengths < cos(60 * Double.pi / 180) { return false }
+            if lengths > 0 { sharpest = max(sharpest, acos(max(-1, min(1, (u.x * v.x + u.y * v.y) / lengths))) * 180 / .pi) }
         }
-        return true
+        return sharpest
     }
 
     /// The lap `loop` (closed: its last point is its first) drifting into `next` (closed the same way): each point
-    /// moves toward the point the same share of the way round `next` by the share of the lap sewn so far, ending on
-    /// `next`'s first point. Stitches that come out longer than `length` are split.
-    static func spiral(_ loop: [Point], into next: [Point], length: Double) -> [Point] {
+    /// moves toward its match on `next` by the share of the lap sewn so far, ending on `next`'s first point. Its match
+    /// is the point the same share of the way round `next`, or with `byNearest`, the point of `next` nearest it.
+    /// Stitches that come out longer than `length` are split.
+    static func spiral(_ loop: [Point], into next: [Point], length: Double, byNearest: Bool = false) -> [Point] {
         let here = Arc(loop), there = Arc(next)
         guard here.length > 0, there.length > 0 else { return loop }
+        /// The point of `next` nearest `p`.
+        func nearest(_ p: Point) -> Point {
+            zip(next, next.dropFirst()).map { AreaGeometry.projection(p, $0, $1) }.min { $0.distance(to: p) < $1.distance(to: p) } ?? next[0]
+        }
         var result: [Point] = []
-        for (p, along) in zip(loop, here.lengths) {
-            let t = along / here.length, q = p + (there.at(t) - p) * t
+        for (i, (p, along)) in zip(loop, here.lengths).enumerated() {
+            let t = along / here.length
+            // The last point lands exactly on `next`'s first, where the next lap starts.
+            let q = i == loop.count - 1 ? next[0] : p + ((byNearest ? nearest(p) : there.at(t)) - p) * t
             if let last = result.last, last.distance(to: q) > length {
                 let pieces = Int(ceil(last.distance(to: q) / length))
                 for piece in 1..<pieces { result.append(last + (q - last) * (Double(piece) / Double(pieces))) }

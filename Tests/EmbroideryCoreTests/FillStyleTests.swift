@@ -178,8 +178,8 @@ final class FillStyleTests: XCTestCase {
     }
 
     /// On round shapes, contour rings spiral into each other instead of stepping across at the end of each lap, so
-    /// there's no seam: the needle never drops a whole row inward in one stitch. Shapes with sharp corners keep the
-    /// step (spiralling bends the laps across each other near corners).
+    /// there's no seam: the needle never drops a whole row inward in one stitch. Shapes with points sharper than 55°
+    /// (a star's) keep the step (the laps come out uneven there).
     func testContourSpiralsOnRoundShapesWithoutASeam() throws {
         func inwardSteps(_ sections: [[Point]], center: Point) -> Int {
             sections.map { s in zip(s, s.dropFirst()).filter { $0.distance(to: center) - $1.distance(to: center) > 0.3 }.count }.reduce(0, +)
@@ -194,6 +194,22 @@ final class FillStyleTests: XCTestCase {
         XCTAssertTrue(zip(round[0], round[0].dropFirst()).allSatisfy { $0.distance(to: $1) <= 3.0001 }, "no stitch over the stitch length")
         let star = AreaGeometry.ring(ShapeGeometry.nodes(.star, in: (Point(-15, -15), Point(15, 15))))
         XCTAssertGreaterThan(inwardSteps(try FillStyles.contour(in: [star], spacing: 0.4, length: 3, start: nil), center: Point(0, 0)), 5, "a star keeps its steps")
+    }
+
+    /// Rings with corners no sharper than about 60° (here a square's) spiral too, each corner drifting into the next
+    /// ring's corner: no lap ends with a step inward, so there's no line from the start to the middle. Stars keep it.
+    func testContourSpiralsOnSquareCornersWithoutASeam() throws {
+        let square = rectangle(20, 20)
+        let sections = try FillStyles.contour(in: [square], spacing: 0.4, length: 3, start: nil)
+        XCTAssertEqual(sections.count, 1)
+        // How far in from the square's edge a point is.
+        func depth(_ p: Point) -> Double { 10 - max(abs(p.x), abs(p.y)) }
+        let steps = zip(sections[0], sections[0].dropFirst()).filter { depth($1) - depth($0) > 0.2 }.count
+        XCTAssertEqual(steps, 0, "no stitch steps half a row or more inward")
+        XCTAssertGreaterThan(depth(sections[0].last!), 9, "it still reaches the middle")
+        XCTAssertTrue(sections[0].allSatisfy { AreaGeometry.contains($0, rings: [square]) })
+        XCTAssertTrue(zip(sections[0], sections[0].dropFirst()).allSatisfy { $0.distance(to: $1) <= 3.0001 }, "no stitch over the stitch length")
+        XCTAssertEqual(FillStyles.sharpestTurn(square), 90, accuracy: 0.001)
     }
 
     /// A round wave fill has small pieces along its edge. Some near the start used to be skipped (a big section
