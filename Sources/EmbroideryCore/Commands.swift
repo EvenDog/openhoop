@@ -137,7 +137,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .freehandClosedTool: return "Press and drag to draw a closed shape that follows the pointer; it gets the Next shape bar's stitches."
         case .rectangleTool: return "Drag out a rectangle, corner to corner. Hold ⌘ for a square."
         case .ellipseTool: return "Drag out an ellipse from its center. Hold ⌘ for a circle."
-        case .basicShapeTool: return "Drag out a polygon, star, heart or arrow, picked in the Next shape bar."
+        case .basicShapeTool: return "Drag out one of 35 shapes (stars, badges, leaves, hearts, frames and more), picked from the pictures in the Next shape bar."
         case .knifeTool: return "Cut shapes in two: click points across them and press Return."
         case .weldObjects: return "Join overlapping shapes into one fill."
         case .removeOverlaps: return "Leave out the parts of fills that shapes on top cover, so they aren't sewn twice. Choose again to sew them in full."

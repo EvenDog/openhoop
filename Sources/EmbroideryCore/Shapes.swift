@@ -6,9 +6,34 @@ import Foundation
 /// The shapes the Rectangle, Ellipse and Basic Shapes tools draw.
 public enum BasicShape: String, Codable, CaseIterable, Sendable {
     case rectangle, ellipse, polygon, star, heart, arrow
-    public var title: String { rawValue.capitalized }
+    // The rest of the Basic Shapes library (outlines in ShapeLibrary.swift). The names are saved in preferences, so
+    // they never change.
+    case triangle, rightTriangle, diamond, parallelogram, trapezoid, roundedSquare, cross, chevron, doubleArrow
+    case shield, scallop, starburst, banner, tag, speechBubble
+    case teardrop, moon, cloud, leaf, flower, pineTree, lightning, sun
+    case apple, fish, bone, egg
+    case ring, squareFrame, roundedFrame, scallopFrame
+    public var title: String {
+        switch self {
+        case .rightTriangle: return "Right triangle"; case .roundedSquare: return "Rounded square"; case .doubleArrow: return "Double arrow"
+        case .scallop: return "Scalloped badge"; case .speechBubble: return "Speech bubble"; case .pineTree: return "Pine tree"
+        case .lightning: return "Lightning bolt"; case .squareFrame: return "Square frame"; case .roundedFrame: return "Rounded frame"
+        case .scallopFrame: return "Scalloped frame"
+        default: return rawValue.capitalized
+        }
+    }
+    /// The Basic Shapes tool's picture grid: its shapes in groups, in order.
+    public static let groups: [(title: String, shapes: [BasicShape])] = [
+        ("Geometric", [.polygon, .star, .triangle, .rightTriangle, .diamond, .parallelogram, .trapezoid, .roundedSquare, .cross, .chevron, .arrow, .doubleArrow]),
+        ("Badges & labels", [.shield, .scallop, .starburst, .banner, .tag, .speechBubble]),
+        ("Nature", [.teardrop, .moon, .cloud, .leaf, .flower, .pineTree, .lightning, .sun]),
+        ("Objects", [.heart, .apple, .fish, .bone, .egg]),
+        ("Frames", [.ring, .squareFrame, .roundedFrame, .scallopFrame])
+    ]
+    /// True for the frames: shapes with an open middle (a hole), so only a band round the edge is sewn.
+    public var isFrame: Bool { [.ring, .squareFrame, .roundedFrame, .scallopFrame].contains(self) }
     /// The shapes the Basic Shapes tool offers (Rectangle and Ellipse have tools of their own).
-    public static let basicChoices: [BasicShape] = [.polygon, .star, .heart, .arrow]
+    public static let basicChoices: [BasicShape] = groups.flatMap(\.shapes)
 }
 
 /// The stitch the Open Shape tool puts on a new line.
@@ -42,13 +67,15 @@ public struct ShapeSettings: Codable, Equatable, Sendable {
     public var starInner = 0.5
     /// How round a rectangle's corners are, in mm (0 is square corners).
     public var cornerRadius = 0.0
+    /// How wide a frame's band is, in mm: the distance from its outside edge in to the hole.
+    public var frameWidth = 4.0
     public init() {}
     /// Picking a closed-shape tool starts it without an outline. A shape with no fill keeps its outline, since a
     /// closed shape needs one of the two.
     public mutating func startWithoutOutline() {
         if closedFill != nil { closedOutline = nil }
     }
-    public static let polygonSideRange = 3...12, starPointRange = 4...12, starInnerRange = 0.2...0.8, cornerRadiusRange = 0.0...20.0
+    public static let polygonSideRange = 3...12, starPointRange = 4...12, starInnerRange = 0.2...0.8, cornerRadiusRange = 0.0...20.0, frameWidthRange = 1.0...20.0
 
     /// The next closed shape's stitches in words, such as "Tatami fill + satin outline".
     public var closedSummary: String {
@@ -62,7 +89,7 @@ public struct ShapeSettings: Codable, Equatable, Sendable {
         return outline.map { "\(fill.title) fill + \($0)" } ?? "\(fill.title) fill"
     }
 
-    private enum CodingKeys: String, CodingKey { case openStitch, closedFill, closedOutline, basicShape, polygonSides, starPoints, starInner, cornerRadius }
+    private enum CodingKeys: String, CodingKey { case openStitch, closedFill, closedOutline, basicShape, polygonSides, starPoints, starInner, cornerRadius, frameWidth }
     /// Older versions saved one choice for closed shapes: a fill style, or "outline" for a running outline.
     private enum OlderKeys: String, CodingKey { case closedStitch }
     /// Reads saved choices forgivingly: these live in the preferences file, and one unreadable value would otherwise
@@ -87,6 +114,7 @@ public struct ShapeSettings: Codable, Equatable, Sendable {
         starPoints = Self.clamp((try? saved.decode(Int.self, forKey: .starPoints)) ?? starPoints, to: Self.starPointRange)
         starInner = Self.clamp((try? saved.decode(Double.self, forKey: .starInner)) ?? starInner, to: Self.starInnerRange)
         cornerRadius = Self.clamp((try? saved.decode(Double.self, forKey: .cornerRadius)) ?? cornerRadius, to: Self.cornerRadiusRange)
+        frameWidth = Self.clamp((try? saved.decode(Double.self, forKey: .frameWidth)) ?? frameWidth, to: Self.frameWidthRange)
     }
     /// `value` moved into `range` (NaN becomes the low end).
     private static func clamp<Value: Comparable>(_ value: Value, to range: ClosedRange<Value>) -> Value {
@@ -127,8 +155,46 @@ public enum ShapeGeometry {
         case .arrow:
             let corners = [(0, 0.3), (0.6, 0.3), (0.6, 0.05), (1, 0.5), (0.6, 0.95), (0.6, 0.7), (0, 0.7)]
             return place(corners.map { PathNode(Point($0.0, $0.1)) }, in: box, keepProportions: keepProportions)
+        case .ring, .squareFrame, .roundedFrame, .scallopFrame:
+            // Frames are square by nature: kept in proportion, they're the biggest square that fits, centered.
+            let side = min(box.max.x - box.min.x, box.max.y - box.min.y), middle = (box.min + box.max) * 0.5
+            let fitted = keepProportions ? (min: middle - Point(side, side) * 0.5, max: middle + Point(side, side) * 0.5) : box
+            switch shape {
+            case .ring: return ellipse(fitted)
+            case .squareFrame: return rectangle(fitted, cornerRadius: 0)
+            case .roundedFrame: return rectangle(fitted, cornerRadius: roundedFrameRadius(fitted))
+            default: return place(ShapeLibrary.bumpyRing(count: 12, reach: 0.85, bump: 0.25), in: fitted, keepProportions: false)
+            }
+        default: return place(ShapeLibrary.outline(shape), in: box, keepProportions: keepProportions)
         }
     }
+
+    /// The hole in the middle of a frame whose outside edge is `outer` (as `nodes` drew it): the same kind of shape
+    /// `settings.frameWidth` mm in from the edge all round. Empty for shapes that aren't frames, and for a band so
+    /// wide the hole would be under 1 mm across.
+    public static func holes(_ shape: BasicShape, around outer: [PathNode], settings: ShapeSettings = ShapeSettings()) -> [[PathNode]] {
+        guard shape.isFrame, !outer.isEmpty else { return [] }
+        let edge = AreaGeometry.ring(outer), width = settings.frameWidth
+        let bounds = (min: Point(edge.map(\.x).min()!, edge.map(\.y).min()!), max: Point(edge.map(\.x).max()!, edge.map(\.y).max()!))
+        var inset = Point(width, width)
+        if shape == .scallopFrame {
+            // The hole is a plain oval inside the scallops' valleys, measured from the valleys rather than the bumps.
+            // In the scallop's own coordinates the bumps reach 1.1 from the middle and the valleys `deep` less.
+            let valley = ShapeLibrary.meeting(Point(0, 0.85), 0.25, Point(-0.425, 0.736), 0.25, awayFrom: Point(0, 0))
+            let deep = 1 - hypot(valley.x, valley.y) / 1.1
+            inset = inset + (bounds.max - bounds.min) * (0.5 * deep)
+        }
+        let inner = (min: bounds.min + inset, max: bounds.max - inset)
+        guard inner.max.x - inner.min.x >= 1, inner.max.y - inner.min.y >= 1 else { return [] }
+        switch shape {
+        case .squareFrame: return [rectangle(inner, cornerRadius: 0)]
+        case .roundedFrame: return [rectangle(inner, cornerRadius: max(0, roundedFrameRadius(bounds) - width))]
+        default: return [ellipse(inner)]
+        }
+    }
+
+    /// A rounded frame's corner radius: a fifth of its shorter side.
+    static func roundedFrameRadius(_ box: (min: Point, max: Point)) -> Double { min(box.max.x - box.min.x, box.max.y - box.min.y) / 5 }
 
     /// Four corners, or with `cornerRadius` two nodes per corner joined by a quarter-circle curve. The radius is
     /// limited so the straight sides never shrink to nothing.
@@ -174,10 +240,14 @@ public enum ShapeGeometry {
         ]
     }()
 
-    /// Moves and scales `unit` (a shape in any small coordinates) so its corner points fill `box`, or, with
-    /// `keepProportions`, fit inside it centered without stretching.
+    /// Moves and scales `unit` (a shape in any small coordinates) so its outline fills `box`, or, with
+    /// `keepProportions`, fits inside it centered without stretching. The outline's curves count, not just its
+    /// nodes, since a round shape's widest point can fall between two nodes.
     static func place(_ unit: [PathNode], in box: (min: Point, max: Point), keepProportions: Bool) -> [PathNode] {
-        let xs = unit.map(\.point.x), ys = unit.map(\.point.y)
+        // Measured 1000 times bigger: curves are flattened to a fixed accuracy in mm, too coarse for an outline
+        // about 1 across.
+        let outline = AreaGeometry.ring(unit.map { node in var big = node; big.transform { $0 * 1000 }; return big }).map { $0 * 0.001 }
+        let xs = outline.map(\.x), ys = outline.map(\.y)
         guard let minX = xs.min(), let maxX = xs.max(), let minY = ys.min(), let maxY = ys.max(), maxX > minX, maxY > minY else { return unit }
         let width = box.max.x - box.min.x, height = box.max.y - box.min.y
         var sx = width / (maxX - minX), sy = height / (maxY - minY)
@@ -203,18 +273,22 @@ public enum ShapeStitching {
 
     /// A new closed shape with `fill` and `outline` on it (either may be nil, not both): one object, or a fill and
     /// then an outline sewn on top of its edge, grouped so they move together. A satin outline is `satinWidth` mm
-    /// wide, centered on the edge; throws, with a reason, if the shape can't take a satin that wide.
-    public static func closedShape(_ nodes: [PathNode], fill: FillStyle?, outline: OpenShapeStitch?, satinWidth: Double = SatinLine.defaultWidth,
-                                   name: String, color: ThreadColor) throws -> [RunObject] {
+    /// wide, centered on the edge; throws, with a reason, if the shape can't take a satin that wide. `holes` (a
+    /// frame's open middle) are left out of the fill and get an outline of their own, after the outer one.
+    public static func closedShape(_ nodes: [PathNode], holes: [[PathNode]] = [], fill: FillStyle?, outline: OpenShapeStitch?,
+                                   satinWidth: Double = SatinLine.defaultWidth, name: String, color: ThreadColor) throws -> [RunObject] {
         var made: [RunObject] = []
         if let fill {
             var shape = RunObject(name: name, nodes: nodes, color: color); shape.closed = true
+            if !holes.isEmpty { shape.holes = holes }
             shape.digitizing = DigitizingSettings(kind: .fill); shape.stitchLength = 3
             if fill != .tatami { shape.digitizing?.fillStyle = fill }   // nil already means tatami
             made.append(shape)
         }
-        if let outline {
-            var edge = RunObject(name: fill == nil ? name : "\(name) outline", nodes: nodes, color: color); edge.closed = true
+        for (index, edgeNodes) in ([nodes] + holes).enumerated() {
+            guard let outline else { break }
+            let edgeName = index > 0 ? "\(name) inner outline" : fill == nil ? name : "\(name) outline"
+            var edge = RunObject(name: edgeName, nodes: edgeNodes, color: color); edge.closed = true
             switch outline {
             case .running: break
             case .bean: edge.digitizing = DigitizingSettings(kind: .run); edge.digitizing?.runPasses = 3

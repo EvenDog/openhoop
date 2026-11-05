@@ -219,17 +219,19 @@ struct NextShapeOptions: View {
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     ToolCaption(text: "NEXT SHAPE")
-                    Text(title(tool, shapes)).font(Theme.heading(18)).lineLimit(1)
+                    Text(title(tool, shapes)).font(Theme.heading(18)).lineLimit(1).minimumScaleFactor(0.7)   // long names shrink to fit
                 }
             }
             if tool == .basicShape {
-                caption("Shape")
-                row("Shape", help: "The shape you'll drag out next") {
-                    Picker("Shape", selection: setting(\.basicShape)) { ForEach(BasicShape.basicChoices, id: \.self) { Text($0.title).tag($0) } }
-                }
+                BasicShapeGrid(picked: shapes.basicShape, settings: shapes, filled: shapes.closedFill != nil) { setting(\.basicShape).wrappedValue = $0 }
                 if shapes.basicShape == .polygon {
                     row("Sides", help: "How many sides the polygon has") {
                         stepper("\(shapes.polygonSides)") { Stepper("Sides", value: setting(\.polygonSides), in: ShapeSettings.polygonSideRange) }
+                    }
+                }
+                if shapes.basicShape.isFrame {
+                    row("Band", help: "How wide the frame's band is, from its outside edge in to the open middle") {
+                        stepper(preferences.unit.short(shapes.frameWidth)) { Stepper("Band", value: setting(\.frameWidth), in: ShapeSettings.frameWidthRange, step: 0.5) }
                     }
                 }
                 if shapes.basicShape == .star {
@@ -327,6 +329,37 @@ struct NextShapeOptions: View {
     }
 }
 
+/// Every shape the Basic Shapes tool draws, as small pictures in their groups (Geometric, Badges & labels, Nature,
+/// Objects). Clicking one picks it; the picked one is highlighted, and hovering shows its name.
+private struct BasicShapeGrid: View {
+    let picked: BasicShape
+    let settings: ShapeSettings
+    let filled: Bool
+    let pick: (BasicShape) -> Void
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(BasicShape.groups, id: \.title) { group in
+                Text(group.title.uppercased()).font(Theme.caption).tracking(0.8).foregroundStyle(Theme.inkSecondary).padding(.top, 2)
+                FlowLayout(spacing: 4) {
+                    ForEach(group.shapes, id: \.self) { shape in
+                        Button { pick(shape) } label: {
+                            ShapeDrawing(shape: shape, settings: settings, filled: filled, size: 22)
+                                .padding(5)
+                                .background(RoundedRectangle(cornerRadius: 6).fill(shape == picked ? Theme.accentSoft : .clear))
+                                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(shape == picked ? Theme.accent : Theme.controlBorder))
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help(shape.title)
+                        .accessibilityLabel(shape.title)
+                        .accessibilityAddTraits(shape == picked ? .isSelected : [])
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// A small drawing of the next shape with the current choices (sides, points, depth or corners), filled when it
 /// gets a fill.
 private struct ShapePreview: View {
@@ -334,30 +367,48 @@ private struct ShapePreview: View {
     let settings: ShapeSettings
     let filled: Bool
     var body: some View {
-        // The outline in a 20 mm box around the middle, drawn 1.6 points per mm with y flipped (designs count y up).
+        ShapeDrawing(shape: shape, settings: settings, filled: filled, size: 32)
+            .padding(8)
+            .background(Theme.accentSoft, in: RoundedRectangle(cornerRadius: 10))
+            .accessibilityHidden(true)
+    }
+}
+
+/// `shape`'s outline drawn `size` points square, kept in proportion, and filled when it gets a fill. A frame shows
+/// its open middle, with a band 3 mm wide of the 20 mm drawing (its real width depends on how big it's dragged).
+private struct ShapeDrawing: View {
+    let shape: BasicShape
+    let settings: ShapeSettings
+    let filled: Bool
+    let size: CGFloat
+    var body: some View {
+        // The outline in a 20 mm box around the middle, scaled to `size` with y flipped (designs count y up).
         let nodes = ShapeGeometry.nodes(shape, in: (Point(-10, -10), Point(10, 10)), settings: settings, keepProportions: true)
-        let place = { (p: Point) in CGPoint(x: (p.x + 10) * 1.6, y: (10 - p.y) * 1.6) }
+        let holes = ShapeGeometry.holes(shape, around: nodes, settings: { var drawn = settings; drawn.frameWidth = 3; return drawn }())
+        let scale = Double(size) / 20
+        let place = { (p: Point) in CGPoint(x: (p.x + 10) * scale, y: (10 - p.y) * scale) }
+        // The outside edge, then each hole, in one path.
         let outline = Path { path in
-            guard let first = nodes.first else { return }
-            path.move(to: place(first.point))
-            for (index, node) in nodes.enumerated() {
-                let next = nodes[(index + 1) % nodes.count]
-                // A curve where either end has a handle (ellipses, hearts, round corners); a straight edge otherwise.
-                if node.outHandle != nil || next.inHandle != nil {
-                    path.addCurve(to: place(next.point), control1: place(node.outHandle ?? node.point), control2: place(next.inHandle ?? next.point))
-                } else {
-                    path.addLine(to: place(next.point))
+            for ring in [nodes] + holes {
+                guard let first = ring.first else { continue }
+                path.move(to: place(first.point))
+                for (index, node) in ring.enumerated() {
+                    let next = ring[(index + 1) % ring.count]
+                    // A curve where either end has a handle (ellipses, hearts, round corners); a straight edge otherwise.
+                    if node.outHandle != nil || next.inHandle != nil {
+                        path.addCurve(to: place(next.point), control1: place(node.outHandle ?? node.point), control2: place(next.inHandle ?? next.point))
+                    } else {
+                        path.addLine(to: place(next.point))
+                    }
                 }
+                path.closeSubpath()
             }
-            path.closeSubpath()
         }
         ZStack {
-            if filled { outline.fill(Theme.accent.opacity(0.35)) }
-            outline.stroke(Theme.accent, lineWidth: 1.5)
+            // Even-odd filling leaves a hole unfilled (`SwiftUI.` because the design's fill styles share the name).
+            if filled { outline.fill(Theme.accent.opacity(0.35), style: SwiftUI.FillStyle(eoFill: true)) }
+            outline.stroke(Theme.accent, lineWidth: size < 30 ? 1.2 : 1.5)
         }
-        .frame(width: 32, height: 32)
-        .padding(8)
-        .background(Theme.accentSoft, in: RoundedRectangle(cornerRadius: 10))
-        .accessibilityHidden(true)
+        .frame(width: size, height: size)
     }
 }

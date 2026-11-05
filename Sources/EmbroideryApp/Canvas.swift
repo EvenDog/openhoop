@@ -606,6 +606,7 @@ final class DesignCanvas: NSView {
             var object=RunObject(name:"Draft",nodes:state.draft,color:state.currentColor)
             if state.tool == .satin {object.digitizing=DigitizingSettings(kind:.satin)}
             if state.tool.drawsClosed {object.closed=true}
+            if let shape=state.tool.draggedShape {object.holes=ShapeGeometry.holes(shape,around:state.draft,settings:Preferences.shared.shapes)}   // a frame shows its hole too
             for points in object.outlinePaths where !points.isEmpty {
                 let line=NSBezierPath();line.move(to:screen(points[0]));for p in points.dropFirst(){line.line(to:screen(p))}
                 (state.tool == .knife ? Theme.Canvas.handle : state.currentColor.nsColor).setStroke();line.lineWidth=2;line.stroke()   // a knife line isn't thread
