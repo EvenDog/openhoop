@@ -39,7 +39,8 @@ extension InspectorPanel {
     private func figure(_ value: String, _ caption: String) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(value).font(.system(size: 12, weight: .semibold, design: .monospaced)).lineLimit(1).minimumScaleFactor(0.8)
-            Text(caption).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).lineLimit(1)
+            // Wraps rather than cutting off ("4 thread steps · 4 trims · 0 stops" is longer than a narrow panel).
+            Text(caption).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
         }
     }
 

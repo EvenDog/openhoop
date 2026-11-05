@@ -280,7 +280,14 @@ struct ShownItems: Codable, Equatable {
         data.workspace.panels = layout; save()
     }
     private var file: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        // While the tests run (Xcode's test runner sets XCTestConfigurationFilePath, `swift test` loads XCTestCase),
+        // preferences live in a fresh temporary folder: tests change panels and settings, and must never touch the
+        // real ones (they used to rewrite them), nor depend on them.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil || NSClassFromString("XCTestCase") != nil {
+            return FileManager.default.temporaryDirectory.appendingPathComponent("OpenHoop-tests-\(ProcessInfo.processInfo.processIdentifier)", isDirectory: true)
+                .appendingPathComponent("preferences.json")
+        }
+        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Embroidery", isDirectory: true).appendingPathComponent("preferences.json")
     }
     init() {
