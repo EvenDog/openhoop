@@ -973,7 +973,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         do {
             let letters = try spec.build(color: color, embroideryFonts: EmbroideryFontLibrary.fonts)
             var candidate = design
-            let ids = candidate.replaceLettering(spec.id, with: letters)
+            let ids = candidate.replaceLettering(spec.id, with: letters, embroideryFonts: EmbroideryFontLibrary.fonts)
             try candidate.validate()
             edit(action, run: run) { $0 = candidate }
             selection = Set(ids); selectedNode = nil

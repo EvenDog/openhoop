@@ -1441,7 +1441,7 @@ final class DesignCanvas: NSView {
         if let drag = envelopeDrag {
             if let spec = bentEnvelope(drag, to: snapped(model(location)), flags: event.modifierFlags),
                let color = next.letteringObjects(spec.id).first?.color, let letters = try? spec.build(color: color, embroideryFonts: EmbroideryFontLibrary.fonts) {
-                next.replaceLettering(spec.id, with: letters); preview = next
+                next.replaceLettering(spec.id, with: letters, embroideryFonts: EmbroideryFontLibrary.fonts); preview = next
             }
             needsDisplay = true; return
         }
