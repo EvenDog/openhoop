@@ -310,12 +310,13 @@ struct NextShapeOptions: View {
     private func caption(_ text: String) -> some View {
         Text(text.uppercased()).font(Theme.caption).tracking(0.8).foregroundStyle(Theme.inkSecondary).padding(.top, 2)
     }
-    /// One labelled row: the name on the left, the control on the right.
+    /// One labelled row: the name on the left, the control on the right; in a panel too narrow for both, the name
+    /// goes above the control instead of wrapping letter by letter (as Properties' rows do).
     private func row<Control: View>(_ title: String, help: String, @ViewBuilder control: () -> Control) -> some View {
-        HStack(spacing: 8) {
-            Text(title)
-            Spacer(minLength: 8)
-            control().labelsHidden().pickerStyle(.menu).fixedSize()
+        let label = Text(title).fixedSize(), control = control().labelsHidden().pickerStyle(.menu).fixedSize()
+        return ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) { label; Spacer(minLength: 8); control }
+            VStack(alignment: .leading, spacing: 4) { label; control }
         }
         .help(help)
     }
