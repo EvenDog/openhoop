@@ -520,6 +520,12 @@ extension InspectorPanel {
 
     private func proSatin(_ object: RunObject) -> some View {
         proSection("Satin") {
+            // A twisted column (a pair clicked right-then-left) is refused; one click swaps it back.
+            if SatinPairs.isTangled(object) {
+                proRow("Twisted", help: "A left/right pair in this column faces the other way from the rest, so its stitches cross and it can't sew. Untangle swaps that pair's two points back.") {
+                    Button("Untangle") { state.editSelected("Untangle Satin") { if let fixed = SatinPairs.untangle($0) { $0 = fixed } } }.buttonStyle(ThemedButtonStyle(prominent: true))
+                }
+            }
             satinWidth(object)
             number("Row spacing", value: object.settings.spacing, id: "rowSpacing", range: 0.15...5, help: "Gap between each pass of thread. Smaller gaps give fuller coverage and use more stitches.") { value in settings(.satin, "Row Spacing") { $0.spacing = value } }
             number("Compensation / side", value: object.settings.expansion, range: 0...2, help: "Thread pulls fabric inward as it sews. A little extra width on each side keeps the column the size you drew.") { value in settings(.satin, "Compensation") { $0.expansion = value } }

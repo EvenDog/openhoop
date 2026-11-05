@@ -382,8 +382,11 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         var object=RunObject(name:"\(kind.title) \(design.objects.count+1)",nodes:draft,color:currentColor)
         if kind != .run {object.digitizing=DigitizingSettings(kind:kind);object.closed=kind == .fill;object.stitchLength=kind == .fill ? 3:2.5}
         object=design.withFabric(Preferences.shared.withNewObjectDefaults(object))   // Settings' starting values, then the design's fabric values
+        // A satin pair clicked right-then-left would twist the column so it's refused: swap it back (SatinPairs).
+        let untangled=SatinPairs.untangle(object)
+        if let untangled {object=untangled}
         edit("Draw \(kind.title)"){$0.objects.append(object)}
-        draft=[];selection=[object.id];selectedNode=nil;backToSelect(after:"\(kind.title) added")
+        draft=[];selection=[object.id];selectedNode=nil;backToSelect(after:"\(kind.title) added"+(untangled != nil ? " (a pair clicked right-then-left was swapped so the column sews)" : ""))
     }
     /// Continue drawing: a click on an end of a selected open line or satin with its tool. Its points become the
     /// drawing in progress, facing out of that end, so new clicks carry it on. Return puts them back in the object;
@@ -400,10 +403,12 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         guard let index=design.objects.firstIndex(where:{$0.id==id}),design.objects[index].canContinueDrawing else{draft=[];status="That line can't be continued any more.";return}
         var candidate=design
         candidate.objects[index].nodes=fromStart ? RunObject.reversedPath(draft,satin:candidate.objects[index].kind == .satin) : draft
+        let untangled=SatinPairs.untangle(candidate.objects[index])   // as when drawing a new satin
+        if let untangled {candidate.objects[index]=untangled}
         do{try candidate.validate()}catch{status=error.localizedDescription;return}
         let name=candidate.objects[index].name
         edit("Continue Drawing"){$0=candidate}
-        draft=[];selection=[id];selectedNode=nil;backToSelect(after:"‘\(name)’ continued")
+        draft=[];selection=[id];selectedNode=nil;backToSelect(after:"‘\(name)’ continued"+(untangled != nil ? " (a pair clicked right-then-left was swapped so the column sews)" : ""))
     }
     /// Add or Remove Stitch Angles: a click at `point`. Adding takes two clicks per line, across the fill, and adds
     /// it (one undoable step each); removing takes away the line within `reach` mm of the click.
