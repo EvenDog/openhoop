@@ -85,6 +85,7 @@ struct RowLock: View {
     Divider()
     if targets.count >= 2 && !(groups.count == 1 && objects.allSatisfy { $0.groupID == groups.first }) { Button("Group") { run(.group) } }
     if !groups.isEmpty { Button("Ungroup") { run(.ungroup) } }
+    if objects.contains(where: { $0.kind == .raw }) { Button("Recognize Objects") { run(.recognizeObjects) } }
     Divider()
     Button("Cut") { run(.cutObjects) }
     Button("Copy") { run(.copyObjects) }

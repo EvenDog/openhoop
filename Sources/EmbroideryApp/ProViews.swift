@@ -427,7 +427,7 @@ extension InspectorPanel {
             case .satin: proSatin(object, headed: headed)
             case .run: proRunning(object, headed: headed)
             case .vector: proOutline(object, headed: headed)
-            case .raw: EmptyView()
+            case .raw: proImported(object, headed: headed)
             }
             if object.kind == .satin || object.kind == .run { proHandStitch(object) }
             if object.kind == .satin || (object.kind == .fill && object.settings.fillStyle == .satin) { proJaggedEdge(object) }
@@ -506,7 +506,7 @@ extension InspectorPanel {
         }
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.controlBorder))
-        .help(object.kind == .raw ? "Existing stitches: move, rotate, mirror or recolor this thread block. Scaling changes density and stitch lengths; it does not regenerate stitches." : "")
+        .help(object.kind == .raw ? "Existing stitches: move, rotate, mirror or recolor this thread block. Scaling changes density and stitch lengths; Recognize Objects turns them into fills and satins that resize properly." : "")
     }
     /// Sets the selected fills' row angle. A drag of the dial passes the same `run` all the way, so it's one undo step.
     private func setFillAngle(_ angle: Double, run: String?) {
@@ -692,6 +692,17 @@ extension InspectorPanel {
     }
 
     /// An outline that doesn't sew yet: buttons to give it stitches. `headed` as for `proFill`.
+    /// Imported stitches sew as they were made; Recognize Objects turns them into fills and satin columns that resize.
+    private func proImported(_ object: RunObject, headed: Bool) -> some View {
+        proSection(headed ? "Imported stitches" : nil) {
+            Text("Sews as it was imported: resizing stretches its stitches.").font(Theme.body(10)).foregroundStyle(Theme.inkSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            proRow("Turn into", help: preferences.hint(.recognizeObjects)) {
+                Button("Fills & satins") { AppDelegate.shared.perform(.recognizeObjects) }.buttonStyle(ThemedButtonStyle())
+            }
+        }
+    }
+
     private func proOutline(_ object: RunObject, headed: Bool) -> some View {
         // A guide line only steers its fill or lettering: it can go back to being a sewn line, nothing else.
         proSection(!headed ? nil : object.guideFor == nil ? "Outline" : "Guide line") {

@@ -780,6 +780,21 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             status = "Overlaps removed: fills now stop \(OverlapCutout.tuck.formatted()) mm under the shapes on top and stay that way if you move them. Undo puts them back." + gone
         } catch { status = error.localizedDescription }
     }
+    /// Recognize Objects: turns the selected imported stitch blocks into fills and satin columns, as one undoable
+    /// step (Design.recognizeObjects), selects what they became, and says what was found.
+    func recognizeObjects() {
+        let blocks = Set(design.objects.filter { editableSelection.contains($0.id) && $0.kind == .raw }.map(\.id))
+        guard !blocks.isEmpty else { status = "Select imported stitches first: a design opened or imported from a machine file."; return }
+        var next = design
+        let found = next.recognizeObjects(blocks)
+        guard found.foundAny else { status = "No fills or satin columns found in the selected stitches, so they stay as they are."; return }
+        let before = Set(design.objects.map(\.id))
+        guard edit("Recognize Objects", { $0 = next }) else { return }
+        selection = Set(next.objects.map(\.id)).subtracting(before); selectedNode = nil
+        func count(_ n: Int, _ word: String) -> String { "\(n) \(word)\(n == 1 ? "" : "s")" }
+        let kept = found.keptStitches == 0 ? "" : " \(found.keptStitches) stitch\(found.keptStitches == 1 ? "" : "es") that are neither stay as imported stitches."
+        status = "Recognized \(count(found.fills, "fill")) and \(count(found.satins, "satin column")). They resize at the same density, with their own underlay." + kept
+    }
     /// Moves the selection so the center of its box lands at the given x and/or y (mm), as one undoable edit.
     func moveSelection(centerX: Double? = nil, centerY: Double? = nil) {
         let ids = editableSelection

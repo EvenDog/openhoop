@@ -639,6 +639,7 @@ import EmbroideryCore
         case .scatter:
             guard state.draft.isEmpty else { state.status = "Finish the current path with Enter, or cancel with Escape, first."; return }
             state.startScatter(); state.focusCanvas()
+        case .recognizeObjects: state.recognizeObjects()
         case .removeOverlaps:
             guard state.draft.isEmpty else { state.status = "Finish the current path with Enter, or cancel with Escape, first."; return }
             state.removeOverlaps()
@@ -666,7 +667,7 @@ import EmbroideryCore
         case .renameObject:if let object=state.selected,let name=askName("Rename object",value:object.name){state.editSelected("Rename Object"){$0.name=name}}
         case .convertFill,.convertRun:
             guard state.draft.isEmpty else{return}
-            guard !state.design.objects.contains(where:{state.selection.contains($0.id) && $0.kind == .raw}) else{state.status="Imported stitches cannot be converted into digitizing outlines. Trace a new object instead.";return}
+            guard !state.design.objects.contains(where:{state.selection.contains($0.id) && $0.kind == .raw}) else{state.status="Imported stitches have no outline to convert. Choose Recognize Objects to turn them into fills and satin columns.";return}
             if command == .convertFill && state.design.objects.contains(where:{state.selection.contains($0.id) && $0.nodes.count<3}){state.status="Fill needs an outline with at least three nodes.";return}
             if command == .convertRun {
                 var selected=state.selection
@@ -1330,7 +1331,7 @@ import EmbroideryCore
         ("Pick & Shape", [.selectTool, .nodeTool, .insertNode, .deleteNode, .toggleNodeType, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .removeOverlaps, .branching,
                           .entryExitTool, .autoStartPoints, .clearStartEnd, .panTool, .artworkTool]),
         ("Stitch", [.runTool, .satinTool, .fillTool, .holeTool, .removeHoles, .addStitchAngles, .removeStitchAngles, .useAsFillGuide,
-                    .convertRun, .convertSatin, .convertFill, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),
+                    .convertRun, .convertSatin, .convertFill, .recognizeObjects, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool,
                    .finishPath, .removePoint, .cancelPath]),
         ("Add", [.lettering, .editLettering, .breakApartLettering, .putLetteringOnLine, .addMonogram, .editMonogram, .satinBorder, .colorBlend, .outlinesOffsets, .applique, .autoDigitize, .laydown, .wreath, .repeatAlongLine, .scatter, .testSwatches])
