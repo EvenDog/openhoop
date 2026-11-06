@@ -291,7 +291,7 @@ struct StitchPlanPicture: View {
                 // to point up, as the design and the canvas do, keeps the light and shadows falling the same way.
                 context.withCGContext { cg in
                     cg.translateBy(x: 0, y: size.height); cg.scaleBy(x: 1, y: -1)
-                    DesignCanvas.drawThread(cg, plan.commands[...], from: plan.commands.first?.point ?? Point(0, 0), threads: plan.threads, hidden: [], showUnderlay: true,
+                    DesignCanvas.drawThread(cg, plan.commands[...], from: plan.commands.first?.point ?? Point(0, 0), threads: plan.threads, hidden: [], underlay: .all,
                                             width: max(1.2, 0.45 * scale), visibleArea: CGRect(origin: .zero, size: size)) { p in
                         CGPoint(x: left + (p.x - minX) * scale, y: bottom + (p.y - minY) * scale)
                     }

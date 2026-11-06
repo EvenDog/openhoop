@@ -175,12 +175,41 @@ struct ToolStrip: View {
                 .frame(width: 30, height: 30)
                 .background(active ? Theme.accent : Color.clear, in: RoundedRectangle(cornerRadius: 6))
                 .foregroundStyle(active ? Theme.onAccent : Theme.toolBandInk)
+                // A dot marks the underlay-only views, so they look different from plain "shown".
+                .overlay(alignment: .bottomTrailing) {
+                    if command == .showUnderlay && [.onlyAll, .onlySelected].contains(state.underlayView) {
+                        Circle().fill(Theme.onAccent).frame(width: 5, height: 5).padding(3)
+                    }
+                }
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain).disabled(!available).opacity(available ? 1 : 0.4)
-        .help(preferences.hint(command))
+        .help(command == .showUnderlay ? underlayHelp : preferences.hint(command))
         .accessibilityLabel(command.title)
         .accessibilityAddTraits(active ? .isSelected : [])
+        // Right-click: the Underlay button offers its four views; every button keeps the band's Customize Tools.
+        .contextMenu {
+            if command == .showUnderlay {
+                Picker("Underlay", selection: $state.underlayView) {
+                    Text("Shown").tag(UnderlayView.shown)
+                    Text("Hidden").tag(UnderlayView.hidden)
+                    Text("Only underlay – all objects").tag(UnderlayView.onlyAll)
+                    Text("Only underlay – selected objects").tag(UnderlayView.onlySelected)
+                }
+                .pickerStyle(.inline)
+                Divider()
+            }
+            customizeButton
+        }
+    }
+    /// The Underlay button's tooltip: what it shows now, and how to get the other views.
+    private var underlayHelp: String {
+        let now: String
+        switch state.underlayView {
+        case .shown: now = "Underlay shown"; case .hidden: now = "Underlay hidden"
+        case .onlyAll: now = "Only underlay, all objects"; case .onlySelected: now = "Only underlay, selected objects"
+        }
+        return "\(now). Click to show or hide underlay; right-click to see only the underlay of all or the selected objects."
     }
     /// False for commands that can't run right now, so their menu items are greyed out.
     private func isAvailable(_ command: CommandID) -> Bool {

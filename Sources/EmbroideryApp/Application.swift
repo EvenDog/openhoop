@@ -396,7 +396,7 @@ import EmbroideryCore
         if command == .close { return NSApp.keyWindow != nil }
         guard let state = active?.state else { return false }
         let shown: [CommandID: Bool] = [.reviewSewingOrder: state.reviewing, .showStitches: state.showStitches, .showOutlines: state.showOutlines, .showConnectors: state.showsConnectors, .hideOthers: state.hideOthers,
-                                        .grid: state.grid, .snap: state.snap, .needles: state.needles, .showUnderlay: state.showUnderlay, .densityMap: state.showDensity, .artworkOnTop: state.artworkOnTop]
+                                        .grid: state.grid, .snap: state.snap, .needles: state.needles, .showUnderlay: state.showUnderlay, .underlayOnlyAll: state.underlayView == .onlyAll, .underlayOnlySelected: state.underlayView == .onlySelected, .densityMap: state.showDensity, .artworkOnTop: state.artworkOnTop]
         if let on = shown[command] { menuItem.state = on ? .on : .off; return true }
         if command == .cutObjects || command == .copyObjects { return !state.selection.isEmpty }
         if command == .pasteObjects { return NSPasteboard.general.data(forType: .init(ObjectClipboard.pasteboardType)) != nil }
@@ -685,7 +685,12 @@ import EmbroideryCore
             }
         case .removeHoles:state.editSelected(command.title){if $0.kind == .fill{$0.holes=[]}}
         case .toggleUnderlay:state.editSelected(command.title){object in if object.kind == .satin || object.kind == .fill{var settings=object.settings;if settings.underlay == .none {settings.underlay=object.kind == .fill ? .edge:.auto;if object.kind == .fill {settings.secondUnderlay = .tatami}} else {settings.underlay = .none};object.digitizing=settings}}
-        case .showUnderlay:state.showUnderlay.toggle()
+        // Show Underlay switches between shown and hidden; from an underlay-only view it goes back to shown.
+        case .showUnderlay: state.underlayView = state.underlayView == .shown ? .hidden : .shown
+        case .underlayOnlyAll: state.underlayView = state.underlayView == .onlyAll ? .shown : .onlyAll
+        case .underlayOnlySelected:
+            state.underlayView = state.underlayView == .onlySelected ? .shown : .onlySelected
+            if state.underlayView == .onlySelected && state.selection.isEmpty { state.status = "Select the objects whose underlay you want to see on its own." }
         case .densityMap:
             state.showDensity.toggle()
             if state.showDensity {
@@ -1354,7 +1359,7 @@ import EmbroideryCore
         ("Digitize", [digitizeSections.map { .submenu($0.title, [$0.commands]) }, items(.done)]),
         ("View", [items(.threadView, .reviewSewingOrder),
                   [.submenu("Zoom", [[.zoomIn, .zoomOut], [.zoomFit, .zoomDesign, .zoomSelected, .zoomActual], [.zoomBoxTool]]),
-                   .submenu("Show", [[.showStitches, .showOutlines, .showConnectors, .showUnderlay, .needles], [.artwork, .artworkOnTop, .densityMap], [.hideOthers]]),
+                   .submenu("Show", [[.showStitches, .showOutlines, .showConnectors, .needles], [.showUnderlay, .underlayOnlyAll, .underlayOnlySelected], [.artwork, .artworkOnTop, .densityMap], [.hideOthers]]),
                    .submenu("Grid & Rulers", [[.grid, .snap], [.showRulers, .clearGuides], [.useInches]]),
                    .submenu("Stitch Player", [[.play, .rewind, .toEnd], [.stepForward, .stepBackward, .stepForward10, .stepBackward10],
                                               [.nextColor, .previousColor], [.nextObject, .previousObject], [.nextTrim, .previousTrim]])],

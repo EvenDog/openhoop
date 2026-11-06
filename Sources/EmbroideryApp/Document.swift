@@ -124,7 +124,14 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     @Published var angleStart:Point?
     /// The stitch angle line clicked (a fill and which of its lines), which Delete removes; nil when none is.
     @Published var selectedAngle:(object:UUID,index:Int)?
-    @Published var showUnderlay = Preferences.shared.shown.underlay ?? true { didSet { Preferences.shared.updateShown { $0.underlay = showUnderlay } } }
+    /// Which underlay stitches the canvas shows: all of them, none, or only underlay (for every object, or for the
+    /// selected ones). Only shown or hidden is remembered between launches, so the app never opens showing just
+    /// underlay.
+    @Published var underlayView: UnderlayView = (Preferences.shared.shown.underlay ?? true) ? .shown : .hidden {
+        didSet { if underlayView == .shown || underlayView == .hidden { Preferences.shared.updateShown { $0.underlay = underlayView == .shown } } }
+    }
+    /// True unless underlay is hidden: the Show Underlay button and menu item look on.
+    var showUnderlay: Bool { underlayView != .hidden }
     /// The density map: heavy (yellow) and too dense (red) 1 mm squares drawn over the stitches.
     @Published var showDensity = Preferences.shared.shown.density ?? false { didSet { Preferences.shared.updateShown { $0.density = showDensity } } }
     @Published var draft: [PathNode] = [] {
