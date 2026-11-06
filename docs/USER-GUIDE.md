@@ -366,6 +366,10 @@ Print it, or choose **PDF** in the print dialog to save it.
 
 **⌥⌘O** imports PES, PEC, DST, EXP, JEF, VP3 or XXX into the open design, at its original size and place. Each thread change becomes a block you can move, turn, mirror, recolor, reorder or combine with new work. These are finished stitches, not editable shapes: you can't edit their points or change their stitch type, and resizing changes their density. Colors the file doesn't store come in as **Unknown thread**; pick the right thread for each block.
 
+**Recognize Objects** turns imported stitches back into shapes, so they resize at the same density and can be edited. Select one or more imported blocks and choose **Digitize › Stitch › Recognize Objects** (or **Turn into: Fills & satins** in the Stitch tab of **Properties**, or right-click them in the sewing order). OpenHoop works out from the stitches which parts are fills (with their outline, holes, row angle, spacing and stitch length) and which are satin columns, and makes them into fills and satin columns of their own. Underlay and travel between parts are left out, since the new objects sew their own; stops stay. Parts that are neither stay as imported stitches, and the status line says how many stitches that is. It's one step: **⌘Z** puts the imported stitches back. Things to check afterwards:
+- Patterned fills come back as plain tatami (pick the pattern again in Properties), and a hand-stitched fill as a neat one.
+- A satin sewn in separate passes may come back as two columns.
+
 ## Making it yours
 
 **Keyboard shortcuts.** **⌘,** → **Keyboard Shortcuts**: search for any command and click **Record** to give it a key. Commands can have several shortcuts; clashes are flagged, and you can save named profiles and import or export them.
