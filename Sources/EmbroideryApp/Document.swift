@@ -23,6 +23,9 @@ enum Tool: String, Codable { case select, run, satin, fill, hole, node, pan, ent
     text       // Add Lettering: click where the new lettering goes
     /// The tools that place points one click at a time.
     var draws:Bool {[.run,.satin,.fill,.hole,.openShape,.closedShape,.knife].contains(self)}
+    /// The tools that make new objects in the current thread. While one is on, picking a thread is for the next shape,
+    /// not the one just made (which stays selected): Esc goes back to Select to recolor that.
+    var makesObjects:Bool {[.run,.satin,.fill,.openShape,.closedShape,.rectangle,.ellipse,.basicShape,.freehandOpen,.freehandClosed].contains(self)}
     /// The tools that drag out a whole shape at once.
     var dragsShape:Bool {[.rectangle,.ellipse,.basicShape].contains(self)}
     /// True when the outline being drawn closes back on itself.
@@ -270,13 +273,18 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     }
     // MARK: Thread palette (ThreadPalette.swift, PaletteRow.swift)
     /// Makes `color` the current thread, recolors the selection and keeps the thread in the design's palette, all as
-    /// one Undo step.
+    /// one Undo step. While a drawing tool is on, the thread is only for the next shapes: the one just drawn (still
+    /// selected) keeps its own.
     func chooseThread(_ color: ThreadColor) {
         currentColor = color
+        let forNextShape = tool.makesObjects
         edit("Thread Color") { next in
-            for index in next.objects.indices where selection.contains(next.objects[index].id) && !next.objects[index].locked { next.objects[index].color = color }
+            if !forNextShape {
+                for index in next.objects.indices where selection.contains(next.objects[index].id) && !next.objects[index].locked { next.objects[index].color = color }
+            }
             next.addToPalette(color)
         }
+        if forNextShape { status = "Next shapes sew in \(color.name)." + (selection.isEmpty ? "" : " To recolor the selected shape, press Esc first.") }
     }
     func addCurrentThreadToPalette() { edit("Add Thread to Palette") { [currentColor] in $0.addToPalette(currentColor) } }
     /// Takes `color` out of the palette (nothing happens while an object sews in it).
