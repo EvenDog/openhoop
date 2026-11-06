@@ -1,6 +1,6 @@
 // Checks Continue drawing end to end: picking up a satin at its end or start, adding pairs, then Return, keeps the
 // same object (name, place in the sewing order, direction) with the new pairs added, as one undoable step; Esc leaves
-// it as it was.
+// it as it was. Pointing at an end shows that it can be picked up.
 import XCTest
 import AppKit
 import EmbroideryCore
@@ -60,5 +60,25 @@ final class ContinueDrawingFlowTests: XCTestCase {
         state.draft = [Point(0, 30), Point(0, 26), Point(10, 30), Point(10, 26)].map { PathNode($0) }
         state.finishPath()
         XCTAssertEqual(state.design.objects.count, 3)
+    }
+
+    @MainActor func testPointingAtAnEndSaysAClickCarriesItOn() {
+        _ = NSApplication.shared
+        let state = EditorState(), satin = setUp(state)
+        let canvas = DesignCanvas(state: state); canvas.frame = NSRect(x: 0, y: 0, width: 600, height: 600); state.canvas = canvas
+        state.status = "Satin column ready."
+        canvas.updateContinueHover(at: canvas.screen(Point(10, -2)))
+        XCTAssertEqual(canvas.hoveredPick, .end(satin.id, fromStart: false))
+        XCTAssertEqual(state.status, "Click to carry on ‘Stem’ from its end.")
+        canvas.updateContinueHover(at: canvas.screen(Point(5, 0)))
+        XCTAssertNil(canvas.hoveredPick, "the middle of the column isn't an end")
+        XCTAssertEqual(state.status, "Satin column ready.", "moving off puts the status line back")
+        // The Running tool only picks up lines, and nothing is picked up while a shape is being drawn.
+        state.tool = .run
+        canvas.updateContinueHover(at: canvas.screen(Point(0, 2)))
+        XCTAssertNil(canvas.hoveredPick)
+        state.tool = .satin; state.draft = [PathNode(Point(40, 40))]
+        canvas.updateContinueHover(at: canvas.screen(Point(0, 2)))
+        XCTAssertNil(canvas.hoveredPick)
     }
 }
