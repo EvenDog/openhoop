@@ -120,7 +120,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .insertNode: return "Add a point to the selected outline, under the pointer."
         case .deleteNode: return "Remove the selected point from the outline."
         case .toggleNodeType: return "Switch the selected point between a sharp corner and a smooth curve."
-        case .breakApartLettering: return "Split lettering, monograms and copies along a line into separate shapes you can reshape one by one, and give each hole of a fill a fill of its own."
+        case .breakApartLettering: return "Split lettering, monograms and copies along a line into separate shapes, and give each hole of a fill a fill of its own."
         case .densityMap: return "Mark where the stitching is heavy (yellow) or too dense (red), before you sew."
         case .testSwatches: return "Make a design of copies of the selected object with one setting stepped, to sew and compare on the fabric."
         case .useAsFillGuide: return "Turn the selected line into a guide for the selected fill: the fill's rows bend to follow it."
