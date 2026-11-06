@@ -1,7 +1,8 @@
-// Cutting out overlaps: a fill can leave out the area that shapes sewn after it will cover, so the hidden part
-// isn't stitched twice (stiff, bulky embroidery). The fill keeps sewing a little way under each covering shape's
-// edge so no gap opens up. The shapes themselves never change; the cut is worked out each time stitches are made,
-// so moving the shape on top lets the fill fill back in. It's an option on each fill, off unless switched on.
+// Cutting out overlaps: a fill can leave out the area that shapes sewn after it cover, so the hidden part isn't
+// stitched twice (stiff, bulky embroidery). The fill keeps sewing a little way under each covering shape's edge so no
+// gap opens up. Remove Overlaps (`Design.removeOverlaps`) cuts the fill's own outline once, so it stays that way.
+// Older files may have fills with "Cut out shapes sewn on top" on, which works the cut out each time stitches are
+// made instead (so moving the shape on top lets the fill fill back in); they keep sewing that way.
 import Foundation
 
 public enum OverlapCutout {
@@ -97,6 +98,37 @@ public enum OverlapCutout {
 extension Design {
     /// Remove Overlaps: the unlocked fills among `ids` that something sewn after them overlaps, so cutting out what's
     /// on top would change their stitches. Fills whose cut can't be worked out are left out.
+    /// Remove Overlaps: cuts the area that objects sewn after each fill in `ids` cover out of that fill's own outline,
+    /// once, keeping it `OverlapCutout.tuck` mm under their edges. The fill's shape really changes, so moving or
+    /// deleting what was on top later leaves it as cut (Undo puts it back). A fill split in two or more becomes
+    /// pieces with its settings, in its place in the sewing order and grouped together; a fill covered completely
+    /// is removed. Locked fills are left alone. Returns the pieces made (a fill cut without splitting is one piece,
+    /// keeping its ID) and the names of the fills removed.
+    public mutating func removeOverlaps(in ids: Set<UUID>) throws -> (pieces: [UUID], removed: [String]) {
+        var made: [UUID] = [], removed: [String] = [], index = 0
+        while index < objects.count {
+            let fill = objects[index]
+            guard ids.contains(fill.id), fill.kind == .fill, !fill.locked,
+                  let regions = try OverlapCutout.pieces(of: fill, under: Array(objects[(index + 1)...])) else { index += 1; continue }
+            guard !regions.isEmpty else { removed.append(fill.name); objects.remove(at: index); continue }
+            // The biggest piece keeps the fill's ID and name, as Knife's pieces do.
+            let sorted = regions.sorted { abs(AreaGeometry.area($0[0])) > abs(AreaGeometry.area($1[0])) }
+            let group = sorted.count > 1 ? (fill.groupID ?? UUID()) : fill.groupID
+            let pieces = sorted.enumerated().map { number, region in
+                var piece = fill.cutPiece(number)
+                let nodes = region.map(Self.cornerNodes)
+                piece.nodes = nodes[0]; piece.holes = nodes.count > 1 ? Array(nodes.dropFirst()) : (fill.holes == nil ? nil : [])
+                piece.keepMarkers(inside: region); piece.keepAngleLines(for: region)
+                piece.groupID = group
+                piece.digitizing?.cutOutOverlaps = nil   // already cut: an older file's live cut would cut again
+                return piece
+            }
+            objects.replaceSubrange(index...index, with: pieces)
+            made += pieces.map(\.id); index += pieces.count
+        }
+        return (made, removed)
+    }
+
     public func fillsWithOverlaps(among ids: Set<UUID>) -> Set<UUID> {
         var found: Set<UUID> = []
         for (index, object) in objects.enumerated() where ids.contains(object.id) && object.kind == .fill && !object.locked {

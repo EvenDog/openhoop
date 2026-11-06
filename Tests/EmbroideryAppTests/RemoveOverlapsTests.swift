@@ -1,6 +1,6 @@
-// Checks Remove Overlaps end to end: it switches on "Cut out shapes sewn on top" for the fills that something sewn
-// later overlaps (the selected ones, or all with nothing selected), as one undoable step, and choosing it again
-// switches it off.
+// Checks Remove Overlaps end to end: it cuts what shapes sewn later cover out of the fills' own outlines (the
+// selected fills, or all with nothing selected), once, as one undoable step. Moving the shape on top afterwards leaves
+// the fill as it was cut.
 import XCTest
 import AppKit
 import EmbroideryCore
@@ -14,34 +14,39 @@ final class RemoveOverlapsTests: XCTestCase {
         return o
     }
 
-    @MainActor func testRemoveThenRestoreOverlaps() {
+    @MainActor func testRemoveOverlapsCutsOnceAndStays() {
         _ = NSApplication.shared
         let document = DesignDocument(), state = document.state
         let base = square("Base", x: 0, size: 40), top = square("Top", x: 0, size: 20), other = square("Other", x: 60, size: 20)
         let cover = square("Cover", x: 60, size: 10)
         state.design.objects = [base, other, top, cover]
-        func cuts(_ name: String) -> Bool { state.design.objects.first { $0.name == name }?.settings.cutOutOverlaps == true }
+        func holes(_ name: String) -> Int { state.design.objects.first { $0.name == name }?.holes?.count ?? 0 }
 
-        // Only Other selected: just it changes.
+        // Only Other selected: just it is cut.
         state.selection = [other.id]
         state.removeOverlaps()
-        XCTAssertTrue(cuts("Other")); XCTAssertFalse(cuts("Base"))
+        XCTAssertEqual(holes("Other"), 1, "Cover is cut out of it"); XCTAssertEqual(holes("Base"), 0)
+        XCTAssertEqual(state.selection, [other.id], "it stays selected")
         document.undoManager?.undo()
-        XCTAssertFalse(cuts("Other"), "one undo")
+        XCTAssertEqual(holes("Other"), 0, "one undo")
 
         // Nothing selected: every fill with something on top (not Top or Cover, which have nothing after them).
         state.selection = []
         state.removeOverlaps()
-        XCTAssertTrue(cuts("Base")); XCTAssertTrue(cuts("Other")); XCTAssertFalse(cuts("Top")); XCTAssertFalse(cuts("Cover"))
-        XCTAssertTrue(state.status.hasPrefix("Overlaps removed: 2 fills"), state.status)
-        // Again: they all have it on, so it goes off.
-        state.removeOverlaps()
-        XCTAssertFalse(cuts("Base")); XCTAssertFalse(cuts("Other"))
-        XCTAssertTrue(state.status.hasPrefix("Overlaps restored"), state.status)
+        XCTAssertEqual(holes("Base"), 1); XCTAssertEqual(holes("Other"), 1); XCTAssertEqual(holes("Top"), 0)
+        XCTAssertTrue(state.status.hasPrefix("Overlaps removed"), state.status)
+        // The hole is Top less the 1 mm tuck: 18 mm across.
+        let hole = state.design.objects.first { $0.name == "Base" }!.holes![0].map(\.point)
+        XCTAssertEqual(hole.map(\.x).max()! - hole.map(\.x).min()!, 18, accuracy: 0.01)
 
-        // Nothing on top of the selection: says so and changes nothing.
-        state.selection = [cover.id]
+        // Moving Top away leaves Base as it was cut: the cut doesn't follow it.
+        let cutBase = state.design.objects.first { $0.name == "Base" }!
+        state.edit("Move") { $0.move([top.id], by: Point(100, 0)) }
+        XCTAssertEqual(state.design.objects.first { $0.name == "Base" }, cutBase)
+
+        // Again, with nothing overlapping any more: says so and changes nothing.
         state.removeOverlaps()
-        XCTAssertFalse(cuts("Cover")); XCTAssertTrue(state.status.hasPrefix("Nothing sewn on top"), state.status)
+        XCTAssertTrue(state.status.hasPrefix("Nothing sewn on top"), state.status)
+        XCTAssertEqual(state.design.objects.first { $0.name == "Base" }, cutBase)
     }
 }

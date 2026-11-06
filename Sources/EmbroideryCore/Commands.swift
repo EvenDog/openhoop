@@ -140,7 +140,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .basicShapeTool: return "Drag out one of 35 shapes (stars, badges, leaves, hearts, frames and more), picked from the pictures in the Next shape bar."
         case .knifeTool: return "Cut shapes in two: click points across them and press Return."
         case .weldObjects: return "Join overlapping shapes into one fill."
-        case .removeOverlaps: return "Leave out the parts of fills that shapes on top cover, so they aren't sewn twice. Choose again to sew them in full."
+        case .removeOverlaps: return "Cut the parts of fills that shapes on top cover out of them, once, so they aren't sewn twice."
         case .smoothShapes: return "Remove points that barely shape the selected outlines, to tidy them."
         case .laydown: return "Add a light, open fill under the design that flattens towel, fleece or velvet pile."
         case .wreath: return "Repeat the selection all the way round a center point, like petals; a kaleidoscope mirrors every other copy."
