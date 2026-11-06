@@ -200,7 +200,7 @@ Each layer shows only the settings its type uses: **Inset** (how far inside the 
 - **Fit hoop (⌥0), zoom in (Z), zoom out (⇧Z).**
 
 **Show** (the list next to the zoom slot, and the View menu) switches parts of the view on and off. These only change what you see: everything still sews. OpenHoop remembers your choices (and the grid), so new and opened designs start the way you left them; only **Hide unselected objects** starts off each time.
-- **Stitches (S)** and **Outlines of every object (L)**: hide the stitches and show the outlines to check shapes against the artwork.
+- **Stitches (S)** and **Outlines of every object (L)**: hide the stitches and show the outlines to check shapes against the artwork. With Thread View off, each stitch is a fine line, so you can see which way a fill's rows run, and the selected objects' stitches turn blue so they stand out.
 - **Connectors (⇧C):** the dashed travel moves between parts. They show in the stitch view and are hidden in Thread View until you switch them.
 - **Needle points (.)** and **Underlay (⇧U).** Needle points show as small dots once you zoom in (300% or more), in Thread View too.
 - **Hide unselected objects (⇧S):** keeps only the selection in view, to work on one part of a busy design. Clicking empty canvas shows everything again until you select something else.
