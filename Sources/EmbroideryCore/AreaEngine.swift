@@ -99,8 +99,8 @@ public enum AreaEngine {
         case .stipple:parts=[try FillStyles.stipple(in:expanded,spacing:s.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing,length:object.stitchLength,start:start)]
         case .guided:
             guard let guide=s.guideLine else{throw DesignError.invalid("This guided fill has no guide line. Draw a line over it, select both and choose Use Line as Fill Guide.")}
-            // A blend layer's rows start at Spacing at start, like a straight blend's.
-            let spacing=s.blendFade != nil ? (s.gradientStart ?? DigitizingSettings.defaultGradientStart) : s.rowGap
+            // A blend layer's rows start at its blend row gap, like a straight blend's.
+            let spacing=s.blendFade != nil ? s.blendRowGap : s.rowGap
             parts=[try GuidedFill.rows(in:expanded,guide:guide,spacing:spacing,length:object.stitchLength,blend:ColorBlend.fillBlend(s))]
         case .satin:parts=[try SatinFill.stitches(in:expanded,angle:s.angle,spacing:s.spacing,maximum:s.satinSplit ?? DigitizingSettings.defaultSatinSplit,split:s.autoSplit != false)]
         case .radial:parts=[try FillStyles.radial(in:expanded,center:s.radialCenter ?? AreaGeometry.centroid(original[0]),spacing:s.spacing,length:object.stitchLength,start:start,blend:ColorBlend.fillBlend(s))]
@@ -231,7 +231,8 @@ public enum AreaEngine {
         // measured once here, so a fill split in two by its end point still shades smoothly from one side to the other.
         let heightsAcross=region.flatMap{$0}.map{AreaGeometry.rotate($0,degrees:-s.angle).y}
         let spreads=s.fillStyle == .gradient || (s.fillStyle == .wave && s.blendFade != nil)
-        let gradient:GradientRows?=spreads ? (from:s.gradientStart ?? DigitizingSettings.defaultGradientStart,to:s.gradientEnd ?? DigitizingSettings.defaultGradientEnd,low:heightsAcross.min() ?? 0,high:heightsAcross.max() ?? 0,fade:s.blendFade) : nil
+        // A blend layer's solid rows are its blend row gap apart (Spacing at start, across two rows in newer blends).
+        let gradient:GradientRows?=spreads ? (from:s.blendFade != nil ? s.blendRowGap : s.gradientStart ?? DigitizingSettings.defaultGradientStart,to:s.gradientEnd ?? DigitizingSettings.defaultGradientEnd,low:heightsAcross.min() ?? 0,high:heightsAcross.max() ?? 0,fade:s.blendFade) : nil
         let pattern=(s.fillStyle ?? .tatami) == .tatami ? TatamiPattern.of(s) : .smooth
         /// Of the ways to sew `part` (from the sides in `fromTop`, the first row either way), the one with the lowest score.
         func best(_ part:[[Point]],fromTop:[Bool],_ score:([[Point]])->Double) throws -> (rows:[[Point]],covered:Set<Int>) {

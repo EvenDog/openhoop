@@ -92,6 +92,8 @@ public enum ColorBlend {
         settings.angleLines = nil   // gradient rows run straight across, square to the blend
         settings.angle = angle(for: direction)
         settings.blendFromEdge = shape.hasDirection ? nil : firstAtEdge
+        // Row blends space their rows like tatami: Spacing at start across two rows (radial and contour fills don't pair rows).
+        settings.blendRowsPaired = Self.pairsRows(shape) ? true : nil
         bottom.digitizing = settings
         bottom.stitchEdits = nil    // new stitches, so edits made to the old ones no longer fit
         bottom.groupID = fill.groupID ?? UUID()
@@ -107,6 +109,9 @@ public enum ColorBlend {
         top.blendOf = bottom.id
         return [bottom, top]
     }
+
+    /// True for blends sewn in rows (straight, wave, guided), whose Spacing at start is measured across two rows.
+    static func pairsRows(_ shape: BlendShape) -> Bool { [.straight, .wave, .guided].contains(shape) }
 
     /// The kind of blend whose first color's layer is `base`.
     public static func shape(of base: RunObject) -> BlendShape { BlendShape(style: base.settings.fillStyle) ?? .straight }
@@ -159,6 +164,9 @@ extension Design {
         objects[base].digitizing?.blendFromEdge = shape.hasDirection ? nil : firstAtEdge
         objects[top].digitizing?.blendFromEdge = shape.hasDirection ? nil : !firstAtEdge
         objects[base].stitchEdits = nil; objects[top].stitchEdits = nil   // new stitches, so old edits no longer fit
+        // A blend changed in the dialog takes the density its preview showed, even one made before rows were paired.
+        let paired: Bool? = ColorBlend.pairsRows(shape) ? true : nil
+        objects[base].digitizing?.blendRowsPaired = paired; objects[top].digitizing?.blendRowsPaired = paired
         objects[base].digitizing?.angle = ColorBlend.angle(for: direction)
         objects[top].digitizing?.angle = ColorBlend.angle(for: direction + 180)
         objects[top].color = second
@@ -231,7 +239,7 @@ extension Design {
                     objects[t].digitizing?[keyPath: key] = base.settings[keyPath: key]
                 }
             }
-            share(\.radialCenter); share(\.waveHeight); share(\.waveLength); share(\.guideLine)
+            share(\.radialCenter); share(\.waveHeight); share(\.waveLength); share(\.guideLine); share(\.blendRowsPaired)
             func refaded(_ object: RunObject, new: Bool) -> Bool {
                 guard let old = before[object.id] else { return new }
                 return old.settings.blendFade != object.settings.blendFade

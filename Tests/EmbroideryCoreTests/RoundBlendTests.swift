@@ -88,8 +88,10 @@ final class RoundBlendTests: XCTestCase {
     }
 
     func testRoundBlendsNeedFileVersion19() throws {
-        var design = Design(); design.objects = ColorBlend.layers(of: disc(), second: blue, direction: 0)
-        XCTAssertFalse(design.needsSchemaNineteen, "a straight blend still opens in older versions")
+        var design = Design(); design.objects = ColorBlend.layers(of: disc(), second: blue, direction: 0).map { layer in
+            var layer = layer; layer.digitizing?.blendRowsPaired = nil; return layer   // as made before rows were paired
+        }
+        XCTAssertFalse(design.needsSchemaNineteen, "an older straight blend still opens in older versions")
         design.objects = ColorBlend.layers(of: disc(), second: blue, direction: 0, shape: .radial)
         XCTAssertTrue(design.needsSchemaNineteen)
         design.schemaVersion = 19

@@ -18,7 +18,7 @@ final class ColorBlendEditTests: XCTestCase {
         state.editSelected("Fill Angle") { $0.digitizing?.angle = 30 }
         XCTAssertEqual(state.design.objects[0].settings.angle, 30)
         XCTAssertEqual(state.design.objects[1].settings.angle, -150, "The second layer turned back to face the first")
-        XCTAssertEqual(state.design.schemaVersion, 17)
+        XCTAssertEqual(state.design.schemaVersion, 19, "a new blend's rows are spaced across two rows, which needs file version 19")
 
         // Reshaping the layer on top reshapes the one under it.
         state.selection = [state.design.objects[1].id]

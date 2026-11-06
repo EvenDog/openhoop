@@ -727,7 +727,7 @@ struct InspectorPanel: View {
             number("Square size", value: s.patternSize ?? DigitizingSettings.defaultPatternSize(.crossStitch), range: DigitizingSettings.patternSizeRange, help: "The size of each cross-stitch square (mm). Smaller squares follow the shape more closely and take more stitches.") { value in settings(.fill, "Square Size") { $0.patternSize = value } }
         case .gradient:
             let gradientHelp = s.blendFade != nil
-                ? "Spacing at start: the rows where this color is solid, in mm. Spacing at end: rows further apart than this are left out, so past its fade this color sews nothing."
+                ? "Spacing at start: how close the rows are where this color is solid, in mm\(s.blendRowsPaired == true ? ", measured across two rows like tatami spacing" : ""). Spacing at end: rows further apart than this are left out, so past its fade this color sews nothing."
                 : "Row spacing where the rows start (the solid end) and where they finish (the open end), in mm. The rows run at the fill angle and open up from one side of the shape to the other; turning the angle by 180° swaps the sides."
             blendMix(object)
             number("Spacing at start", value: s.gradientStart ?? DigitizingSettings.defaultGradientStart, range: DigitizingSettings.gradientSpacingRange, help: gradientHelp) { value in settings(.fill, "Gradient Start") { $0.gradientStart = value } }

@@ -555,6 +555,15 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     /// its middle; nil or false, solid in the middle (the center, for radial) and fading toward the edge. Guided fills
     /// in a blend: true when solid on the guide line's right side (as it was drawn); nil or false, on its left.
     public var blendFromEdge:Bool?
+    /// Straight, wave and guided color blend layers: true when Spacing at start is measured across two rows, as a
+    /// tatami fill's spacing is, so where the layer is solid its rows are half that apart and the blend is as dense as
+    /// tatami. nil in blends made before this (rows Spacing at start apart, half as dense), which sew as they did.
+    public var blendRowsPaired:Bool?
+    /// The gap between a blend layer's rows where it's solid: Spacing at start, halved when measured across two rows.
+    public var blendRowGap:Double {
+        let start = gradientStart ?? Self.defaultGradientStart
+        return blendRowsPaired == true ? start / 2 : start
+    }
     /// Satin only: padding sewn lengthwise inside the column before the satin, so it stands up off the fabric.
     /// nil (the default, and in older files) means flat.
     public var raised:Bool?
@@ -770,9 +779,10 @@ public struct Design: Codable, Equatable, Sendable {
     /// Schema 17 marks projects with color blends, so older versions refuse them instead of losing the link.
     public var needsSchemaSeventeen: Bool { objects.contains { $0.blendOf != nil || $0.digitizing?.blendFade != nil } }
     /// Schema 19 marks projects with wave, radial, contour or guided color blends, so older versions (which only blend gradient
-    /// fills) refuse them instead of sewing them as whole fills on top of each other.
+    /// fills) refuse them instead of sewing them as whole fills on top of each other, and blends whose rows are spaced
+    /// across two rows (`blendRowsPaired`), which older versions would sew half as dense.
     public var needsSchemaNineteen: Bool {
-        objects.contains { $0.digitizing?.blendFade != nil && [.wave, .radial, .contour, .guided].contains($0.digitizing?.fillStyle) }
+        objects.contains { $0.digitizing?.blendFade != nil && ([.wave, .radial, .contour, .guided].contains($0.digitizing?.fillStyle) || $0.digitizing?.blendRowsPaired == true) }
     }
     /// Schema 18 marks projects with fills on double tatami or zigzag underlay, so older versions (which don't sew
     /// those on fills) refuse them instead.
