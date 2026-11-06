@@ -60,7 +60,7 @@ Your machine's manual lists the formats it reads; if in doubt, it's the one its 
 
 ## Drawing stitches
 
-All drawing tools work the same way: **click** for a corner, **press and drag** to pull out a curve, **secondary-click** for an automatic smooth point. **Return** finishes, **Escape** cancels, **Delete** removes the last point. Once a shape is finished, the tool stays on with the new shape selected (ready to adjust in Properties), so you can draw the next one straight away; press **Escape** or pick another tool when you're done. Clicking an end of the line or satin you just drew carries it on rather than starting a new one. Projects remember an unfinished path, so you can carry on after reopening.
+All drawing tools work the same way: **click** for a corner, **press and drag** to pull out a curve, **secondary-click** for an automatic smooth point. **Return** finishes, **Escape** cancels, **Delete** removes the last point. Once a shape is finished, the tool stays on with the new shape selected (ready to adjust in Properties), so you can draw the next one straight away; press **Escape** or pick another tool when you're done. Clicking an end of the line or satin you just drew carries it on rather than starting a new one: the ends you can pick up show small rings, and pointing at one fills it in and says so in the status line. A closed shape takes more points the same way: select a fill or closed outline, keep the **Fill** or **Closed Shape** tool on, and click one of its points (each shows a ring; pointing at one also marks the next point, with a dashed line). The new points you click go in between those two; **Return** adds them to the same shape, **Escape** leaves it as it was. An outline that would cross itself or its holes is refused, so you can take points off with **Delete**. Projects remember an unfinished path, so you can carry on after reopening.
 
 ### Running stitch (⇧N)
 
@@ -365,6 +365,10 @@ Print it, or choose **PDF** in the print dialog to save it.
 ## Importing machine files
 
 **⌥⌘O** imports PES, PEC, DST, EXP, JEF, VP3 or XXX into the open design, at its original size and place. Each thread change becomes a block you can move, turn, mirror, recolor, reorder or combine with new work. These are finished stitches, not editable shapes: you can't edit their points or change their stitch type, and resizing changes their density. Colors the file doesn't store come in as **Unknown thread**; pick the right thread for each block.
+
+### Design Library (⇧⌘L)
+
+**Window › Design Library…** shows your designs as pictures. Click **Add Folder…** and pick a folder; folders inside it are included, and OpenHoop remembers the folders you add. Each card shows the design's size, stitches and colors, and a machine file has its format (PES, DST…) on its picture. Search by name, or sort by name or newest first. Double-click a project to open it. Double-click a machine file to open it as a new design, named after the file, which itself is never changed; right-click it for **Add to Current Design** (the same as ⌥⌘O). The library only reads your files: removing a folder from it (right-click the folder) leaves the folder where it is. Projects saved without their stitches show no stitch count until they're opened and saved again.
 
 ## Making it yours
 

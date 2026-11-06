@@ -108,6 +108,9 @@ struct PreferenceData: Codable {
     /// Motifs of your own, made with Edit › Create Motif… and listed in every Motif menu; nil until one is made.
     /// MotifDialog.swift.
     var myMotifs: [CustomMotif]?
+    /// The folders added to the Design Library, as paths, in the order they were added; nil until one is added.
+    /// DesignLibraryWindow.swift.
+    var libraryFolders: [String]?
 }
 
 /// The canvas's view choices, remembered across designs and launches. Each is nil until it's first switched, which

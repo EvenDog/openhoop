@@ -128,11 +128,14 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     /// The density map: heavy (yellow) and too dense (red) 1 mm squares drawn over the stitches.
     @Published var showDensity = Preferences.shared.shown.density ?? false { didSet { Preferences.shared.updateShown { $0.density = showDensity } } }
     @Published var draft: [PathNode] = [] {
-        didSet { if draft != oldValue { document?.draftDidChange() }; if draft.isEmpty { continuing = nil } }
+        didSet { if draft != oldValue { document?.draftDidChange() }; if draft.isEmpty { continuing = nil; drawingInto = nil } }
     }
     /// While continuing a finished line or satin (continueDrawing): the object, and true when it was picked up at its
     /// start (the draft then runs backwards). nil while drawing a new object.
     var continuing: (id: UUID, fromStart: Bool)?
+    /// While drawing more points into a closed outline (drawInto): the object, and how many points the draft starts
+    /// with that come after the picked one, which finishing moves back to the end. nil otherwise.
+    var drawingInto: (id: UUID, leading: Int)?
     @Published var currentColor = ThreadColor.palette[0]
     /// Set when the lettering's text box in Properties should take the keyboard; the box clears it once it has.
     @Published var letteringTextFocusRequested = false
@@ -375,6 +378,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         guard draft.count>=minimum else{status="Place at least \(minimum) points to finish.";return}
         if tool == .satin && draft.count%2 != 0{status="Complete the right edge of this satin pair before finishing.";return}
         if let continuing {finishContinuing(continuing.id,fromStart:continuing.fromStart);return}
+        if let drawingInto {finishDrawingInto(drawingInto.id,leading:drawingInto.leading);return}
         if tool == .hole {
             guard let id=holeTarget,let target=design.objects.first(where:{$0.id==id && $0.kind == .fill && !$0.locked}) else{status="Select an unlocked fill before adding a hole.";return}
             var candidate=target;candidate.holes=(candidate.holes ?? [])+[draft]
@@ -426,6 +430,30 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         let name=candidate.objects[index].name
         edit("Continue Drawing"){$0=candidate}
         draft=[];selection=[id];selectedNode=nil;stayInTool(after:"‘\(name)’ continued"+(untangled != nil ? " (a pair clicked right-then-left was swapped so the column sews)" : ""))
+    }
+    /// Drawing into a closed outline: a click on a point of a selected fill or closed line with the Fill or Closed
+    /// Shape tool. Its points become the drawing in progress, carrying on from that point, so new clicks go in between
+    /// it and the next one. Return puts them back in the object; Esc leaves it as it was.
+    func drawInto(_ id:UUID,after index:Int) {
+        guard let object=design.objects.first(where:{$0.id==id}),object.canDrawInto,object.nodes.indices.contains(index) else{return}
+        draft=object.drawing(continuingAfter:index)
+        drawingInto=(id,object.nodes.count-1-index);selectedNode=nil
+        status="Adding points to ‘\(object.name)’: click to add them after the point you picked. Return finishes; Esc leaves it as it was."
+    }
+    /// Return while drawing into a closed outline: the points, old and new, go back into the object in its own order
+    /// (its first point stays first), keeping its name, thread, settings, holes and place in the sewing order. A fill
+    /// whose new outline crosses itself or its holes is refused, and the drawing stays to fix. One undoable step.
+    private func finishDrawingInto(_ id:UUID,leading:Int) {
+        guard let index=design.objects.firstIndex(where:{$0.id==id}),design.objects[index].canDrawInto else{draft=[];status="That shape can't take more points any more.";return}
+        var candidate=design
+        candidate.objects[index].nodes=RunObject.outline(fromDrawing:draft,leading:leading)
+        let object=candidate.objects[index]
+        do {
+            if object.kind == .fill {try AreaGeometry.validate(([object.nodes]+(object.holes ?? [])).map{AreaGeometry.ring($0)})}
+            try candidate.validate()
+        } catch{status=error.localizedDescription;return}
+        edit("Add Points"){$0=candidate}
+        draft=[];selection=[id];selectedNode=nil;stayInTool(after:"Points added to ‘\(object.name)’")
     }
     /// Add or Remove Stitch Angles: a click at `point`. Adding takes two clicks per line, across the fill, and adds
     /// it (one undoable step each); removing takes away the line within `reach` mm of the click.
@@ -1029,7 +1057,9 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     private var generation: Task<(plan: StitchPlan, broken: Set<UUID>, error: String?), Error>?
     private var restoring = false
     /// `continues` and `fromStart`: the object being continued (EditorState.continuing), if any.
-    private struct DraftSnapshot: Codable { var nodes: [PathNode]; var color: ThreadColor;var tool:Tool?;var holeTarget:UUID?;var continues:UUID?;var fromStart:Bool? }
+    private struct DraftSnapshot: Codable { var nodes: [PathNode]; var color: ThreadColor;var tool:Tool?;var holeTarget:UUID?;var continues:UUID?;var fromStart:Bool?
+        /// Set when the draft is points being drawn into a closed outline (EditorState.drawingInto), not a line carried on.
+        var leading:Int? }
     func draftDidChange() { if !restoring { updateChangeCount(.changeDone) } }
     override init() { super.init(); state.document = self; hasUndoManager = true }
     override class var autosavesInPlace: Bool { true }
@@ -1167,7 +1197,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         if !state.hasVersionMismatch { snapshot.cachedPlan = state.compiledRevision == state.revision ? state.plan : nil }
         var children: [String: FileWrapper] = [:]
         if !state.draft.isEmpty {
-            children["draft.json"] = FileWrapper(regularFileWithContents: try JSONEncoder().encode(DraftSnapshot(nodes: state.draft, color: state.currentColor,tool:state.tool == .zoomBox ? state.toolBeforeZoom : state.tool,holeTarget:state.holeTarget,continues:state.continuing?.id,fromStart:state.continuing?.fromStart)))
+            children["draft.json"] = FileWrapper(regularFileWithContents: try JSONEncoder().encode(DraftSnapshot(nodes: state.draft, color: state.currentColor,tool:state.tool == .zoomBox ? state.toolBeforeZoom : state.tool,holeTarget:state.holeTarget,continues:state.continuing?.id ?? state.drawingInto?.id,fromStart:state.continuing?.fromStart,leading:state.drawingInto?.leading)))
         }
         if let image = snapshot.artwork?.data, !image.isEmpty {
             children["artwork.bin"] = FileWrapper(regularFileWithContents: image)
@@ -1207,7 +1237,9 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             state.plan = design.cachedPlan ?? StitchPlan()
             state.draft = draft?.nodes ?? []
             if let draft { state.currentColor = draft.color; state.tool = draft.tool ?? .run;state.holeTarget=draft.holeTarget
-                if let id = draft.continues, design.objects.contains(where: { $0.id == id }) { state.continuing = (id, draft.fromStart ?? false) }
+                if let id = draft.continues, design.objects.contains(where: { $0.id == id }) {
+                    if let leading = draft.leading { state.drawingInto = (id, leading) } else { state.continuing = (id, draft.fromStart ?? false) }
+                }
                 state.status = "Unfinished path restored. Continue drawing, or press Enter to finish." }
             state.revision += 1
             if !windowControllers.isEmpty && !state.hasVersionMismatch { regenerate() }
