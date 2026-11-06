@@ -229,7 +229,12 @@ struct NextShapeOptions: View {
                         stepper("\(shapes.polygonSides)") { Stepper("Sides", value: setting(\.polygonSides), in: ShapeSettings.polygonSideRange) }
                     }
                 }
-                if shapes.basicShape.isFrame {
+                if !shapes.basicShape.isFrame {
+                    row("Open middle", help: "Leave the shape's middle open, so only a band round its edge is sewn (a frame)") {
+                        Toggle("Open middle", isOn: setting(\.openMiddle)).toggleStyle(.checkbox)
+                    }
+                }
+                if shapes.basicShape.isFrame || shapes.openMiddle {
                     row("Band", help: "How wide the frame's band is, from its outside edge in to the open middle") {
                         stepper(preferences.unit.short(shapes.frameWidth)) { Stepper("Band", value: setting(\.frameWidth), in: ShapeSettings.frameWidthRange, step: 0.5) }
                     }

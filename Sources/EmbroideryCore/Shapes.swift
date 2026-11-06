@@ -69,6 +69,9 @@ public struct ShapeSettings: Codable, Equatable, Sendable {
     public var cornerRadius = 0.0
     /// How wide a frame's band is, in mm: the distance from its outside edge in to the hole.
     public var frameWidth = 4.0
+    /// True when the Basic Shapes tool leaves the next shape's middle open, `frameWidth` in from its edge (the
+    /// Frames group's shapes always have an open middle).
+    public var openMiddle = false
     public init() {}
     /// Picking a closed-shape tool starts it without an outline. A shape with no fill keeps its outline, since a
     /// closed shape needs one of the two.
@@ -89,7 +92,7 @@ public struct ShapeSettings: Codable, Equatable, Sendable {
         return outline.map { "\(fill.title) fill + \($0)" } ?? "\(fill.title) fill"
     }
 
-    private enum CodingKeys: String, CodingKey { case openStitch, closedFill, closedOutline, basicShape, polygonSides, starPoints, starInner, cornerRadius, frameWidth }
+    private enum CodingKeys: String, CodingKey { case openStitch, closedFill, closedOutline, basicShape, polygonSides, starPoints, starInner, cornerRadius, frameWidth, openMiddle }
     /// Older versions saved one choice for closed shapes: a fill style, or "outline" for a running outline.
     private enum OlderKeys: String, CodingKey { case closedStitch }
     /// Reads saved choices forgivingly: these live in the preferences file, and one unreadable value would otherwise
@@ -115,6 +118,7 @@ public struct ShapeSettings: Codable, Equatable, Sendable {
         starInner = Self.clamp((try? saved.decode(Double.self, forKey: .starInner)) ?? starInner, to: Self.starInnerRange)
         cornerRadius = Self.clamp((try? saved.decode(Double.self, forKey: .cornerRadius)) ?? cornerRadius, to: Self.cornerRadiusRange)
         frameWidth = Self.clamp((try? saved.decode(Double.self, forKey: .frameWidth)) ?? frameWidth, to: Self.frameWidthRange)
+        openMiddle = (try? saved.decode(Bool.self, forKey: .openMiddle)) ?? openMiddle
     }
     /// `value` moved into `range` (NaN becomes the low end).
     private static func clamp<Value: Comparable>(_ value: Value, to range: ClosedRange<Value>) -> Value {
@@ -172,8 +176,12 @@ public enum ShapeGeometry {
     /// The hole in the middle of a frame whose outside edge is `outer` (as `nodes` drew it): the same kind of shape
     /// `settings.frameWidth` mm in from the edge all round. Empty for shapes that aren't frames, and for a band so
     /// wide the hole would be under 1 mm across.
+    /// With `settings.openMiddle`, any other Basic Shapes shape is a frame too: see `offsetHoles`.
     public static func holes(_ shape: BasicShape, around outer: [PathNode], settings: ShapeSettings = ShapeSettings()) -> [[PathNode]] {
-        guard shape.isFrame, !outer.isEmpty else { return [] }
+        guard !outer.isEmpty else { return [] }
+        // Rectangle and Ellipse have tools of their own, which have no Open middle choice.
+        if !shape.isFrame && settings.openMiddle && BasicShape.basicChoices.contains(shape) { return offsetHoles(around: outer, width: settings.frameWidth) }
+        guard shape.isFrame else { return [] }
         let edge = AreaGeometry.ring(outer), width = settings.frameWidth
         let bounds = (min: Point(edge.map(\.x).min()!, edge.map(\.y).min()!), max: Point(edge.map(\.x).max()!, edge.map(\.y).max()!))
         var inset = Point(width, width)
@@ -191,6 +199,19 @@ public enum ShapeGeometry {
         case .roundedFrame: return [rectangle(inner, cornerRadius: max(0, roundedFrameRadius(bounds) - width))]
         default: return [ellipse(inner)]
         }
+    }
+
+    /// The open middle of any shape: its outline shrunk evenly `width` mm inward, so the band is the same width all
+    /// round. Corners stay pointed, so a star's hole is a star. A narrow part (a bone's middle, say) can pinch the
+    /// hole into several pieces; pieces under 1 mm across are left out, so too wide a band gives a solid shape.
+    static func offsetHoles(around outer: [PathNode], width: Double) -> [[PathNode]] {
+        // `try?` gives nil if the geometry library can't offset the outline; `?? []` then means no hole.
+        let shrunk = (try? AreaGeometry.offset([AreaGeometry.ring(outer)], by: -width, sharp: true)) ?? []
+        return shrunk.filter { ring in
+            let xs = ring.map(\.x), ys = ring.map(\.y)
+            return ring.count >= 3 && xs.max()! - xs.min()! >= 1 && ys.max()! - ys.min()! >= 1
+        }
+        .map { $0.map { PathNode($0) } }   // straight corners, no curve handles
     }
 
     /// A rounded frame's corner radius: a fifth of its shorter side.
