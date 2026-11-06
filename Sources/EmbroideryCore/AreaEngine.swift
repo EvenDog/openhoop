@@ -93,7 +93,7 @@ public enum AreaEngine {
         case .tatami,.wave,.gradient:
             let swept=try topRows(in:expanded,object,entry:entry,exit:exit).filter{!$0.rows.isEmpty}
             parts=swept.map(\.rows);sweptCovered=swept.map(\.covered)
-        case .contour:parts=[try FillStyles.contour(in:expanded,spacing:s.spacing,length:object.stitchLength,start:start)]
+        case .contour:parts=[try FillStyles.contour(in:expanded,spacing:s.spacing,length:object.stitchLength,start:start,blend:ColorBlend.fillBlend(s))]
         case .motif:parts=[try Motifs.fill(in:expanded,motif:s.motifStroke,size:s.patternSize ?? DigitizingSettings.defaultPatternSize(.motif),gap:s.patternGap ?? DigitizingSettings.defaultPatternGap,angle:s.angle,length:object.stitchLength)]
         case .crossStitch:parts=[try Motifs.crossStitch(in:expanded,size:s.patternSize ?? DigitizingSettings.defaultPatternSize(.crossStitch))]
         case .stipple:parts=[try FillStyles.stipple(in:expanded,spacing:s.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing,length:object.stitchLength,start:start)]
@@ -101,7 +101,7 @@ public enum AreaEngine {
             guard let guide=s.guideLine else{throw DesignError.invalid("This guided fill has no guide line. Draw a line over it, select both and choose Use Line as Fill Guide.")}
             parts=[try GuidedFill.rows(in:expanded,guide:guide,spacing:s.rowGap,length:object.stitchLength)]
         case .satin:parts=[try SatinFill.stitches(in:expanded,angle:s.angle,spacing:s.spacing,maximum:s.satinSplit ?? DigitizingSettings.defaultSatinSplit,split:s.autoSplit != false)]
-        case .radial:parts=[try FillStyles.radial(in:expanded,center:s.radialCenter ?? AreaGeometry.centroid(original[0]),spacing:s.spacing,length:object.stitchLength,start:start)]
+        case .radial:parts=[try FillStyles.radial(in:expanded,center:s.radialCenter ?? AreaGeometry.centroid(original[0]),spacing:s.spacing,length:object.stitchLength,start:start,blend:ColorBlend.fillBlend(s))]
         }
         parts=parts.map{$0.filter(isLongEnough)}.filter{!$0.isEmpty}
         guard !parts.isEmpty else{throw DesignError.invalid(tooSmall(style))}

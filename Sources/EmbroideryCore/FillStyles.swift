@@ -4,19 +4,30 @@
 // bent into a ripple; they live in AreaEngine.rows.)
 import Foundation
 
+/// One layer of a contour or radial color blend: how it fades from its solid side (`fade`), whether that side is the
+/// shape's edge (true) or its middle or center (false), and the widest gap between its rings (contour).
+struct FillBlend {
+    var fade: BlendFade
+    var fromEdge: Bool
+    var sparsest: Double
+}
+
 enum FillStyles {
     /// Contour fill: rings `spacing` apart, shrinking inward from the edge of `region` until nothing is left, each
     /// sewn all the way round in stitches of about `length`. After each ring the needle steps with one short stitch
     /// onto the nearest ring not yet sewn, so the fill sews as a few long spirals; when the nearest ring is too far
     /// for a short step (another lobe of the shape), a new section starts. Sewing begins on an outermost ring, at
     /// the point nearest `start` if given.
-    static func contour(in region: [[Point]], spacing: Double, length: Double, start: Point?) throws -> [[Point]] {
+    static func contour(in region: [[Point]], spacing: Double, length: Double, start: Point?, blend: FillBlend? = nil) throws -> [[Point]] {
         // Every ring at every depth: each depth's inset can have several rings (lobes, and the edges of holes). The
-        // first depth is half a row spacing in from the edge, and each one after is a row spacing further in.
+        // first depth is half a row spacing in from the edge, and each one after is a row spacing further in. A blend
+        // layer's depths spread out as it fades instead (blendDepths).
         var loops: [[Point]] = [], sharpest: [Double] = [], counterclockwise: [Bool] = [], outermost = 0, total = 0, steps = [region]
+        let depths = try blend.map { try blendDepths(&steps, spacing: spacing, blend: $0) }
         for level in 0... {
             try Task.checkCancellation()
-            let inset = try shrunk(&steps, by: spacing / 2 + Double(level) * spacing)
+            if let depths, level >= depths.count { break }
+            let inset = try shrunk(&steps, by: depths?[level] ?? spacing / 2 + Double(level) * spacing)
             if inset.isEmpty { break }
             for ring in inset {
                 let loop = resampled(ring, length: length)
@@ -31,7 +42,9 @@ enum FillStyles {
         // can step straight onto it from there (false starts a new section).
         var order: [(loop: [Point], sharpest: Double, counterclockwise: Bool, joined: Bool)] = []
         var needle = start ?? loops[0][0], remaining = Set(loops.indices)
-        let shortStep = 2 * spacing + length   // the longest step that's sewn straight across to the next ring
+        // The longest step that's sewn straight across to the next ring (a blend's rings can be further apart).
+        let widest = depths.map { zip($0, $0.dropFirst()).map { $1 - $0 }.max() ?? spacing } ?? spacing
+        let shortStep = 2 * max(spacing, widest) + length
         while !remaining.isEmpty {
             try Task.checkCancellation()
             // The ring point nearest the needle, among the rings not yet sewn.
@@ -78,6 +91,35 @@ enum FillStyles {
             } else { sections.append(stitches) }
         }
         return sections
+    }
+
+    /// The depths of a contour blend layer's rings, edge first. Working from the layer's solid side (the edge, or the
+    /// deepest point of the shape), the rings start `spacing` apart and spread out as the layer fades, `spacing`
+    /// divided by its coverage, until it covers nothing or the gap would pass `blend.sparsest`. How far the fade has
+    /// got is measured by area: the share of the shape between the solid side and the ring, so half and half on the
+    /// Mix bar means half the shape's area each. (By depth, most of a shape's area lies near its edge, and the edge's
+    /// color took over most of the shape.)
+    static func blendDepths(_ steps: inout [[[Point]]], spacing: Double, blend: FillBlend) throws -> [Double] {
+        // How deep the shape goes: the depth past which shrinking leaves nothing, found by halving the gap.
+        var low = 0.0, high = 1.0
+        while try !shrunk(&steps, by: high).isEmpty { low = high; high *= 2; guard high < 10_000 else { break } }
+        for _ in 0..<20 { let middle = (low + high) / 2; if try shrunk(&steps, by: middle).isEmpty { high = middle } else { low = middle } }
+        let deepest = low
+        guard deepest > spacing / 2 else { return [deepest / 2] }
+        func area(_ rings: [[Point]]) -> Double { abs(rings.map(AreaGeometry.area).reduce(0, +)) }
+        let whole = area(steps[0])
+        guard whole > 0 else { return [] }
+        var depths: [Double] = [], across = spacing / 2
+        while across < deepest && depths.count < 5000 {
+            try Task.checkCancellation()
+            let depth = blend.fromEdge ? across : deepest - across
+            depths.append(depth)
+            let inside = area(try shrunk(&steps, by: depth)) / whole   // the share of the shape deeper than this ring
+            let cover = blend.fade.coverage(at: blend.fromEdge ? 1 - inside : inside)
+            guard cover > 0, spacing / cover <= blend.sparsest else { break }
+            across += spacing / cover
+        }
+        return depths.sorted()
     }
 
     /// The region `steps[0]` shrunk by `depth` mm: the rings of one contour depth. Returns no rings once nothing is left.
@@ -298,7 +340,7 @@ enum FillStyles {
     /// and so on), so the middle doesn't pile up with thread. Where a ray crosses the shape more than once (notches,
     /// holes, or a center outside the shape), each crossing continues the matching run of the ray before it, or
     /// starts a new section. The first ray points toward `start` if given.
-    static func radial(in region: [[Point]], center: Point, spacing: Double, length: Double, start: Point?) throws -> [[Point]] {
+    static func radial(in region: [[Point]], center: Point, spacing: Double, length: Double, start: Point?, blend: FillBlend? = nil) throws -> [[Point]] {
         let points = region.flatMap { $0 }
         guard let reach = points.map({ $0.distance(to: center) }).max(), reach > spacing else { return [] }
         // A multiple of 64 rays, so the stop-short pattern (every 2nd, 4th … 64th ray) repeats evenly all the way round.
@@ -321,7 +363,8 @@ enum FillStyles {
         for i in 0..<rayCount {
             if i % 32 == 0 { try Task.checkCancellation() }
             let angle = firstAngle + Double(i) * step, direction = Point(cos(angle), sin(angle))
-            let pieces = AreaGeometry.clippedSegment(center + direction * innerRadius(i), center + direction * (reach + 1), rings: region)
+            var pieces = AreaGeometry.clippedSegment(center + direction * innerRadius(i), center + direction * (reach + 1), rings: region)
+            if let blend { pieces = blendPieces(pieces, ray: i, center: center, direction: direction, blend: blend) }
             var current: [Run] = [], used = Set<Int>()
             for (a, b) in pieces where a.distance(to: b) > 0.05 {
                 let near = a.distance(to: center), far = b.distance(to: center)
@@ -329,9 +372,15 @@ enum FillStyles {
                 var run: Run?
                 if let k = previous.indices.first(where: { !used.contains($0) && min(previous[$0].far, far) - max(previous[$0].near, near) > 0 }) {
                     let inward = !previous[k].inward
-                    if let end = sections[previous[k].section].last, AreaGeometry.segmentInside(end, inward ? b : a, rings: bounds) {
-                        used.insert(k); run = Run(section: previous[k].section, near: near, far: far, inward: inward)
-                        sections[run!.section] += AreaGeometry.sampled([end, inward ? b : a], length: length).dropFirst()
+                    if let end = sections[previous[k].section].last {
+                        // A blend's rays end at different distances, so the way across runs along a ray (sewn anyway) and
+                        // steps sideways where the two are equally far out, instead of cutting across the fade.
+                        let target = inward ? b : a
+                        let way = blend == nil ? [end, target] : rayJoin(from: end, to: target, center: center)
+                        if zip(way, way.dropFirst()).allSatisfy({ AreaGeometry.segmentInside($0, $1, rings: bounds) }) {
+                            used.insert(k); run = Run(section: previous[k].section, near: near, far: far, inward: inward)
+                            sections[run!.section] += AreaGeometry.sampled(way, length: length).dropFirst()
+                        }
                     }
                 }
                 if run == nil { run = Run(section: sections.count, near: near, far: far, inward: true); sections.append([]) }
@@ -354,6 +403,37 @@ enum FillStyles {
             if !current.isEmpty { previous = current }
         }
         return sections.filter { $0.count >= 2 }
+    }
+
+    /// A radial blend layer's share of ray `ray`: its pieces cut to where the layer reaches along it. Each ray gets a
+    /// number between 0 and 1 (spread evenly round, by reversing the bits of its number, so neighbors differ) and
+    /// sews from the solid side (center or edge) out to where the fade covers less than that share. The edge layer
+    /// takes the opposite share, so each ray changes color at one point: the center layer's thread up to it, the edge
+    /// layer's after, with no gap or overlap. How far out is measured along this ray, as a share of its way to the edge,
+    /// so the blend follows the shape's outline and the rays change color evenly all the way out. (By area, as contour
+    /// blends measure, the changes crowded into a ragged band near the edge.)
+    static func blendPieces(_ pieces: [(Point, Point)], ray: Int, center: Point, direction: Point, blend: FillBlend) -> [(Point, Point)] {
+        guard let edge = pieces.map({ $0.1.distance(to: center) }).max(), edge > 0 else { return [] }
+        var reversed = 0
+        for bit in 0..<6 where ray & (1 << bit) != 0 { reversed |= 1 << (5 - bit) }
+        // The rays that reach in nearest the center (every 64th, 32nd …) get the smallest numbers, so they're the
+        // center layer's longest: the middle stays solid in its thread.
+        let number = (Double(reversed) + 0.5) / 64, share = blend.fromEdge ? 1 - number : number
+        let reach = blend.fade.extent(covering: share) * edge
+        let (low, high) = blend.fromEdge ? (edge - reach, edge) : (0, reach)
+        return pieces.compactMap { a, b in
+            let near = max(a.distance(to: center), low), far = min(b.distance(to: center), high)
+            return far - near > 0.05 ? (center + direction * near, center + direction * far) : nil
+        }
+    }
+
+    /// The way from the end of one ray to the start of the next in a radial blend: back along the farther-out of the
+    /// two to the other's distance from the center, then across. Both rays sew over that stretch, so it stays hidden.
+    static func rayJoin(from end: Point, to target: Point, center: Point) -> [Point] {
+        let out = end.distance(to: center), into = target.distance(to: center)
+        guard out > 0.001, into > 0.001 else { return [end, target] }
+        let corner = into < out ? center + (end - center) * (into / out) : center + (target - center) * (out / into)
+        return [end, corner, target]
     }
 
     /// A ring as evenly spaced stitch points about `length` apart, keeping its real corners (turns sharper than

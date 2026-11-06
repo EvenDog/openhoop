@@ -551,6 +551,9 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     /// Gradient fills in a color blend: where this layer is solid, half covered and gone (ColorBlend.swift). With it,
     /// rows are spaced for even coverage between the blend's two layers instead of evenly from start to end spacing.
     public var blendFade:BlendFade?
+    /// Radial and contour fills in a color blend: true when this layer is solid at the shape's edge and fades toward
+    /// its middle; nil or false, solid in the middle (the center, for radial) and fading toward the edge.
+    public var blendFromEdge:Bool?
     /// Satin only: padding sewn lengthwise inside the column before the satin, so it stands up off the fabric.
     /// nil (the default, and in older files) means flat.
     public var raised:Bool?
@@ -765,6 +768,11 @@ public struct Design: Codable, Equatable, Sendable {
     public var needsSchemaSixteen: Bool { objects.contains { $0.lineRepeat != nil || $0.repeatCopy != nil } }
     /// Schema 17 marks projects with color blends, so older versions refuse them instead of losing the link.
     public var needsSchemaSeventeen: Bool { objects.contains { $0.blendOf != nil || $0.digitizing?.blendFade != nil } }
+    /// Schema 19 marks projects with radial or contour color blends, so older versions (which only blend gradient
+    /// fills) refuse them instead of sewing them as whole fills on top of each other.
+    public var needsSchemaNineteen: Bool {
+        objects.contains { $0.digitizing?.blendFade != nil && [.radial, .contour].contains($0.digitizing?.fillStyle) }
+    }
     /// Schema 18 marks projects with fills on double tatami or zigzag underlay, so older versions (which don't sew
     /// those on fills) refuse them instead.
     public var needsSchemaEighteen: Bool {
@@ -805,7 +813,7 @@ public struct Design: Codable, Equatable, Sendable {
 
     /// Reject corrupt or unreasonable input before it reaches the renderer or generator.
     public func validate() throws {
-        guard (1...18).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
+        guard (1...19).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }
