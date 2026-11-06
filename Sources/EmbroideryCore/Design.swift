@@ -768,10 +768,10 @@ public struct Design: Codable, Equatable, Sendable {
     public var needsSchemaSixteen: Bool { objects.contains { $0.lineRepeat != nil || $0.repeatCopy != nil } }
     /// Schema 17 marks projects with color blends, so older versions refuse them instead of losing the link.
     public var needsSchemaSeventeen: Bool { objects.contains { $0.blendOf != nil || $0.digitizing?.blendFade != nil } }
-    /// Schema 19 marks projects with radial or contour color blends, so older versions (which only blend gradient
+    /// Schema 19 marks projects with wave, radial or contour color blends, so older versions (which only blend gradient
     /// fills) refuse them instead of sewing them as whole fills on top of each other.
     public var needsSchemaNineteen: Bool {
-        objects.contains { $0.digitizing?.blendFade != nil && [.radial, .contour].contains($0.digitizing?.fillStyle) }
+        objects.contains { $0.digitizing?.blendFade != nil && [.wave, .radial, .contour].contains($0.digitizing?.fillStyle) }
     }
     /// Schema 18 marks projects with fills on double tatami or zigzag underlay, so older versions (which don't sew
     /// those on fills) refuse them instead.
