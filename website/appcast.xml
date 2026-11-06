@@ -6,6 +6,42 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.10.0</title>
+            <pubDate>Fri, 06 Nov 2026 17:38:54 GMT</pubDate>
+            <sparkle:version>42</sparkle:version>
+            <sparkle:shortVersionString>0.10.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.10.0</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.10.0</h3>
+<h4>Recognize Objects: resize machine files properly</h4>
+<ul>
+<li>Imported machine files sew as they are, so resizing them stretches their stitches. <b>Recognize Objects</b> turns them back into fills and satin columns: select the imported stitches and choose <b>Digitize › Stitch › Recognize Objects</b>, or <b>Turn into: Fills &amp; satins</b> in the Stitch tab of Properties, or right-click them in the Sewing order list.</li>
+<li>Fills keep their outline, holes, row angle, spacing and stitch length; satin columns keep their shape. Both then resize at the same density and can be edited like anything you draw. Underlay and travel are made anew, and stops stay.</li>
+<li>Stitches that are neither stay as imported stitches, and the status line says how many. Undo puts the imported stitches back.</li>
+<li>Patterned fills come back as plain tatami, and a hand-stitched fill as a neat one.</li>
+</ul>
+<h4>Design Library</h4>
+<ul>
+<li><b>Window › Design Library…</b> (⇧⌘L) shows the designs in your folders as pictures, with their size, stitches and colors. Click <b>Add Folder…</b>; folders inside it are included.</li>
+<li>Double-click a project to open it. Double-click a machine file (PES, DST and the rest) to open it as a new design, leaving the file unchanged, or right-click it for <b>Add to Current Design</b>.</li>
+</ul>
+<h4>Carry on drawing</h4>
+<ul>
+<li>With the Running or Satin tool on, the ends of the selected line or satin column you can carry on from show <b>small rings</b>. Point at one and it fills in; click to carry on drawing from there.</li>
+<li><b>Closed shapes take more points:</b> select a fill or closed outline, keep the Fill or Closed Shape tool on, and click one of its points. The new points you click go between that point and the next (marked with a dashed line). Return adds them; Escape leaves the shape as it was.</li>
+</ul>
+<h4>Color blends</h4>
+<ul>
+<li>Blends now come in five kinds, picked from the <b>Blend</b> menu: <b>Straight</b>, <b>Wave</b> (on wave rows), <b>Radial</b> (along rays from the middle), <b>Contour</b> (in rings that follow the edge) and <b>Guided</b> (across a fill's guide line, when every fill in it has one).</li>
+<li>Row blends are as dense as tatami: Spacing is measured across two rows, as for tatami fills. Blends made in earlier versions sew as before until you edit them.</li>
+</ul>
+<p>Designs with radial, contour, wave or guided blends, or with blends made or edited in 0.10.0, are saved as a newer file version, which 0.9.4 and earlier can't open.</p>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.10.0/OpenHoop-0.10.0.dmg" sparkle:edSignature="8QAMds/pBOusHoYUKsPFahC9RcIzmc3lOPmMWmyqO17SPtwBu3aoOq869ysHoZYW+bFC3dXxHp4aYWu+kvK2Bw==" length="39972978" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.9.4</title>
             <pubDate>Fri, 06 Nov 2026 02:33:45 GMT</pubDate>
             <sparkle:version>41</sparkle:version>
