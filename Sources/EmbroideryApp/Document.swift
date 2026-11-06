@@ -800,11 +800,12 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         selection = Set(ids[min(from, to)...max(from, to)].flatMap { single && !isLettering($0) ? [$0] : design.groupMembers(of: $0) })
         focusCanvas()   // the anchor stays put, so the next Shift-click redraws the range from the same object
     }
-    /// A click on a row of the object lists, read the Mac way: Shift-click selects a range in sewing order, ⌘-click
+    /// A click on a row of the object lists: Shift-click selects a range in sewing order, ⌘- or Control-click
     /// adds or removes one, and Option-click (or `single`, for a row inside an opened group) picks one group member.
-    func listClick(_ id: UUID, single: Bool = false) {
-        let flags = NSEvent.modifierFlags, single = single || flags.contains(.option)
-        if flags.contains(.shift) { selectRange(to: id, single: single) } else { select(id, extend: flags.contains(.command), single: single) }
+    /// `flags` are the keys held (those held now, unless a test passes its own).
+    func listClick(_ id: UUID, single: Bool = false, flags: NSEvent.ModifierFlags = NSEvent.modifierFlags) {
+        let single = single || flags.contains(.option)
+        if flags.contains(.shift) { selectRange(to: id, single: single) } else { select(id, extend: !flags.isDisjoint(with: [.command, .control]), single: single) }
     }
     /// Auto Start Points: each object starts where the previous one finishes, shortening travel between parts.
     /// Works in the background, then applies the result as one undoable edit and reports the travel saved.
