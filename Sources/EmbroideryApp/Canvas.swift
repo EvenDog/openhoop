@@ -1323,15 +1323,17 @@ final class DesignCanvas: NSView {
                 state.select(object.id); DispatchQueue.main.async { AppDelegate.shared.perform(.editLettering) }; return
             }
             let single = event.modifierFlags.contains(.option)   // Option-click picks one member of a group
-            if event.modifierFlags.contains(.shift) { state.select(object.id, extend: true, single: single) }
+            if adding(event) { state.select(object.id, extend: true, single: single) }
             else if !state.selection.contains(object.id) || single { state.select(object.id, single: single) }
             dragStart = point; dragSnapshot = state.design
         } else if state.tool == .select {
-            // Empty canvas: start a selection box. Shift keeps what's already selected.
-            if !event.modifierFlags.contains(.shift) { state.selection = [] }
+            // Empty canvas: start a selection box. Shift (or Control or ⌘) keeps what's already selected.
+            if !adding(event) { state.selection = [] }
             selectBox = (location, location)
         } else { state.selection = [] }
     }
+    /// True for a click that adds to the selection (or takes a selected object out of it): Shift-, Control- or ⌘-click.
+    private func adding(_ event: NSEvent) -> Bool { !event.modifierFlags.isDisjoint(with: [.shift, .control, .command]) }
     override func rightMouseDown(with event: NSEvent) {
         state.focusCanvas()
         let point = snapped(model(convert(event.locationInWindow, from: nil)))
