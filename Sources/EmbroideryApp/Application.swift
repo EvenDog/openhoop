@@ -392,7 +392,7 @@ import EmbroideryCore
         if command == .showRulers { menuItem.state = Preferences.shared.showsRulers ? .on : .off; return true }
         if command == .paletteUnderCanvas { menuItem.state = Preferences.shared.paletteUnderCanvas ? .on : .off; return true }
         if command == .useInches { menuItem.state = Preferences.shared.unit == .inches ? .on : .off; return true }
-        if [.new, .open, .sample, .stitchSampler, .settings, .restoreWorkspace, .customizeTools].contains(command) { return true }
+        if [.new, .open, .sample, .stitchSampler, .settings, .restoreWorkspace, .customizeTools, .designLibrary].contains(command) { return true }
         if command == .close { return NSApp.keyWindow != nil }
         guard let state = active?.state else { return false }
         let shown: [CommandID: Bool] = [.reviewSewingOrder: state.reviewing, .showStitches: state.showStitches, .showOutlines: state.showOutlines, .showConnectors: state.showsConnectors, .hideOthers: state.hideOthers,
@@ -434,6 +434,7 @@ import EmbroideryCore
         case .previousTab: active?.selectNeighbor(-1); return
         case .restoreWorkspace: Preferences.shared.data.workspace = Workspace(); Preferences.shared.save(); return
         case .customizeTools: customizeTools(); return
+        case .designLibrary: DesignLibraryWindow.shared.show(); return
         case .paletteUnderCanvas:
             let on = !Preferences.shared.paletteUnderCanvas
             Preferences.shared.setPaletteUnderCanvas(on)
@@ -796,11 +797,18 @@ import EmbroideryCore
         let name = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines); return name.isEmpty ? nil : name
     }
     func showError(_ error: Error) { NSAlert(error: error).runModal() }
-    private func importMachine(_ state:EditorState) {
+    /// File › Import Machine Stitches: adds a machine file's stitches to `state`'s design, after showing what's in
+    /// it. Asks which file, unless the Design Library passes one as `file`.
+    func importMachine(_ state:EditorState, file:URL?=nil) {
         guard !state.hasVersionMismatch,state.draft.isEmpty else{state.status="Finish the current path and regenerate older projects before importing.";return}
-        let panel=NSOpenPanel();panel.allowedContentTypes=MachineFormat.allCases.compactMap{UTType(filenameExtension:$0.rawValue)}
-        panel.message="Import existing stitches: PES, PEC, DST, EXP, JEF, VP3 or XXX."
-        guard panel.runModal() == .OK,let url=panel.url,let format=MachineFormat(rawValue:url.pathExtension.lowercased()) else{return}
+        var chosen=file
+        if chosen==nil {
+            let panel=NSOpenPanel();panel.allowedContentTypes=MachineFormat.allCases.compactMap{UTType(filenameExtension:$0.rawValue)}
+            panel.message="Import existing stitches: PES, PEC, DST, EXP, JEF, VP3 or XXX."
+            guard panel.runModal() == .OK else{return}
+            chosen=panel.url
+        }
+        guard let url=chosen,let format=MachineFormat(rawValue:url.pathExtension.lowercased()) else{return}
         let revision=state.revision
         state.status="Reading machine stitches…"
         Task {
@@ -1348,7 +1356,7 @@ import EmbroideryCore
                    .submenu("Stitch Player", [[.play, .rewind, .toEnd], [.stepForward, .stepBackward, .stepForward10, .stepBackward10],
                                               [.nextColor, .previousColor], [.nextObject, .previousObject], [.nextTrim, .previousTrim]])],
                   items(.measureTool, .hoopingsTool), items(.customizeTools)]),
-        ("Window", [items(.nextTab, .previousTab), PanelID.allCases.map { .command($0.command) } + items(.paletteUnderCanvas), items(.saveWorkspace, .restoreWorkspace)])
+        ("Window", [items(.nextTab, .previousTab), items(.designLibrary), PanelID.allCases.map { .command($0.command) } + items(.paletteUnderCanvas), items(.saveWorkspace, .restoreWorkspace)])
     ]
     /// Adds a menu's groups to it, with a divider between groups; a submenu entry becomes an item that opens to the side.
     private func addGroups(_ groups: [[MenuEntry]], to menu: NSMenu) {

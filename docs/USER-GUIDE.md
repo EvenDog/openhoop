@@ -366,6 +366,10 @@ Print it, or choose **PDF** in the print dialog to save it.
 
 **⌥⌘O** imports PES, PEC, DST, EXP, JEF, VP3 or XXX into the open design, at its original size and place. Each thread change becomes a block you can move, turn, mirror, recolor, reorder or combine with new work. These are finished stitches, not editable shapes: you can't edit their points or change their stitch type, and resizing changes their density. Colors the file doesn't store come in as **Unknown thread**; pick the right thread for each block.
 
+### Design Library (⇧⌘L)
+
+**Window › Design Library…** shows your designs as pictures. Click **Add Folder…** and pick a folder; folders inside it are included, and OpenHoop remembers the folders you add. Each card shows the design's size, stitches and colors, and a machine file has its format (PES, DST…) on its picture. Search by name, or sort by name or newest first. Double-click a project to open it. Double-click a machine file to open it as a new design, named after the file, which itself is never changed; right-click it for **Add to Current Design** (the same as ⌥⌘O). The library only reads your files: removing a folder from it (right-click the folder) leaves the folder where it is. Projects saved without their stitches show no stitch count until they're opened and saved again.
+
 ## Making it yours
 
 **Keyboard shortcuts.** **⌘,** → **Keyboard Shortcuts**: search for any command and click **Record** to give it a key. Commands can have several shortcuts; clashes are flagged, and you can save named profiles and import or export them.
