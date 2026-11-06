@@ -1,6 +1,7 @@
 // Checks the Properties tabs: which tabs each kind of object has and what the first one is called, and that the tab
 // last picked stays picked as other objects are selected, falling back to the first tab when an object hasn't got it.
 import XCTest
+import AppKit
 import EmbroideryCore
 @testable import EmbroideryApp
 
@@ -33,5 +34,30 @@ final class PropertiesTabTests: XCTestCase {
         XCTAssertEqual(state.propertiesTab, .underlay, "and Underlay is still picked for the next fill")
         state.propertiesTab = .finish
         XCTAssertEqual(state.shownTab(for: line), .finish)
+    }
+
+    /// The Focus commands find their field by its identifier, so a fill's Row spacing, Stitch length and Angle must
+    /// be built in the window, now that they sit in a two-across grid.
+    @MainActor func testFocusCommandsCanFindTheFillsNumbers() throws {
+        _ = NSApplication.shared
+        let document = DesignDocument()
+        var fill = object(.fill)
+        fill.digitizing?.spacing = 0.4
+        document.state.design.objects = [fill]
+        document.makeWindowControllers()
+        defer { document.close() }
+        let window = try XCTUnwrap(EditorWindowController.host(of: document)?.window)
+        window.setFrame(NSRect(x: 0, y: 0, width: 1400, height: 1000), display: true)
+        document.state.selection = [fill.id]
+        document.state.propertiesTab = .stitch
+        RunLoop.main.run(until: Date().addingTimeInterval(1))
+        func find(_ identifier: String, in view: NSView) -> NSView? {
+            if view.identifier?.rawValue == identifier { return view }
+            return view.subviews.lazy.compactMap { find(identifier, in: $0) }.first
+        }
+        let root = try XCTUnwrap(window.contentView)
+        for identifier in ["rowSpacing", "stitchLength", "fillAngle"] {
+            XCTAssertNotNil(find(identifier, in: root), "the \(identifier) field is in the window")
+        }
     }
 }
