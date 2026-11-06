@@ -1091,6 +1091,9 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         }
         lastRun = run
         state.design = updated; state.revision += 1
+        // The design's first object (the first stitch laid, however it was added): the Sewing order panel comes to the
+        // front, opening if it was closed, so the objects can be followed from the start. Opening a file doesn't count.
+        if previous.objects.isEmpty && !updated.objects.isEmpty { Preferences.shared.updatePanels { $0.show(.sewingOrder) } }
         if !lost.isEmpty { state.status = "\(lost.joined(separator: ", ")): stitches edited by hand were replaced by fresh ones, because the shape or settings changed. Undo (⌘Z) brings them back." }
         if let problem = guideProblems.first { state.status = problem }
         state.selection.formIntersection(Set(updated.objects.map(\.id)))
