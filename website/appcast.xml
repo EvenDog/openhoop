@@ -6,6 +6,27 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.10.1</title>
+            <pubDate>Fri, 06 Nov 2026 20:40:39 GMT</pubDate>
+            <sparkle:version>43</sparkle:version>
+            <sparkle:shortVersionString>0.10.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.10.1</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.10.1</h3>
+<h4>A clearer canvas</h4>
+<ul>
+<li><b>With Thread View off</b>, stitches are drawn as fine lines, one screen pixel wide at any zoom, so dense areas stay readable. The stitches of selected objects show in <b>blue</b>, so you can see at a glance what is selected. Thread View still shows the threads as they will sew, without the blue.</li>
+<li><b>Black thread looks black in Thread View.</b> The shine on each stitch now depends on how light the thread is, so dark threads no longer look gray.</li>
+<li><b>Trying out a choice changes only that object.</b> When you point at a choice in a picture menu (Fill style, Pattern, Line style), the canvas shows the new stitches in the object's place in the sewing order, so objects sewn later still cover it as they will on fabric.</li>
+<li><b>Start and end markers</b> show only while the Edit Nodes tool or the Start &amp; End tool is on, instead of on every selected object.</li>
+</ul>
+<p>Files saved by 0.10.1 open in 0.10.0.</p>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.10.1/OpenHoop-0.10.1.dmg" sparkle:edSignature="C17jkuJhDgFdXCvDBspn63jMDoDV+e5d35jCdiKxNNWmVcSQvfXce+BK7sWV7NnPX6BuKqjQfdv6EtFQQi1CAw==" length="39890395" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.10.0</title>
             <pubDate>Fri, 06 Nov 2026 17:38:54 GMT</pubDate>
             <sparkle:version>42</sparkle:version>
