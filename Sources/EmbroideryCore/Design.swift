@@ -784,6 +784,11 @@ public struct Design: Codable, Equatable, Sendable {
     public var needsSchemaNineteen: Bool {
         objects.contains { $0.digitizing?.blendFade != nil && ([.wave, .radial, .contour, .guided].contains($0.digitizing?.fillStyle) || $0.digitizing?.blendRowsPaired == true) }
     }
+    /// Schema 20 marks projects with a tatami fill on one of the patterns added in version 20 (Rain, Hills, Wood grain…),
+    /// so older versions, which don't know those names, refuse them as too new instead of calling them damaged.
+    public var needsSchemaTwenty: Bool {
+        objects.contains { $0.kind == .fill && $0.settings.tatamiPattern.map(TatamiPattern.addedInVersionTwenty.contains) == true }
+    }
     /// Schema 18 marks projects with fills on double tatami or zigzag underlay, so older versions (which don't sew
     /// those on fills) refuse them instead.
     public var needsSchemaEighteen: Bool {
@@ -824,7 +829,7 @@ public struct Design: Codable, Equatable, Sendable {
 
     /// Reject corrupt or unreasonable input before it reaches the renderer or generator.
     public func validate() throws {
-        guard (1...19).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
+        guard (1...20).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }
