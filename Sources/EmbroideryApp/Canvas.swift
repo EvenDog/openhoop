@@ -516,7 +516,12 @@ final class DesignCanvas: NSView {
         // looked at; otherwise (and for the whole route) the stitch player says how much is sewn.
         let review = state.reviewShowsRoute ? nil : state.reviewStep?.step
         let commands = plan.commands.prefix(review?.commands.upperBound ?? Int(Double(plan.commands.count) * state.playback))
-        context.setLineWidth(1.1); context.setLineCap(.round)
+        // In the stitch view (Thread View off) each stitch is a hairline, one screen pixel wide, so a fill's rows stay
+        // apart and show which way they run; the selected objects' stitches are drawn in the highlight blue, so they
+        // stand out from the rest (their underlay fainter, as usual).
+        context.setLineWidth(1 / max(1, window?.backingScaleFactor ?? 1)); context.setLineCap(.round)
+        let selectedObjects = state.selection
+        let highlight = [0.95, 0.40].map { Theme.Canvas.stitchHighlight.withAlphaComponent($0).cgColor }
         var needles = CGMutablePath()
         var activeColor: CGColor?
         /// Draws `part` of the stitches (thread or thin lines, and travel moves), carrying on from where the last part ended.
@@ -528,7 +533,8 @@ final class DesignCanvas: NSView {
                 let p = onScreen(command.point)
                 if command.op == .stitch && visible {
                     if thinLines {
-                        let colors = threadColors.indices.contains(command.thread) ? threadColors[command.thread] : unknownThread
+                        let colors = command.objectID.map(selectedObjects.contains) == true ? highlight
+                            : threadColors.indices.contains(command.thread) ? threadColors[command.thread] : unknownThread
                         let color = colors[command.underlay == true ? 1 : 0]
                         if activeColor !== color {context.strokePath();context.setStrokeColor(color);activeColor=color}   // !== : the very same color object, a cheap check
                         context.move(to: onScreen(previous)); context.addLine(to: p)
