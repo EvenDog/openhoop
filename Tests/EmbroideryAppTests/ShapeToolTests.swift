@@ -6,9 +6,9 @@ import EmbroideryCore
 @testable import EmbroideryApp
 
 final class ShapeToolTests: XCTestCase {
-    /// Finishing a line, satin, fill or shape goes back to Select, with what was drawn selected, and the status line
-    /// gives the key to draw another.
-    @MainActor func testFinishingAShapeGoesBackToSelect() {
+    /// Finishing a line, satin, fill or shape keeps its tool on, so the next one can be drawn straight away, with what
+    /// was drawn selected, and the status line says Esc goes back to Select.
+    @MainActor func testFinishingAShapeKeepsItsTool() {
         _ = NSApplication.shared
         let document = DesignDocument(), state = document.state
         let draws: [(Tool, [Point])] = [(.run, [Point(0, 0), Point(20, 0)]), (.satin, [Point(0, 10), Point(0, 14), Point(20, 10), Point(20, 14)]),
@@ -17,9 +17,9 @@ final class ShapeToolTests: XCTestCase {
             state.tool = tool
             state.draft = points.map { PathNode($0) }
             state.finishPath()
-            XCTAssertEqual(state.tool, .select, "\(tool)")
+            XCTAssertEqual(state.tool, tool, "\(tool) stays on")
             XCTAssertEqual(state.selection, Set(state.design.objects.suffix(state.selection.count).map(\.id)), "\(tool): what was drawn is selected")
-            XCTAssertTrue(state.status.contains("to draw another"), state.status)
+            XCTAssertTrue(state.status.contains("Draw another"), state.status)
         }
     }
 
@@ -81,18 +81,22 @@ final class ShapeToolTests: XCTestCase {
         mouse(.leftMouseUp, 400, 380)
         let perShape = state.design.objects.count   // 1, or 2 when the saved Next shape choice adds an outline
         XCTAssertEqual(state.design.objects.first?.name, "Rectangle 1")
-        XCTAssertEqual(state.tool, .select, "back to Select once it's added")
-        state.tool = .rectangle   // picked again for the next ones
+        XCTAssertEqual(state.tool, .rectangle, "the tool stays on once it's added")
+        // The next drag draws another rectangle without picking the tool again.
+        mouse(.leftMouseDown, 100, 300); mouse(.leftMouseDragged, 160, 340); mouse(.leftMouseUp, 160, 340)
+        XCTAssertEqual(state.design.objects.count, 2 * perShape)
+        XCTAssertEqual(state.design.objects[perShape].name, "Rectangle \(perShape + 1)")
+        let drawn = state.design.objects.count
 
         mouse(.leftMouseDown, 100, 100); mouse(.leftMouseDragged, 150, 150)
         canvas.cancelShapeDrag(); state.draft = []   // what Escape does
         mouse(.leftMouseDragged, 200, 200); mouse(.leftMouseUp, 200, 200)
-        XCTAssertEqual(state.design.objects.count, perShape, "a cancelled drag adds nothing")
+        XCTAssertEqual(state.design.objects.count, drawn, "a cancelled drag adds nothing")
 
         state.draft = ShapeGeometry.nodes(.rectangle, in: (Point(-5, -5), Point(5, 5)))   // a restored, unfinished shape
         state.finishPath()
-        let restored = state.design.objects[perShape]
-        XCTAssertEqual(restored.name, "Rectangle \(perShape + 1)")
+        let restored = state.design.objects[drawn]
+        XCTAssertEqual(restored.name, "Rectangle \(drawn + 1)")
         XCTAssertEqual(restored.closed, true, "a closed rectangle, not an open running line")
     }
 
