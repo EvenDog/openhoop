@@ -8,6 +8,14 @@ extension ThreadColor {
     var nsColor: NSColor { NSColor(srgbRed: Double((hex >> 16) & 255) / 255, green: Double((hex >> 8) & 255) / 255, blue: Double(hex & 255) / 255, alpha: 1) }
 }
 
+/// Where a click with a drawing tool picks up a selected shape to keep drawing it: an end of an open line or satin
+/// column (carried on past it), or a point of a closed outline (new points go in after it).
+enum ContinuePick: Equatable {
+    case end(UUID, fromStart: Bool)
+    case after(UUID, index: Int)
+    var id: UUID { switch self { case .end(let id, _), .after(let id, _): return id } }
+}
+
 final class DesignCanvas: NSView {
     let state: EditorState
     var pan = CGPoint.zero
@@ -70,6 +78,10 @@ final class DesignCanvas: NSView {
     private var guideDrag: (index: Int, vertical: Bool, isNew: Bool, pointer: CGPoint)?
     /// The guide the pointer is over with Select (its place in the design's guides), shown by a ↔ or ↕ pointer.
     private(set) var hoveredGuide: Int?
+    /// The place under the pointer where a click would pick up a selected shape to keep drawing it (continuePick), and
+    /// the status line from before its hint showed, put back when the pointer moves off.
+    private(set) var hoveredPick: ContinuePick?
+    private var statusBeforeHint: String?
     /// A measurement as the Measure tool shows it: the distance in `unit`, and the angle from the start, counterclockwise
     /// from pointing right (the same way Rotate counts), e.g. "12.5 mm · 37°" or "0.49 in · 37°".
     static func measurementText(from start: Point, to end: Point, unit: LengthUnit = .millimeters) -> String {
@@ -336,7 +348,7 @@ final class DesignCanvas: NSView {
     /// Called whenever the tool changes: the Measure tool's line goes, and the pointer takes the new tool's shape.
     func toolDidChange() {
         if state.tool != .measure { measurement = nil; measuring = false }
-        hoveredGuide = nil
+        hoveredGuide = nil; hoveredPick = nil; statusBeforeHint = nil
         window?.invalidateCursorRects(for: self); needsDisplay = true
     }
     /// The pointer the current tool uses on the canvas.
@@ -353,6 +365,26 @@ final class DesignCanvas: NSView {
         guard over != hoveredGuide else { return }
         hoveredGuide = over
         if let over { guideCursor(vertical: state.design.guides![over].vertical).set() } else { toolCursor.set() }
+    }
+    /// With a drawing tool and nothing drawn yet, pointing at a place where a click picks up the selected shape (an end
+    /// of a line or column, a point of a closed outline) fills in its marker, turns the pointer into a hand and says in
+    /// the status line what a click does. Moving off puts back the tool's pointer and the status line from before.
+    /// `location` nil means the pointer left the canvas.
+    func updateContinueHover(at location: CGPoint?) {
+        let over = state.draft.isEmpty ? location.flatMap(continuePick(near:)) : nil
+        guard over != hoveredPick else { return }
+        hoveredPick = over; needsDisplay = true
+        if let over, let object = state.design.objects.first(where: { $0.id == over.id }) {
+            if statusBeforeHint == nil { statusBeforeHint = state.status }
+            switch over {
+            case .end(_, let fromStart): state.status = "Click to carry on ‘\(object.name)’ from its \(fromStart ? "start" : "end")."
+            case .after: state.status = "Click to add points to ‘\(object.name)’ between this point and the next one (marked)."
+            }
+            NSCursor.pointingHand.set()
+        } else {
+            if let saved = statusBeforeHint { state.status = saved; statusBeforeHint = nil }
+            toolCursor.set()
+        }
     }
     override func resetCursorRects() { addCursorRect(bounds, cursor: toolCursor) }
     /// The grid lines' color: the custom one from Settings, or automatically light lines on dark cloth and dark lines
@@ -602,6 +634,7 @@ final class DesignCanvas: NSView {
             }
         }
         if routeShown { drawRoute(state.sewingSteps, current: state.reviewStep?.index) }
+        if state.draft.isEmpty { drawContinueMarkers(design) }
         if !state.draft.isEmpty {
             var object=RunObject(name:"Draft",nodes:state.draft,color:state.currentColor)
             if state.tool == .satin {object.digitizing=DigitizingSettings(kind:.satin)}
@@ -1231,8 +1264,17 @@ final class DesignCanvas: NSView {
         if state.tool.draws {
             if event.clickCount == 2 { state.finishPath(); return }
             // With nothing drawn yet, a click on an end of a selected open line (Running tool) or satin column (Satin
-            // tool) picks it up there, to carry on drawing it.
-            if state.draft.isEmpty, let end = continuableEnd(near: location) { state.continueDrawing(end.id, fromStart: end.fromStart); return }
+            // tool) picks it up there, to carry on drawing it; a click on a point of a selected closed outline (Fill or
+            // Closed Shape tool) picks it up there, to draw more points into it.
+            if state.draft.isEmpty, let pick = continuePick(near: location) {
+                // The hover hint is done with: the status line now explains continuing, and the marker gives way to the drawing.
+                hoveredPick = nil; statusBeforeHint = nil; toolCursor.set()
+                switch pick {
+                case .end(let id, let fromStart): state.continueDrawing(id, fromStart: fromStart)
+                case .after(let id, let index): state.drawInto(id, after: index)
+                }
+                return
+            }
             state.addDraftPoint(point, smooth: event.modifierFlags.contains(.control), reach: 3 / state.zoom)   // 3 screen points
             drawingHandle = state.draft.count - 1; return
         }
@@ -1351,8 +1393,8 @@ final class DesignCanvas: NSView {
             if let node=added.node{state.selectedNode=node;state.status="Curve node added · drag it and the edge bends smoothly through it"}
         }
     }
-    override func mouseMoved(with event:NSEvent){pointer=model(convert(event.locationInWindow,from:nil));state.pointer.position=pointer;moveRulerMarks(to:convert(event.locationInWindow,from:nil));if state.angleStart != nil{needsDisplay=true};updateGuideCursor(at:convert(event.locationInWindow,from:nil))}
-    override func mouseExited(with event: NSEvent) { state.pointer.position = nil; hoveredGuide = nil; moveRulerMarks(to: nil) }
+    override func mouseMoved(with event:NSEvent){pointer=model(convert(event.locationInWindow,from:nil));state.pointer.position=pointer;moveRulerMarks(to:convert(event.locationInWindow,from:nil));if state.angleStart != nil{needsDisplay=true};updateGuideCursor(at:convert(event.locationInWindow,from:nil));updateContinueHover(at:convert(event.locationInWindow,from:nil))}
+    override func mouseExited(with event: NSEvent) { state.pointer.position = nil; hoveredGuide = nil; moveRulerMarks(to: nil); updateContinueHover(at: nil) }
     override func mouseDragged(with event: NSEvent) {
         let location = convert(event.locationInWindow, from: nil)
         state.pointer.position = model(location); moveRulerMarks(to: location)
@@ -1702,23 +1744,60 @@ final class DesignCanvas: NSView {
     }
     /// The node within reach of `p` (model mm): the selected objects' nodes first, since they're the ones shown, and
     /// only if none is near, the nearest node of any other visible, unlocked object (clicking it selects that object).
-    /// The selected line or satin the current tool can carry on, and which end, when `location` (on screen) is within
-    /// 7 points of one of its end points: a line's first or last point, or either point of a column's first or last
-    /// edge pair. Kept that small so a new column can still start just beside the last one.
-    private func continuableEnd(near location: CGPoint) -> (id: UUID, fromStart: Bool)? {
-        guard state.tool == .run || state.tool == .satin else { return nil }
-        let kind: StitchKind = state.tool == .satin ? .satin : .run
-        var best: (id: UUID, fromStart: Bool)?, distance = 7.0
-        for object in state.design.objects where state.selection.contains(object.id) && object.visible && object.kind == kind && object.canContinueDrawing {
-            let handles = object.continueHandles
-            for (points, fromStart) in [(handles.start, true), (handles.end, false)] {
+    /// Where a click at `location` (on screen) picks up a selected shape the current tool can keep drawing: within 7
+    /// points of one of its pick-up points (continuePicks), the nearest. Kept that small so a new shape can still start
+    /// just beside the last one.
+    private func continuePick(near location: CGPoint) -> ContinuePick? {
+        var best: ContinuePick?, distance = 7.0
+        for object in continuableObjects(state.design) {
+            for (pick, points) in continuePicks(object) {
                 for point in points {
                     let onScreen = screen(point), gap = hypot(onScreen.x - location.x, onScreen.y - location.y)
-                    if gap < distance { distance = gap; best = (object.id, fromStart) }
+                    if gap < distance { distance = gap; best = pick }
                 }
             }
         }
         return best
+    }
+    /// The selected shapes the current tool can keep drawing: lines (Running tool) or satin columns (Satin tool) from
+    /// their ends, and fills or closed lines (Fill or Closed Shape tool) from any point of their outline.
+    private func continuableObjects(_ design: Design) -> [RunObject] {
+        let selected = design.objects.filter { state.selection.contains($0.id) && $0.visible }
+        switch state.tool {
+        case .run, .satin:
+            let kind: StitchKind = state.tool == .satin ? .satin : .run
+            return selected.filter { $0.kind == kind && $0.canContinueDrawing }
+        case .fill, .closedShape: return selected.filter(\.canDrawInto)
+        default: return []
+        }
+    }
+    /// The places a click picks `object` up, each with the points it shows a ring on: an open line's or column's two
+    /// ends (a column's end is both points of its end pair), or each point of a closed outline.
+    private func continuePicks(_ object: RunObject) -> [(ContinuePick, [Point])] {
+        if object.closed { return object.nodes.indices.map { (.after(object.id, index: $0), [object.nodes[$0].point]) } }
+        let handles = object.continueHandles
+        return [(.end(object.id, fromStart: true), handles.start), (.end(object.id, fromStart: false), handles.end)]
+    }
+    /// A small ring on each place continuePick would pick up, filled in under the pointer, so it's plain that clicking
+    /// there carries the shape on. Under the pointer on a closed outline, the next point is filled in too, with a dashed
+    /// line to it: the side the new points will go.
+    private func drawContinueMarkers(_ design: Design) {
+        func ring(_ point: Point, radius: CGFloat, filled: Bool) {
+            let p = screen(point), shape = NSBezierPath(ovalIn: CGRect(x: p.x - radius, y: p.y - radius, width: radius * 2, height: radius * 2))
+            (filled ? Theme.Canvas.handle : NSColor.white).setFill(); shape.fill()
+            Theme.Canvas.handle.setStroke(); shape.lineWidth = 1.5; shape.stroke()
+        }
+        for object in continuableObjects(design) {
+            for (pick, points) in continuePicks(object) {
+                for point in points { ring(point, radius: pick == hoveredPick ? 6 : 4.5, filled: pick == hoveredPick) }
+            }
+            if case .after(let id, let index) = hoveredPick, id == object.id, object.nodes.indices.contains(index) {
+                let from = object.nodes[index].point, to = object.nodes[(index + 1) % object.nodes.count].point
+                let side = NSBezierPath(); side.move(to: screen(from)); side.line(to: screen(to))
+                Theme.Canvas.handle.setStroke(); side.lineWidth = 2; side.setLineDash([5, 4], count: 2, phase: 0); side.stroke()
+                ring(from, radius: 6, filled: true); ring(to, radius: 5, filled: true)
+            }
+        }
     }
     private func nearestNode(_ p:Point)->NodeLocation? {
         func nearest(selected: Bool) -> NodeLocation? {

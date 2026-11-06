@@ -43,4 +43,30 @@ final class ContinueDrawingTests: XCTestCase {
                        "pairs in reverse, each keeping its left/right order")
         XCTAssertEqual(RunObject.reversedPath(backwards, satin: true), nodes)
     }
+
+    func testClosedOutlinesTakePointsAfterThePickedOne() {
+        let square = [Point(0, 0), Point(10, 0), Point(10, 10), Point(0, 10)].map { PathNode($0) }
+        var fill = RunObject(name: "Fill", nodes: square, color: ThreadColor.palette[0])
+        fill.digitizing = DigitizingSettings(kind: .fill); fill.closed = true
+        XCTAssertTrue(fill.canDrawInto)
+        // Picked at the second point: the drawing runs on from it, so a new point goes between it and the third.
+        let drawing = fill.drawing(continuingAfter: 1)
+        XCTAssertEqual(drawing.map(\.point), [Point(10, 10), Point(0, 10), Point(0, 0), Point(10, 0)])
+        let added = drawing + [PathNode(Point(15, 5))]
+        XCTAssertEqual(RunObject.outline(fromDrawing: added, leading: 2).map(\.point),
+                       [Point(0, 0), Point(10, 0), Point(15, 5), Point(10, 10), Point(0, 10)], "the first point stays first")
+        // Picked at the last point, nothing needs turning back.
+        XCTAssertEqual(fill.drawing(continuingAfter: 3).map(\.point), square.map(\.point))
+        XCTAssertEqual(RunObject.outline(fromDrawing: square + [PathNode(Point(-5, 5))], leading: 0).last?.point, Point(-5, 5))
+    }
+
+    func testOnlyClosedNonSatinOutlinesTakePointsIn() {
+        let points = [Point(0, 0), Point(10, 0), Point(10, 10)].map { PathNode($0) }
+        var line = RunObject(name: "Line", nodes: points, color: ThreadColor.palette[0])
+        XCTAssertFalse(line.canDrawInto, "an open line is carried on from its ends instead")
+        line.closed = true
+        XCTAssertTrue(line.canDrawInto, "a closed running outline can")
+        line.locked = true
+        XCTAssertFalse(line.canDrawInto)
+    }
 }
