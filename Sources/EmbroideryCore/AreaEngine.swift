@@ -59,8 +59,15 @@ public enum AreaEngine {
                         return Array(ring[k...]+ring[..<k])
                     }
                     result.sections += inset.map{startNearNeedle($0)}.map{StitchSection(AreaGeometry.sampled($0+Array($0.prefix(1)),length:layer.stitchLength),underlay:true)}
-                case .tatami:
-                    result.sections += try rows(in:inset,angle:s.angle+layer.angle,spacing:layer.spacing,length:layer.stitchLength).filter(isLongEnough).map{StitchSection($0,underlay:true)}
+                case .tatami,.doubleTatami:
+                    // Double tatami sews the rows again turned 90°, so the two passes cross.
+                    for turn in layer.style == .doubleTatami ? [0.0,-90] : [0] {
+                        result.sections += try rows(in:inset,angle:s.angle+layer.angle+turn,spacing:layer.spacing,length:layer.stitchLength).filter(isLongEnough).map{StitchSection($0,underlay:true)}
+                    }
+                case .zigzag:
+                    // One stitch from edge to edge, stepping along by the spacing: the satin fill's stitches, opened
+                    // up. Swings longer than a satin fill's split length are split, so they can't snag.
+                    result.sections += try SatinFill.stitches(in:inset,angle:s.angle+layer.angle,spacing:layer.spacing,maximum:DigitizingSettings.defaultSatinSplit,split:true).filter(isLongEnough).map{StitchSection($0,underlay:true)}
                 default: break
                 }
             }
@@ -673,7 +680,7 @@ public enum AreaEngine {
                 else{result.warnings.append("Center underlay could not stay inside the column and was omitted.")}
             case .edge:
                 let inset=try AreaGeometry.offset(regionRings,by:-layer.inset)
-                if inset.isEmpty{result.warnings.append("Inset edge underlay collapsed and was omitted.")}
+                if inset.isEmpty{result.warnings.append("Edge run underlay collapsed and was omitted.")}
                 // Each ring starts at its point nearest the needle: the start of the column, or where the first
                 // underlay ended (so the edge run begins at the end the satin sews from).
                 let needle=result.sections.last?.points.last ?? underPairs.first.map{($0.0+$0.1)*0.5}
@@ -713,7 +720,7 @@ public enum AreaEngine {
                     }
                     zig+=ends.indices.reversed().map{$0%2==0 ? ends[$0].1:ends[$0].0}
                 }
-                let double=layer.style == .doubleZigzag,name=double ? "Double zigzag" : "Inset zigzag"
+                let double=layer.style == .doubleZigzag,name=double ? "Double zigzag" : "Zigzag"
                 if skippedInterior {result.warnings.append("\(double ? "Double zigzag" : "Zigzag") underlay skips a narrow interior region; inspect coverage or split the column.")}
                 if zig.count>=2,zip(zig,zig.dropFirst()).allSatisfy({AreaGeometry.segmentInside($0,$1,rings:inset)}) {result.sections.append(StitchSection(AreaGeometry.sampled(zig,length:2.5),underlay:true))}
                 else{result.warnings.append("\(name) underlay collapsed or left the column and was omitted.")}

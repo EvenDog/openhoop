@@ -218,8 +218,8 @@ final class RandomDesignTests: XCTestCase {
         case .fill:
             var s = object.settings
             s.spacing = .random(in: 0.25...1.2, using: &r); s.angle = .random(in: -180...180, using: &r)
-            s.expansion = .random(in: 0...1, using: &r); s.underlay = [.none, .edge, .tatami].randomElement(using: &r)!
-            s.secondUnderlay = s.underlay == .none ? nil : [nil, UnderlayStyle.edge, .tatami].filter { $0 != s.underlay || $0 == .tatami }.randomElement(using: &r)!
+            s.expansion = .random(in: 0...1, using: &r); s.underlay = UnderlayStyle.fillTypes.randomElement(using: &r)!
+            s.secondUnderlay = s.underlay == .none ? nil : ([nil] + UnderlayStyle.fillTypes.filter { $0 != .none }).filter { $0 != s.underlay || $0 == .tatami }.randomElement(using: &r)!
             s.inset = .random(in: 0...1.5, using: &r); s.underlaySpacing = .random(in: 0.5...5, using: &r)
             randomizeUnderlay(&s, &r)
             s.waveHeight = .random(in: DigitizingSettings.waveHeightRange, using: &r); s.waveLength = .random(in: DigitizingSettings.waveLengthRange, using: &r)
