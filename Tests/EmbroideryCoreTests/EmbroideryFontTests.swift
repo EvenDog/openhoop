@@ -10,7 +10,7 @@ final class EmbroideryFontTests: XCTestCase {
     private func font(_ folder: String) throws -> EmbroideryFont { try EmbroideryFont(folder: Self.directory.appendingPathComponent(folder)) }
 
     func testBundledFontsAreAllPermissivelyLicensed() {
-        XCTAssertEqual(fonts.count, 18)
+        XCTAssertEqual(fonts.count, 30)
         for font in fonts {
             let license = font.licenseText.uppercased()
             XCTAssertTrue(license.contains("OPEN FONT LICENSE") || license.contains("PUBLIC DOMAIN"), font.name)
@@ -24,7 +24,8 @@ final class EmbroideryFontTests: XCTestCase {
     func testEveryBundledFontSews() throws {
         for font in fonts {
             let result = try font.shapes(text: "Hag 5", height: font.heights.lowerBound + (font.heights.upperBound - font.heights.lowerBound) / 3, color: .palette[0])
-            XCTAssertTrue(result.objects.contains { $0.kind == .satin }, "\(font.name) makes satin")
+            // Most fonts are satin; Sacramarif is all running stitch and Western Light is filled.
+            XCTAssertTrue(result.objects.contains { [.satin, .run, .fill].contains($0.kind) }, "\(font.name) makes stitches")
             XCTAssertFalse(result.warnings.contains { $0.contains("couldn't be converted") }, "\(font.name): \(result.warnings)")
             var design = Design(); design.objects = result.objects
             XCTAssertGreaterThan(try StitchEngine.compile(design).stitchCount, 50, font.name)
