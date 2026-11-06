@@ -67,18 +67,18 @@ final class ContinueDrawingFlowTests: XCTestCase {
         let state = EditorState(), satin = setUp(state)
         let canvas = DesignCanvas(state: state); canvas.frame = NSRect(x: 0, y: 0, width: 600, height: 600); state.canvas = canvas
         state.status = "Satin column ready."
-        canvas.updateEndHover(at: canvas.screen(Point(10, -2)))
-        XCTAssertEqual(canvas.hoveredEnd?.id, satin.id); XCTAssertEqual(canvas.hoveredEnd?.fromStart, false)
+        canvas.updateContinueHover(at: canvas.screen(Point(10, -2)))
+        XCTAssertEqual(canvas.hoveredPick, .end(satin.id, fromStart: false))
         XCTAssertEqual(state.status, "Click to carry on ‘Stem’ from its end.")
-        canvas.updateEndHover(at: canvas.screen(Point(5, 0)))
-        XCTAssertNil(canvas.hoveredEnd, "the middle of the column isn't an end")
+        canvas.updateContinueHover(at: canvas.screen(Point(5, 0)))
+        XCTAssertNil(canvas.hoveredPick, "the middle of the column isn't an end")
         XCTAssertEqual(state.status, "Satin column ready.", "moving off puts the status line back")
         // The Running tool only picks up lines, and nothing is picked up while a shape is being drawn.
         state.tool = .run
-        canvas.updateEndHover(at: canvas.screen(Point(0, 2)))
-        XCTAssertNil(canvas.hoveredEnd)
+        canvas.updateContinueHover(at: canvas.screen(Point(0, 2)))
+        XCTAssertNil(canvas.hoveredPick)
         state.tool = .satin; state.draft = [PathNode(Point(40, 40))]
-        canvas.updateEndHover(at: canvas.screen(Point(0, 2)))
-        XCTAssertNil(canvas.hoveredEnd)
+        canvas.updateContinueHover(at: canvas.screen(Point(0, 2)))
+        XCTAssertNil(canvas.hoveredPick)
     }
 }

@@ -1,6 +1,7 @@
 // Continue drawing: picking up a finished open line or satin column at either end, so more points or edge pairs can
 // be added past it. Its points become the drawing in progress, facing out of the end that was picked; finishing turns
-// them back, so the object keeps the way it runs.
+// them back, so the object keeps the way it runs. Closed outlines (fills, closed lines) are picked up at any of their
+// points instead, and new points go in after it.
 import Foundation
 
 extension RunObject {
@@ -25,5 +26,27 @@ extension RunObject {
     public static func reversedPath(_ nodes: [PathNode], satin: Bool) -> [PathNode] {
         guard satin else { return nodes.reversed().map(\.reversedDirection) }
         return stride(from: nodes.count - 2, through: 0, by: -2).flatMap { [nodes[$0].reversedDirection, nodes[$0 + 1].reversedDirection] }
+    }
+
+    /// True for closed outlines the Fill and Closed Shape tools can draw more points into: fills of any style and
+    /// closed running lines (not satin borders, lettering, monograms, guide lines, imported stitches or locked objects).
+    public var canDrawInto: Bool {
+        closed && !locked && rawStitches == nil && lettering == nil && monogram == nil && guideFor == nil
+            && kind != .satin && nodes.count >= 3
+    }
+
+    /// The outline as a drawing in progress that carries on from point `index`: the points after it, then the points
+    /// up to and including it. New clicks land at the end, between that point and the next one, and the closed
+    /// drawing joins the last of them back to the next one.
+    public func drawing(continuingAfter index: Int) -> [PathNode] {
+        Array(nodes[(index + 1)...] + nodes[...index])
+    }
+
+    /// A drawing made with `drawing(continuingAfter:)`, new points and all, back in the outline's own order, so its
+    /// first point stays first. `leading` is how many points the drawing started with that came after the picked one.
+    public static func outline(fromDrawing drawing: [PathNode], leading: Int) -> [PathNode] {
+        // Deleting points while drawing can eat into the old ones; then there's no order left to restore.
+        guard leading > 0, drawing.count > leading else { return drawing }
+        return Array(drawing[leading...] + drawing[..<leading])
     }
 }
