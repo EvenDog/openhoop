@@ -38,6 +38,112 @@ public enum Motifs {
         case .circle:
             let loop = (0...48).map { k -> Point in let a = -.pi / 2 + 2 * .pi * Double(k) / 48; return Point(0.5 + 0.5 * cos(a), 0.5 + 0.5 * sin(a)) }
             return [Point(0, 0)] + loop + [Point(1, 0)]
+        // The motifs added in file version 20. Where a part has to be sewn twice to get back (a stem, a ray, a
+        // snowflake's arm), the needle goes out and back along the same line.
+        case .flower:
+            // Five petals round the middle (a rose curve, r = cos 5θ, turned 18° so a petal points straight up and
+            // the stem fits in the gap at the bottom), on a stem from the baseline. The curve starts and ends in the middle.
+            let petals = (0...150).map { k -> Point in
+                let theta = .pi / 10 + .pi * Double(k) / 150, r = 0.42 * cos(5 * theta), a = theta + 18 * .pi / 180
+                return Point(0.5 + r * cos(a), 0.55 + r * sin(a))
+            }
+            return [Point(0, 0), Point(0.5, 0)] + petals + [Point(0.5, 0), Point(1, 0)]
+        case .tulip:
+            // Up the stem, round the cup with its three points, back down the stem.
+            let cup = [(0.5, 0.4), (0.3, 0.45), (0.18, 0.62), (0.15, 0.95), (0.33, 0.78), (0.5, 1.0), (0.67, 0.78), (0.85, 0.95), (0.82, 0.62), (0.7, 0.45), (0.5, 0.4)].map { Point($0.0, $0.1) }
+            return [Point(0, 0), Point(0.5, 0)] + cup + [Point(0.5, 0), Point(1, 0)]
+        case .teardrop:
+            // Round at the bottom, pointed at the top: from the bottom, once round.
+            let loop = (0...48).map { k -> Point in
+                let t = .pi + 2 * .pi * Double(k) / 48
+                return Point(0.5 + 0.42 * sin(t) * pow(abs(sin(t / 2)), 1.2), 0.5 * (1 + cos(t)))
+            }
+            return [Point(0, 0)] + loop + [Point(1, 0)]
+        case .crescent:
+            // The outer edge is a circle (middle (0.5, 0.5), radius 0.5) with the horns at ±60°; the inner edge is a
+            // circle through both horns (middle (0.784, 0.5), radius 0.434). From the bottom: round to the lower horn,
+            // up the inner edge to the upper horn, then on round the outer edge through the left to the bottom.
+            let toHorn = arc(Point(0.5, 0.5), 0.5, from: -90, to: -60, steps: 4)
+            let inner = arc(Point(0.784, 0.5), 0.434, from: -94.5, to: -265.5, steps: 30)
+            let outer = arc(Point(0.5, 0.5), 0.5, from: 60, to: 270, steps: 36)
+            return [Point(0, 0)] + toHorn + inner.dropFirst() + outer.dropFirst() + [Point(1, 0)]
+        case .snowflake:
+            // Six arms from the middle, the lowest standing on the baseline. Each of the other five: out to a short
+            // branch and back, out to the tip and back, out to the other branch and back.
+            let middle = Point(0.5, 0.5)
+            var path = [Point(0, 0), Point(0.5, 0), middle]
+            for k in 1...5 {
+                let a = -.pi / 2 + Double(k) * .pi / 3
+                let along = { (r: Double) in Point(0.5 + r * cos(a), 0.5 + r * sin(a)) }
+                let branchFoot = along(0.3)
+                let branch = { (turn: Double) in branchFoot + Point(0.18 * cos(a + turn), 0.18 * sin(a + turn)) }
+                path += [branchFoot, branch(0.8), branchFoot, along(0.5), branchFoot, branch(-0.8), branchFoot, middle]
+            }
+            return path + [Point(0.5, 0), Point(1, 0)]
+        case .sun:
+            // A circle with eight rays; the lowest ray stands on the baseline. Round the circle, out and back along each ray.
+            let radius = 0.27
+            var path = [Point(0, 0), Point(0.5, 0), Point(0.5, 0.5 - radius)]
+            for k in 1...8 {
+                let from = -90 + Double(k - 1) * 45, to = from + 45
+                path += arc(Point(0.5, 0.5), radius, from: from, to: to, steps: 6).dropFirst()
+                if k < 8 {
+                    let a = to * .pi / 180
+                    path += [Point(0.5 + 0.5 * cos(a), 0.5 + 0.5 * sin(a)), Point(0.5 + radius * cos(a), 0.5 + radius * sin(a))]
+                }
+            }
+            return path + [Point(0.5, 0), Point(1, 0)]
+        case .cloud:
+            // Along the flat bottom, back over three bumps (right, big middle, left), then along the bottom again.
+            let bumps = arc(Point(0.78, 0.2), 0.2, from: -40, to: 110, steps: 14)
+                + arc(Point(0.5, 0.36), 0.25, from: 15, to: 165, steps: 18)
+                + arc(Point(0.22, 0.2), 0.2, from: 70, to: 220, steps: 14)
+            return [Point(0, 0), Point(0.93, 0)] + bumps + [Point(0.07, 0), Point(1, 0)]
+        case .bow:
+            // A tail up to the knot, both loops (a figure of eight round the knot), and the other tail down.
+            let loops = (0...64).map { k -> Point in
+                let t = 2 * .pi * Double(k) / 64
+                return Point(0.5 + 0.48 * sin(t), 0.45 + 0.3 * sin(t) * cos(t))
+            }
+            return [Point(0, 0)] + loops + [Point(1, 0)]
+        case .bird:
+            // A flying bird seen from afar: two arched wings meeting at its body.
+            let wing = (0...12).map { k -> Point in
+                let u = Double(k) / 12
+                return Point(0.5 * u, 0.55 * pow(sin(.pi * u), 0.7) * (1 - 0.4 * u) + 0.25 * u)
+            }
+            return wing + wing.reversed().dropFirst().map { Point(1 - $0.x, $0.y) }
+        case .loop:
+            // A rising curve that crosses itself in a loop at the top, like joined-up handwriting's "l".
+            return (0...48).map { k -> Point in
+                let t = Double(k) / 48
+                return Point(t + 0.3 * sin(2 * .pi * t), 0.4 * (1 - cos(2 * .pi * t)))
+            }
+        case .wave:
+            // One whole wave, up above the baseline and down below it.
+            return (0...32).map { k -> Point in let u = Double(k) / 32; return Point(u, 0.35 * sin(2 * .pi * u)) }
+        case .triangle:
+            return [Point(0, 0), Point(0.5, 0.87), Point(1, 0), Point(0, 0), Point(1, 0)]
+        case .square:
+            return [(0, 0), (0.1, 0), (0.1, 0.8), (0.9, 0.8), (0.9, 0), (0.1, 0), (1, 0)].map { Point($0.0, $0.1) }
+        case .cross:
+            return [(0, 0), (0.5, 0), (0.5, 1), (0.5, 0.65), (0.2, 0.65), (0.8, 0.65), (0.5, 0.65), (0.5, 0), (1, 0)].map { Point($0.0, $0.1) }
+        case .pineTree:
+            // Up the trunk, round three tiers of branches, back down the trunk.
+            let tree = [(0.5, 0.12), (0.12, 0.12), (0.38, 0.42), (0.2, 0.42), (0.42, 0.7), (0.3, 0.7), (0.5, 1.0), (0.7, 0.7), (0.58, 0.7), (0.8, 0.42), (0.62, 0.42), (0.88, 0.12), (0.5, 0.12)]
+            return [Point(0, 0), Point(0.5, 0)] + tree.map { Point($0.0, $0.1) } + [Point(0.5, 0), Point(1, 0)]
+        case .house:
+            // Up the left wall, over the roof, back along the eaves, down the right wall, round the door.
+            return [(0, 0), (0.12, 0), (0.12, 0.6), (0.5, 0.95), (0.88, 0.6), (0.12, 0.6), (0.88, 0.6), (0.88, 0), (0.6, 0), (0.6, 0.3), (0.4, 0.3), (0.4, 0), (1, 0)].map { Point($0.0, $0.1) }
+        }
+    }
+
+    /// Points along a circle round `center` with radius `radius`, from angle `from` to angle `to` (degrees,
+    /// counterclockwise from the right; `to` smaller than `from` goes clockwise), `steps` pieces.
+    private static func arc(_ center: Point, _ radius: Double, from: Double, to: Double, steps: Int) -> [Point] {
+        (0...steps).map { k in
+            let a = (from + (to - from) * Double(k) / Double(steps)) * .pi / 180
+            return Point(center.x + radius * cos(a), center.y + radius * sin(a))
         }
     }
 

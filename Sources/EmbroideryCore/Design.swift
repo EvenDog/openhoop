@@ -367,7 +367,11 @@ public enum RunStyle: String, Codable, CaseIterable, Sendable {
 /// The small patterns motif runs and motif fills repeat (Motifs.swift draws them).
 public enum Motif: String, Codable, CaseIterable, Sendable {
     case heart, leaf, diamond, star, scallop, circle
-    public var title: String { rawValue.prefix(1).uppercased() + rawValue.dropFirst() }
+    // Added in file version 20.
+    case flower, tulip, teardrop, crescent, snowflake, sun, cloud, bow, bird, loop, wave, triangle, square, cross, pineTree, house
+    public var title: String { self == .pineTree ? "Pine tree" : rawValue.prefix(1).uppercased() + rawValue.dropFirst() }
+    /// The motifs added in file version 20: a design using one is saved as version 20.
+    public static let addedInVersionTwenty: Set<Motif> = Set(allCases).subtracting([.heart, .leaf, .diamond, .star, .scallop, .circle])
 }
 /// A motif of the user's own, made from running lines with Create Motif (`Motifs.make`): its name and its stroke, in
 /// the same unit box as the built-in motifs (from (0, 0) to (1, 0) along the baseline). Each object that uses it
@@ -785,9 +789,11 @@ public struct Design: Codable, Equatable, Sendable {
         objects.contains { $0.digitizing?.blendFade != nil && ([.wave, .radial, .contour, .guided].contains($0.digitizing?.fillStyle) || $0.digitizing?.blendRowsPaired == true) }
     }
     /// Schema 20 marks projects with a tatami fill on one of the patterns added in version 20 (Rain, Hills, Wood grain…),
-    /// so older versions, which don't know those names, refuse them as too new instead of calling them damaged.
+    /// or a motif line or fill on one of the motifs added then (Flower, Sun, House…), so older versions, which don't
+    /// know those names, refuse them instead.
     public var needsSchemaTwenty: Bool {
-        objects.contains { $0.kind == .fill && $0.settings.tatamiPattern.map(TatamiPattern.addedInVersionTwenty.contains) == true }
+        objects.contains { ($0.kind == .fill && $0.settings.tatamiPattern.map(TatamiPattern.addedInVersionTwenty.contains) == true)
+            || $0.digitizing?.motif.map(Motif.addedInVersionTwenty.contains) == true }
     }
     /// Schema 18 marks projects with fills on double tatami or zigzag underlay, so older versions (which don't sew
     /// those on fills) refuse them instead.
