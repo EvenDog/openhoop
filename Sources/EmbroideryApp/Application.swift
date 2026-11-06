@@ -737,8 +737,15 @@ import EmbroideryCore
             if let name = askName("Save workspace layout", value: "My Workspace") { var workspace = editor.captureWorkspace(); workspace.id = UUID(); workspace.name = name; Preferences.shared.data.workspaces.append(workspace); Preferences.shared.data.workspace = workspace; Preferences.shared.save() }
         case .focusLength,.focusSpacing,.focusAngle:
             let identifier=command == .focusLength ? "stitchLength":command == .focusSpacing ? "rowSpacing":"fillAngle"
+            // The field may be on another Properties tab: show that tab first. A fill whose rows run one way has its
+            // angle on the picture, shown on every tab; other fills' angle is their underlay's.
+            if let object = state.selected {
+                if command != .focusAngle { state.propertiesTab = .stitch }
+                else if !(object.kind == .fill && StitchAngleLine.applies(to: object)) && object.hasUnderlaySettings { state.propertiesTab = .underlay }
+            }
             func find(_ view: NSView) -> NSView? { if view.identifier?.rawValue == identifier { return view }; for child in view.subviews { if let result = find(child) { return result } }; return nil }
-            if let content = editor.window?.contentView, let field = find(content) as? NSTextField { editor.window?.makeFirstResponder(field); field.selectText(nil) }
+            // On the next turn of the run loop, once Properties shows the tab.
+            DispatchQueue.main.async { if let content = editor.window?.contentView, let field = find(content) as? NSTextField { editor.window?.makeFirstResponder(field); field.selectText(nil) } }
         case .play:
             if state.playing { state.playing = false; playbackTimer?.invalidate() }
             else {

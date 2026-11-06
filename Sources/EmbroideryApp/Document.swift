@@ -53,7 +53,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     // stitches can't be worked out (or aren't ready yet).
     @Published var design = Design() { didSet { planFacts = nil; hoopingFacts = nil; stepFacts = nil } }
     // A choice just made in a picture menu stays previewed until these fresh stitches arrive.
-    @Published var plan = StitchPlan() { didSet { planFacts = nil; hoopingFacts = nil; stepFacts = nil; if settingsPreview?.kept == true { settingsPreview = nil } } }
+    @Published var plan = StitchPlan() { didSet { planFacts = nil; hoopingFacts = nil; stepFacts = nil; timelineFacts = nil; if settingsPreview?.kept == true { settingsPreview = nil } } }
     /// While pointing at a choice in a picture menu (Fill style, Pattern): the selected objects' stitches with it (PictureMenu.swift).
     @Published var settingsPreview: SettingsPreview?
     var settingsPreviewTask: Task<StitchPlan, Error>?
@@ -204,6 +204,8 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     /// True while reviewing the sewing order: the canvas shows the design sewn up to the selected step and how the
     /// needle got there, and Properties shows the step at its top.
     @Published var reviewing = false
+    /// The Properties tab last picked (PropertiesTabs.swift): it stays picked as other objects are selected.
+    @Published var propertiesTab = PropertiesTab.stitch
     /// While reviewing: true shows the whole route at once (each step's number at its start, and the moves between
     /// steps) instead of one step at a time.
     @Published var reviewShowsRoute = false
@@ -213,6 +215,13 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         let steps = design.sewingSteps(plan: plan); stepFacts = steps; return steps
     }
     private var stepFacts: [SewingStep]?
+    /// The stitch player's timeline (colors, objects, trims and stops), worked out once per plan rather than on every
+    /// frame of playback.
+    var playerTimeline: PlayerTimeline {
+        if let timelineFacts { return timelineFacts }
+        let timeline = plan.timeline; timelineFacts = timeline; return timeline
+    }
+    private var timelineFacts: PlayerTimeline?
     /// While reviewing, the step being looked at: the first one that sews something selected (nil with nothing selected).
     var reviewStep: (index: Int, step: SewingStep)? {
         guard reviewing, !selection.isEmpty, let index = sewingSteps.firstIndex(where: { $0.objects.contains(where: selection.contains) }) else { return nil }
@@ -386,7 +395,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         let untangled=SatinPairs.untangle(object)
         if let untangled {object=untangled}
         edit("Draw \(kind.title)"){$0.objects.append(object)}
-        draft=[];selection=[object.id];selectedNode=nil;backToSelect(after:"\(kind.title) added"+(untangled != nil ? " (a pair clicked right-then-left was swapped so the column sews)" : ""))
+        draft=[];selection=[object.id];selectedNode=nil;stayInTool(after:"\(kind.title) added"+(untangled != nil ? " (a pair clicked right-then-left was swapped so the column sews)" : ""))
     }
     /// Continue drawing: a click on an end of a selected open line or satin with its tool. Its points become the
     /// drawing in progress, facing out of that end, so new clicks carry it on. Return puts them back in the object;
@@ -408,7 +417,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         do{try candidate.validate()}catch{status=error.localizedDescription;return}
         let name=candidate.objects[index].name
         edit("Continue Drawing"){$0=candidate}
-        draft=[];selection=[id];selectedNode=nil;backToSelect(after:"‘\(name)’ continued"+(untangled != nil ? " (a pair clicked right-then-left was swapped so the column sews)" : ""))
+        draft=[];selection=[id];selectedNode=nil;stayInTool(after:"‘\(name)’ continued"+(untangled != nil ? " (a pair clicked right-then-left was swapped so the column sews)" : ""))
     }
     /// Add or Remove Stitch Angles: a click at `point`. Adding takes two clicks per line, across the fill, and adds
     /// it (one undoable step each); removing takes away the line within `reach` mm of the click.
@@ -690,14 +699,12 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         let objects=objects.map{design.withFabric(Preferences.shared.withNewObjectDefaults($0))}
         edit(action){$0.objects+=objects}
         draft=[];selection=Set(objects.map(\.id));selectedNode=nil
-        backToSelect(after:"\(objects[0].name)\(objects.count>1 ? " and its outline" : "") added")
+        stayInTool(after:"\(objects[0].name)\(objects.count>1 ? " and its outline" : "") added")
     }
-    /// After a shape or line is finished: back to Select, with what was just drawn selected, and the status line
-    /// saying how to draw another with the same tool.
-    private func backToSelect(after added:String) {
-        let drawing=Tool.forCommand.first{$0.value==tool}?.key
-        tool = .select
-        status="\(added) and selected."+(drawing.map{" Press \(Preferences.shared.key($0)) to draw another."} ?? "")
+    /// After a shape or line is finished: the tool stays on, so the next drag or click draws another, with what was
+    /// just drawn selected (Properties shows it). Esc, or picking another tool, goes back to Select.
+    private func stayInTool(after added:String) {
+        status="\(added) and selected. Draw another, or press Esc to go back to Select."
     }
     func resizeSelection(width:Double?=nil,height:Double?=nil) {
         let points=design.objects.filter{selection.contains($0.id) && !$0.locked}.flatMap{$0.outlinePaths.flatMap{$0}}
@@ -1086,6 +1093,9 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         }
         lastRun = run
         state.design = updated; state.revision += 1
+        // The design's first object (the first stitch laid, however it was added): the Sewing order panel comes to the
+        // front, opening if it was closed, so the objects can be followed from the start. Opening a file doesn't count.
+        if previous.objects.isEmpty && !updated.objects.isEmpty { Preferences.shared.updatePanels { $0.show(.sewingOrder) } }
         if !lost.isEmpty { state.status = "\(lost.joined(separator: ", ")): stitches edited by hand were replaced by fresh ones, because the shape or settings changed. Undo (⌘Z) brings them back." }
         if let problem = guideProblems.first { state.status = problem }
         state.selection.formIntersection(Set(updated.objects.map(\.id)))

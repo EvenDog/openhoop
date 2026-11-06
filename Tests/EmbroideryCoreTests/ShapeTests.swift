@@ -131,6 +131,46 @@ final class ShapeTests: XCTestCase {
         XCTAssertEqual(saved.frameWidth, ShapeSettings.frameWidthRange.upperBound)
     }
 
+    /// With Open middle on, any Basic Shapes shape becomes a frame: its hole is the outline shrunk evenly inward, so
+    /// every point of the hole's edge is at least the band width from the outside edge, and the nearest ones exactly
+    /// that. The fill sews round the hole. Off (the default), or for the Rectangle and Ellipse tools, there's no hole;
+    /// a band too wide leaves none either. The choice is saved, and older preferences without it read as off.
+    func testOpenMiddleMakesAnyShapeAFrame() throws {
+        var settings = ShapeSettings(); settings.openMiddle = true; settings.frameWidth = 3
+        let square = (min: Point(-20, -20), max: Point(20, 20))
+        /// How far `p` is from the closed outline `ring` (from its nearest edge).
+        func distance(_ p: Point, to ring: [Point]) -> Double {
+            ring.indices.map { i -> Double in
+                let a = ring[i], b = ring[(i + 1) % ring.count], ab = b - a
+                let t = max(0, min(1, ((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / (ab.x * ab.x + ab.y * ab.y)))
+                return hypot(p.x - (a.x + ab.x * t), p.y - (a.y + ab.y * t))
+            }.min()!
+        }
+        for shape in BasicShape.basicChoices where !shape.isFrame {
+            let nodes = ShapeGeometry.nodes(shape, in: square, settings: settings, keepProportions: true)
+            let holes = ShapeGeometry.holes(shape, around: nodes, settings: settings)
+            XCTAssertFalse(holes.isEmpty, "\(shape.title) has an open middle")
+            let edge = outline(nodes)
+            let gaps = holes.flatMap { $0.map { distance($0.point, to: edge) } }
+            XCTAssertGreaterThan(gaps.min() ?? 0, 2.95, "\(shape.title): the band is never thinner than its width")
+            XCTAssertEqual(gaps.min() ?? 0, 3, accuracy: 0.05, "\(shape.title): the band is its width")
+        }
+        for shape in [BasicShape.heart, .star, .shield, .polygon] {
+            let nodes = ShapeGeometry.nodes(shape, in: square, settings: settings, keepProportions: true)
+            let holes = ShapeGeometry.holes(shape, around: nodes, settings: settings)
+            let made = try ShapeStitching.closedShape(nodes, holes: holes, fill: .tatami, outline: .running, name: shape.title, color: .palette[0])
+            XCTAssertEqual(made.map(\.name), [shape.title, "\(shape.title) outline", "\(shape.title) inner outline"])
+            XCTAssertFalse(try AreaEngine.fill(made[0]).sections.flatMap(\.points).isEmpty, shape.title)
+        }
+        let heart = ShapeGeometry.nodes(.heart, in: square)
+        XCTAssertTrue(ShapeGeometry.holes(.heart, around: heart).isEmpty, "off by default")
+        XCTAssertTrue(ShapeGeometry.holes(.rectangle, around: ShapeGeometry.nodes(.rectangle, in: square), settings: settings).isEmpty, "the Rectangle tool")
+        var wide = settings; wide.frameWidth = 20   // 40 mm across: nothing left in the middle
+        XCTAssertTrue(ShapeGeometry.holes(.heart, around: heart, settings: wide).isEmpty)
+        XCTAssertFalse(try JSONDecoder().decode(ShapeSettings.self, from: Data("{}".utf8)).openMiddle)
+        XCTAssertTrue(try JSONDecoder().decode(ShapeSettings.self, from: JSONEncoder().encode(settings)).openMiddle)
+    }
+
     /// Every fill (or none) with every outline (or none): a fill alone, an outline alone, or the fill then the
     /// outline on its edge, grouped. Each one sews.
     func testClosedShapeGetsThePickedFillAndOutline() throws {
