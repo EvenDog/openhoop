@@ -496,7 +496,8 @@ final class DesignCanvas: NSView {
         if !multi { Theme.Canvas.sewingArea.setStroke(); hoopPath.lineWidth = 1.2; hoopPath.setLineDash([6, 4], count: 2, phase: 0); hoopPath.stroke() }
         let userHidden = Set(design.objects.filter { !state.isShown($0) }.map(\.id))
         // Pointing at a choice in a picture menu (Fill style, Pattern): the selected objects' own stitches give way
-        // to the preview's, drawn after the rest (PictureMenu.swift).
+        // to the preview's (PictureMenu.swift), drawn where their own would be in the sewing order, so whatever is sewn
+        // after them still lies on top and only their stitches change.
         let menuPreview = state.settingsPreview
         var hidden = userHidden.union(menuPreview?.objects ?? [])
         var previous = Point(0, 0)
@@ -565,13 +566,37 @@ final class DesignCanvas: NSView {
             context.endTransparencyLayer(); context.restoreGState()
             previous = Point(0, 0); needles = CGMutablePath()
         }
-        drawStitches(commands[..<split])
-        if artworkLayer > 0 { drawArtwork() }
-        drawStitches(commands[split...])
-        if let menuPreview, let first = menuPreview.plan.commands.first {
-            hidden = userHidden; threads = menuPreview.plan.threads; threadColors = colors(threads); previous = first.point
-            drawStitches(menuPreview.plan.commands[...])
+        // Each tried object's preview stitches, with where its own stitches start in the design's (or the end, for one
+        // that has none yet), in sewing order.
+        var tried: [(start: Int, stitches: ArraySlice<StitchCommand>)] = []
+        if let menuPreview {
+            let previewCommands = menuPreview.plan.commands
+            for id in menuPreview.objects {
+                guard let first = previewCommands.firstIndex(where: { $0.objectID == id }),
+                      let last = previewCommands.lastIndex(where: { $0.objectID == id }) else { continue }
+                tried.append((plan.commands.firstIndex { $0.objectID == id } ?? plan.commands.endIndex, previewCommands[first...last]))
+            }
+            tried.sort { $0.start < $1.start }
         }
+        /// Draws one tried object's preview stitches, in the preview's own threads, then carries on where the design was.
+        func drawTried(_ stitches: ArraySlice<StitchCommand>) {
+            let resume = (previous, hidden, threads, threadColors)
+            hidden = userHidden; threads = menuPreview?.plan.threads ?? threads; threadColors = colors(threads); previous = stitches.first!.point
+            drawStitches(stitches)
+            (previous, hidden, threads, threadColors) = resume
+        }
+        /// Draws `part` of the design's stitches with each tried object's preview slotted in where its stitches start.
+        func drawWithTried(_ part: ArraySlice<StitchCommand>) {
+            var from = part.startIndex
+            for (start, stitches) in tried where part.indices.contains(start) {
+                drawStitches(part[from..<start]); drawTried(stitches); from = start
+            }
+            drawStitches(part[from...])
+        }
+        drawWithTried(commands[..<split])
+        if artworkLayer > 0 { drawArtwork() }
+        drawWithTried(commands[split...])
+        for (start, stitches) in tried where start == plan.commands.endIndex { drawTried(stitches) }
         // On thread, each needle point gets a light ring so it shows on any thread color.
         if threadView && showStitches { context.setStrokeColor(NSColor.white.withAlphaComponent(0.85).cgColor); context.setLineWidth(0.8); context.addPath(needles); context.strokePath() }
         context.setFillColor(Theme.Canvas.needle.cgColor); context.addPath(needles); context.fillPath()
@@ -594,9 +619,7 @@ final class DesignCanvas: NSView {
                         Theme.Canvas.handle.setStroke(); path.lineWidth = selected ? 2 : 1.5
                         path.setLineDash([6, 4], count: 2, phase: 0); path.stroke(); continue
                     }
-                    // While an object shows a choice from a picture menu, its outline is terracotta, so it reads as a try-out.
-                    let trying = menuPreview.map { !$0.kept && $0.objects.contains(object.id) } ?? false
-                    (broken ? NSColor.systemRed : trying ? Theme.Canvas.previewOutline : selected ? Theme.Canvas.selection : object.color.nsColor.withAlphaComponent(0.4)).setStroke(); path.lineWidth = broken ? 2 : 1
+                    (broken ? NSColor.systemRed : selected ? Theme.Canvas.selection : object.color.nsColor.withAlphaComponent(0.4)).setStroke(); path.lineWidth = broken ? 2 : 1
                     if selected { path.setLineDash([2, 2], count: 2, phase: 0) }; path.stroke()
                 }
             }
