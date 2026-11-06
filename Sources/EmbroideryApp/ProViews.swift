@@ -417,11 +417,14 @@ extension InspectorPanel {
             if let lettering = object.lettering { letteringEditor(lettering) }
             if let monogram = object.monogram { monogramSummary(monogram) }
             if let id = object.repeatCopy?.id ?? object.lineRepeat?.id, let spec = state.design.objects.first(where: { $0.lineRepeat?.id == id })?.lineRepeat { proLineRepeat(id, spec) }
+            // The tab names the stitches, so their settings only get a heading when lettering, a monogram or copies
+            // along a line come first.
+            let headed = object.lettering != nil || object.monogram != nil || object.repeatCopy != nil || object.lineRepeat != nil
             switch object.kind {
-            case .fill: proFill(object)
-            case .satin: proSatin(object)
-            case .run: proRunning(object)
-            case .vector: proOutline(object)
+            case .fill: proFill(object, headed: headed)
+            case .satin: proSatin(object, headed: headed)
+            case .run: proRunning(object, headed: headed)
+            case .vector: proOutline(object, headed: headed)
             case .raw: EmptyView()
             }
             if object.kind == .satin || object.kind == .run { proHandStitch(object) }
@@ -432,7 +435,7 @@ extension InspectorPanel {
             proFinish(object)
             if object.kind == .run || object.kind == .satin || object.kind == .fill { proStartEnd(object) }
         case .object:
-            proSection("Object") {
+            proSection(nil) {
                 HStack(spacing: 6) {
                     Button(object.locked ? "Unlock" : "Lock") { AppDelegate.shared.perform(.lockObject) }.help(preferences.hint(.lockObject))
                     Button(object.visible ? "Hide" : "Show") { AppDelegate.shared.perform(.hideObject) }.help(preferences.hint(.hideObject))
@@ -512,15 +515,18 @@ extension InspectorPanel {
         }
     }
 
-    private func proFill(_ object: RunObject) -> some View {
+    /// A fill's settings. `headed` gives them a FILL heading, for when lettering or the like sits above them; otherwise
+    /// the tab above already says Fill.
+    private func proFill(_ object: RunObject, headed: Bool) -> some View {
         let style = object.settings.fillStyle ?? .tatami, holes = object.holes?.count ?? 0
         // The style menu and the angle are on the picture above (proPicture).
-        return proSection("Fill") {
-            if style == .tatami || style == .satin { stitchAngles(object) }
+        return proSection(headed ? "Fill" : nil) {
             if style == .wave {
                 let waveHelp = "How far each ripple rises and falls (mm, crest to trough), and the distance from one crest to the next. Tall, short waves pack the rows closer on their slopes."
-                number("Wave height", value: object.settings.waveHeight ?? DigitizingSettings.defaultWaveHeight, range: DigitizingSettings.waveHeightRange, help: waveHelp) { value in settings(.fill, "Wave Height") { $0.waveHeight = value } }
-                number("Wave length", value: object.settings.waveLength ?? DigitizingSettings.defaultWaveLength, range: DigitizingSettings.waveLengthRange, help: waveHelp) { value in settings(.fill, "Wave Length") { $0.waveLength = value } }
+                numberGrid {
+                    numberCell("Wave height", value: object.settings.waveHeight ?? DigitizingSettings.defaultWaveHeight, range: DigitizingSettings.waveHeightRange, help: waveHelp) { value in settings(.fill, "Wave Height") { $0.waveHeight = value } }
+                    numberCell("Wave length", value: object.settings.waveLength ?? DigitizingSettings.defaultWaveLength, range: DigitizingSettings.waveLengthRange, help: waveHelp) { value in settings(.fill, "Wave Length") { $0.waveLength = value } }
+                }
             }
             if style == .radial {
                 proRow("Center", help: "Drag the Center dot on the canvas to move the point the stitches fan out from.") {
@@ -532,20 +538,23 @@ extension InspectorPanel {
                 }
             }
             patternSettings(object)
-            if ![.stipple, .motif, .crossStitch, .gradient].contains(style) {
-                number("Row spacing", value: object.settings.spacing, id: "rowSpacing", range: 0.15...10, help: object.settings.rowSpacingHelp) { value in settings(.fill, "Row Spacing") { $0.spacing = value } }
+            numberGrid {
+                if ![.stipple, .motif, .crossStitch, .gradient].contains(style) {
+                    numberCell("Row spacing", value: object.settings.spacing, id: "rowSpacing", range: 0.15...10, help: object.settings.rowSpacingHelp) { value in settings(.fill, "Row Spacing") { $0.spacing = value } }
+                }
+                // Not for cross stitch: its square size sets its stitches.
+                if style.usesStitchLength {
+                    numberCell("Stitch length", value: object.stitchLength, id: "stitchLength", range: 0.3...10, help: fillStitchLengthHelp(object)) { value in state.editSelected("Stitch Length") { $0.stitchLength = value } }
+                }
+                // Straight rows get pull and push apart: thread pulls fabric in along its stitches and pushes it out across them.
+                if object.settings.hasStraightRows {
+                    numberCell("Pull", value: object.settings.expansion, range: 0...2, help: "Pull compensation: lengthens every row at both ends by this much, because thread pulls fabric in along its stitches.") { value in settings(.fill, "Pull Compensation") { $0.expansion = value } }
+                    numberCell("Push", value: object.settings.pushCompensation ?? 0, range: DigitizingSettings.pushCompensationRange, help: "Push compensation: pulls in the edges the rows run along by this much, because thread pushes fabric out across its stitches. 0 sews them where you drew them; raise it if a test sew-out shows those edges sewing wider.") { value in settings(.fill, "Push Compensation") { $0.pushCompensation = value } }
+                } else {
+                    numberCell("Expansion", value: object.settings.expansion, range: 0...2, help: "Grows the fill past its outline by this much, because thread pulls fabric inward as it sews.") { value in settings(.fill, "Compensation") { $0.expansion = value } }
+                }
             }
-            // Not for cross stitch: its square size sets its stitches.
-            if style.usesStitchLength {
-                number("Stitch length", value: object.stitchLength, id: "stitchLength", range: 0.3...10, help: fillStitchLengthHelp(object)) { value in state.editSelected("Stitch Length") { $0.stitchLength = value } }
-            }
-            // Straight rows get pull and push apart: thread pulls fabric in along its stitches and pushes it out across them.
-            if object.settings.hasStraightRows {
-                number("Pull compensation", value: object.settings.expansion, range: 0...2, help: "Lengthens every row at both ends by this much, because thread pulls fabric in along its stitches.") { value in settings(.fill, "Pull Compensation") { $0.expansion = value } }
-                number("Push compensation", value: object.settings.pushCompensation ?? 0, range: DigitizingSettings.pushCompensationRange, help: "Pulls in the edges the rows run along by this much, because thread pushes fabric out across its stitches. 0 sews them where you drew them; raise it if a test sew-out shows those edges sewing wider.") { value in settings(.fill, "Push Compensation") { $0.pushCompensation = value } }
-            } else {
-                number("Expansion", value: object.settings.expansion, range: 0...2, help: "Grows the fill past its outline by this much, because thread pulls fabric inward as it sews.") { value in settings(.fill, "Compensation") { $0.expansion = value } }
-            }
+            if style == .tatami || style == .satin { stitchAngles(object) }
             proRow("Holes", help: "Holes are areas inside the fill left unstitched. + traces a new one; − removes them all.") {
                 Text(ProStats.count(holes, "hole")).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
                 Button { AppDelegate.shared.perform(.holeTool) } label: { Image(systemName: "plus") }.buttonStyle(ThemedButtonStyle()).accessibilityLabel("Add hole")
@@ -556,8 +565,9 @@ extension InspectorPanel {
         }
     }
 
-    private func proSatin(_ object: RunObject) -> some View {
-        proSection("Satin") {
+    /// A satin's settings; `headed` as for `proFill`.
+    private func proSatin(_ object: RunObject, headed: Bool) -> some View {
+        proSection(headed ? "Satin" : nil) {
             // A twisted column (a pair clicked right-then-left) is refused; one click swaps it back.
             if SatinPairs.isTangled(object) {
                 proRow("Twisted", help: "A left/right pair in this column faces the other way from the rest, so its stitches cross and it can't sew. Untangle swaps that pair's two points back.") {
@@ -565,17 +575,20 @@ extension InspectorPanel {
                 }
             }
             satinWidth(object)
-            number("Row spacing", value: object.settings.spacing, id: "rowSpacing", range: 0.15...5, help: "Gap between each pass of thread. Smaller gaps give fuller coverage and use more stitches.") { value in settings(.satin, "Row Spacing") { $0.spacing = value } }
-            number("Compensation / side", value: object.settings.expansion, range: 0...2, help: "Thread pulls fabric inward as it sews. A little extra width on each side keeps the column the size you drew.") { value in settings(.satin, "Compensation") { $0.expansion = value } }
-            number("% of width", value: object.settings.pullPercent ?? 0, range: DigitizingSettings.pullPercentRange, help: "Extra compensation for each stitch, as a share of its width, on top of the amount above, so wide parts of the satin get more. 3% is a starting value to tune after a test sew-out.") { value in settings(.satin, "Compensation % of Width") { $0.pullPercent = value } }
-            number("Maximum stitch", value: object.settings.maximumSatin, range: DigitizingSettings.maximumSatinRange, help: "The longest satin stitch allowed. With Split wide satin on, longer stitches are split; otherwise wider columns are refused. Stitches over 12 mm get a warning: they can snag, and machine files split them.") { value in settings(.satin, "Satin Limit") { $0.maximumSatin = value } }
+            numberGrid {
+                numberCell("Row spacing", value: object.settings.spacing, id: "rowSpacing", range: 0.15...5, help: "Gap between each pass of thread. Smaller gaps give fuller coverage and use more stitches.") { value in settings(.satin, "Row Spacing") { $0.spacing = value } }
+                numberCell("Max stitch", value: object.settings.maximumSatin, range: DigitizingSettings.maximumSatinRange, help: "Maximum stitch: the longest satin stitch allowed. With Split wide satin on, longer stitches are split; otherwise wider columns are refused. Stitches over 12 mm get a warning: they can snag, and machine files split them.") { value in settings(.satin, "Satin Limit") { $0.maximumSatin = value } }
+                numberCell("Pull / side", value: object.settings.expansion, range: 0...2, help: "Compensation per side: thread pulls fabric inward as it sews. A little extra width on each side keeps the column the size you drew.") { value in settings(.satin, "Compensation") { $0.expansion = value } }
+                numberCell("+ % of width", value: object.settings.pullPercent ?? 0, range: DigitizingSettings.pullPercentRange, unit: "%", help: "Extra compensation for each stitch, as a share of its width, on top of Pull / side, so wide parts of the satin get more. 3% is a starting value to tune after a test sew-out.") { value in settings(.satin, "Compensation % of Width") { $0.pullPercent = value } }
+            }
             satinOptions(object)
             border(object)
         }
     }
 
-    private func proRunning(_ object: RunObject) -> some View {
-        proSection("Running") {
+    /// A line's settings; `headed` as for `proFill`.
+    private func proRunning(_ object: RunObject, headed: Bool) -> some View {
+        proSection(headed ? "Running" : nil) {
             // Not for zigzag lines: Width and Spacing set their stitches.
             if (object.settings.runStyle ?? .running).usesStitchLength {
                 number("Stitch length", value: object.stitchLength, id: "stitchLength", range: 0.3...10, help: "How far the needle moves per stitch. Shorter stitches follow curves more closely.") { value in state.editSelected("Stitch Length") { $0.stitchLength = value } }
@@ -595,9 +608,9 @@ extension InspectorPanel {
         func change(_ title: String, _ body: @escaping (inout HandStitch) -> Void) {
             settings(kind, title) { s in var h = s.handStitch ?? HandStitch(); body(&h); s.handStitch = h }
         }
-        /// A whole-number setting from `range`, typed in a number field.
+        /// A whole-number setting from `range`, typed in a number field (one cell of a `numberGrid`).
         func level(_ title: String, _ value: Int, _ range: ClosedRange<Int>, help: String, set: @escaping (inout HandStitch, Int) -> Void) -> some View {
-            number(title, value: Double(value), range: Double(range.lowerBound)...Double(range.upperBound), whole: true, help: help) { typed in
+            numberCell(title, value: Double(value), range: Double(range.lowerBound)...Double(range.upperBound), unit: nil, whole: true, help: help) { typed in
                 change("Hand Stitch \(title)") { set(&$0, min(range.upperBound, max(range.lowerBound, Int(typed.rounded())))) }
             }
         }
@@ -610,13 +623,17 @@ extension InspectorPanel {
                            options: [("Both", nil), ("Left", .left), ("Right", .right)],
                            help: "Which edge looks sewn by hand, as seen looking along the satin the way it sews. The other edge stays crisp.")
                 }
-                level("Length", hand.length, HandStitch.levels, help: "Roughness: how much stitch lengths vary, from 0 (not at all) to 5 (up to a fifth of each stitch, either way).") { $0.length = $1 }
-                level("Angle", hand.angle, HandStitch.levels, help: "Roughness: how much stitches tilt, from 0 (not at all) to 5 (up to 10°, either way).") { $0.angle = $1 }
+                numberGrid {
+                    level("Length", hand.length, HandStitch.levels, help: "Roughness: how much stitch lengths vary, from 0 (not at all) to 5 (up to a fifth of each stitch, either way).") { $0.length = $1 }
+                    level("Angle", hand.angle, HandStitch.levels, help: "Roughness: how much stitches tilt, from 0 (not at all) to 5 (up to 10°, either way).") { $0.angle = $1 }
+                }
                 choice("Count", selection: Binding(get: { hand.count }, set: { value in change("Hand Stitch Count") { $0.count = value } }),
                        options: HandStitch.counts.map { ("\($0)×", $0) },
                        help: "Mass: how many times each stitch is sewn, back and forth in new holes each time, for a fuller, thread-heavy look. Higher counts suit satins with wider row spacing.")
-                level("Random", hand.random, HandStitch.randomLevels, help: "Mass: how often a stitch randomly gets one pass more (or now and then one fewer), from 1 (never) to 5 (often).") { $0.random = $1 }
-                level("Variant", hand.variant, HandStitch.variants, help: "Another random version of the same settings, if you don't like how this one came out.") { $0.variant = $1 }
+                numberGrid {
+                    level("Random", hand.random, HandStitch.randomLevels, help: "Mass: how often a stitch randomly gets one pass more (or now and then one fewer), from 1 (never) to 5 (often).") { $0.random = $1 }
+                    level("Variant", hand.variant, HandStitch.variants, help: "Another random version of the same settings, if you don't like how this one came out.") { $0.variant = $1 }
+                }
             }
         }
     }
@@ -662,18 +679,20 @@ extension InspectorPanel {
                            options: [("Both", nil), ("Left", .left), ("Right", .right)],
                            help: "Which edge is jagged, as seen looking along the satin the way it sews. The other edge stays smooth.")
                 }
-                number("Amount", value: jagged.amount, range: JaggedEdge.amounts, help: "The most a stitch end moves, in millimeters. Each one moves a random part of it.") { value in change("Jagged Edge Amount") { $0.amount = value } }
-                number("Variant", value: Double(jagged.variant), range: Double(JaggedEdge.variants.lowerBound)...Double(JaggedEdge.variants.upperBound), whole: true, help: "Another random version of the same settings, if you don't like how this one came out.") { typed in
-                    change("Jagged Edge Variant") { $0.variant = min(JaggedEdge.variants.upperBound, max(JaggedEdge.variants.lowerBound, Int(typed.rounded()))) }
+                numberGrid {
+                    numberCell("Amount", value: jagged.amount, range: JaggedEdge.amounts, help: "The most a stitch end moves, in millimeters. Each one moves a random part of it.") { value in change("Jagged Edge Amount") { $0.amount = value } }
+                    numberCell("Variant", value: Double(jagged.variant), range: Double(JaggedEdge.variants.lowerBound)...Double(JaggedEdge.variants.upperBound), unit: nil, whole: true, help: "Another random version of the same settings, if you don't like how this one came out.") { typed in
+                        change("Jagged Edge Variant") { $0.variant = min(JaggedEdge.variants.upperBound, max(JaggedEdge.variants.lowerBound, Int(typed.rounded()))) }
+                    }
                 }
             }
         }
     }
 
-    /// An outline that doesn't sew yet: buttons to give it stitches.
-    private func proOutline(_ object: RunObject) -> some View {
+    /// An outline that doesn't sew yet: buttons to give it stitches. `headed` as for `proFill`.
+    private func proOutline(_ object: RunObject, headed: Bool) -> some View {
         // A guide line only steers its fill or lettering: it can go back to being a sewn line, nothing else.
-        proSection(object.guideFor == nil ? "Outline" : "Guide line") {
+        proSection(!headed ? nil : object.guideFor == nil ? "Outline" : "Guide line") {
             if object.guideFor != nil {
                 proRow("Sew as", help: "This dashed line guides a fill or lettering and doesn't sew. Reshape it with Edit Nodes and they follow. Running turns it back into a line that sews.") {
                     Button("Running") { AppDelegate.shared.perform(.convertRun) }.buttonStyle(ThemedButtonStyle())
@@ -690,23 +709,23 @@ extension InspectorPanel {
         }
     }
 
-    /// "Satin border", "Outlines & offsets" and "Appliqué" buttons for shapes that can have them, and "Color blend" for fills.
+    /// "Add to this shape": picture tiles for a satin border, outlines & offsets and appliqué on shapes that can have
+    /// them, and a color blend for fills (which edits the blend once the fill is in one).
     @ViewBuilder private func border(_ object: RunObject) -> some View {
-        if SatinBorder.canBorder(object) {
-            proRow("Satin border", help: "A satin column around this shape's outside edge, like the finished edge of a patch") {
-                Button("Add…") { AppDelegate.shared.perform(.satinBorder) }.buttonStyle(ThemedButtonStyle())
-            }
-            proRow("Outlines & offsets", help: preferences.hint(.outlinesOffsets)) {
-                Button("Add…") { AppDelegate.shared.perform(.outlinesOffsets) }.buttonStyle(ThemedButtonStyle())
-            }
-            proRow("Appliqué", help: "Sew a piece of fabric in this shape: placement line, tack-down and a satin edge, with stops to lay and trim the fabric") {
-                Button("Make…") { AppDelegate.shared.perform(.applique) }.buttonStyle(ThemedButtonStyle())
-            }
-        }
-        let inBlend = state.design.blend(containing: object.id) != nil
-        if ColorBlend.canBlend(object) || inBlend {
-            proRow("Color blend", help: inBlend ? "Change this blend's second thread or the way it runs. Its two layers keep one shape." : preferences.hint(.colorBlend)) {
-                Button(inBlend ? "Edit…" : "Make…") { AppDelegate.shared.perform(.colorBlend) }.buttonStyle(ThemedButtonStyle())
+        let canBorder = SatinBorder.canBorder(object), inBlend = state.design.blend(containing: object.id) != nil
+        let canBlend = ColorBlend.canBlend(object) || inBlend
+        if canBorder || canBlend {
+            proSection("Add to this shape") {
+                HStack(spacing: 4) {
+                    if canBorder {
+                        addTile("Border", .satinBorder, help: "Add a satin border: a satin column around this shape's outside edge, like the finished edge of a patch")
+                        addTile("Outlines", .outlinesOffsets, help: preferences.hint(.outlinesOffsets))
+                        addTile("Appliqué", .applique, help: "Make appliqué: sew a piece of fabric in this shape, with a placement line, tack-down and a satin edge, and stops to lay and trim the fabric")
+                    }
+                    if canBlend {
+                        addTile("Blend", .colorBlend, help: inBlend ? "Change this blend's second thread or the way it runs. Its two layers keep one shape." : preferences.hint(.colorBlend))
+                    }
+                }
             }
         }
     }
@@ -738,22 +757,24 @@ extension InspectorPanel {
                 .labelsHidden().frame(width: 120)
             }
             if let layer {
-                if style.usesInset {
-                    number("Inset", value: layer.inset, range: 0...3, help: "How far inside the edge this underlay runs.") { value in settings(object.kind, "\(name) Inset") { $0.setUnderlay(layerNumber, inset: value) } }
-                }
-                if style.usesSpacing {
-                    number("Spacing", value: layer.spacing, range: 0.5...5, help: style == .zigzag || style == .doubleZigzag ? "How far apart the zigzag's points are along the column." : "Gap between this underlay's rows.") { value in settings(object.kind, "\(name) Spacing") { $0.setUnderlay(layerNumber, spacing: value) } }
-                }
-                if style.usesAngle {
-                    // On fills with no angle of their own, Focus Fill Angle reaches the first tatami underlay's angle.
-                    let firstTatami = s.underlay == .tatami ? 1 : 2
-                    number("Angle °", value: fillHasAngle ? layer.angle : wrapped(s.angle + layer.angle), id: !fillHasAngle && layerNumber == firstTatami ? "fillAngle" : "", range: -180...180,
-                           help: fillHasAngle ? "The direction of the underlay rows, measured from the fill's angle: 90° runs straight across the top rows." : "The direction of the underlay rows. This fill's own stitches don't follow an angle.") { value in
-                        settings(.fill, "\(name) Angle") { $0.setUnderlay(layerNumber, angle: fillHasAngle ? value : wrapped(value - $0.angle)) }
+                numberGrid {
+                    if style.usesInset {
+                        numberCell("Inset", value: layer.inset, range: 0...3, help: "How far inside the edge this underlay runs.") { value in settings(object.kind, "\(name) Inset") { $0.setUnderlay(layerNumber, inset: value) } }
                     }
-                }
-                if style.usesLength {
-                    number("Length", value: layer.stitchLength, range: DigitizingSettings.underlayLengthRange, help: style == .center ? "How long the center run's stitches are." : "How long this underlay's stitches are.") { value in settings(object.kind, "\(name) Length") { $0.setUnderlay(layerNumber, length: value) } }
+                    if style.usesSpacing {
+                        numberCell("Spacing", value: layer.spacing, range: 0.5...5, help: style == .zigzag || style == .doubleZigzag ? "How far apart the zigzag's points are along the column." : "Gap between this underlay's rows.") { value in settings(object.kind, "\(name) Spacing") { $0.setUnderlay(layerNumber, spacing: value) } }
+                    }
+                    if style.usesAngle {
+                        // On fills with no angle of their own, Focus Fill Angle reaches the first tatami underlay's angle.
+                        let firstTatami = s.underlay == .tatami ? 1 : 2
+                        numberCell("Angle", value: fillHasAngle ? layer.angle : wrapped(s.angle + layer.angle), id: !fillHasAngle && layerNumber == firstTatami ? "fillAngle" : "", range: -180...180, unit: "°",
+                                   help: fillHasAngle ? "The direction of the underlay rows, measured from the fill's angle: 90° runs straight across the top rows." : "The direction of the underlay rows. This fill's own stitches don't follow an angle.") { value in
+                            settings(.fill, "\(name) Angle") { $0.setUnderlay(layerNumber, angle: fillHasAngle ? value : wrapped(value - $0.angle)) }
+                        }
+                    }
+                    if style.usesLength {
+                        numberCell("Length", value: layer.stitchLength, range: DigitizingSettings.underlayLengthRange, help: style == .center ? "How long the center run's stitches are." : "How long this underlay's stitches are.") { value in settings(object.kind, "\(name) Length") { $0.setUnderlay(layerNumber, length: value) } }
+                    }
                 }
             }
         }
@@ -763,7 +784,7 @@ extension InspectorPanel {
     /// and Stop after. Imported stitches only offer the trim and the stop.
     private func proFinish(_ object: RunObject) -> some View {
         let help = (object.kind == .raw ? "" : "Ties are tiny locking stitches so the thread can't unravel. ") + "Trim cuts the thread before the next part; Stop pauses the machine. PES encodes travel moves after the first as trim/jumps, so your machine decides whether to cut."
-        return proSection("Finish") {
+        return proSection(nil) {   // the Finish tab names it
             if object.kind != .raw {
                 labeledRow("Then") {
                     Picker("Then", selection: Binding(get: { object.connectorType }, set: { connector in state.editSelected("Connector") { if $0.kind != .raw { $0.connectorType = connector } } })) {
@@ -811,14 +832,58 @@ extension InspectorPanel {
         }
     }
 
-    /// A small uppercase heading over a group of settings, with a divider above it.
-    private func proSection<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
+    /// A small uppercase heading over a group of settings, with a divider above it. With no title, just the settings:
+    /// for a section right under a tab that already names it.
+    private func proSection<Content: View>(_ title: String?, @ViewBuilder _ content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            Theme.divider.frame(height: 1)
-            Text(title.uppercased()).font(.system(size: 9, weight: .bold, design: .rounded)).tracking(0.7).foregroundStyle(Theme.inkSecondary)
-                .padding(.top, 2)
+            if let title {
+                Theme.divider.frame(height: 1)
+                Text(title.uppercased()).font(.system(size: 9, weight: .bold, design: .rounded)).tracking(0.7).foregroundStyle(Theme.inkSecondary)
+                    .padding(.top, 2)
+            }
             content()
         }
+    }
+
+    /// Number settings two to a row (`numberCell`s), filling each row left to right.
+    private func numberGrid<Content: View>(@ViewBuilder _ cells: () -> Content) -> some View {
+        // Two columns sharing the width equally. (A "lazy" grid only builds rows as they scroll into view; these
+        // grids are a few rows long, so all of them are built.)
+        let column = GridItem(.flexible(), spacing: 8, alignment: .topLeading)
+        return LazyVGrid(columns: [column, column], alignment: .leading, spacing: 7) { cells() }
+    }
+
+    /// One number in a `numberGrid`: its name above it, and its unit after it. `unit` is what the number counts in
+    /// ("mm", "°", "%"; nil for a count or a level); `length` marks a size shown in the chosen unit (mm or inches)
+    /// instead. `id` lets a Focus command find the field.
+    private func numberCell(_ title: String, value: Double, id: String = "", range: ClosedRange<Double>, unit: String? = "mm", length: Bool = false, whole: Bool = false, help: String, commit: @escaping (Double) -> Void) -> some View {
+        let shownUnit = length ? preferences.unit.symbol : unit
+        return VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).lineLimit(1).minimumScaleFactor(0.8)
+            HStack(spacing: 3) {
+                NumberField(value: value, identifier: id, range: range, unit: length ? preferences.unit : nil, commit: commit, focusCanvas: state.focusCanvas, whole: whole)
+                    .frame(height: 21)
+                if let shownUnit { Text(shownUnit).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).fixedSize() }
+            }
+        }
+        .help(help)
+    }
+
+    /// A tile in "Add to this shape": the command's picture with a short name under it.
+    private func addTile(_ title: String, _ command: CommandID, help: String) -> some View {
+        Button { AppDelegate.shared.perform(command) } label: {
+            VStack(spacing: 3) {
+                Image(systemName: command.symbol).font(.system(size: 14)).foregroundStyle(Theme.accent)
+                Text(title).font(Theme.body(9.5)).lineLimit(1).minimumScaleFactor(0.7)
+            }
+            .frame(maxWidth: .infinity).padding(.vertical, 6)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: 7))
+            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Theme.controlBorder))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .accessibilityLabel(command.title)
     }
 
     /// A label on the left and a control (or a few) on the right, with the explanation as a tooltip.
