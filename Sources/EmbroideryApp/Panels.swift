@@ -494,10 +494,11 @@ struct InspectorPanel: View {
             Text(preferences.unit.symbol).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).fixedSize().frame(width: 18, alignment: .leading)
         }.fixedSize()
     }
-    /// The Trim after menu: Off, Always, or When far (showing the design's trim distance), for every selected object.
+    /// The Trim (after) menu: Off, Always, or When far (showing the design's trim distance), for every selected object.
+    /// Named just "Trim" so the menu fits beside it in a narrow panel.
     func trimMenu(_ object: RunObject) -> some View {
         let distance = preferences.unit.short(state.design.trimDistance ?? Design.defaultTrimDistance)
-        return labeledRow("Trim after") {
+        return labeledRow("Trim") {
             Picker("Trim after", selection: Binding(get: { object.trimRule }, set: { rule in state.editSelected("Trim After") { $0.trimRule = rule } })) {
                 ForEach(TrimRule.allCases, id: \.self) { rule in Text(rule == .whenFar ? "When far (\(distance))" : rule.title).tag(rule) }
             }.labelsHidden().fixedSize()
