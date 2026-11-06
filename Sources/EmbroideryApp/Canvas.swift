@@ -190,9 +190,14 @@ final class DesignCanvas: NSView {
         /// The layer colors (then the twist marks' color) for a thread `color` at sheen level `level`.
         func shades(_ color: NSColor, level: Int) -> [CGColor] {
             let shine = Double(level) / Double(Self.sheenLevels - 1) - 0.5   // -0.5 (dull) to 0.5 (shiny)
+            // A dark thread shines less than a light one, as real thread does: the highlight (layers lightened towards white)
+            // is a quarter as strong on black as on white, so black stays black and only glints.
+            let rgb = color.usingColorSpace(.sRGB) ?? color
+            let lightness = 0.2126 * rgb.redComponent + 0.7152 * rgb.greenComponent + 0.0722 * rgb.blueComponent
+            let lift = 0.25 + 0.75 * lightness
             return layers.map { layer -> CGColor in
                 let tone = layer.tone + layer.sheen * shine
-                return ((tone < 0 ? color.blended(withFraction: -tone, of: .black) : color.blended(withFraction: min(tone, 1), of: .white)) ?? color).cgColor
+                return ((tone < 0 ? color.blended(withFraction: -tone, of: .black) : color.blended(withFraction: min(tone * lift, 1), of: .white)) ?? color).cgColor
             } + [(color.blended(withFraction: 0.35, of: .black) ?? color).withAlphaComponent(0.22).cgColor]   // last: the twist marks
         }
         func allLevels(_ color: NSColor) -> [[CGColor]] { (0..<Self.sheenLevels).map { shades(color, level: $0) } }
