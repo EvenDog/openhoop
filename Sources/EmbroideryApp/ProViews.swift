@@ -783,6 +783,7 @@ extension InspectorPanel {
     /// How the needle gets to the next part (Jump or Run), the trim, tie off and tie in (each Off, Always or When far),
     /// and Stop after. Imported stitches only offer the trim and the stop.
     private func proFinish(_ object: RunObject) -> some View {
+        let tieDistance = preferences.unit.short(state.design.tieDistance ?? Design.defaultTieDistance)
         let help = (object.kind == .raw ? "" : "Ties are tiny locking stitches so the thread can't unravel. ") + "Trim cuts the thread before the next part; Stop pauses the machine. PES encodes travel moves after the first as trim/jumps, so your machine decides whether to cut."
         return proSection(nil) {   // the Finish tab names it
             if object.kind != .raw {
@@ -795,21 +796,18 @@ extension InspectorPanel {
             }
             trimMenu(object).help(help)
             if object.kind != .raw {
-                tieMenu("Tie off", object.tieOutRule) { rule in state.editSelected("Tie Off") { if $0.kind != .raw { $0.tieOutRule = rule } } }
-                tieMenu("Tie in", object.tieInRule) { rule in state.editSelected("Tie In") { if $0.kind != .raw { $0.tieInRule = rule } } }
+                // In the order they sew: the tie in at the start, the tie off at the end.
+                // The name above, as in the number grids; a chip goes onto the next line only when they don't both fit.
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Ties").font(Theme.body(10)).foregroundStyle(Theme.inkSecondary)
+                    FlowLayout(spacing: 5) {
+                        TieChip(title: "Tie in", rule: object.tieInRule, distance: tieDistance) { rule in state.editSelected("Tie In") { if $0.kind != .raw { $0.tieInRule = rule } } }
+                        TieChip(title: "Tie off", rule: object.tieOutRule, distance: tieDistance) { rule in state.editSelected("Tie Off") { if $0.kind != .raw { $0.tieOutRule = rule } } }
+                    }
+                }
             }
             toggle("Stop after", value: object.stopAfter) { _ in AppDelegate.shared.perform(.stopAfter) }.help(help)
         }
-    }
-    /// A tie menu: Off, Always, or When far (showing the design's tie distance).
-    private func tieMenu(_ title: String, _ rule: TieRule, set: @escaping (TieRule) -> Void) -> some View {
-        let distance = preferences.unit.short(state.design.tieDistance ?? Design.defaultTieDistance)
-        return labeledRow(title) {
-            Picker(title, selection: Binding(get: { rule }, set: set)) {
-                ForEach(TieRule.allCases, id: \.self) { rule in Text(rule == .whenFar ? "When far (\(distance))" : rule.title).tag(rule) }
-            }.labelsHidden().fixedSize()
-        }
-        .help("Tiny locking stitches so the thread can't unravel. When far ties only after (or before) a move of at least the design's tie distance, or where the thread is cut.")
     }
 
     /// Exact start and end points (in the chosen unit), or "automatic", with buttons to set, clear or auto-place them.

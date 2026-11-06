@@ -120,3 +120,50 @@ extension EditorState {
         PropertiesTab.tabs(for: object).contains(propertiesTab) ? propertiesTab : .stitch
     }
 }
+
+/// A tie on the Finish tab as a chip: lit with a tick when it ties, with "· far" when it only ties after a long move.
+/// Clicking it opens a small list of Off, Always and When far, with a tick by the one in use (a plain button with a
+/// popover, like the picture menus).
+struct TieChip: View {
+    let title: String
+    let rule: TieRule
+    /// The design's tie distance, as shown, such as "3 mm".
+    let distance: String
+    let choose: (TieRule) -> Void
+    @State private var open = false
+
+    var body: some View {
+        let on = rule != .off
+        Button { open.toggle() } label: {
+            Text((on ? "✓ " : "") + title + (rule == .whenFar ? " · far" : ""))
+                .font(Theme.body(11, weight: .semibold)).foregroundStyle(on ? Theme.accent : Theme.ink)
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(RoundedRectangle(cornerRadius: 8).fill(on ? Theme.accentSoft : Theme.card))
+                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(on ? Theme.accent : Theme.controlBorder))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+        .help("\(title): tiny locking stitches so the thread can't unravel. When far ties only after (or before) a move of at least the design's tie distance (\(distance)), or where the thread is cut. Click to change.")
+        .accessibilityLabel(title)
+        .accessibilityValue(rule.title)
+        .popover(isPresented: $open, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 1) {
+                ForEach(TieRule.allCases, id: \.self) { option in
+                    Button { choose(option); open = false } label: {
+                        HStack(spacing: 8) {
+                            Text(option == .whenFar ? "When far (\(distance))" : option.title).font(Theme.body(12)).foregroundStyle(Theme.ink)
+                            Spacer(minLength: 0)
+                            Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(Theme.accent).opacity(option == rule ? 1 : 0)
+                        }
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityValue(option == rule ? "In use" : "")
+                }
+            }
+            .padding(6).frame(width: 150)
+        }
+    }
+}
