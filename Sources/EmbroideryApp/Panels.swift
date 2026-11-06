@@ -667,10 +667,13 @@ struct InspectorPanel: View {
     func fillStitchLengthHelp(_ object: RunObject) -> String {
         object.settings.fillStyle == .stipple ? "Length of each stitch along the wandering line. Stipple stitches are 2 mm at most, so lengths over 2 mm sew the same." : "Length of each stitch along a fill row."
     }
-    /// Fills: the "Cut out shapes sewn on top" checkbox (OverlapCutout.swift). Off unless switched on. Shared with Pro.
-    func cutOutToggle(_ object: RunObject) -> some View {
-        toggle("Cut out shapes sewn on top", value: object.settings.cutOutOverlaps == true) { on in settings(.fill, "Cut Out Overlaps") { $0.cutOutOverlaps = on ? true : nil } }
-            .help("Leave out the part of this fill that shapes sewn after it cover, tucking 1 mm under their edges. Select several fills to switch them all.")
+    /// Fills from older files with "Cut out shapes sewn on top" on (OverlapCutout.swift): the checkbox, so it can be
+    /// switched off. It isn't offered otherwise: Remove Overlaps cuts a fill's outline once instead.
+    @ViewBuilder func cutOutToggle(_ object: RunObject) -> some View {
+        if object.settings.cutOutOverlaps == true {
+            toggle("Cut out shapes sewn on top", value: true) { on in settings(.fill, "Cut Out Overlaps") { $0.cutOutOverlaps = on ? true : nil } }
+                .help("From an older version: this fill leaves out whatever is sewn on top of it now, following those shapes if they move. Untick it to sew the fill in full, then use Remove Overlaps to cut it once, for good.")
+        }
     }
     /// Satin's two automatic helpers, as checkboxes.
     @ViewBuilder func satinOptions(_ object: RunObject) -> some View {

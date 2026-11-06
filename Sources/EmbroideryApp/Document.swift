@@ -735,22 +735,22 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     }
     /// The selected objects that edits change (locked ones stay put).
     var editableSelection: Set<UUID> { Set(design.objects.filter { selection.contains($0.id) && !$0.locked }.map(\.id)) }
-    /// Remove Overlaps: switches on "Cut out shapes sewn on top" for the selected fills (every fill when nothing is
-    /// selected) that something sewn after them overlaps, as one undoable step. If they all have it on already, it
-    /// switches it off again, so they sew in full. Nothing is cut for good: moving a shape lets the fill fill back in.
+    /// Remove Overlaps: cuts the selected fills (every fill when nothing is selected) where shapes sewn after them
+    /// cover them, once, as one undoable step (Design.removeOverlaps). Moving what's on top later leaves them as cut.
     func removeOverlaps() {
         let scope = selection.isEmpty ? Set(design.objects.map(\.id)) : selection
-        let ids = design.fillsWithOverlaps(among: scope)
-        guard !ids.isEmpty else {
-            status = "Nothing sewn on top overlaps \(selection.isEmpty ? "any fill" : "the selected fills"). Only fills can leave out what's on top of them."; return
-        }
-        let restoring = design.objects.filter { ids.contains($0.id) }.allSatisfy { $0.settings.cutOutOverlaps == true }
-        edit(restoring ? "Restore Overlaps" : "Remove Overlaps") { design in
-            for i in design.objects.indices where ids.contains(design.objects[i].id) { design.objects[i].digitizing?.cutOutOverlaps = restoring ? nil : true }
-        }
-        let fills = ids.count == 1 ? "1 fill" : "\(ids.count) fills"
-        status = restoring ? "Overlaps restored: \(fills) sew in full again."
-            : "Overlaps removed: \(fills) leave out what's sewn on top, tucking \(OverlapCutout.tuck.formatted()) mm under its edges. Choose \(CommandID.removeOverlaps.title) again to sew them in full."
+        var next = design
+        do {
+            let result = try next.removeOverlaps(in: scope)
+            guard !result.pieces.isEmpty || !result.removed.isEmpty else {
+                status = "Nothing sewn on top overlaps \(selection.isEmpty ? "any fill" : "the selected fills"). Only fills can leave out what's on top of them."; return
+            }
+            guard edit("Remove Overlaps", { $0 = next }) else { return }
+            // A selected fill that was cut stays selected as its pieces.
+            if !selection.isEmpty { selection = selection.filter { id in next.objects.contains { $0.id == id } }.union(result.pieces) }
+            let gone = result.removed.isEmpty ? "" : " \(result.removed.joined(separator: ", ")) \(result.removed.count == 1 ? "was" : "were") covered completely, so \(result.removed.count == 1 ? "it was" : "they were") removed."
+            status = "Overlaps removed: fills now stop \(OverlapCutout.tuck.formatted()) mm under the shapes on top and stay that way if you move them. Undo puts them back." + gone
+        } catch { status = error.localizedDescription }
     }
     /// Moves the selection so the center of its box lands at the given x and/or y (mm), as one undoable edit.
     func moveSelection(centerX: Double? = nil, centerY: Double? = nil) {

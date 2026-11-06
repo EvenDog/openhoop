@@ -95,4 +95,26 @@ final class OverlapCutoutTests: XCTestCase {
         design.objects = [top, base]
         XCTAssertEqual(design.fillsWithOverlaps(among: all), [top.id])
     }
+
+    func testRemoveOverlapsSplitsIntoGroupedPiecesAndRemovesCoveredFills() throws {
+        // A satin bar across a 40 mm square splits it in two: pieces with its settings, in its place, grouped.
+        var base = square("Base", center: Point(0, 0), size: 40); base.digitizing?.spacing = 0.5
+        let bar = bar(width: 6), hidden = square("Hidden", center: Point(60, 0), size: 10), big = square("Big", center: Point(60, 0), size: 30)
+        var design = Design(); design.objects = [base, bar, hidden, big]
+        let result = try design.removeOverlaps(in: Set(design.objects.map(\.id)))
+        XCTAssertEqual(result.removed, ["Hidden"], "a fill covered completely is removed")
+        XCTAssertEqual(design.objects.map(\.name), ["Base", "Base 2", "Bar", "Big"])
+        let pieces = Array(design.objects.prefix(2))
+        XCTAssertEqual(pieces[0].id, base.id, "the first piece keeps the fill's ID")
+        XCTAssertEqual(result.pieces, pieces.map(\.id))
+        XCTAssertNotNil(pieces[0].groupID); XCTAssertEqual(pieces[0].groupID, pieces[1].groupID, "grouped together")
+        XCTAssertTrue(pieces.allSatisfy { $0.settings.spacing == 0.5 }, "with the fill's settings")
+        // Each piece reaches 1 mm under the bar (which is 3 mm either side of the middle): to 2 mm from the middle.
+        for piece in pieces { XCTAssertEqual(piece.nodes.map(\.point.y).map(abs).min()!, 2, accuracy: 0.01) }
+        XCTAssertNoThrow(try design.validate())
+        // Nothing is linked to the bar: moving it leaves the pieces as they are.
+        let before = Array(design.objects.prefix(2))
+        design.move([bar.id], by: Point(0, 30))
+        XCTAssertEqual(Array(design.objects.prefix(2)), before)
+    }
 }
