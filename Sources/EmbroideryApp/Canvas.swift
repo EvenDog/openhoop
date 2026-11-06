@@ -70,6 +70,10 @@ final class DesignCanvas: NSView {
     private var guideDrag: (index: Int, vertical: Bool, isNew: Bool, pointer: CGPoint)?
     /// The guide the pointer is over with Select (its place in the design's guides), shown by a ↔ or ↕ pointer.
     private(set) var hoveredGuide: Int?
+    /// The end of a selected line or satin column under the pointer, which a click would carry on (continuableEnd),
+    /// and the status line from before its hint showed, put back when the pointer moves off.
+    private(set) var hoveredEnd: (id: UUID, fromStart: Bool)?
+    private var statusBeforeEndHint: String?
     /// A measurement as the Measure tool shows it: the distance in `unit`, and the angle from the start, counterclockwise
     /// from pointing right (the same way Rotate counts), e.g. "12.5 mm · 37°" or "0.49 in · 37°".
     static func measurementText(from start: Point, to end: Point, unit: LengthUnit = .millimeters) -> String {
@@ -336,7 +340,7 @@ final class DesignCanvas: NSView {
     /// Called whenever the tool changes: the Measure tool's line goes, and the pointer takes the new tool's shape.
     func toolDidChange() {
         if state.tool != .measure { measurement = nil; measuring = false }
-        hoveredGuide = nil
+        hoveredGuide = nil; hoveredEnd = nil; statusBeforeEndHint = nil
         window?.invalidateCursorRects(for: self); needsDisplay = true
     }
     /// The pointer the current tool uses on the canvas.
@@ -353,6 +357,22 @@ final class DesignCanvas: NSView {
         guard over != hoveredGuide else { return }
         hoveredGuide = over
         if let over { guideCursor(vertical: state.design.guides![over].vertical).set() } else { toolCursor.set() }
+    }
+    /// With the Running or Satin tool and nothing drawn yet, pointing at an end of the selected line or column fills in
+    /// its marker, turns the pointer into a hand and says in the status line that a click carries it on. Moving off
+    /// puts back the tool's pointer and the status line from before. `location` nil means the pointer left the canvas.
+    func updateEndHover(at location: CGPoint?) {
+        let over = state.draft.isEmpty ? location.flatMap(continuableEnd(near:)) : nil
+        guard over?.id != hoveredEnd?.id || over?.fromStart != hoveredEnd?.fromStart else { return }
+        hoveredEnd = over; needsDisplay = true
+        if let over, let object = state.design.objects.first(where: { $0.id == over.id }) {
+            if statusBeforeEndHint == nil { statusBeforeEndHint = state.status }
+            state.status = "Click to carry on ‘\(object.name)’ from its \(over.fromStart ? "start" : "end")."
+            NSCursor.pointingHand.set()
+        } else {
+            if let saved = statusBeforeEndHint { state.status = saved; statusBeforeEndHint = nil }
+            toolCursor.set()
+        }
     }
     override func resetCursorRects() { addCursorRect(bounds, cursor: toolCursor) }
     /// The grid lines' color: the custom one from Settings, or automatically light lines on dark cloth and dark lines
@@ -602,6 +622,7 @@ final class DesignCanvas: NSView {
             }
         }
         if routeShown { drawRoute(state.sewingSteps, current: state.reviewStep?.index) }
+        if state.draft.isEmpty { drawContinueMarkers(design) }
         if !state.draft.isEmpty {
             var object=RunObject(name:"Draft",nodes:state.draft,color:state.currentColor)
             if state.tool == .satin {object.digitizing=DigitizingSettings(kind:.satin)}
@@ -1232,7 +1253,11 @@ final class DesignCanvas: NSView {
             if event.clickCount == 2 { state.finishPath(); return }
             // With nothing drawn yet, a click on an end of a selected open line (Running tool) or satin column (Satin
             // tool) picks it up there, to carry on drawing it.
-            if state.draft.isEmpty, let end = continuableEnd(near: location) { state.continueDrawing(end.id, fromStart: end.fromStart); return }
+            if state.draft.isEmpty, let end = continuableEnd(near: location) {
+                // The hover hint is done with: the status line now explains continuing, and the marker gives way to the drawing.
+                hoveredEnd = nil; statusBeforeEndHint = nil; toolCursor.set()
+                state.continueDrawing(end.id, fromStart: end.fromStart); return
+            }
             state.addDraftPoint(point, smooth: event.modifierFlags.contains(.control), reach: 3 / state.zoom)   // 3 screen points
             drawingHandle = state.draft.count - 1; return
         }
@@ -1351,8 +1376,8 @@ final class DesignCanvas: NSView {
             if let node=added.node{state.selectedNode=node;state.status="Curve node added · drag it and the edge bends smoothly through it"}
         }
     }
-    override func mouseMoved(with event:NSEvent){pointer=model(convert(event.locationInWindow,from:nil));state.pointer.position=pointer;moveRulerMarks(to:convert(event.locationInWindow,from:nil));if state.angleStart != nil{needsDisplay=true};updateGuideCursor(at:convert(event.locationInWindow,from:nil))}
-    override func mouseExited(with event: NSEvent) { state.pointer.position = nil; hoveredGuide = nil; moveRulerMarks(to: nil) }
+    override func mouseMoved(with event:NSEvent){pointer=model(convert(event.locationInWindow,from:nil));state.pointer.position=pointer;moveRulerMarks(to:convert(event.locationInWindow,from:nil));if state.angleStart != nil{needsDisplay=true};updateGuideCursor(at:convert(event.locationInWindow,from:nil));updateEndHover(at:convert(event.locationInWindow,from:nil))}
+    override func mouseExited(with event: NSEvent) { state.pointer.position = nil; hoveredGuide = nil; moveRulerMarks(to: nil); updateEndHover(at: nil) }
     override func mouseDragged(with event: NSEvent) {
         let location = convert(event.locationInWindow, from: nil)
         state.pointer.position = model(location); moveRulerMarks(to: location)
@@ -1706,10 +1731,8 @@ final class DesignCanvas: NSView {
     /// 7 points of one of its end points: a line's first or last point, or either point of a column's first or last
     /// edge pair. Kept that small so a new column can still start just beside the last one.
     private func continuableEnd(near location: CGPoint) -> (id: UUID, fromStart: Bool)? {
-        guard state.tool == .run || state.tool == .satin else { return nil }
-        let kind: StitchKind = state.tool == .satin ? .satin : .run
         var best: (id: UUID, fromStart: Bool)?, distance = 7.0
-        for object in state.design.objects where state.selection.contains(object.id) && object.visible && object.kind == kind && object.canContinueDrawing {
+        for object in continuableObjects(state.design) {
             let handles = object.continueHandles
             for (points, fromStart) in [(handles.start, true), (handles.end, false)] {
                 for point in points {
@@ -1719,6 +1742,28 @@ final class DesignCanvas: NSView {
             }
         }
         return best
+    }
+    /// The selected lines (Running tool) or satin columns (Satin tool) that a click on an end would carry on.
+    private func continuableObjects(_ design: Design) -> [RunObject] {
+        guard state.tool == .run || state.tool == .satin else { return [] }
+        let kind: StitchKind = state.tool == .satin ? .satin : .run
+        return design.objects.filter { state.selection.contains($0.id) && $0.visible && $0.kind == kind && $0.canContinueDrawing }
+    }
+    /// A small ring on each end continuableEnd would pick up (both points of a column's end pair), filled in under the
+    /// pointer, so it's plain that clicking there carries the line or column on.
+    private func drawContinueMarkers(_ design: Design) {
+        for object in continuableObjects(design) {
+            let handles = object.continueHandles
+            for (points, fromStart) in [(handles.start, true), (handles.end, false)] {
+                let hovered = hoveredEnd?.id == object.id && hoveredEnd?.fromStart == fromStart
+                for point in points {
+                    let p = screen(point), radius: CGFloat = hovered ? 6 : 4.5
+                    let ring = NSBezierPath(ovalIn: CGRect(x: p.x - radius, y: p.y - radius, width: radius * 2, height: radius * 2))
+                    (hovered ? Theme.Canvas.handle : NSColor.white).setFill(); ring.fill()
+                    Theme.Canvas.handle.setStroke(); ring.lineWidth = 1.5; ring.stroke()
+                }
+            }
+        }
     }
     private func nearestNode(_ p:Point)->NodeLocation? {
         func nearest(selected: Bool) -> NodeLocation? {
