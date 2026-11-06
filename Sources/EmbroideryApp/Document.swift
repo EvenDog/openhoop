@@ -204,6 +204,8 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     /// True while reviewing the sewing order: the canvas shows the design sewn up to the selected step and how the
     /// needle got there, and Properties shows the step at its top.
     @Published var reviewing = false
+    /// The Properties tab last picked (PropertiesTabs.swift): it stays picked as other objects are selected.
+    @Published var propertiesTab = PropertiesTab.stitch
     /// While reviewing: true shows the whole route at once (each step's number at its start, and the moves between
     /// steps) instead of one step at a time.
     @Published var reviewShowsRoute = false

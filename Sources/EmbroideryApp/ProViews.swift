@@ -405,79 +405,117 @@ struct ProStats: View {
 /// Properties for the selection, laid out compactly in labeled sections (FILL / SATIN / RUNNING, UNDERLAY, FINISH,
 /// START & END, OBJECT) with a small close-up beside the name. Explanations show as tooltips.
 extension InspectorPanel {
+    /// The selected object's Properties: its picture, then its tabs (PropertiesTabs.swift), showing the picked tab's
+    /// sections.
     @ViewBuilder func proProperties(_ object: RunObject) -> some View {
         if state.selection.count > 1 && !selectionIsOneLettering { selectionSummary }
-        proHeader(object)
-        if object.stitchEdits != nil { stitchEditNotice(object) }
-        if let lettering = object.lettering { letteringEditor(lettering) }
-        if let monogram = object.monogram { monogramSummary(monogram) }
-        if let id = object.repeatCopy?.id ?? object.lineRepeat?.id, let spec = state.design.objects.first(where: { $0.lineRepeat?.id == id })?.lineRepeat { proLineRepeat(id, spec) }
-        switch object.kind {
-        case .fill: proFill(object)
-        case .satin: proSatin(object)
-        case .run: proRunning(object)
-        case .vector: proOutline(object)
-        case .raw: EmptyView()
-        }
-        // Stipple, motif and cross stitch fills sew without underlay, so they have no Underlay section.
-        if object.kind == .satin || object.kind == .run { proHandStitch(object) }
-        if object.kind == .satin || (object.kind == .fill && object.settings.fillStyle == .satin) { proJaggedEdge(object) }
-        if object.kind == .satin || (object.kind == .fill && ![.stipple, .motif, .crossStitch].contains(object.settings.fillStyle ?? .tatami)) { proUnderlay(object) }
-        if object.kind != .vector { proFinish(object) }
-        if object.kind == .run || object.kind == .satin || object.kind == .fill { proStartEnd(object) }
-        proSection("Object") {
-            HStack(spacing: 6) {
-                Button(object.locked ? "Unlock" : "Lock") { AppDelegate.shared.perform(.lockObject) }.help(preferences.hint(.lockObject))
-                Button(object.visible ? "Hide" : "Show") { AppDelegate.shared.perform(.hideObject) }.help(preferences.hint(.hideObject))
-                Button("Rename…") { AppDelegate.shared.perform(.renameObject) }.help(preferences.hint(.renameObject))
+        proPicture(object)
+        PropertiesTabBar(state: state, object: object)
+        switch state.shownTab(for: object) {
+        case .stitch:
+            if object.stitchEdits != nil { stitchEditNotice(object) }
+            if let lettering = object.lettering { letteringEditor(lettering) }
+            if let monogram = object.monogram { monogramSummary(monogram) }
+            if let id = object.repeatCopy?.id ?? object.lineRepeat?.id, let spec = state.design.objects.first(where: { $0.lineRepeat?.id == id })?.lineRepeat { proLineRepeat(id, spec) }
+            switch object.kind {
+            case .fill: proFill(object)
+            case .satin: proSatin(object)
+            case .run: proRunning(object)
+            case .vector: proOutline(object)
+            case .raw: EmptyView()
             }
-            .buttonStyle(ThemedButtonStyle())
+            if object.kind == .satin || object.kind == .run { proHandStitch(object) }
+            if object.kind == .satin || (object.kind == .fill && object.settings.fillStyle == .satin) { proJaggedEdge(object) }
+        case .underlay:
+            proUnderlay(object)
+        case .finish:
+            proFinish(object)
+            if object.kind == .run || object.kind == .satin || object.kind == .fill { proStartEnd(object) }
+        case .object:
+            proSection("Object") {
+                HStack(spacing: 6) {
+                    Button(object.locked ? "Unlock" : "Lock") { AppDelegate.shared.perform(.lockObject) }.help(preferences.hint(.lockObject))
+                    Button(object.visible ? "Hide" : "Show") { AppDelegate.shared.perform(.hideObject) }.help(preferences.hint(.hideObject))
+                    Button("Rename…") { AppDelegate.shared.perform(.renameObject) }.help(preferences.hint(.renameObject))
+                }
+                .buttonStyle(ThemedButtonStyle())
+            }
         }
     }
 
-    /// A small close-up of the stitches beside the object's name, stitch type, thread and stitch count.
-    private func proHeader(_ object: RunObject) -> some View {
+    /// The picture at the top: a close-up of the object's stitches at its settings, with its name (click to rename),
+    /// thread and stitch count on it. A fill also gets its style menu on the picture and, when its rows run one way,
+    /// an angle dial to drag and the angle to type (the field Focus Fill Angle selects).
+    private func proPicture(_ object: RunObject) -> some View {
         // Lettering counts all its letters' stitches.
         let parts = object.lettering.map { state.design.letteringObjects($0.id).map(\.id) } ?? [object.id]
         let counts = parts.compactMap { state.stitchCounts[$0] }
         let count = counts.isEmpty ? "" : " · \(counts.reduce(0, +).formatted()) st"
         let detail = object.kind == .raw ? object.kind.title : "\(self.detail(object)) · \(object.color.name)"
-        return HStack(spacing: 10) {
-            if object.kind == .run || object.kind == .satin || object.kind == .fill {
+        let stitched = object.kind == .run || object.kind == .satin || object.kind == .fill
+        let angled = object.kind == .fill && StitchAngleLine.applies(to: object)
+        return ZStack(alignment: .topLeading) {
+            if stitched {
                 StitchPreview(kind: object.kind, color: Color(nsColor: object.color.nsColor), spacing: object.settings.rowGap, stitchLength: object.stitchLength, angle: object.settings.angle,
                               fillStyle: object.settings.fillStyle ?? .tatami, waveHeight: object.settings.waveHeight ?? DigitizingSettings.defaultWaveHeight, waveLength: object.settings.waveLength ?? DigitizingSettings.defaultWaveLength, settings: object.settings)
-                    .frame(width: 40, height: 40)
-                    .background(Theme.ground)
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
-                    .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Theme.controlBorder))
-                    .help("Close-up of the stitches at these settings")
                     .accessibilityHidden(true)
             }
             VStack(alignment: .leading, spacing: 1) {
                 // One object (not lettering, which shows its text): click its name to rename it.
                 if object.lettering == nil && state.selection.count == 1 {
-                    ClickToRename(state: state, object: object, font: Theme.heading(15)).id(object.id)
+                    ClickToRename(state: state, object: object, font: Theme.heading(14)).id(object.id)
                 } else {
-                    Text(heading(object)).font(Theme.heading(15)).lineLimit(1)
+                    Text(heading(object)).font(Theme.heading(14)).lineLimit(1)
                 }
-                Text(detail + count).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                Text(detail + count).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 7).padding(.vertical, 4)
+            .background(Theme.card.opacity(0.95), in: RoundedRectangle(cornerRadius: 7))
+            .padding(7)
+            .padding(.trailing, angled ? 44 : 0)   // clear of the dial
+        }
+        .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
+        .background(Theme.ground)
+        .overlay(alignment: .bottomLeading) {
+            if object.kind == .fill {
+                let style = object.settings.fillStyle ?? .tatami
+                FillStyleMenu(state: state, style: style, color: object.color) { value in settings(.fill, "Fill Style") { $0.fillStyle = value == .tatami ? nil : value } }
+                    .frame(width: 112).padding(7).help(style.summary)
             }
         }
+        .overlay(alignment: .topTrailing) {
+            if angled {
+                VStack(spacing: 4) {
+                    AngleDial(angle: object.settings.angle) { angle, dragStart in setFillAngle(angle, run: "angle dial \(dragStart.timeIntervalSince1970)") }
+                    HStack(spacing: 1) {
+                        NumberField(value: object.settings.angle, identifier: "fillAngle", range: -180...180, commit: { setFillAngle($0, run: nil) }, focusCanvas: state.focusCanvas, whole: true)
+                            .frame(width: 34, height: 19)
+                        Text("°").font(Theme.body(11, weight: .bold))
+                    }
+                    .padding(.horizontal, 3).padding(.vertical, 1)
+                    .background(Theme.card.opacity(0.94), in: RoundedRectangle(cornerRadius: 5))
+                    .help("The direction the fill rows run. Type an angle, or drag the dial.")
+                }
+                .padding(7)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.controlBorder))
         .help(object.kind == .raw ? "Existing stitches: move, rotate, mirror or recolor this thread block. Scaling changes density and stitch lengths; it does not regenerate stitches." : "")
     }
-
+    /// Sets the selected fills' row angle. A drag of the dial passes the same `run` all the way, so it's one undo step.
+    private func setFillAngle(_ angle: Double, run: String?) {
+        state.edit("Fill Angle", run: run) { design in
+            for index in design.objects.indices where state.selection.contains(design.objects[index].id) && design.objects[index].kind == .fill && !design.objects[index].locked {
+                var settings = design.objects[index].settings; settings.angle = angle; design.objects[index].digitizing = settings
+            }
+        }
+    }
 
     private func proFill(_ object: RunObject) -> some View {
         let style = object.settings.fillStyle ?? .tatami, holes = object.holes?.count ?? 0
+        // The style menu and the angle are on the picture above (proPicture).
         return proSection("Fill") {
-            proRow("Style", help: style.summary) {
-                FillStyleMenu(state: state, style: style, color: object.color) { value in settings(.fill, "Fill Style") { $0.fillStyle = value == .tatami ? nil : value } }
-                    .frame(width: 120)
-            }
-            // Only where the rows follow it; otherwise the Underlay section shows it as the underlay's angle.
-            if StitchAngleLine.applies(to: object) {
-                number("Angle °", value: object.settings.angle, id: "fillAngle", range: -180...180, help: "The direction the fill rows run.") { value in settings(.fill, "Fill Angle") { $0.angle = value } }
-            }
             if style == .tatami || style == .satin { stitchAngles(object) }
             if style == .wave {
                 let waveHelp = "How far each ripple rises and falls (mm, crest to trough), and the distance from one crest to the next. Tall, short waves pack the rows closer on their slopes."
