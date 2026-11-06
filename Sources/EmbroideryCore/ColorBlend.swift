@@ -1,7 +1,8 @@
 // Color blends: two thread colors fading into each other across one shape. Every object sews in one thread, so a
 // blend is two fills of the same shape on top of each other: the first color solid where the blend starts and sheer
 // toward its end, the second color the other way round, so the two mix in the middle. A straight blend is two
-// gradient fills (rows spreading out across the shape); a radial one, two radial fills whose rays change color part
+// gradient fills (rows spreading out across the shape); a wave one, two wave fills whose rows spread out the same
+// way; a radial one, two radial fills whose rays change color part
 // way out; a contour one, two contour fills whose rings spread out between the edge and the middle. The second layer
 // links to the first (`RunObject.blendOf`), and after every edit the two are brought back in step: one shape,
 // opposite angles (`Design.syncBlends`).
@@ -44,20 +45,22 @@ public struct BlendFade: Codable, Hashable, Sendable {
 public enum BlendShape: String, CaseIterable, Sendable {
     /// Straight across, in a direction: gradient fills.
     case straight
+    /// Across in a direction, on rows that ripple: wave fills spaced like gradient fills.
+    case wave
     /// From the center out to the edge along rays: radial fills.
     case radial
     /// From the middle out to the edge along rings that follow the outline: contour fills.
     case contour
-    public var title: String { switch self { case .straight: return "Straight"; case .radial: return "Radial"; case .contour: return "Contour" } }
+    public var title: String { switch self { case .straight: return "Straight"; case .wave: return "Wave"; case .radial: return "Radial"; case .contour: return "Contour" } }
     /// The fill style each layer of this kind of blend sews with.
-    public var fillStyle: FillStyle { switch self { case .straight: return .gradient; case .radial: return .radial; case .contour: return .contour } }
+    public var fillStyle: FillStyle { switch self { case .straight: return .gradient; case .wave: return .wave; case .radial: return .radial; case .contour: return .contour } }
     /// The kind of blend a layer sewn in `style` belongs to, or nil for a style no blend uses.
     public init?(style: FillStyle?) {
         guard let shape = Self.allCases.first(where: { $0.fillStyle == (style ?? .tatami) }) else { return nil }
         self = shape
     }
     /// True for blends that run in a direction; the others run between the middle and the edge.
-    public var hasDirection: Bool { self == .straight }
+    public var hasDirection: Bool { self == .straight || self == .wave }
 }
 
 public enum ColorBlend {
@@ -127,7 +130,7 @@ public enum ColorBlend {
         if angle > 180 { angle -= 360 } else if angle <= -180 { angle += 360 }
         return angle
     }
-    /// True for a fill in a style that blends (gradient, radial or contour): what a blend's layers must be.
+    /// True for a fill in a style that blends (gradient, wave, radial or contour): what a blend's layers must be.
     static func isLayer(_ object: RunObject) -> Bool { object.kind == .fill && BlendShape(style: object.settings.fillStyle) != nil }
 }
 
@@ -170,10 +173,10 @@ extension Design {
     ///   shape; otherwise the second takes the first's (so moving both together, or a new blend, changes nothing);
     /// - angle: the same, but the one that follows takes the opposite angle (+180°), so they stay solid at opposite ends;
     /// - fade: the same, the one that follows taking the mirror image, so together they still cover the fabric once.
-    /// - radial center: the same, so both layers' rays come from one point.
+    /// - radial center and wave size: the same, so both layers' rays come from one point and their rows ripple alike.
     /// A blend whose layers aren't both fills of the same blending style any more, or whose first layer is gone, comes
-    /// apart: the second layer becomes an ordinary fill (Undo puts the link back). A radial or contour layer then loses
-    /// its fade too, or it would sew as a ragged part of a fill.
+    /// apart: the second layer becomes an ordinary fill (Undo puts the link back). A wave, radial or contour layer then
+    /// loses its fade too, or it would sew as a ragged part of a fill (a gradient fill keeps it: it's still a gradient).
     public mutating func syncBlends(from previous: Design) {
         guard objects.contains(where: { $0.blendOf != nil }) else { return }
         let place = Dictionary(objects.enumerated().map { ($0.element.id, $0.offset) }, uniquingKeysWith: { first, _ in first })
@@ -184,7 +187,7 @@ extension Design {
             guard let b = place[baseID], b != t, ColorBlend.isLayer(objects[b]), ColorBlend.isLayer(objects[t]),
                   objects[b].settings.fillStyle == objects[t].settings.fillStyle, !linked.contains(baseID) else {
                 objects[t].blendOf = nil
-                for k in [t, place[baseID]].compactMap({ $0 }) where [.radial, .contour].contains(objects[k].settings.fillStyle) {
+                for k in [t, place[baseID]].compactMap({ $0 }) where [.wave, .radial, .contour].contains(objects[k].settings.fillStyle) {
                     objects[k].digitizing?.blendFade = nil; objects[k].digitizing?.blendFromEdge = nil
                 }
                 continue
@@ -211,15 +214,19 @@ extension Design {
             } else {
                 objects[t].digitizing?.angle = ColorBlend.normalized(base.settings.angle + 180)
             }
-            func recentered(_ object: RunObject, new: Bool) -> Bool {
-                guard let old = before[object.id] else { return new }
-                return old.settings.radialCenter != object.settings.radialCenter
+            // Settings both layers share as they are (radial center, wave size), the same way: the one changed leads.
+            func share<Value: Equatable>(_ key: WritableKeyPath<DigitizingSettings, Value>) {
+                func changed(_ object: RunObject, new: Bool) -> Bool {
+                    guard let old = before[object.id] else { return new }
+                    return old.settings[keyPath: key] != object.settings[keyPath: key]
+                }
+                if changed(top, new: false) && !changed(base, new: true) {
+                    objects[b].digitizing?[keyPath: key] = top.settings[keyPath: key]
+                } else {
+                    objects[t].digitizing?[keyPath: key] = base.settings[keyPath: key]
+                }
             }
-            if recentered(top, new: false) && !recentered(base, new: true) {
-                objects[b].digitizing?.radialCenter = top.settings.radialCenter
-            } else {
-                objects[t].digitizing?.radialCenter = base.settings.radialCenter
-            }
+            share(\.radialCenter); share(\.waveHeight); share(\.waveLength)
             func refaded(_ object: RunObject, new: Bool) -> Bool {
                 guard let old = before[object.id] else { return new }
                 return old.settings.blendFade != object.settings.blendFade

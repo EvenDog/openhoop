@@ -1,4 +1,4 @@
-// The Color Blend dialog: pick the second thread, the kind of blend (straight, radial or contour), which way it runs
+// The Color Blend dialog: pick the second thread, the kind of blend (straight, wave, radial or contour), which way it runs
 // and where the colors mix, and see the two
 // layers' real stitches before anything changes. Also the Levels-style mixing bar, used here and in Properties. The
 // blend itself is made in EmbroideryCore (ColorBlend.swift).
@@ -195,6 +195,7 @@ struct ColorBlendView: View {
     private var shapeHint: String {
         switch shape {
         case .straight: return "Rows straight across, spreading apart as each color fades."
+        case .wave: return "Rippling rows across, spreading apart as each color fades. Set the wave's size in Properties."
         case .radial: return "Rays from the fill's center, each changing color part way out."
         case .contour: return "Rings that follow the outline, spreading apart as each color fades."
         }

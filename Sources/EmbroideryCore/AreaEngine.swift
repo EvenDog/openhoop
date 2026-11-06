@@ -225,10 +225,11 @@ public enum AreaEngine {
     private static func topRows(in region:[[Point]],_ object:RunObject,entry:Point?,exit:Point?) throws -> [(rows:[[Point]],covered:Set<Int>)] {
         let s=object.settings
         let wave=s.fillStyle == .wave ? (height:s.waveHeight ?? DigitizingSettings.defaultWaveHeight,length:s.waveLength ?? DigitizingSettings.defaultWaveLength) : nil
-        // Gradient fills: the rows' spacing grows from start to end across the whole shape, measured once here, so a
-        // fill split in two by its end point still shades smoothly from one side to the other.
+        // Gradient fills (and a wave blend's layers): the rows' spacing grows from start to end across the whole shape,
+        // measured once here, so a fill split in two by its end point still shades smoothly from one side to the other.
         let heightsAcross=region.flatMap{$0}.map{AreaGeometry.rotate($0,degrees:-s.angle).y}
-        let gradient:GradientRows?=s.fillStyle == .gradient ? (from:s.gradientStart ?? DigitizingSettings.defaultGradientStart,to:s.gradientEnd ?? DigitizingSettings.defaultGradientEnd,low:heightsAcross.min() ?? 0,high:heightsAcross.max() ?? 0,fade:s.blendFade) : nil
+        let spreads=s.fillStyle == .gradient || (s.fillStyle == .wave && s.blendFade != nil)
+        let gradient:GradientRows?=spreads ? (from:s.gradientStart ?? DigitizingSettings.defaultGradientStart,to:s.gradientEnd ?? DigitizingSettings.defaultGradientEnd,low:heightsAcross.min() ?? 0,high:heightsAcross.max() ?? 0,fade:s.blendFade) : nil
         let pattern=(s.fillStyle ?? .tatami) == .tatami ? TatamiPattern.of(s) : .smooth
         /// Of the ways to sew `part` (from the sides in `fromTop`, the first row either way), the one with the lowest score.
         func best(_ part:[[Point]],fromTop:[Bool],_ score:([[Point]])->Double) throws -> (rows:[[Point]],covered:Set<Int>) {

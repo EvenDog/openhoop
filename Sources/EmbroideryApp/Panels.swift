@@ -690,7 +690,7 @@ struct InspectorPanel: View {
         Button("Make satin column") { AppDelegate.shared.perform(.convertSatin) }.buttonStyle(ThemedButtonStyle())
             .help("Turn this line into a satin column centered on it (\(Preferences.shared.label(.convertSatin).isEmpty ? "Digitize menu" : Preferences.shared.label(.convertSatin)))")
     }
-    /// A color blend's layers (gradient, radial or contour): where the two threads mix, as one bar for both layers.
+    /// A color blend's layers (gradient, wave, radial or contour): where the two threads mix, as one bar for both layers.
     @ViewBuilder func blendMix(_ object: RunObject) -> some View {
         if let blend = state.design.blend(containing: object.id), let fade = state.design.objects[blend.base].settings.blendFade {
             VStack(alignment: .leading, spacing: 4) {
@@ -703,7 +703,7 @@ struct InspectorPanel: View {
     }
     /// The settings a fill style has of its own: stipple spacing; a motif fill's motif, size and gap; a cross stitch
     /// fill's square size; a gradient fill's row spacing where it starts and ends; a satin fill's splitting; and a
-    /// color blend's Mix bar (gradient, radial and contour layers).
+    /// color blend's Mix bar (gradient, wave, radial and contour layers).
     @ViewBuilder func patternSettings(_ object: RunObject) -> some View {
         let s = object.settings
         switch s.fillStyle ?? .tatami {
@@ -737,7 +737,7 @@ struct InspectorPanel: View {
             toggle("Auto split", value: s.autoSplit != false) { on in settings(.fill, "Auto Split") { $0.autoSplit = on ? nil : false } }
                 .help("Stitches longer than the split length are broken into shorter ones, in bands that follow the shape's edge, so wide parts don't get long, loose stitches.")
             number("Split length", value: s.satinSplit ?? DigitizingSettings.defaultSatinSplit, range: DigitizingSettings.satinSplitRange, length: true, help: "The longest satin stitch. Longer ones are split with Auto split on; with it off, the shape must be narrower than this.") { value in settings(.fill, "Split Length") { $0.satinSplit = value == DigitizingSettings.defaultSatinSplit ? nil : value } }
-        case .radial, .contour:
+        case .wave, .radial, .contour:
             blendMix(object)
         default: EmptyView()
         }
