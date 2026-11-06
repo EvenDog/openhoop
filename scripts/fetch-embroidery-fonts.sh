@@ -10,7 +10,7 @@ COMMIT=c7e3a05c3d6f5c77b881c50f257851af9a8e9cb8   # inkstitch/embroidery-fonts m
 FONTS="glacial_tiny small_font caffeine_tiny pacificlo_tiny amitaclo_small magnolia_small excalibur_small
 venezia_small apex_simple_small_AGS medium_font caffeine_KOR pacificlo venezia barstitch_bold mam_script
 roman_ags tt_directors initials_medium
-pisankris sacramarif manga_impact chicken_little digory_doodles_bean chicken_scratch stebor_AGS caesarus_SC_FI
+pisankris sacramarif manga_impact chicken_little chicken_scratch stebor_AGS caesarus_SC_FI
 bathaus_FI roaring_twenties_KOR marifenda western_light"
 DEST=Resources/EmbroideryFonts
 rm -rf "$DEST" && mkdir -p "$DEST"

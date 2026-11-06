@@ -10,7 +10,7 @@ final class EmbroideryFontTests: XCTestCase {
     private func font(_ folder: String) throws -> EmbroideryFont { try EmbroideryFont(folder: Self.directory.appendingPathComponent(folder)) }
 
     func testBundledFontsAreAllPermissivelyLicensed() {
-        XCTAssertEqual(fonts.count, 30)
+        XCTAssertEqual(fonts.count, 29)
         for font in fonts {
             let license = font.licenseText.uppercased()
             XCTAssertTrue(license.contains("OPEN FONT LICENSE") || license.contains("PUBLIC DOMAIN"), font.name)
