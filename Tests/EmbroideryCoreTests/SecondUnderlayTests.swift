@@ -55,8 +55,9 @@ final class SecondUnderlayTests: XCTestCase {
             design.objects = [object]
             XCTAssertThrowsError(try design.validate(), "satin \(first) then \(second.map { "\($0)" } ?? "nothing")")
         }
-        // And the same for fills, which sew only edge runs and tatami rows (and Edge + sparse, in older files, alone).
-        for (first, second) in [(UnderlayStyle.edge, UnderlayStyle.zigzag), (.center, nil), (.edge, .edge), (.none, .tatami), (.edgeAndSparse, .tatami)] {
+        // And the same for fills, which sew edge runs, tatami rows (single or double) and zigzags (and Edge + sparse,
+        // in older files, alone).
+        for (first, second) in [(UnderlayStyle.edge, UnderlayStyle.doubleZigzag), (.center, nil), (.edge, .edge), (.none, .tatami), (.edgeAndSparse, .tatami)] {
             var object = patch(.edge, nil); object.digitizing?.underlay = first; object.digitizing?.secondUnderlay = second
             design.objects = [object]
             XCTAssertThrowsError(try design.validate(), "fill \(first) then \(second.map { "\($0)" } ?? "nothing")")
