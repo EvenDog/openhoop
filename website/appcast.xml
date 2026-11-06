@@ -6,6 +6,54 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.9.4</title>
+            <pubDate>Fri, 06 Nov 2026 02:33:45 GMT</pubDate>
+            <sparkle:version>41</sparkle:version>
+            <sparkle:shortVersionString>0.9.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.9.4</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.9.4</h3>
+<h4>A new Properties panel</h4>
+<ul>
+<li>A <b>picture of the object's stitches</b> sits at the top, with its name (click to rename), thread and stitch count. A fill has its style menu there, and an <b>angle dial</b>: drag it to turn the rows (Shift for 15° steps), or type the angle under it.</li>
+<li><b>Tabs</b> split the settings into short pages: <b>Fill</b> (or Satin, Line, Lettering), <b>Underlay</b>, <b>Finish</b> and <b>Object</b>. The tab you pick stays picked as you select other objects.</li>
+<li>Numbers sit <b>two to a row</b>, each with its name above it and its unit after it.</li>
+<li><b>Add to this shape</b> has a tile each for a satin border, outlines and offsets, appliqué and a color blend.</li>
+<li>On <b>Finish</b>, Tie in and Tie off are chips: a lit chip ties, "· far" means When far, and clicking one picks Off, Always or When far.</li>
+</ul>
+<h4>Drawing</h4>
+<ul>
+<li><b>Drawing tools stay on</b> after you finish a shape, so you can draw the next one straight away. Press Esc to go back to Select.</li>
+<li>While a drawing tool is on, <b>picking a thread is for the next shape</b>; the shape you just drew keeps its thread. Press Esc first to recolor it.</li>
+<li><b>Open middle</b> turns any Basic Shape into a frame, with an even band all the way round: heart frames, star frames, and more.</li>
+<li><b>Control-click</b> (and ⌘-click) adds objects to the selection, on the canvas and in the Sewing order list. Right-click a row for its menu.</li>
+</ul>
+<h4>Underlay</h4>
+<ul>
+<li>Fills can have <b>Double tatami</b> (tatami rows, then the same rows turned 90°) and <b>Zigzag</b> underlay (edge to edge across the shape, at an angle you set).</li>
+<li>Underlay names are simpler: <b>Edge run</b> and <b>Zigzag</b>.</li>
+</ul>
+<h4>Remove Overlaps</h4>
+<ul>
+<li><b>Remove Overlaps</b> now cuts the covered part out of the fill's outline once, and it stays that way: moving or deleting the shape on top later doesn't change the fill. A fill cut into pieces becomes grouped pieces; Undo puts it back.</li>
+<li>The "Cut out shapes sewn on top" checkbox is gone. Fills in older designs that use it keep sewing as before, and show it so you can turn it off.</li>
+</ul>
+<h4>Stitch player</h4>
+<ul>
+<li>The player's timeline shows each thread color as a block, with scissors at trims and ticks where each object starts, a line saying what's sewing now, and buttons to jump to the previous or next color or object, or to the end.</li>
+</ul>
+<h4>Also</h4>
+<ul>
+<li>When a design gets its first object, <b>Sewing order</b> comes to the front.</li>
+<li>The Next shape options fit a narrow panel without wrapping.</li>
+</ul>
+<p>Designs that use fills with Double tatami or Zigzag underlay are saved as a newer file version, which 0.9.3 and earlier can't open.</p>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.9.4/OpenHoop-0.9.4.dmg" sparkle:edSignature="OJYqAyajc5ZDP497xoJJtoyywdiYwOj6ioUn5i34HJwD+jbEck4RfgdIqkQ64+vljmthuloXcF73K+IqSEbWCQ==" length="39306462" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.9.3</title>
             <pubDate>Thu, 05 Nov 2026 03:42:55 GMT</pubDate>
             <sparkle:version>40</sparkle:version>
