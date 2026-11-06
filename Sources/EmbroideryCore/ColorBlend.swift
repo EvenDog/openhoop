@@ -1,6 +1,8 @@
 // Color blends: two thread colors fading into each other across one shape. Every object sews in one thread, so a
-// blend is two gradient fills of the same shape on top of each other: the first color solid where the blend starts
-// and sheer toward its end, the second color the other way round, so the two mix in the middle. The second layer
+// blend is two fills of the same shape on top of each other: the first color solid where the blend starts and sheer
+// toward its end, the second color the other way round, so the two mix in the middle. A straight blend is two
+// gradient fills (rows spreading out across the shape); a radial one, two radial fills whose rays change color part
+// way out; a contour one, two contour fills whose rings spread out between the edge and the middle. The second layer
 // links to the first (`RunObject.blendOf`), and after every edit the two are brought back in step: one shape,
 // opposite angles (`Design.syncBlends`).
 
@@ -26,8 +28,36 @@ public struct BlendFade: Codable, Hashable, Sendable {
         if t < middle { return 1 - 0.5 * (t - start) / (middle - start) }
         return 0.5 - 0.5 * (t - middle) / (end - middle)
     }
+    /// How far across (0–1, from the solid side) the layer reaches with at least `share` (0–1) of its stitches: the
+    /// inverse of `coverage`. A radial blend gives each ray a share, and the ray stops here.
+    public func extent(covering share: Double) -> Double {
+        if share >= 1 { return start }
+        if share <= 0 { return end }
+        if share >= 0.5 { return start + 2 * (1 - share) * (middle - start) }
+        return middle + 2 * (0.5 - share) * (end - middle)
+    }
     /// The other layer's fade: the same blend seen from that layer's own solid side.
     public var mirrored: BlendFade { BlendFade(start: 1 - end, middle: 1 - middle, end: 1 - start) }
+}
+
+/// The ways a color blend can run across its shape, each sewn with its own fill style.
+public enum BlendShape: String, CaseIterable, Sendable {
+    /// Straight across, in a direction: gradient fills.
+    case straight
+    /// From the center out to the edge along rays: radial fills.
+    case radial
+    /// From the middle out to the edge along rings that follow the outline: contour fills.
+    case contour
+    public var title: String { switch self { case .straight: return "Straight"; case .radial: return "Radial"; case .contour: return "Contour" } }
+    /// The fill style each layer of this kind of blend sews with.
+    public var fillStyle: FillStyle { switch self { case .straight: return .gradient; case .radial: return .radial; case .contour: return .contour } }
+    /// The kind of blend a layer sewn in `style` belongs to, or nil for a style no blend uses.
+    public init?(style: FillStyle?) {
+        guard let shape = Self.allCases.first(where: { $0.fillStyle == (style ?? .tatami) }) else { return nil }
+        self = shape
+    }
+    /// True for blends that run in a direction; the others run between the middle and the edge.
+    public var hasDirection: Bool { self == .straight }
 }
 
 public enum ColorBlend {
@@ -41,17 +71,20 @@ public enum ColorBlend {
     /// The two layers that replace `fill`, in sewing order:
     /// - the bottom layer, in `fill`'s own thread, solid where the blend starts, with `fill`'s underlay;
     /// - the top layer, in `second`, solid where the blend ends, with no underlay (the bottom one's already covers it).
-    /// `direction` is the way the blend runs from the first color to the second, in degrees: 0 is left to right, 90
-    /// bottom to top. `fade` is where the colors mix, seen from the first color's side (the second's is its mirror).
-    /// The layers share `fill`'s group, or a new one, so they select and move together.
-    public static func layers(of fill: RunObject, second: ThreadColor, direction: Double, fade: BlendFade = .whole) -> [RunObject] {
+    /// `shape` is the kind of blend. A straight blend runs in `direction` from the first color to the second, in
+    /// degrees: 0 is left to right, 90 bottom to top. A radial or contour blend runs from the middle to the edge, or
+    /// with `firstAtEdge` from the edge to the middle. `fade` is where the colors mix, seen from the first color's side
+    /// (the second's is its mirror). The layers share `fill`'s group, or a new one, so they select and move together.
+    public static func layers(of fill: RunObject, second: ThreadColor, direction: Double, fade: BlendFade = .whole,
+                              shape: BlendShape = .straight, firstAtEdge: Bool = false) -> [RunObject] {
         var bottom = fill
         var settings = fill.settings
-        settings.fillStyle = .gradient
+        settings.fillStyle = shape.fillStyle
         settings.blendFade = fade
         settings.gradientEnd = sparsest
         settings.angleLines = nil   // gradient rows run straight across, square to the blend
         settings.angle = angle(for: direction)
+        settings.blendFromEdge = shape.hasDirection ? nil : firstAtEdge
         bottom.digitizing = settings
         bottom.stitchEdits = nil    // new stitches, so edits made to the old ones no longer fit
         bottom.groupID = fill.groupID ?? UUID()
@@ -63,8 +96,17 @@ public enum ColorBlend {
         top.digitizing?.angle = angle(for: direction + 180)
         top.digitizing?.underlay = .none
         top.digitizing?.blendFade = fade.mirrored
+        top.digitizing?.blendFromEdge = shape.hasDirection ? nil : !firstAtEdge
         top.blendOf = bottom.id
         return [bottom, top]
+    }
+
+    /// The kind of blend whose first color's layer is `base`.
+    public static func shape(of base: RunObject) -> BlendShape { BlendShape(style: base.settings.fillStyle) ?? .straight }
+
+    /// How a radial or contour blend layer with settings `s` thins out, for the fill engines; nil if it isn't one.
+    static func fillBlend(_ s: DigitizingSettings) -> FillBlend? {
+        s.blendFade.map { FillBlend(fade: $0, fromEdge: s.blendFromEdge ?? false, sparsest: s.gradientEnd ?? sparsest) }
     }
 
     /// The fill angle whose gradient rows are solid where a blend running in `direction` starts. A gradient fill at
@@ -85,8 +127,8 @@ public enum ColorBlend {
         if angle > 180 { angle -= 360 } else if angle <= -180 { angle += 360 }
         return angle
     }
-    /// True for a gradient fill, the only thing a blend's layers can be.
-    static func isGradient(_ object: RunObject) -> Bool { object.kind == .fill && object.settings.fillStyle == .gradient }
+    /// True for a fill in a style that blends (gradient, radial or contour): what a blend's layers must be.
+    static func isLayer(_ object: RunObject) -> Bool { object.kind == .fill && BlendShape(style: object.settings.fillStyle) != nil }
 }
 
 extension Design {
@@ -99,11 +141,17 @@ extension Design {
         return nil
     }
 
-    /// Gives the blend that `id` is a layer of new threads (a nil `first` keeps the first layer's), direction and fade
-    /// (see `ColorBlend.layers`).
-    public mutating func editBlend(containing id: UUID, first: ThreadColor? = nil, second: ThreadColor, direction: Double, fade: BlendFade) {
+    /// Gives the blend that `id` is a layer of new threads (a nil `first` keeps the first layer's), kind, direction and
+    /// fade (see `ColorBlend.layers`). `shape` nil keeps the blend's kind.
+    public mutating func editBlend(containing id: UUID, first: ThreadColor? = nil, second: ThreadColor, direction: Double, fade: BlendFade,
+                                   shape: BlendShape? = nil, firstAtEdge: Bool = false) {
         guard let (base, top) = blend(containing: id) else { return }
         if let first { objects[base].color = first }
+        let shape = shape ?? ColorBlend.shape(of: objects[base])
+        objects[base].digitizing?.fillStyle = shape.fillStyle; objects[top].digitizing?.fillStyle = shape.fillStyle
+        objects[base].digitizing?.blendFromEdge = shape.hasDirection ? nil : firstAtEdge
+        objects[top].digitizing?.blendFromEdge = shape.hasDirection ? nil : !firstAtEdge
+        objects[base].stitchEdits = nil; objects[top].stitchEdits = nil   // new stitches, so old edits no longer fit
         objects[base].digitizing?.angle = ColorBlend.angle(for: direction)
         objects[top].digitizing?.angle = ColorBlend.angle(for: direction + 180)
         objects[top].color = second
@@ -122,8 +170,10 @@ extension Design {
     ///   shape; otherwise the second takes the first's (so moving both together, or a new blend, changes nothing);
     /// - angle: the same, but the one that follows takes the opposite angle (+180°), so they stay solid at opposite ends;
     /// - fade: the same, the one that follows taking the mirror image, so together they still cover the fabric once.
-    /// A blend whose layers aren't both gradient fills any more, or whose first layer is gone, comes apart: the second
-    /// layer becomes an ordinary gradient fill (Undo puts the link back).
+    /// - radial center: the same, so both layers' rays come from one point.
+    /// A blend whose layers aren't both fills of the same blending style any more, or whose first layer is gone, comes
+    /// apart: the second layer becomes an ordinary fill (Undo puts the link back). A radial or contour layer then loses
+    /// its fade too, or it would sew as a ragged part of a fill.
     public mutating func syncBlends(from previous: Design) {
         guard objects.contains(where: { $0.blendOf != nil }) else { return }
         let place = Dictionary(objects.enumerated().map { ($0.element.id, $0.offset) }, uniquingKeysWith: { first, _ in first })
@@ -131,8 +181,13 @@ extension Design {
         var linked: Set<UUID> = []   // first layers already given a second, so a stray second link comes apart
         for t in objects.indices {
             guard let baseID = objects[t].blendOf else { continue }
-            guard let b = place[baseID], b != t, ColorBlend.isGradient(objects[b]), ColorBlend.isGradient(objects[t]), !linked.contains(baseID) else {
-                objects[t].blendOf = nil; continue
+            guard let b = place[baseID], b != t, ColorBlend.isLayer(objects[b]), ColorBlend.isLayer(objects[t]),
+                  objects[b].settings.fillStyle == objects[t].settings.fillStyle, !linked.contains(baseID) else {
+                objects[t].blendOf = nil
+                for k in [t, place[baseID]].compactMap({ $0 }) where [.radial, .contour].contains(objects[k].settings.fillStyle) {
+                    objects[k].digitizing?.blendFade = nil; objects[k].digitizing?.blendFromEdge = nil
+                }
+                continue
             }
             linked.insert(baseID)
             let top = objects[t], base = objects[b]
@@ -155,6 +210,15 @@ extension Design {
                 objects[b].digitizing?.angle = ColorBlend.normalized(top.settings.angle + 180)
             } else {
                 objects[t].digitizing?.angle = ColorBlend.normalized(base.settings.angle + 180)
+            }
+            func recentered(_ object: RunObject, new: Bool) -> Bool {
+                guard let old = before[object.id] else { return new }
+                return old.settings.radialCenter != object.settings.radialCenter
+            }
+            if recentered(top, new: false) && !recentered(base, new: true) {
+                objects[b].digitizing?.radialCenter = top.settings.radialCenter
+            } else {
+                objects[t].digitizing?.radialCenter = base.settings.radialCenter
             }
             func refaded(_ object: RunObject, new: Bool) -> Bool {
                 guard let old = before[object.id] else { return new }

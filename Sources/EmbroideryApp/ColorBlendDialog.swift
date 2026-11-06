@@ -1,15 +1,22 @@
-// The Color Blend dialog: pick the second thread, which way the blend runs and where the colors mix, and see the two
+// The Color Blend dialog: pick the second thread, the kind of blend (straight, radial or contour), which way it runs
+// and where the colors mix, and see the two
 // layers' real stitches before anything changes. Also the Levels-style mixing bar, used here and in Properties. The
 // blend itself is made in EmbroideryCore (ColorBlend.swift).
 import SwiftUI
 import EmbroideryCore
 
 /// What the Color Blend dialog was closed with: the first thread (nil keeps each fill's own), the second thread, the
-/// way the blend runs (degrees), and where the colors mix, seen from the first color's side.
-struct BlendChoice { var first: ThreadColor?; var second: ThreadColor; var direction: Double; var fade: BlendFade }
+/// way a straight blend runs (degrees), where the colors mix (seen from the first color's side), the kind of blend, and
+/// for a radial or contour one, whether the first color is at the edge (otherwise in the middle).
+struct BlendChoice {
+    var first: ThreadColor?; var second: ThreadColor; var direction: Double; var fade: BlendFade
+    var shape: BlendShape = .straight; var firstAtEdge = false
+}
 
 extension GuidedDialog {
     static var lastBlendDirection = 0.0
+    /// The kind of blend last made, which the next new blend starts with.
+    static var lastBlendShape = BlendShape.straight
     /// Shows the Color Blend dialog for `fills`, offering `palette` (the design's threads) as swatches. `editing` is
     /// an existing blend's choices, to change them (`fills` is then its first color's layer). Returns the choices, or
     /// nil if the person cancelled.
@@ -17,8 +24,9 @@ extension GuidedDialog {
         var chosen: BlendChoice?   // the dialog's closure writes the choice here before it closes
         let confirmed = run(width: 720) { finish in
             ColorBlendView(fills: fills, palette: palette, direction: editing?.direction ?? lastBlendDirection, startDirection: editing?.direction ?? lastBlendDirection,
-                           editing: editing != nil, startSecond: editing?.second, fade: editing?.fade ?? .whole) { choice in
-                if let choice, editing == nil { lastBlendDirection = choice.direction }
+                           editing: editing != nil, startSecond: editing?.second, fade: editing?.fade ?? .whole,
+                           shape: editing?.shape ?? lastBlendShape, firstAtEdge: editing?.firstAtEdge ?? false) { choice in
+                if let choice, editing == nil { lastBlendDirection = choice.direction; lastBlendShape = choice.shape }
                 chosen = choice; finish(choice != nil)
             }
         }
@@ -38,6 +46,9 @@ struct ColorBlendView: View {
     var startSecond: ThreadColor? = nil
     /// Where the colors mix, seen from the first color's side.
     @State var fade: BlendFade
+    /// The kind of blend, and for radial and contour ones, whether the first color is at the edge (else in the middle).
+    @State var shape: BlendShape
+    @State var firstAtEdge: Bool
     /// Called with the choices, or nil for Cancel.
     let done: (BlendChoice?) -> Void
     /// The first thread for every selected fill; nil keeps each fill's own (offered while their threads differ).
@@ -81,14 +92,14 @@ struct ColorBlendView: View {
         for thread in ownThreads + palette + picked where thread != excluded && !list.contains(thread) { list.append(thread) }
         return list
     }
-    private struct PreviewKey: Equatable { var first: ThreadColor?; var second: ThreadColor?; var direction: Double; var fade: BlendFade }
+    private struct PreviewKey: Equatable { var first: ThreadColor?; var second: ThreadColor?; var direction: Double; var fade: BlendFade; var shape: BlendShape; var firstAtEdge: Bool }
 
     var body: some View {
         DialogFrame(eyebrow: "Color blend", title: editing ? "Change the blend" : "Blend two threads",
-                    subtitle: "Two gradient fills of the same shape, one on top of the other: the first thread solid where the blend starts, the second solid where it ends, mixing in between.",
+                    subtitle: "Two fills of the same shape, one on top of the other: the first thread solid where the blend starts, the second solid where it ends, mixing in between.",
                     primary: editing ? "Update Blend" : "Add Blend",
                     finish: { add in
-                        if !add { done(nil) } else if let second { done(BlendChoice(first: first, second: second, direction: direction, fade: fade)) }
+                        if !add { done(nil) } else if let second { done(BlendChoice(first: first, second: second, direction: direction, fade: fade, shape: shape, firstAtEdge: firstAtEdge)) }
                     }) {
             HStack(alignment: .top, spacing: 20) {
                 VStack(alignment: .leading, spacing: 16) {
@@ -107,13 +118,28 @@ struct ColorBlendView: View {
                         if let second { Text(second.name).font(Theme.body(12)).foregroundStyle(Theme.inkSecondary) }
                     }
                     VStack(alignment: .leading, spacing: 8) {
+                        Text("Blend").font(Theme.body(13, weight: .semibold))
+                        Picker("Blend", selection: $shape) { ForEach(BlendShape.allCases, id: \.self) { Text($0.title).tag($0) } }
+                            .pickerStyle(.segmented).labelsHidden()
+                        Text(shapeHint).font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("Direction").font(Theme.body(13, weight: .semibold))
                         HStack {
-                            Picker("Direction", selection: $direction) {
-                                ForEach(directionChoices, id: \.degrees) { Label($0.words, systemImage: $0.arrow).tag($0.degrees) }
-                            }.labelsHidden().pickerStyle(.menu).frame(width: 190)
+                            if shape.hasDirection {
+                                Picker("Direction", selection: $direction) {
+                                    ForEach(directionChoices, id: \.degrees) { Label($0.words, systemImage: $0.arrow).tag($0.degrees) }
+                                }.labelsHidden().pickerStyle(.menu).frame(width: 190)
+                            } else {
+                                Picker("Direction", selection: $firstAtEdge) {
+                                    Label(shape == .radial ? "Center to edge" : "Middle to edge", systemImage: "arrow.up.left.and.arrow.down.right").tag(false)
+                                    Label(shape == .radial ? "Edge to center" : "Edge to middle", systemImage: "arrow.down.right.and.arrow.up.left").tag(true)
+                                }.labelsHidden().pickerStyle(.menu).frame(width: 190)
+                            }
                             // Swapping the colors is the same as running the blend the other way.
-                            Button { direction = (direction + 180).truncatingRemainder(dividingBy: 360) } label: { Image(systemName: "arrow.left.arrow.right") }
+                            Button {
+                                if shape.hasDirection { direction = (direction + 180).truncatingRemainder(dividingBy: 360) } else { firstAtEdge.toggle() }
+                            } label: { Image(systemName: "arrow.left.arrow.right") }
                                 .buttonStyle(ThemedButtonStyle()).help("Swap colors")
                         }
                     }
@@ -139,9 +165,9 @@ struct ColorBlendView: View {
                     }
                     .frame(height: 340).clipShape(RoundedRectangle(cornerRadius: 14))
                     .contentShape(Rectangle())
-                    .gesture(drawDirection)
-                    .help("Drag across the preview to draw which way the blend runs, from the first thread toward the second. Hold Shift for 15° steps.")
-                    Text("Drag across the preview to draw the direction.").font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
+                    .gesture(drawDirection, including: shape.hasDirection ? .all : .none)
+                    .help(shape.hasDirection ? "Drag across the preview to draw which way the blend runs, from the first thread toward the second. Hold Shift for 15° steps." : "")
+                    Text(shape.hasDirection ? "Drag across the preview to draw the direction." : " ").font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
                 }
             }
         }
@@ -151,17 +177,26 @@ struct ColorBlendView: View {
             if second == nil { second = startSecond ?? swatches(excluding: shownFirst).first }
         }
         // Work out the layers' stitches in the background whenever a thread, the direction or the mix changes.
-        .task(id: PreviewKey(first: first, second: second, direction: direction, fade: fade)) {
+        .task(id: PreviewKey(first: first, second: second, direction: direction, fade: fade, shape: shape, firstAtEdge: firstAtEdge)) {
             preview = nil
             guard let second else { return }
             let fills = fills.map { fill -> RunObject in var fill = fill; if let first { fill.color = first }; return fill }
-            let direction = direction, fade = fade
+            let direction = direction, fade = fade, shape = shape, firstAtEdge = firstAtEdge
             let plan = await Task.detached(priority: .userInitiated) { () -> StitchPlan? in
                 var sample = Design()
-                sample.objects = fills.flatMap { ColorBlend.layers(of: $0, second: second, direction: direction, fade: fade) }
+                sample.objects = fills.flatMap { ColorBlend.layers(of: $0, second: second, direction: direction, fade: fade, shape: shape, firstAtEdge: firstAtEdge) }
                 return try? StitchEngine.compile(sample)
             }.value
             if !Task.isCancelled { preview = plan }
+        }
+    }
+
+    /// One line under the kind of blend saying how it's sewn.
+    private var shapeHint: String {
+        switch shape {
+        case .straight: return "Rows straight across, spreading apart as each color fades."
+        case .radial: return "Rays from the fill's center, each changing color part way out."
+        case .contour: return "Rings that follow the outline, spreading apart as each color fades."
         }
     }
 

@@ -900,18 +900,20 @@ import EmbroideryCore
             state.status = "Added \(borders.count) satin border\(borders.count == 1 ? "" : "s"). Each sews right after its shape; reorder or recolor it like any object."
         } catch { showError(error) }
     }
-    /// Color Blend: the dialog picks a second thread and the blend's direction; each selected fill becomes two gradient
-    /// layers (ColorBlend.layers) in its place in the sewing order, all in one step you can undo. With a layer of a
+    /// Color Blend: the dialog picks a second thread and the kind of blend and its direction; each selected fill becomes
+    /// two layers (ColorBlend.layers) in its place in the sewing order, all in one step you can undo. With a layer of a
     /// blend selected, the dialog changes that blend instead.
     private func makeColorBlend(_ state: EditorState) {
         guard !state.hasVersionMismatch, state.draft.isEmpty else { state.status = "Finish the current path and regenerate older projects before making a blend."; return }
         if let layer = state.design.objects.first(where: { state.selection.contains($0.id) && state.design.blend(containing: $0.id) != nil }),
            let (b, t) = state.design.blend(containing: layer.id) {
             let base = state.design.objects[b], top = state.design.objects[t]
-            let current = BlendChoice(first: base.color, second: top.color, direction: ColorBlend.direction(of: base), fade: base.settings.blendFade ?? .whole)
+            let current = BlendChoice(first: base.color, second: top.color, direction: ColorBlend.direction(of: base), fade: base.settings.blendFade ?? .whole,
+                                      shape: ColorBlend.shape(of: base), firstAtEdge: base.settings.blendFromEdge ?? false)
             guard let blend = GuidedDialog.colorBlend([base], palette: state.design.paletteThreads, editing: current) else { state.status = "Color blend unchanged."; return }
             state.edit("Edit Color Blend") { design in
-                design.editBlend(containing: base.id, first: blend.first, second: blend.second, direction: blend.direction, fade: blend.fade)
+                design.editBlend(containing: base.id, first: blend.first, second: blend.second, direction: blend.direction, fade: blend.fade,
+                                 shape: blend.shape, firstAtEdge: blend.firstAtEdge)
                 for thread in [blend.first, blend.second].compactMap({ $0 }) { design.addToPalette(thread) }
             }
             state.selection = [base.id, top.id]
@@ -926,7 +928,7 @@ import EmbroideryCore
             for var fill in fills {
                 guard let index = candidate.objects.firstIndex(where: { $0.id == fill.id }) else { continue }
                 if let first = blend.first { fill.color = first }
-                let layers = ColorBlend.layers(of: fill, second: blend.second, direction: blend.direction, fade: blend.fade)
+                let layers = ColorBlend.layers(of: fill, second: blend.second, direction: blend.direction, fade: blend.fade, shape: blend.shape, firstAtEdge: blend.firstAtEdge)
                 candidate.objects.replaceSubrange(index...index, with: layers)   // the fill's place now holds both layers
                 made.formUnion(layers.map(\.id))
             }
@@ -934,7 +936,7 @@ import EmbroideryCore
             try candidate.validate()
             state.edit("Color Blend") { $0 = candidate }
             state.selection = made; state.selectedNode = nil; state.tool = .select; state.focusCanvas()
-            state.status = "Blended \(fills.count == 1 ? "the fill" : "\(fills.count) fills") into \(blend.second.name): two gradient layers each, grouped, the second sewn right after the first."
+            state.status = "Blended \(fills.count == 1 ? "the fill" : "\(fills.count) fills") into \(blend.second.name): two \(blend.shape.fillStyle.title.lowercased()) layers each, grouped, the second sewn right after the first."
         } catch { showError(error) }
     }
     /// Outlines & Offsets: the dialog builds the outlines around each selected closed shape; each shape's outlines

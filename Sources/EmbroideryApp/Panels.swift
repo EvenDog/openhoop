@@ -690,8 +690,20 @@ struct InspectorPanel: View {
         Button("Make satin column") { AppDelegate.shared.perform(.convertSatin) }.buttonStyle(ThemedButtonStyle())
             .help("Turn this line into a satin column centered on it (\(Preferences.shared.label(.convertSatin).isEmpty ? "Digitize menu" : Preferences.shared.label(.convertSatin)))")
     }
+    /// A color blend's layers (gradient, radial or contour): where the two threads mix, as one bar for both layers.
+    @ViewBuilder func blendMix(_ object: RunObject) -> some View {
+        if let blend = state.design.blend(containing: object.id), let fade = state.design.objects[blend.base].settings.blendFade {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Mix").font(Theme.body(11, weight: .regular))
+                LevelsBar(fade: fade, first: state.design.objects[blend.base].color, second: state.design.objects[blend.top].color,
+                          onCommit: { fade in state.edit("Blend Mix") { $0.setBlendFade(containing: object.id, fade) } })
+            }
+            .help("Where the two threads mix: drag the left handle to where the first stops being solid, the diamond to where they're half and half, the right handle to where the second is solid.")
+        }
+    }
     /// The settings a fill style has of its own: stipple spacing; a motif fill's motif, size and gap; a cross stitch
-    /// fill's square size; a gradient fill's row spacing where it starts and ends; a satin fill's splitting.
+    /// fill's square size; a gradient fill's row spacing where it starts and ends; a satin fill's splitting; and a
+    /// color blend's Mix bar (gradient, radial and contour layers).
     @ViewBuilder func patternSettings(_ object: RunObject) -> some View {
         let s = object.settings
         switch s.fillStyle ?? .tatami {
@@ -717,15 +729,7 @@ struct InspectorPanel: View {
             let gradientHelp = s.blendFade != nil
                 ? "Spacing at start: the rows where this color is solid, in mm. Spacing at end: rows further apart than this are left out, so past its fade this color sews nothing."
                 : "Row spacing where the rows start (the solid end) and where they finish (the open end), in mm. The rows run at the fill angle and open up from one side of the shape to the other; turning the angle by 180° swaps the sides."
-            // A color blend's layers: where the two threads mix, as one bar for both layers.
-            if let blend = state.design.blend(containing: object.id), let fade = state.design.objects[blend.base].settings.blendFade {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Mix").font(Theme.body(11, weight: .regular))
-                    LevelsBar(fade: fade, first: state.design.objects[blend.base].color, second: state.design.objects[blend.top].color,
-                              onCommit: { fade in state.edit("Blend Mix") { $0.setBlendFade(containing: object.id, fade) } })
-                }
-                .help("Where the two threads mix: drag the left handle to where the first stops being solid, the diamond to where they're half and half, the right handle to where the second is solid.")
-            }
+            blendMix(object)
             number("Spacing at start", value: s.gradientStart ?? DigitizingSettings.defaultGradientStart, range: DigitizingSettings.gradientSpacingRange, help: gradientHelp) { value in settings(.fill, "Gradient Start") { $0.gradientStart = value } }
             number("Spacing at end", value: s.gradientEnd ?? DigitizingSettings.defaultGradientEnd, range: DigitizingSettings.gradientSpacingRange, help: gradientHelp) { value in settings(.fill, "Gradient End") { $0.gradientEnd = value } }
         case .satin:
@@ -733,6 +737,8 @@ struct InspectorPanel: View {
             toggle("Auto split", value: s.autoSplit != false) { on in settings(.fill, "Auto Split") { $0.autoSplit = on ? nil : false } }
                 .help("Stitches longer than the split length are broken into shorter ones, in bands that follow the shape's edge, so wide parts don't get long, loose stitches.")
             number("Split length", value: s.satinSplit ?? DigitizingSettings.defaultSatinSplit, range: DigitizingSettings.satinSplitRange, length: true, help: "The longest satin stitch. Longer ones are split with Auto split on; with it off, the shape must be narrower than this.") { value in settings(.fill, "Split Length") { $0.satinSplit = value == DigitizingSettings.defaultSatinSplit ? nil : value } }
+        case .radial, .contour:
+            blendMix(object)
         default: EmptyView()
         }
     }
