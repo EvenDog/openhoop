@@ -623,13 +623,14 @@ final class DesignCanvas: NSView {
                     if selected { path.setLineDash([2, 2], count: 2, phase: 0) }; path.stroke()
                 }
             }
-            // Where it starts and ends sewing (drawn before its nodes, so a node on the same spot stays on top).
-            if selected {
+            // Where it starts and ends sewing, only while editing: with Edit Nodes or the Start & End tool (drawn before its
+            // nodes, so a node on the same spot stays on top).
+            if selected && Self.showsEnds(state.tool) {
                 let ends = markerPoints(object, sewn: sewn, few: fewSelected(in: design))
                 drawStartMarker(ends.start)
                 drawEndMarker(ends.end)
-                drawMarker(radialCenter(object), label: object.kind == .run ? "Target" : "Center", color: Theme.Canvas.handle)
             }
+            if selected { drawMarker(radialCenter(object), label: object.kind == .run ? "Target" : "Center", color: Theme.Canvas.handle) }
             // Nodes show only with Edit Nodes, the one tool that can move them.
             if selected && state.tool == .node && !object.locked && object.kind != .raw && object.lettering == nil {
                 for (ring,nodes) in ([object.nodes]+(object.holes ?? [])).enumerated() {
@@ -889,6 +890,8 @@ final class DesignCanvas: NSView {
         let chosen = design.objects.filter { state.selection.contains($0.id) }
         return chosen.filter { $0.lettering == nil }.count + Set(chosen.compactMap { $0.lettering?.id }).count <= Self.fewForMarkers
     }
+    /// True for the tools that show a selected object's Start and End markers: Edit Nodes and the Start & End tool.
+    static func showsEnds(_ tool: Tool) -> Bool { tool == .node || tool == .entryExit }
     /// The start marker: a green crosshair, a small ring with four arms straight out (+).
     private func drawStartMarker(_ point: Point?) { drawCrosshair(point, color: Theme.Canvas.startMarker, diagonal: false) }
     /// The end marker: a red crosshair with its arms turned to a cross (×).
@@ -1328,8 +1331,9 @@ final class DesignCanvas: NSView {
             else if artworkRect(artwork).contains(location) { artworkDrag = -1 } else { return }
             dragStart = model(location); dragSnapshot = state.design; return
         }
-        // Markers sit on top of everything, so grabbing one wins over selecting or setting a new point.
-        if state.tool == .select || state.tool == .entryExit, let marker = nearestMarker(point) {
+        // Markers sit on top of everything, so grabbing one wins over selecting or setting a new point. With Select only
+        // the Center marker shows, so only it can be grabbed.
+        if state.tool == .select || state.tool == .entryExit, let marker = nearestMarker(point), state.tool == .entryExit || marker.kind == .center {
             draggedMarker = marker; dragStart = point; dragSnapshot = state.design; return
         }
         // A resize handle round the selection: dragging it resizes the selection from the opposite side or corner.

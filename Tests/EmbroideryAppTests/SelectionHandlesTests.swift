@@ -53,7 +53,8 @@ final class SelectionHandlesTests: XCTestCase {
         XCTAssertEqual(box.high.x, 30, accuracy: 1e-6); XCTAssertEqual(box.high.y, 15, accuracy: 1e-6, "a corner keeps the proportions")
     }
 
-    /// Without a start point set, the marker shows where the stitches really begin; dragging it sets the start point.
+    /// Without a start point set, the marker shows where the stitches really begin (here with the Start & End tool);
+    /// dragging it sets the start point.
     @MainActor func testRealStartShowsAndCanBeDragged() async throws {
         let document = DesignDocument(), state = document.state
         let (canvas, mouse) = canvas(for: state)
@@ -61,7 +62,7 @@ final class SelectionHandlesTests: XCTestCase {
         state.edit("Setup") { $0.objects = [object] }
         for _ in 0..<100 where state.busy || state.compiledRevision != state.revision { try await Task.sleep(nanoseconds: 50_000_000) }
         let first = try XCTUnwrap(state.plan.commands.first { $0.op == .stitch && $0.objectID == object.id }?.point)
-        state.selection = [object.id]; state.tool = .select; state.snap = false
+        state.selection = [object.id]; state.tool = .entryExit; state.snap = false
         mouse(.leftMouseDown, canvas.screen(first), [])
         mouse(.leftMouseDragged, canvas.screen(Point(5, 5)), [])
         mouse(.leftMouseUp, canvas.screen(Point(5, 5)), [])

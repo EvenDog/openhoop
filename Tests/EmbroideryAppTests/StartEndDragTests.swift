@@ -1,5 +1,6 @@
-// A selected object's start and end markers can be dragged to move where it starts and ends sewing, with the
-// Select tool, Edit Nodes and the Start & End tool alike, and each drag is one Undo step.
+// A selected object's start and end markers show, and can be dragged to move where it starts and ends sewing, with
+// Edit Nodes and the Start & End tool, and each drag is one Undo step. With Select they don't show, so they can't be
+// grabbed.
 import XCTest
 import AppKit
 import EmbroideryCore
@@ -9,6 +10,7 @@ final class StartEndDragTests: XCTestCase {
     @MainActor func testStartAndEndMarkersDragInEveryToolThatShowsThem() {
         _ = NSApplication.shared
         for tool in [Tool.select, .node, .entryExit] {
+            let shows = DesignCanvas.showsEnds(tool)
             let document = DesignDocument(), state = document.state
             let canvas = DesignCanvas(state: state); canvas.frame = NSRect(x: 0, y: 0, width: 600, height: 600); state.canvas = canvas
             state.snap = false
@@ -26,6 +28,11 @@ final class StartEndDragTests: XCTestCase {
                 }
             }
             drag(Point(6, 6), Point(10, 15))
+            if !shows {
+                // No marker to grab: the press lands on the shape, and the drag moves all of it, start point included.
+                XCTAssertEqual(state.design.objects[0].nodes.map(\.point), square.nodes.map { $0.point + Point(4, 9) }, "\(tool): the whole shape moves")
+                continue
+            }
             XCTAssertEqual(state.design.objects[0].entry?.x ?? 0, 10, accuracy: 0.01, "\(tool): the start follows the drag")
             XCTAssertEqual(state.design.objects[0].entry?.y ?? 0, 15, accuracy: 0.01, "\(tool)")
             drag(Point(24, 24), Point(20, 12))
