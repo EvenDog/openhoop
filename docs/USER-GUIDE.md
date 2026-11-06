@@ -246,7 +246,7 @@ Press **A** (or **Add → Text**), then click on the design where the lettering 
 - **Stacked:** one above the other.
 - **Diamond:** a tall middle with shorter initials close in on either side, to suit a diamond border.
 
-Add **ornaments** either side (swirls in bean stitch, leaves or dots, drawn for OpenHoop) and a **border** (circle, oval, rounded rectangle, diamond or shield) sewn as satin, with its width and the gap to the monogram. The preview updates as you go. The monogram is added as one group in the current thread, centered in the hoop. **Double-click** it (or **Edit monogram…** in Properties) to change anything; it's rebuilt in the same place. Embroidery fonts are only digitized for certain sizes, so an initial that would fall outside them is kept within, and the dialog says so. Ungrouping turns a monogram into plain shapes.
+Add **ornaments** either side (swirls, a flourish or lines in bean stitch; leaves, dots, hearts, stars, diamonds, a laurel sprig or a flower; all drawn for OpenHoop) and a **border** (circle, oval, rounded rectangle, square, diamond, hexagon, octagon, shield or heart) sewn as satin, with its width and the gap to the monogram. The preview updates as you go. The monogram is added as one group in the current thread, centered in the hoop. **Double-click** it (or **Edit monogram…** in Properties) to change anything; it's rebuilt in the same place. Embroidery fonts are only digitized for certain sizes, so an initial that would fall outside them is kept within, and the dialog says so. Ungrouping turns a monogram into plain shapes.
 
 ## Patches: borders and appliqué
 

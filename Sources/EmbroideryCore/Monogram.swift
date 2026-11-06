@@ -1,6 +1,7 @@
 // Monograms: one to three initials in a classic layout, with optional ornaments either side and a
 // satin border around it all. Every object made from a monogram carries its recipe, so it can be opened again and
-// rebuilt in place, like lettering. The ornaments (swirls, leaves, dots) are simple shapes drawn here for OpenHoop.
+// rebuilt in place, like lettering. The ornaments (swirls, leaves, dots, hearts, laurel…) are simple shapes drawn here
+// for OpenHoop.
 import Foundation
 
 /// How the initials are arranged.
@@ -21,15 +22,29 @@ public enum MonogramLayout: String, Codable, CaseIterable, Sendable {
 /// The border shape around a monogram.
 public enum MonogramBorder: String, Codable, CaseIterable, Sendable {
     case none, circle, oval, roundedRectangle, diamond, shield
+    // Added in file version 20.
+    case heart, hexagon, octagon, square
     public var title: String {
-        switch self { case .none: return "None"; case .circle: return "Circle"; case .oval: return "Oval"; case .roundedRectangle: return "Rounded rectangle"; case .diamond: return "Diamond"; case .shield: return "Shield" }
+        switch self {
+        case .none: return "None"; case .circle: return "Circle"; case .oval: return "Oval"; case .roundedRectangle: return "Rounded rectangle"; case .diamond: return "Diamond"; case .shield: return "Shield"
+        case .heart: return "Heart"; case .hexagon: return "Hexagon"; case .octagon: return "Octagon"; case .square: return "Square"
+        }
     }
+    /// The borders added in file version 20: a monogram with one is saved as version 20.
+    public static let addedInVersionTwenty: Set<MonogramBorder> = [.heart, .hexagon, .octagon, .square]
 }
 
 /// The ornaments either side of the initials.
 public enum MonogramOrnament: String, Codable, CaseIterable, Sendable {
     case none, swirls, leaves, dots
+    // Added in file version 20.
+    case hearts, stars, diamonds, laurel, flourish, flower, lines
     public var title: String { rawValue.capitalized }
+    /// The ornaments added in file version 20: a monogram with one is saved as version 20.
+    public static let addedInVersionTwenty: Set<MonogramOrnament> = [.hearts, .stars, .diamonds, .laurel, .flourish, .flower, .lines]
+    /// The names of the objects ornaments are made of, so a rebuilt monogram can tell its ornament parts from its
+    /// initials and border (and keep their thread).
+    static let partNames: Set<String> = ["Swirl", "Leaf", "Dot", "Heart", "Star", "Diamond", "Stem", "Flourish", "Flower", "Line"]
 }
 
 /// Everything needed to build (and rebuild) a monogram.
@@ -183,7 +198,63 @@ public struct MonogramSpec: Codable, Hashable, Sendable {
                 dot.closed = true; dot.digitizing = DigitizingSettings(kind: .fill); dot.stitchLength = 2
                 return dot
             }
+        case .hearts:
+            // Three hearts, getting smaller outward (x: middle, w: width).
+            return [(0.24, 0.42), (0.66, 0.28), (0.92, 0.16)].map { x, w in
+                smallFill("Heart", ShapeGeometry.nodes(.heart, in: (Point(x - w / 2, -w * 0.45), Point(x + w / 2, w * 0.45))), color: color)
+            }
+        case .stars:
+            var five = ShapeSettings(); five.starPoints = 5; five.starInner = 0.45
+            return [(0.16, 0.17), (0.52, 0.13), (0.82, 0.09)].map { x, r in
+                smallFill("Star", ShapeGeometry.nodes(.star, in: (Point(x - r, -r), Point(x + r, r)), settings: five), color: color)
+            }
+        case .diamonds:
+            return [(0.14, 0.13), (0.48, 0.1), (0.78, 0.07)].map { x, r in
+                smallFill("Diamond", [Point(x, -r * 1.4), Point(x + r, 0), Point(x, r * 1.4), Point(x - r, 0)].map { PathNode($0) }, color: color)
+            }
+        case .laurel:
+            // A gently arched stem with leaves along it, in turn above and below, and one at its tip.
+            let stem = boldLine("Stem", [Point(0, -0.02), Point(0.5, 0.04), Point(1, -0.06)], color: color)
+            let leaves = [(0.08, 1.0), (0.22, -1.0), (0.38, 1.0), (0.54, -1.0), (0.7, 1.0)].map { x, side in
+                leaf(from: Point(x, 0.03), to: Point(x + 0.16, 0.03 + side * 0.2), color: color)
+            }
+            return [stem] + leaves + [leaf(from: Point(0.86, -0.02), to: Point(1.06, -0.08), color: color)]
+        case .flourish:
+            // A wave that ends in a curl.
+            return [boldLine("Flourish", [Point(0, 0), Point(0.2, 0.18), Point(0.42, 0.04), Point(0.6, -0.16), Point(0.82, -0.1), Point(0.9, 0.06),
+                                          Point(0.78, 0.14), Point(0.7, 0.04)], color: color)]
+        case .flower:
+            // A short stem out to a five-petal flower (the Basic Shapes flower).
+            return [boldLine("Stem", [Point(0, 0), Point(0.18, 0.04), Point(0.38, 0)], color: color),
+                    smallFill("Flower", ShapeGeometry.nodes(.flower, in: (Point(0.38, -0.24), Point(0.86, 0.24))), color: color)]
+        case .lines:
+            // Two straight lines, the outer one shorter.
+            return [boldLine("Line", [Point(0.02, 0.07), Point(0.95, 0.07)], color: color), boldLine("Line", [Point(0.02, -0.07), Point(0.7, -0.07)], color: color)]
         }
+    }
+
+    /// A small filled part of an ornament (a dot, star, heart…), outlined by `nodes`.
+    private static func smallFill(_ name: String, _ nodes: [PathNode], color: ThreadColor) -> RunObject {
+        var part = RunObject(name: name, nodes: nodes, color: color)
+        part.closed = true; part.digitizing = DigitizingSettings(kind: .fill); part.stitchLength = 2
+        return part
+    }
+    /// A curving line of an ornament through `points` (smooth except at its ends), sewn as a bold triple run like the swirl.
+    private static func boldLine(_ name: String, _ points: [Point], color: ThreadColor) -> RunObject {
+        var line = RunObject(name: name, nodes: points.enumerated().map { PathNode($0.element, smooth: $0.offset > 0 && $0.offset < points.count - 1) }, color: color)
+        line.digitizing = DigitizingSettings(kind: .run); line.digitizing?.runPasses = 3; line.stitchLength = 2
+        return line
+    }
+    /// A small pointed leaf from `base` to `tip`, filled along its length.
+    private static func leaf(from base: Point, to tip: Point, color: ThreadColor) -> RunObject {
+        let middle = (base + tip) * 0.5, along = tip - base, length = hypot(along.x, along.y)
+        let across = Point(-along.y, along.x) * (0.06 / length)   // 0.06 either side of the middle
+        var leaf = smallFill("Leaf", [PathNode(base), PathNode(middle - across, smooth: true), PathNode(tip), PathNode(middle + across, smooth: true)], color: color)
+        // Rows at 60° to the leaf, kept within -180…180°, the range fills accept.
+        var angle = atan2(along.y, along.x) * 180 / .pi + 60
+        if angle > 180 { angle -= 360 }
+        leaf.digitizing?.angle = angle
+        return leaf
     }
 
     /// The outline the border's satin runs along, `gap` mm outside the monogram. Circles, ovals and diamonds hug its
@@ -211,6 +282,30 @@ public struct MonogramSpec: Codable, Hashable, Sendable {
             let a = w + gap, b = h + gap
             return [PathNode(Point(c.x - a, c.y + b)), PathNode(Point(c.x + a, c.y + b)), PathNode(Point(c.x + a, c.y - b * 0.3), smooth: true),
                     PathNode(Point(c.x, c.y - b * 1.45)), PathNode(Point(c.x - a, c.y - b * 0.3), smooth: true)]
+        case .hexagon, .octagon:
+            // Round the circle the Circle border would take: its corners reach out far enough that the middle of each
+            // side is on that circle. The hexagon has corners left and right; the octagon has a flat top.
+            let sides = border == .hexagon ? 6 : 8, turn = border == .hexagon ? 0 : Double.pi / 8
+            let r = ((points.map { $0.distance(to: c) }.max() ?? hypot(w, h)) + gap) / cos(Double.pi / Double(sides))
+            return (0..<sides).map { k in
+                let a = turn + 2 * Double.pi * Double(k) / Double(sides)
+                return PathNode(Point(c.x + r * cos(a), c.y + r * sin(a)))
+            }
+        case .square:
+            let s = max(w, h) + gap
+            return [Point(c.x - s, c.y - s), Point(c.x + s, c.y - s), Point(c.x + s, c.y + s), Point(c.x - s, c.y + s)].map { PathNode($0) }
+        case .heart:
+            // The Basic Shapes heart, a little lower than the middle (its lobes hold more than its point), grown in 3%
+            // steps until the monogram, and `gap` all round it, fits inside.
+            let reach = points + points.flatMap { p in (0..<8).map { k in p + Point(cos(Double(k) * .pi / 4), sin(Double(k) * .pi / 4)) * gap } }
+            var size = max(w, h) + gap
+            for _ in 0..<200 {
+                let box = (min: Point(c.x - size, c.y - size * 1.05), max: Point(c.x + size, c.y + size * 0.85))
+                var outline = RunObject(name: "Heart", nodes: ShapeGeometry.nodes(.heart, in: box), color: .palette[0]); outline.closed = true
+                if let ring = outline.outlinePaths.first, reach.allSatisfy({ AreaGeometry.contains($0, rings: [ring]) }) { return outline.nodes }
+                size *= 1.03
+            }
+            return ShapeGeometry.nodes(.heart, in: around(size, size))
         }
     }
 
@@ -231,7 +326,7 @@ extension Design {
         guard let first = objects.firstIndex(where: { $0.monogram?.id == id }) else { return [] }
         let old = monogramObjects(id)
         /// Which part of a monogram an object is.
-        func kind(_ object: RunObject) -> Int { object.name == "Monogram border" ? 2 : ["Swirl", "Leaf", "Dot"].contains(object.name) ? 1 : 0 }
+        func kind(_ object: RunObject) -> Int { object.name == "Monogram border" ? 2 : MonogramOrnament.partNames.contains(object.name) ? 1 : 0 }
         var made = made, seen: [Int: Int] = [:]
         for i in made.indices {
             // The same-numbered old part of this kind, or failing that the first one (such as for a new initial).
