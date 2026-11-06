@@ -91,7 +91,8 @@ struct ToolStrip: View {
             .lineLimit(1)
             .help(hint.tool + ": " + hint.how)
             Theme.toolBandDivider.frame(width: 1, height: 62).padding(.horizontal, 9)
-            StripPlayer(state: state).fixedSize()
+            // Its width flexes (the timeline stretches); it gets room before the hint, which shortens or hides instead.
+            StripPlayer(state: state).fixedSize(horizontal: false, vertical: true).layoutPriority(1)
         }
     }
     /// The band's right-click menu item that opens Customize Tools.
