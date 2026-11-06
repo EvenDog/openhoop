@@ -552,7 +552,8 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     /// rows are spaced for even coverage between the blend's two layers instead of evenly from start to end spacing.
     public var blendFade:BlendFade?
     /// Radial and contour fills in a color blend: true when this layer is solid at the shape's edge and fades toward
-    /// its middle; nil or false, solid in the middle (the center, for radial) and fading toward the edge.
+    /// its middle; nil or false, solid in the middle (the center, for radial) and fading toward the edge. Guided fills
+    /// in a blend: true when solid on the guide line's right side (as it was drawn); nil or false, on its left.
     public var blendFromEdge:Bool?
     /// Satin only: padding sewn lengthwise inside the column before the satin, so it stands up off the fabric.
     /// nil (the default, and in older files) means flat.
@@ -768,10 +769,10 @@ public struct Design: Codable, Equatable, Sendable {
     public var needsSchemaSixteen: Bool { objects.contains { $0.lineRepeat != nil || $0.repeatCopy != nil } }
     /// Schema 17 marks projects with color blends, so older versions refuse them instead of losing the link.
     public var needsSchemaSeventeen: Bool { objects.contains { $0.blendOf != nil || $0.digitizing?.blendFade != nil } }
-    /// Schema 19 marks projects with wave, radial or contour color blends, so older versions (which only blend gradient
+    /// Schema 19 marks projects with wave, radial, contour or guided color blends, so older versions (which only blend gradient
     /// fills) refuse them instead of sewing them as whole fills on top of each other.
     public var needsSchemaNineteen: Bool {
-        objects.contains { $0.digitizing?.blendFade != nil && [.wave, .radial, .contour].contains($0.digitizing?.fillStyle) }
+        objects.contains { $0.digitizing?.blendFade != nil && [.wave, .radial, .contour, .guided].contains($0.digitizing?.fillStyle) }
     }
     /// Schema 18 marks projects with fills on double tatami or zigzag underlay, so older versions (which don't sew
     /// those on fills) refuse them instead.

@@ -99,7 +99,9 @@ public enum AreaEngine {
         case .stipple:parts=[try FillStyles.stipple(in:expanded,spacing:s.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing,length:object.stitchLength,start:start)]
         case .guided:
             guard let guide=s.guideLine else{throw DesignError.invalid("This guided fill has no guide line. Draw a line over it, select both and choose Use Line as Fill Guide.")}
-            parts=[try GuidedFill.rows(in:expanded,guide:guide,spacing:s.rowGap,length:object.stitchLength)]
+            // A blend layer's rows start at Spacing at start, like a straight blend's.
+            let spacing=s.blendFade != nil ? (s.gradientStart ?? DigitizingSettings.defaultGradientStart) : s.rowGap
+            parts=[try GuidedFill.rows(in:expanded,guide:guide,spacing:spacing,length:object.stitchLength,blend:ColorBlend.fillBlend(s))]
         case .satin:parts=[try SatinFill.stitches(in:expanded,angle:s.angle,spacing:s.spacing,maximum:s.satinSplit ?? DigitizingSettings.defaultSatinSplit,split:s.autoSplit != false)]
         case .radial:parts=[try FillStyles.radial(in:expanded,center:s.radialCenter ?? AreaGeometry.centroid(original[0]),spacing:s.spacing,length:object.stitchLength,start:start,blend:ColorBlend.fillBlend(s))]
         }

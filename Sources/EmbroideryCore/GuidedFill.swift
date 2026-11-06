@@ -10,8 +10,9 @@ enum GuidedFill {
     /// How: the guide is stretched straight on at both ends until it reaches a big box round everything, which cuts
     /// the box in two halves. Shrinking a half by a distance d leaves an edge exactly d from the guide (the box's own
     /// sides are too far away to matter), so the part of that edge inside the shape is a row. Rows are taken every
-    /// `spacing` on both sides, plus the guide itself.
-    static func rows(in region: [[Point]], guide rawGuide: [Point], spacing: Double, length: Double) throws -> [[Point]] {
+    /// `spacing` on both sides, plus the guide itself. A color blend layer (`blend`) spaces them out instead, from its
+    /// solid side across to the other (blendLevels).
+    static func rows(in region: [[Point]], guide rawGuide: [Point], spacing: Double, length: Double, blend: FillBlend? = nil) throws -> [[Point]] {
         var guide: [Point] = []
         for point in rawGuide where guide.last.map({ $0.distance(to: point) > 0.01 }) ?? true { guide.append(point) }
         guard guide.count >= 2, AreaGeometry.pathLength(guide) >= 1 else { throw DesignError.invalid("The fill's guide line is too short. Draw a longer one.") }
@@ -59,10 +60,39 @@ enum GuidedFill {
                 guard level < 5000, total <= 1_000_000 else { throw DesignError.invalid("Fill would produce too many stitches. Reduce its size or increase spacing.") }
             }
         }
+        if let blend { levels = try blendLevels(levels, line: line, box: box, region: region, spacing: spacing, blend: blend) }
         // From the far left of the guide to the far right, back and forth, each row split into stitches staggered by
         // quarters of a stitch length from row to row so neighbouring rows don't line their needle holes up.
         let ordered = levels.sorted { $0.offset > $1.offset }.flatMap(\.rows).filter { AreaGeometry.pathLength($0) >= StitchEngine.smallestStitch }
         return ordered.enumerated().map { index, row in stitches(index % 2 == 0 ? row : row.reversed(), length: length, offset: Double(index % 4) / 4) }
+    }
+
+    /// A guided blend layer's rows: where the evenly spaced rows `levels` reach across the shape (from the farthest row
+    /// on the guide's left to the farthest on its right), new rows starting `spacing` apart at the layer's solid side
+    /// (the left; the right when `blend.fromEdge`) and spreading out as it fades, `spacing` divided by its coverage, until
+    /// it covers nothing or the gap would pass `blend.sparsest`. Each is the guide pushed sideways that far, as before.
+    static func blendLevels(_ levels: [(offset: Double, rows: [[Point]])], line: [Point], box: (left: Double, right: Double, bottom: Double, top: Double),
+                            region: [[Point]], spacing: Double, blend: FillBlend) throws -> [(offset: Double, rows: [[Point]])] {
+        let reached = levels.filter { !$0.rows.isEmpty }.map(\.offset)
+        guard let farLeft = reached.max(), let farRight = reached.min() else { return levels }
+        let high = farLeft + spacing / 2, low = farRight - spacing / 2, width = high - low
+        var halves: [Double: [[[Point]]]] = [1: [[halfBox(line, box, left: true)]], -1: [[halfBox(line, box, left: false)]]]
+        var spread: [(offset: Double, rows: [[Point]])] = [], across = spacing / 2
+        while across < width && spread.count < 5000 {
+            try Task.checkCancellation()
+            let offset = blend.fromEdge ? low + across : high - across
+            if abs(offset) < 1e-9 {
+                spread.append((0, clipped(line, to: region)))
+            } else {
+                let side: Double = offset > 0 ? 1 : -1
+                let inset = try FillStyles.shrunk(&halves[side]!, by: abs(offset))
+                spread.append((offset, inset.flatMap { closedClipped($0, to: region) }))
+            }
+            let cover = blend.fade.coverage(at: across / width)
+            guard cover > 0, spacing / cover <= blend.sparsest else { break }
+            across += spacing / cover
+        }
+        return spread
     }
 
     /// The half of `box` on the guide's left (or right) side, as one ring: along the stretched guide `line`, whose
