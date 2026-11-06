@@ -1,4 +1,4 @@
-// The Color Blend dialog: pick the second thread, the kind of blend (straight, wave, radial or contour), which way it runs
+// The Color Blend dialog: pick the second thread, the kind of blend (straight, wave, radial, contour or guided), which way it runs
 // and where the colors mix, and see the two
 // layers' real stitches before anything changes. Also the Levels-style mixing bar, used here and in Properties. The
 // blend itself is made in EmbroideryCore (ColorBlend.swift).
@@ -22,10 +22,14 @@ extension GuidedDialog {
     /// nil if the person cancelled.
     static func colorBlend(_ fills: [RunObject], palette: [ThreadColor], editing: BlendChoice? = nil) -> BlendChoice? {
         var chosen: BlendChoice?   // the dialog's closure writes the choice here before it closes
+        // A new blend starts as the last kind made, or Guided for guided fills; Guided needs a guide line on every fill.
+        let canGuide = fills.allSatisfy { $0.settings.guideLine != nil }
+        let startShape = editing?.shape ?? (canGuide && fills.allSatisfy { $0.settings.fillStyle == .guided } ? .guided
+                                            : lastBlendShape == .guided && !canGuide ? .straight : lastBlendShape)
         let confirmed = run(width: 720) { finish in
             ColorBlendView(fills: fills, palette: palette, direction: editing?.direction ?? lastBlendDirection, startDirection: editing?.direction ?? lastBlendDirection,
                            editing: editing != nil, startSecond: editing?.second, fade: editing?.fade ?? .whole,
-                           shape: editing?.shape ?? lastBlendShape, firstAtEdge: editing?.firstAtEdge ?? false) { choice in
+                           shape: startShape, firstAtEdge: editing?.firstAtEdge ?? false) { choice in
                 if let choice, editing == nil { lastBlendDirection = choice.direction; lastBlendShape = choice.shape }
                 chosen = choice; finish(choice != nil)
             }
@@ -77,6 +81,18 @@ struct ColorBlendView: View {
         let words = direction == startDirection && drawnLine == nil ? "As it is now" : "Drawn"
         return Self.directions + [(direction, "pencil.and.outline", "\(words), \(Int(direction.rounded()))°")]
     }
+    /// The kinds of blend offered: Guided only when every fill has a guide line to follow.
+    private var shapes: [BlendShape] {
+        BlendShape.allCases.filter { $0 != .guided || fills.allSatisfy { $0.settings.guideLine != nil } }
+    }
+    /// The Direction menu's two ends for a blend without a direction: middle (center) or edge, or the guide's sides.
+    private var ends: (first: String, other: String) {
+        switch shape {
+        case .radial: return ("Center", "edge")
+        case .guided: return ("Left of guide", "right")
+        default: return ("Middle", "edge")
+        }
+    }
     /// The selected fills' own threads, each once.
     private var ownThreads: [ThreadColor] {
         var list: [ThreadColor] = []
@@ -119,8 +135,9 @@ struct ColorBlendView: View {
                     }
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Blend").font(Theme.body(13, weight: .semibold))
-                        Picker("Blend", selection: $shape) { ForEach(BlendShape.allCases, id: \.self) { Text($0.title).tag($0) } }
-                            .pickerStyle(.segmented).labelsHidden()
+                        // A menu, like Direction below: five kinds don't fit side by side in this column.
+                        Picker("Blend", selection: $shape) { ForEach(shapes, id: \.self) { Label($0.title, systemImage: Self.symbol($0)).tag($0) } }
+                            .labelsHidden().pickerStyle(.menu).fixedSize()
                         Text(shapeHint).font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
                     }
                     VStack(alignment: .leading, spacing: 8) {
@@ -131,10 +148,11 @@ struct ColorBlendView: View {
                                     ForEach(directionChoices, id: \.degrees) { Label($0.words, systemImage: $0.arrow).tag($0.degrees) }
                                 }.labelsHidden().pickerStyle(.menu).frame(width: 190)
                             } else {
+                                // For Guided, "edge" means the guide's right side (BlendShape.guided, DigitizingSettings.blendFromEdge).
                                 Picker("Direction", selection: $firstAtEdge) {
-                                    Label(shape == .radial ? "Center to edge" : "Middle to edge", systemImage: "arrow.up.left.and.arrow.down.right").tag(false)
-                                    Label(shape == .radial ? "Edge to center" : "Edge to middle", systemImage: "arrow.down.right.and.arrow.up.left").tag(true)
-                                }.labelsHidden().pickerStyle(.menu).frame(width: 190)
+                                    Label("\(ends.first) to \(ends.other)", systemImage: shape == .guided ? "arrow.right" : "arrow.up.left.and.arrow.down.right").tag(false)
+                                    Label("\(ends.other.capitalized) to \(ends.first.lowercased())", systemImage: shape == .guided ? "arrow.left" : "arrow.down.right.and.arrow.up.left").tag(true)
+                                }.labelsHidden().pickerStyle(.menu).fixedSize().frame(width: 190, alignment: .leading)
                             }
                             // Swapping the colors is the same as running the blend the other way.
                             Button {
@@ -191,6 +209,16 @@ struct ColorBlendView: View {
         }
     }
 
+    /// The icon beside each kind of blend in its menu.
+    private static func symbol(_ shape: BlendShape) -> String {
+        switch shape {
+        case .straight: return "arrow.right"
+        case .wave: return "water.waves"
+        case .radial: return "sun.max"
+        case .contour: return "circle.circle"
+        case .guided: return "scribble.variable"
+        }
+    }
     /// One line under the kind of blend saying how it's sewn.
     private var shapeHint: String {
         switch shape {
@@ -198,6 +226,7 @@ struct ColorBlendView: View {
         case .wave: return "Rippling rows across, spreading apart as each color fades. Set the wave's size in Properties."
         case .radial: return "Rays from the fill's center, each changing color part way out."
         case .contour: return "Rings that follow the outline, spreading apart as each color fades."
+        case .guided: return "Rows that follow the fill's guide line, spreading apart from one side of it to the other."
         }
     }
 
