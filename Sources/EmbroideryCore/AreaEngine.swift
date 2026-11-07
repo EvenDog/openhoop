@@ -88,7 +88,7 @@ public enum AreaEngine {
             // A turning satin: the same rows, re-stitched so each is one stitch from edge to edge (see `asSatin`).
             let maximum=s.satinSplit ?? DigitizingSettings.defaultSatinSplit
             parts=try turningParts(in:expanded,angleLines:s.angleLines!,entry:entry,exit:exit,start:start){region,lines,from,to in
-                try asSatin(try TurningFill.rows(in:region,angleLines:lines,spacing:s.spacing,length:maximum,start:from,end:to),maximum:maximum,split:s.autoSplit != false)}
+                try asSatin(try TurningFill.rows(in:region,angleLines:lines,spacing:s.spacing,length:maximum,start:from,end:to),in:region,maximum:maximum,split:s.autoSplit != false)}
             guard !parts[0].isEmpty else{throw DesignError.invalid("The stitch angle lines don't cross this fill. Draw them across it, or remove them.")}
         case .tatami,.wave,.gradient:
             let swept=try topRows(in:expanded,object,entry:entry,exit:exit).filter{!$0.rows.isEmpty}
@@ -164,9 +164,11 @@ public enum AreaEngine {
     /// Rows from the turning engine sewn as satin. The engine puts needle holes along each row the way tatami
     /// does (on a grid, a quarter stitch further on each row), which would break even a short satin stitch; so
     /// every point lying on the straight line between its neighbours is dropped, leaving each row as one stitch
-    /// from edge to edge. Then a stitch longer than `maximum` is broken as a straight satin fill's is (`split`),
-    /// or refused.
-    private static func asSatin(_ sections:[[Point]],maximum:Double,split:Bool) throws ->[[Point]] {
+    /// from edge to edge. The engine also steps from one row to the next along the edge; satin instead comes back
+    /// diagonally across the shape to the next row's near end (`zigzagged`), so, like a straight satin fill, there
+    /// are two stitches across for every `spacing`, not one. Then a stitch longer than `maximum` is broken as a
+    /// straight satin fill's is (`split`), or refused.
+    private static func asSatin(_ sections:[[Point]],in region:[[Point]],maximum:Double,split:Bool) throws ->[[Point]] {
         var shifted=false
         return try sections.map{section in
             var ends:[Point]=[]
@@ -174,6 +176,7 @@ public enum AreaEngine {
                 if ends.count>=2,AreaGeometry.projection(ends[ends.count-1],ends[ends.count-2],p).distance(to:ends[ends.count-1])<0.01 {ends[ends.count-1]=p;continue}
                 ends.append(p)
             }
+            ends=zigzagged(ends,in:region)
             guard let first=ends.first else{return []}
             var sewn=[first]
             for (a,b) in zip(ends,ends.dropFirst()) {
@@ -185,6 +188,55 @@ public enum AreaEngine {
             }
             return sewn
         }
+    }
+    /// A turning satin's points (rows sewn there and back, joined by short steps along the edge) re-ordered as a
+    /// zigzag: every row sewn the same way across, each followed by a stitch diagonally back across the shape to the
+    /// next row's start. A row is a run of stitches through the middle of the shape; a step along the edge stays
+    /// within 0.1 mm of it. Where the diagonal would leave the shape, that row keeps the edge step instead and is
+    /// sewn the other way, and the zigzag carries on from there. Anything before the first row or after the last
+    /// (travel along the edge) is kept as it was.
+    static func zigzagged(_ points:[Point],in region:[[Point]])->[Point] {
+        guard points.count>=4 else{return points}
+        func edgeGap(_ p:Point)->Double {
+            var nearest=Double.infinity
+            for ring in region { for i in ring.indices { nearest=min(nearest,AreaGeometry.projection(p,ring[i],ring[(i+1)%ring.count]).distance(to:p)) } }
+            return nearest
+        }
+        // Which pieces between neighbouring points cross the middle (rows) and which run along the edge (steps).
+        let across=zip(points,points.dropFirst()).map{edgeGap(($0+$1)*0.5)>0.1}
+        var rows:[[Point]]=[],steps:[[Point]]=[],current:[Point]=[],step:[Point]=[points[0]]
+        for (i,isRow) in across.enumerated() {
+            if isRow {
+                if current.isEmpty { steps.append(step);current=[points[i]] }
+                current.append(points[i+1])
+            } else {
+                if !current.isEmpty { rows.append(current);current=[];step=[points[i]] }
+                step.append(points[i+1])
+            }
+        }
+        if !current.isEmpty { rows.append(current);step=[current[current.count-1]] }
+        guard rows.count>=2 else{return points}
+        // steps[k] is what came before rows[k]; `step` is what's left after the last row.
+        var result=Array(steps[0].dropLast()),forward=rows[0]
+        result+=forward
+        for k in 1..<rows.count {
+            // The same way across as the row before: start on the side the row before started from.
+            let row=rows[k],flipped=Array(row.reversed())
+            let sameWay=forward[0].distance(to:row[0])<forward[0].distance(to:flipped[0]) ? row:flipped
+            if AreaGeometry.segmentInside(result[result.count-1],sameWay[0],rings:region) {
+                forward=sameWay;result+=forward
+            } else {
+                // The diagonal would leave the shape: step to this row's nearer end instead (along the edge the way
+                // the engine did, when the needle is where the engine's step starts) and sew the row back.
+                let here=result[result.count-1]
+                forward=here.distance(to:row[0])<here.distance(to:flipped[0]) ? row:flipped
+                if here.distance(to:steps[k][0])<1e-9,forward[0].distance(to:steps[k][steps[k].count-1])<1e-9 { result+=steps[k].dropFirst().dropLast() }
+                result+=forward
+            }
+        }
+        // Travel after the last row: only if the last row still ends where it did.
+        if result[result.count-1].distance(to:step[0])<1e-9 { result+=step.dropFirst() }
+        return result
     }
     /// A turning fill's rows (each piece sewn by `sew`), in parts sewn one after another. Without an end point, one
     /// part. With one, the shape is split along the row through the end point, as a straight fill is (see

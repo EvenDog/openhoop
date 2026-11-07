@@ -351,11 +351,29 @@ final class TurningFillTests: XCTestCase {
             XCTAssertTrue(onEdge(a) && onEdge(b), "\(a) to \(b) reaches from edge to edge")
             XCTAssertEqual(a.distance(to: b), 10, accuracy: 0.2)
         }
-        XCTAssertLessThanOrEqual(apart(stitchDirection(near: Point(5, 36), in: sections), 0), 2)
-        XCTAssertLessThanOrEqual(apart(stitchDirection(near: Point(36, 5), in: sections), 90), 2)
+        // (Within 2.5°: the stitch back to the next row moves 0.4 mm along the 10 mm arm, a 2.3° slant, as in a
+        // straight satin.)
+        XCTAssertLessThanOrEqual(apart(stitchDirection(near: Point(5, 36), in: sections), 0), 2.5)
+        XCTAssertLessThanOrEqual(apart(stitchDirection(near: Point(36, 5), in: sections), 90), 2.5)
         // In the corner the stitches turn from one line's angle to the other's: halfway, the row joins the outer
         // corner to the inner one.
         XCTAssertLessThanOrEqual(apart(stitchDirection(near: Point(3, 3), in: sections), 45), 5)
+    }
+
+    /// A turning satin is as dense as a straight one: each row is followed by a stitch diagonally back across to the
+    /// next, so there are two stitches across the arm for every 0.4 mm of Spacing, not one with a step along the edge.
+    func testATurningSatinComesBackAcrossLikeAStraightSatin() throws {
+        let satin = satinElbow(split: 12)
+        let (_, stitches) = try satinStitches(satin)
+        // Stitches across the up arm whose middles lie in a 4 mm stretch of it, beyond the line.
+        let stretch = stitches.filter { let y = ($0.0.y + $0.1.y) / 2; return y > 32 && y < 36 }
+        XCTAssertEqual(Double(stretch.count), 2 * 4 / 0.4, accuracy: 2, "two stitches across per 0.4 mm")
+        // Those stitches alternate: one way across, then back.
+        for (a, b) in zip(stretch, stretch.dropFirst()) { XCTAssertLessThan((a.1.x - a.0.x) * (b.1.x - b.0.x), 0, "back and forth") }
+        // The same arm as a straight satin fill (no lines, stitches across it) has as many.
+        var straight = satin; straight.digitizing?.angleLines = nil; straight.digitizing?.angle = 0
+        let plain = try satinStitches(straight).stitches.filter { let y = ($0.0.y + $0.1.y) / 2; return y > 32 && y < 36 && abs($0.0.x - $0.1.x) > 8 }
+        XCTAssertEqual(Double(stretch.count), Double(plain.count), accuracy: 2)
     }
 
     /// The elbow's sections as sewn (its rows and the travel between them), with the plan's trim count.
