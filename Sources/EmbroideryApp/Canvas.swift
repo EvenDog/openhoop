@@ -178,7 +178,7 @@ final class DesignCanvas: NSView {
     /// machine trims the travel, and the needle holes are hidden under the thread. Stitches off screen are skipped.
     /// `start` is where the needle stands before the first command (the end of the stitches drawn before these).
     /// Static so the Color Blend dialog's preview can draw Thread View too.
-    static func drawThread(_ context: CGContext, _ commands: ArraySlice<StitchCommand>, from start: Point = Point(0, 0), threads: [ThreadColor], hidden: Set<UUID>, showUnderlay: Bool,
+    static func drawThread(_ context: CGContext, _ commands: ArraySlice<StitchCommand>, from start: Point = Point(0, 0), threads: [ThreadColor], hidden: Set<UUID>, underlay: UnderlayFilter,
                             width: Double, visibleArea: CGRect, onScreen: (Point) -> CGPoint) {
         // The strand is built from stacked layers, each a little shorter, narrower and lighter than the one below,
         // which together shade it from dark ends to a bright middle. `tone` darkens (below 0) or lightens (above 0)
@@ -241,7 +241,7 @@ final class DesignCanvas: NSView {
         var previous = start
         for command in commands {
             defer { previous = command.point }
-            guard command.op == .stitch, command.objectID.map({ !hidden.contains($0) }) ?? true, showUnderlay || command.underlay != true else { continue }
+            guard command.op == .stitch, command.objectID.map({ !hidden.contains($0) }) ?? true, underlay.shows(command) else { continue }
             let a = onScreen(previous), b = onScreen(command.point)
             let box = CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y)).insetBy(dx: -0.5, dy: -0.5)
             guard box.intersects(reach) else { continue }
@@ -505,7 +505,7 @@ final class DesignCanvas: NSView {
         // so everything it needs is read once up here: reading the editor state's @Published values or making a new
         // color inside the loop made each redraw too slow to keep up with the pointer.
         let plan = state.plan, zoom = state.zoom, center = origin, visibleArea = bounds
-        let showUnderlay = state.showUnderlay, showNeedles = state.needles && zoom >= 3, threadView = Preferences.shared.threadView
+        let underlay = UnderlayFilter(view: state.underlayView, selection: state.selection), showNeedles = state.needles && zoom >= 3, threadView = Preferences.shared.threadView
         let showStitches = state.showStitches, showConnectors = state.showsConnectors, thinLines = showStitches && !threadView
         func onScreen(_ p: Point) -> CGPoint { CGPoint(x: center.x + p.x * zoom, y: center.y + p.y * zoom) }   // same as screen(_:)
         // Each thread's stitch color, made once: [normal, underlay (fainter)].
@@ -526,16 +526,16 @@ final class DesignCanvas: NSView {
         var activeColor: CGColor?
         /// Draws `part` of the stitches (thread or thin lines, and travel moves), carrying on from where the last part ended.
         func drawStitches(_ part: ArraySlice<StitchCommand>) {
-            if threadView && showStitches { Self.drawThread(context, part, from: previous, threads: threads, hidden: hidden, showUnderlay: showUnderlay, width: max(1.2, 0.45 * zoom), visibleArea: visibleArea, onScreen: onScreen) }
+            if threadView && showStitches { Self.drawThread(context, part, from: previous, threads: threads, hidden: hidden, underlay: underlay, width: max(1.2, 0.45 * zoom), visibleArea: visibleArea, onScreen: onScreen) }
             // The thin-line stitch view, travel moves dashed, and needle points (in either view).
             for command in part where thinLines || showConnectors || showNeedles {
-                let visible = (command.objectID.map { !hidden.contains($0) } ?? true) && (showUnderlay || command.underlay != true)
+                let visible = (command.objectID.map { !hidden.contains($0) } ?? true) && underlay.shows(command)
                 let p = onScreen(command.point)
                 if command.op == .stitch && visible {
                     if thinLines {
                         let colors = command.objectID.map(selectedObjects.contains) == true ? highlight
                             : threadColors.indices.contains(command.thread) ? threadColors[command.thread] : unknownThread
-                        let color = colors[command.underlay == true ? 1 : 0]
+                        let color = colors[command.underlay == true && !underlay.showsAlone(command) ? 1 : 0]   // underlay faint, unless it's shown on its own
                         if activeColor !== color {context.strokePath();context.setStrokeColor(color);activeColor=color}   // !== : the very same color object, a cheap check
                         context.move(to: onScreen(previous)); context.addLine(to: p)
                     }
@@ -1950,4 +1950,28 @@ private extension NSBezierPath {
 final class RulerMark: NSView {
     override func draw(_ dirtyRect: NSRect) { Theme.Canvas.pointerMark.setFill(); bounds.fill() }
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
+/// The four ways the canvas can show underlay: with everything (the usual), not at all, or on its own (the stitching on
+/// top left out) for every object or only for the selected ones.
+enum UnderlayView: Hashable { case shown, hidden, onlyAll, onlySelected }
+
+/// Which stitches the canvas draws, by whether they're underlay, for the current UnderlayView and selection.
+struct UnderlayFilter {
+    var view: UnderlayView
+    var selection: Set<UUID> = []
+    /// Every stitch, underlay included (the Color Blend preview, and the canvas as usual).
+    static let all = UnderlayFilter(view: .shown)
+    /// True when the underlay-only view covers `command`'s object: every object, or a selected one.
+    private func onlyUnderlay(_ command: StitchCommand) -> Bool {
+        view == .onlyAll || (view == .onlySelected && command.objectID.map(selection.contains) == true)
+    }
+    /// True for stitches that are drawn: in an underlay-only view, an object it covers shows just its underlay.
+    func shows(_ command: StitchCommand) -> Bool {
+        let isUnderlay = command.underlay == true
+        if view == .hidden { return !isUnderlay }
+        return isUnderlay || !onlyUnderlay(command)
+    }
+    /// True for underlay stitches shown on their own, which are drawn as strongly as top stitching, not faint.
+    func showsAlone(_ command: StitchCommand) -> Bool { command.underlay == true && onlyUnderlay(command) }
 }

@@ -18,6 +18,15 @@ final class ProToolStripTests: XCTestCase {
         XCTAssertTrue(ToolStrip.railGroups.dropLast().allSatisfy { $0.count >= 3 })
     }
 
+    /// Tools with a right-click menu are on the tool band, and their corner arc stays in the button's bottom-right
+    /// corner, along its rounded edge.
+    @MainActor func testMenuToolsAreOnTheBandAndMarkedInTheirCorner() {
+        XCTAssertTrue(ToolStrip.hasMenu.isSubset(of: Set(ToolStrip.proGroups.flatMap(\.commands))))
+        let button = CGRect(x: 0, y: 0, width: 30, height: 30), arc = MenuCornerArc().path(in: button).boundingRect
+        XCTAssertEqual(arc.minX, 21.5, accuracy: 0.01); XCTAssertEqual(arc.minY, 21.5, accuracy: 0.01)
+        XCTAssertEqual(arc.maxX, 27.5, accuracy: 0.01); XCTAssertEqual(arc.maxY, 27.5, accuracy: 0.01)
+    }
+
     func testOlderPreferencesKeepTheToolsOnTop() throws {
         // A preferences file saved before the setting existed has no proToolsOnLeft, so the tools stay across the top.
         let old = try JSONDecoder().decode(PreferenceData.self, from: JSONEncoder().encode(PreferenceData()))
