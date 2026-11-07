@@ -28,7 +28,7 @@ struct ToolStrip: View {
         ("Pick & shape", [.selectTool, .nodeTool, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .removeOverlaps, .branching, .entryExitTool, .panTool, .artworkTool]),
         ("Stitch", [.runTool, .satinTool, .fillTool, .holeTool, .addStitchAngles, .removeStitchAngles]),
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool]),
-        ("Add", [.lettering, .addMonogram, .satinBorder, .colorBlend, .outlinesOffsets, .applique, .autoDigitize, .laydown, .wreath, .repeatAlongLine, .scatter]),
+        ("Add", [.lettering, .addMonogram, .addLineArt, .satinBorder, .colorBlend, .outlinesOffsets, .applique, .autoDigitize, .laydown, .wreath, .repeatAlongLine, .scatter]),
         ("View", [.measureTool, .hoopingsTool, .grid, .snap, .threadView, .reviewSewingOrder]),
         ("Show", [.showStitches, .showOutlines, .showConnectors, .needles, .showUnderlay, .hideOthers, .showRulers, .densityMap]),
         ("Zoom", [.zoomFit, .zoomDesign, .zoomBoxTool, .zoomActual, .zoomSelected])

@@ -158,6 +158,12 @@ With both a fill and an outline, the shape becomes two objects, grouped so they 
 
 While dragging a shape, hold **⌘** to keep it even (a square, circle or regular star) and **⇧** to draw it out from where you started. A shape is a normal outline: reshape it with **H**, and change its stitch in Properties.
 
+### Line art
+
+**Add Line Art…** (in the Add slot, next to Monogram) adds a ready-made drawing in running stitch: a **Heart divider**, **Scroll divider**, **Laurel branch**, **Oval frame**, **Flower**, **Tulip**, **Butterfly**, **Heart with swirl**, **Snowflake**, **Sun**, **Teacup**, **Anchor** or **Rosette**. Click one in the picture grid, set its **Width** (20–200 mm, 60 to start) and its **Stitch**: **Running**, or **Bean (triple)** for a bolder line. It's added in the middle of the hoop in the current thread, as one group: move or resize it like any group, or ungroup it to change a part.
+
+Lines that touch are joined into one continuous line, going back over a line already sewn where it has to (as hand double running does), so most drawings sew in one go with no trims. Parts that float free, like the butterfly's spots or the sun's face, are separate lines, with a jump to each; the dialog says how many.
+
 ### Underlay and finishing
 
 **Underlay** is a quick first layer that holds the fabric still. Satins and fills have two layers, **Underlay 1** and **Underlay 2**, each a section of the **Underlay** tab in Properties with its own type and settings. Underlay 2 sews after Underlay 1, and both sew before the top stitches. **U** turns underlay on or off; **⇧U** shows or hides it on the canvas; to see an object's underlay without the stitching on top, right-click the Underlay button and pick **Only underlay** (see Viewing below).
