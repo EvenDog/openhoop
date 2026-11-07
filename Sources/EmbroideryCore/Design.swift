@@ -789,11 +789,13 @@ public struct Design: Codable, Equatable, Sendable {
         objects.contains { $0.digitizing?.blendFade != nil && ([.wave, .radial, .contour, .guided].contains($0.digitizing?.fillStyle) || $0.digitizing?.blendRowsPaired == true) }
     }
     /// Schema 20 marks projects with a tatami fill on one of the patterns added in version 20 (Rain, Hills, Wood grain…),
-    /// or a motif line or fill on one of the motifs added then (Flower, Sun, House…), so older versions, which don't
-    /// know those names, refuse them instead.
+    /// a motif line or fill on one of the motifs added then (Flower, Sun, House…), or a monogram with one of the
+    /// ornaments or borders added then (Hearts, Laurel, Hexagon…), so older versions, which don't know those names,
+    /// refuse them instead.
     public var needsSchemaTwenty: Bool {
         objects.contains { ($0.kind == .fill && $0.settings.tatamiPattern.map(TatamiPattern.addedInVersionTwenty.contains) == true)
-            || $0.digitizing?.motif.map(Motif.addedInVersionTwenty.contains) == true }
+            || $0.digitizing?.motif.map(Motif.addedInVersionTwenty.contains) == true
+            || $0.monogram.map { MonogramOrnament.addedInVersionTwenty.contains($0.ornament) || MonogramBorder.addedInVersionTwenty.contains($0.border) } == true }
     }
     /// Schema 18 marks projects with fills on double tatami or zigzag underlay, so older versions (which don't sew
     /// those on fills) refuse them instead.
