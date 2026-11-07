@@ -629,14 +629,14 @@ final class DesignCanvas: NSView {
                     if selected { path.setLineDash([2, 2], count: 2, phase: 0) }; path.stroke()
                 }
             }
-            // Where it starts and ends sewing, only while editing: with Edit Nodes or the Start & End tool (drawn before its
-            // nodes, so a node on the same spot stays on top).
+            // Where it starts and ends sewing, and a radial fill's Center or a ripple's Target, only while editing: with
+            // Edit Nodes or the Start & End tool (drawn before its nodes, so a node on the same spot stays on top).
             if selected && Self.showsEnds(state.tool) {
                 let ends = markerPoints(object, sewn: sewn, few: fewSelected(in: design))
                 drawStartMarker(ends.start)
                 drawEndMarker(ends.end)
+                drawMarker(radialCenter(object), label: object.kind == .run ? "Target" : "Center", color: Theme.Canvas.handle)
             }
-            if selected { drawMarker(radialCenter(object), label: object.kind == .run ? "Target" : "Center", color: Theme.Canvas.handle) }
             // Nodes show only with Edit Nodes, the one tool that can move them.
             if selected && state.tool == .node && !object.locked && object.kind != .raw && object.lettering == nil {
                 for (ring,nodes) in ([object.nodes]+(object.holes ?? [])).enumerated() {
@@ -1337,9 +1337,9 @@ final class DesignCanvas: NSView {
             else if artworkRect(artwork).contains(location) { artworkDrag = -1 } else { return }
             dragStart = model(location); dragSnapshot = state.design; return
         }
-        // Markers sit on top of everything, so grabbing one wins over selecting or setting a new point. With Select only
-        // the Center marker shows, so only it can be grabbed.
-        if state.tool == .select || state.tool == .entryExit, let marker = nearestMarker(point), state.tool == .entryExit || marker.kind == .center {
+        // Markers sit on top of everything, so grabbing one wins over setting a new point. (Edit Nodes grabs them further
+        // down; with Select none show, so none can be grabbed.)
+        if state.tool == .entryExit, let marker = nearestMarker(point) {
             draggedMarker = marker; dragStart = point; dragSnapshot = state.design; return
         }
         // A resize handle round the selection: dragging it resizes the selection from the opposite side or corner.
