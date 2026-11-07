@@ -6,6 +6,42 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.12.0</title>
+            <pubDate>Sat, 07 Nov 2026 04:45:59 GMT</pubDate>
+            <sparkle:version>45</sparkle:version>
+            <sparkle:shortVersionString>0.12.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.12.0</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.12.0</h3>
+<h4>Line art</h4>
+<ul>
+<li><b>Add Line Art…</b> (Digitize › Add, and on the tool band next to Add Monogram) adds a ready-made drawing in running stitch: a heart divider, scroll divider, laurel branch, oval frame, flower, tulip, butterfly, heart with swirl, snowflake, sun, teacup, anchor or rosette.</li>
+<li>Pick one from the pictures, then set its <b>Width</b> (20–200 mm) and <b>Stitch</b> (Running, or Bean for a bolder line). It's added in the middle of the hoop as one group.</li>
+<li>Lines that touch are joined into one continuous line, going back over a line already sewn where it must, as hand double running does. Ten of the thirteen drawings sew in one go with no trims, and the dialog shows how many jumps the others have.</li>
+</ul>
+<h4>Picture patterns</h4>
+<ul>
+<li><b>12 new tatami patterns</b> whose needle holes draw small shapes across the fill: diamonds, small diamonds, argyle, triangles, hearts, raindrops, circles, dots, tall ovals, almonds, lattice and kites. That makes 56 in all.</li>
+<li><b>Shape size</b>, under Pattern, sets how wide each shape is.</li>
+<li>The shapes turn with the stitch angle; set the angle to 0° to stand them upright.</li>
+</ul>
+<h4>Six new line styles</h4>
+<ul>
+<li><b>Chain</b>, <b>Feather</b>, <b>Cross stitch</b>, <b>Herringbone</b>, <b>Ladder</b> and <b>Candlewick</b>, in the Line style menu, each with its own width and spacing.</li>
+<li>The Line style list now scrolls, so all 13 styles fit on a laptop screen.</li>
+</ul>
+<h4>Fixes</h4>
+<ul>
+<li>A satin fill with <b>stitch angle lines</b> sewed only half as densely as a plain satin fill at the same spacing, so fabric and underlay could show through. It now comes back across the shape between rows, like a plain satin fill.</li>
+</ul>
+<h4>Files</h4>
+<p>Files saved by 0.12.0 open in 0.11.0 and earlier unless they use a picture pattern or one of the new line styles. Those files need 0.12.0. Line art is plain running stitch, so it opens anywhere.</p>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.12.0/OpenHoop-0.12.0.dmg" sparkle:edSignature="R7vZ0tyxT+Xm/2h8r7fqEFTvi8OstbofEjzVzE3urHefWgPq929DG61g9G5lKINpuHQsO9mtuxtfxBzw4xxnAA==" length="42970978" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.11.0</title>
             <pubDate>Sat, 07 Nov 2026 00:38:43 GMT</pubDate>
             <sparkle:version>44</sparkle:version>
