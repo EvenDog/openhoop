@@ -6,6 +6,41 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.11.0</title>
+            <pubDate>Sat, 07 Nov 2026 00:38:43 GMT</pubDate>
+            <sparkle:version>44</sparkle:version>
+            <sparkle:shortVersionString>0.11.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.11.0</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.11.0</h3>
+<h4>More to choose from</h4>
+<ul>
+<li><b>18 new tatami patterns</b>, 44 in all: rain, hills, rolling hills, S-curves, arches, feather, sawtooth, lightning, double zigzag, arrows, bands, basket, wood grain, bark, flames and more.</li>
+<li><b>16 new motifs</b> for motif fills and lines, among them a flower, tulip, snowflake, sun, cloud, bow, bird, pine tree and house.</li>
+<li><b>20 new Basic Shapes</b>: semicircle, arch, kite and capsule; pennant, plaque and ticket labels; a butterfly, mushroom, tulip, cactus and mountains; and a house, crown, bell, balloon, T-shirt, cupcake, light bulb and ice cream.</li>
+<li><b>11 new embroidery fonts</b>, 29 in all, in gothic, brush, storybook, art deco, western and handwriting styles. All are free to use; their licenses are listed in the project's ThirdPartyNotices.txt.</li>
+<li><b>Monograms</b> gain 7 ornaments (hearts, stars, diamonds, laurel, flourish, flower, lines) and 4 borders (heart, hexagon, octagon, square).</li>
+</ul>
+<h4>New tools</h4>
+<ul>
+<li><b>Break Apart</b> (Digitize › Pick &amp; Shape) now works on more than lettering. It also splits monograms into their letters and ornaments, splits copies along a line into separate objects, and turns each hole in a fill into a fill of its own, so you can give a hole its own thread. The fill keeps its holes.</li>
+<li><b>Join Lines</b> (Digitize › Pick &amp; Shape) joins two or more open lines, or two or more satin columns, end to end into one object. Ends that touch are merged; gaps are bridged.</li>
+<li><b>Only underlay</b>: right-click the Underlay button in the Show group (or use View › Show) to see only the underlay, with the stitching on top hidden, for <b>all objects</b> or just the <b>selected objects</b>. Buttons with a right-click menu now have a small arc in their bottom corner.</li>
+</ul>
+<h4>Fixes</h4>
+<ul>
+<li>Some fonts sewed their running-stitch letters as solid blobs. Letters now follow their group's fill and stroke settings.</li>
+<li>The radial fill's Center and the ripple's Target markers now show only while the Edit Nodes or Start &amp; End tool is on, like the start and end markers.</li>
+</ul>
+<h4>Files</h4>
+<p>Files saved by 0.11.0 open in 0.10.1 and earlier, unless they use one of the new patterns, motifs, monogram ornaments or borders. Those files need 0.11.0.</p>
+<p>The download is about 3 MB larger than 0.10.1 because of the new fonts.</p>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.11.0/OpenHoop-0.11.0.dmg" sparkle:edSignature="CpZHbM9Uq9P8cgIgRITcZDCi5d5gnuRbrqInuM1V6jTCor9R0J7NA7PwtJ5Ap8kUqzmWno+8oBxY0irZhYUKDA==" length="42754810" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.10.1</title>
             <pubDate>Fri, 06 Nov 2026 20:40:39 GMT</pubDate>
             <sparkle:version>43</sparkle:version>
