@@ -1,5 +1,5 @@
 // The decorative line stitches a running line can have instead of plain running stitch: zigzag, blanket (E-stitch),
-// back stitch, stem stitch, motifs and ripple. Each is built along the line's path, measured by distance along it, so
+// back stitch, stem stitch, motifs, ripple, chain, feather, cross stitch, herringbone, ladder and candlewick. Each is built along the line's path, measured by distance along it, so
 // it follows curves and corners. Properties picks the style (DigitizingSettings.runStyle).
 import Foundation
 
@@ -22,6 +22,12 @@ public enum RunningStyles {
         case .stemStitch: points = backStitch(line, length: min(length, 4), offset: width / 2)
         case .motif: points = Motifs.run(along: path, motif: motif ?? Motifs.stroke(.heart), size: width, gap: spacing, length: length)
         case .ripple: points = ripple(line, closed: closed, target: target ?? rippleTarget(path, closed: closed), lines: lines, length: length)
+        case .chain: points = chain(line, width: width, link: spacing)
+        case .feather: points = feather(line, width: width, spacing: spacing)
+        case .crossStitch: points = crossStitch(line, closed: closed, width: width, spacing: spacing)
+        case .herringbone: points = herringbone(line, width: width, spacing: spacing)
+        case .ladder: points = ladder(line, width: width, spacing: spacing)
+        case .candlewick: points = candlewick(line, size: width, spacing: spacing, length: length)
         }
         return split(points, longest: longestStitch)
     }
@@ -129,6 +135,115 @@ public enum RunningStyles {
         var points = [place(0, 0)]
         for k in 0..<(count - 1) { points += [place(k + 2, 1), place(k + 1, -1)] }
         points.append(place(count, 0))
+        return points
+    }
+
+    /// `count` equal steps that fit the line, about `spacing` long each: the distances where they start and end.
+    private static func steps(_ line: Measured, spacing: Double, atLeast minimum: Int = 1) -> [Double] {
+        let count = max(minimum, Int((line.total / spacing).rounded()))
+        return (0...count).map { line.total * Double($0) / Double(count) }
+    }
+    /// The point `side` mm to the left of the line at distance `s` (to the right when negative).
+    private static func beside(_ line: Measured, _ s: Double, _ side: Double) -> Point { line.point(at: s) + line.normal(at: s) * side }
+
+    /// Chain: loops `link` long and `width` wide one after another, each starting inside the tip of the one before so
+    /// they interlock. Each loop goes out along one side and back along the other to where it started, then back up
+    /// that side to where the next loop starts, so no stitch crosses the loop's middle. The sides swap from loop to
+    /// loop, so neither side ends up heavier. Loop sides are cut into stitches of about 1.2 mm.
+    static func chain(_ line: Measured, width: Double, link: Double) -> [Point] {
+        let link = min(link, line.total), overlap = 0.15 * link
+        // How many loops fit, and the step from one loop's start to the next, so the last one ends at the line's end.
+        let count = max(1, Int(((line.total - link) / (link - overlap)).rounded()) + 1)
+        let step = count > 1 ? (line.total - link) / Double(count - 1) : 0
+        let pieces = max(3, Int(ceil(link * 1.1 / 1.2)))
+        /// The point a fraction `t` along a loop starting at `start`, on side `side` (1 left, −1 right).
+        func edge(_ start: Double, _ t: Double, _ side: Double) -> Point { beside(line, start + link * t, side * width / 2 * sin(.pi * t)) }
+        var points = [line.point(at: 0)], side = 1.0
+        for k in 0..<count {
+            let start = Double(k) * step
+            for j in 1...pieces { points.append(edge(start, Double(j) / Double(pieces), side)) }
+            for j in 1...pieces { points.append(edge(start, 1 - Double(j) / Double(pieces), -side)) }
+            if k < count - 1 {
+                // Back up the side just sewn to level with the next loop's start, then a short step in to it.
+                let reach = step / link
+                for j in 1...pieces { points.append(edge(start, reach * Double(j) / Double(pieces), -side)) }
+                points.append(line.point(at: start + step))
+            }
+            side = -side
+        }
+        return points
+    }
+
+    /// Feather: a stem that bends a little to each side in turn, `spacing` apart, with an arm from each bend reaching
+    /// forward and out to that side (half the `width` from the line) and back, like hand feather stitch.
+    static func feather(_ line: Measured, width: Double, spacing: Double) -> [Point] {
+        let marks = steps(line, spacing: spacing, atLeast: 2), bend = min(0.5, width / 8)
+        var points: [Point] = []
+        for (k, s) in marks.enumerated() {
+            let side = k % 2 == 0 ? 1.0 : -1.0, node = beside(line, s, side * bend)
+            points.append(node)
+            // The last bend has no arm: the line ends there.
+            if k < marks.count - 1 { points += [beside(line, min(line.total, s + 0.9 * spacing), side * width / 2), node] }
+        }
+        return points
+    }
+
+    /// Cross stitch: a zigzag out along the line, then the opposite zigzag back, so together they make a row of X's
+    /// `spacing` long and `width` wide. A closed line has an even number of them, so each zigzag meets itself.
+    static func crossStitch(_ line: Measured, closed: Bool, width: Double, spacing: Double) -> [Point] {
+        var count = max(2, Int((line.total / spacing).rounded()))
+        if closed && count % 2 == 1 { count += 1 }
+        func zig(_ k: Int, _ flip: Double) -> Point { beside(line, line.total * Double(k) / Double(count), (k % 2 == 0 ? -1 : 1) * flip * width / 2) }
+        return (0...count).map { zig($0, 1) } + (0...count).reversed().map { zig($0, -1) }
+    }
+
+    /// Herringbone: slanted stitches from one side of the line to the other (half the `width` each way), each followed
+    /// by a short stitch back along that side, so the next slant crosses the last one near the edge. The slants reach
+    /// `spacing` along the line; the stitch back is 45% of that.
+    static func herringbone(_ line: Measured, width: Double, spacing: Double) -> [Point] {
+        let back = 0.45 * min(spacing, line.total)
+        // Slants that fit: each moves on by (reach − back), and the last one ends at the line's end.
+        let count = max(1, Int(((line.total - back) / max(0.1, spacing - back)).rounded()))
+        let advance = (line.total - back) / Double(count), reach = advance + back
+        var points = [beside(line, 0, -width / 2)], start = 0.0, side = 1.0
+        for k in 0..<count {
+            points.append(beside(line, start + reach, side * width / 2))
+            if k < count - 1 { points.append(beside(line, start + advance, side * width / 2)) }
+            start += advance; side = -side
+        }
+        return points
+    }
+
+    /// Ladder: two rails half the `width` to each side of the line, with rungs across every `spacing`. Sewn out as a
+    /// square wave (a rung, a stretch of one rail, a rung, a stretch of the other) and back as the opposite one,
+    /// which fills in the rails' other stretches; the rungs in between are sewn twice.
+    static func ladder(_ line: Measured, width: Double, spacing: Double) -> [Point] {
+        let marks = steps(line, spacing: spacing)
+        func side(_ k: Int) -> Double { k % 2 == 0 ? 1 : -1 }
+        var points: [Point] = []
+        for (k, s) in marks.enumerated() { points += [beside(line, s, side(k) * width / 2), beside(line, s, -side(k) * width / 2)] }
+        for k in stride(from: marks.count - 2, through: 0, by: -1) {
+            points.append(beside(line, marks[k], side(k) * width / 2))
+            if k > 0 { points.append(beside(line, marks[k], -side(k) * width / 2)) }
+        }
+        return points
+    }
+
+    /// Candlewick: knots about `spacing` apart, including one at each end, joined by running stitch of about `length`.
+    /// Each knot is eight tiny stitches out from its center and back, in a star `size` across.
+    static func candlewick(_ line: Measured, size: Double, spacing: Double, length: Double) -> [Point] {
+        let marks = steps(line, spacing: spacing)
+        var points: [Point] = []
+        for (k, s) in marks.enumerated() {
+            if k > 0 {
+                let from = marks[k - 1], pieces = max(1, Int(ceil((s - from) / length)))
+                for i in 1..<pieces { points.append(line.point(at: from + (s - from) * Double(i) / Double(pieces))) }
+            }
+            let center = line.point(at: s)
+            points.append(center)
+            // Every third point of eight round the star (135° apart), so the stitches spread out evenly.
+            for j in 0..<8 { let angle = Double(j) * 3 * .pi / 4; points += [center + Point(cos(angle), sin(angle)) * (size / 2), center] }
+        }
         return points
     }
 

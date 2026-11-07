@@ -65,6 +65,12 @@ extension RunStyle {
         case .stemStitch: return "Slanted stitches, like a twisted rope."
         case .motif: return "A small pattern repeated along the line."
         case .ripple: return "The line again and again, smaller each time."
+        case .chain: return "Interlocking loops, like a chain."
+        case .feather: return "Arms branching left and right in turn."
+        case .crossStitch: return "A row of little X's."
+        case .herringbone: return "Crossed slants, like a woven braid."
+        case .ladder: return "Two rails with rungs across."
+        case .candlewick: return "Little knots joined by a running line."
         }
     }
 }

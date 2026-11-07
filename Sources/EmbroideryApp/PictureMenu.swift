@@ -100,7 +100,11 @@ struct PictureListMenu<Option: Hashable, Picture: View>: View {
 
     private var list: some View {
         VStack(alignment: .leading, spacing: 1) {
-            ForEach(options, id: \.self) { option in row(option) }
+            // Up to ten rows show at once; a longer list (Line style's 13) scrolls, so it fits a laptop screen.
+            ScrollView {
+                VStack(alignment: .leading, spacing: 1) { ForEach(options, id: \.self) { option in row(option) } }
+            }
+            .frame(height: min(Double(options.count), 10.5) * Self.rowHeight)
             if tryOut != nil {
                 pictureMenuNote(pointedAt: pointedAt == current ? nil : pointedAt.map(name), current: name(current), kind: label.lowercased()).padding(.top, 4)
             }
@@ -111,6 +115,9 @@ struct PictureListMenu<Option: Hashable, Picture: View>: View {
         .onHover { inside in if !inside { pointedAt = nil; tryOut?(nil) } }
         .onDisappear { pointedAt = nil; tryOut?(nil) }
     }
+
+    /// A row's height: its 44 pt picture, 4 pt padding above and below, and 1 pt between rows.
+    static var rowHeight: Double { 53 }
 
     private func row(_ option: Option) -> some View {
         Button {

@@ -817,12 +817,12 @@ struct InspectorPanel: View {
         .help(style.summary)
         if style == .motif { motifPicker(object, kind: .run) }
         if style.hasWidth {
-            number(style == .blanket ? "Prong length" : style == .motif ? "Motif size" : "Width", value: object.settings.runWidth ?? DigitizingSettings.defaultRunWidth(style), range: DigitizingSettings.runWidthRange,
-                   help: style == .blanket ? "How far each prong reaches from the line (mm)." : style == .motif ? "How long each motif is along the line (mm)." : "How wide the stitch is across the line (mm).") { value in settings(.run, "Line Width") { $0.runWidth = value } }
+            number(style == .blanket ? "Prong length" : style == .motif ? "Motif size" : style == .candlewick ? "Knot size" : "Width", value: object.settings.runWidth ?? DigitizingSettings.defaultRunWidth(style), range: DigitizingSettings.runWidthRange,
+                   help: style == .blanket ? "How far each prong reaches from the line (mm)." : style == .motif ? "How long each motif is along the line (mm)." : style == .candlewick ? "How wide each knot is (mm)." : "How wide the stitch is across the line (mm).") { value in settings(.run, "Line Width") { $0.runWidth = value } }
         }
         if style.hasSpacing {
-            number(style == .blanket ? "Prong spacing" : style == .motif ? "Gap" : "Spacing", value: object.settings.runSpacing ?? DigitizingSettings.defaultRunSpacing(style), range: DigitizingSettings.runSpacingRange,
-                   help: style == .blanket ? "How far apart the prongs are along the line (mm)." : style == .motif ? "The running stitch between motifs (mm)." : "How far the needle moves along the line with each swing (mm). Smaller is denser.") { value in settings(.run, "Line Spacing") { $0.runSpacing = value } }
+            number(style == .blanket ? "Prong spacing" : style == .motif ? "Gap" : style == .chain ? "Link length" : "Spacing", value: object.settings.runSpacing ?? DigitizingSettings.defaultRunSpacing(style), range: DigitizingSettings.runSpacingRange,
+                   help: style == .blanket ? "How far apart the prongs are along the line (mm)." : style == .motif ? "The running stitch between motifs (mm)." : style == .chain ? "How long each loop is (mm)." : style == .candlewick ? "How far apart the knots are (mm)." : style == .zigzag ? "How far the needle moves along the line with each swing (mm). Smaller is denser." : "How far apart the repeats are along the line (mm). Smaller is denser.") { value in settings(.run, "Line Spacing") { $0.runSpacing = value } }
         }
         if style == .ripple {
             let range = DigitizingSettings.rippleLineRange

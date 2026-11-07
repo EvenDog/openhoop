@@ -78,6 +78,14 @@ A line of stitches along your path. Set **Stitch length** in Properties.
 | **Stem stitch** | Like back stitch, with each stitch slanting across the line: a twisted rope | **Width** (1 mm), **Stitch length** |
 | **Motif** | A small pattern repeated along the line, joined by short runs: 22 built in, from hearts, leaves, stars and scallops to flowers, tulips, snowflakes, suns, clouds, bows, birds, loops, waves, pine trees and houses (projects using one of the 16 added in this version need this version of OpenHoop or later). Each motif bends with the line | **Motif**, **Motif size** (4 mm), **Gap** (1 mm) |
 | **Ripple** | The line sewn again and again, each copy the same shape but smaller, shrinking toward a **Target** dot (with **Edit nodes** or the Start & End tool, drag it on the canvas; **Reset target** puts it back). A closed shape spirals in, in one unbroken line; an open line is sewn there and back, each copy smaller. The target starts in the middle of a closed shape, and to one side of a straight or wavy open line | **Lines** (10, from 2 to 50), **Stitch length** |
+| **Chain** | Small loops one after another, each starting inside the last, like hand chain stitch | **Width** (2 mm), **Link length** (3.5 mm) |
+| **Feather** | A stem that bends a little from side to side, with an arm reaching forward and out at each bend | **Width** (4 mm), **Spacing** (2.5 mm) |
+| **Cross stitch** | A row of little X's: a zigzag out along the line and the opposite zigzag back | **Width** (2.5 mm), **Spacing** (2.5 mm) |
+| **Herringbone** | Slanted stitches from side to side, each crossing the last near the edge, like a woven braid | **Width** (3 mm), **Spacing** (3 mm) |
+| **Ladder** | Two rails along the line with rungs across, sewn out along one rail and back along the other | **Width** (3 mm), **Spacing** (2.5 mm) |
+| **Candlewick** | Little knots (eight tiny stitches round one spot) joined by running stitch, with a knot at each end | **Knot size** (1.2 mm), **Spacing** between knots (5 mm), **Stitch length** |
+
+Chain, Feather, Cross stitch, Herringbone, Ladder and Candlewick are new in this version: projects using one need this version of OpenHoop or later.
 
 Projects using line styles, the stipple, motif, cross stitch, gradient or guided fills, lettering on a line, or raised satin are saved as file version 6, which versions of OpenHoop before these stitches refuse to open rather than sewing them as plain stitches.
 
