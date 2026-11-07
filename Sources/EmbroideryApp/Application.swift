@@ -653,6 +653,16 @@ import EmbroideryCore
                 state.selection = Set(ids); state.selectedNode = nil
                 state.status = ids.count == 1 ? "Welded into one fill with the settings of \(top), the topmost." : "Welded. Parts that don't touch became \(ids.count) separate fills."
             } catch { state.status = error.localizedDescription }
+        case .joinLines:
+            guard state.draft.isEmpty else { state.status = "Finish the current path with Enter, or cancel with Escape, first."; return }
+            var next = state.design
+            do {
+                let count = state.selection.count, id = try next.joinLines(state.selection)
+                guard state.edit(command.title, { $0 = next }) else { return }
+                state.selection = [id]; state.selectedNode = nil
+                let name = next.objects.first { $0.id == id }?.name ?? "one"
+                state.status = "Joined \(count) into \(name), which keeps its settings and place in the sewing order."
+            } catch { state.status = error.localizedDescription }
         case .smoothShapes:
             var next = state.design
             let removed = next.smoothShapes(state.editableSelection)
@@ -1328,7 +1338,7 @@ import EmbroideryCore
     /// The Digitize menu's submenus, one per toolbar group (Pick & Shape, Stitch, Shape, Add): the group's tools in
     /// toolbar order, with related commands next to the tool they go with.
     static let digitizeSections: [(title: String, commands: [CommandID])] = [
-        ("Pick & Shape", [.selectTool, .nodeTool, .insertNode, .deleteNode, .toggleNodeType, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .breakApartLettering, .removeOverlaps, .branching,
+        ("Pick & Shape", [.selectTool, .nodeTool, .insertNode, .deleteNode, .toggleNodeType, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .joinLines, .breakApartLettering, .removeOverlaps, .branching,
                           .entryExitTool, .autoStartPoints, .clearStartEnd, .panTool, .artworkTool]),
         ("Stitch", [.runTool, .satinTool, .fillTool, .holeTool, .removeHoles, .addStitchAngles, .removeStitchAngles, .useAsFillGuide,
                     .convertRun, .convertSatin, .convertFill, .recognizeObjects, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),
