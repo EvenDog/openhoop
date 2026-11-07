@@ -571,7 +571,7 @@ import EmbroideryCore
         case .group: state.groupSelection()
         case .autoStartPoints: state.autoStartPoints()
         case .editLettering: editLettering(state)
-        case .breakApartLettering: state.breakApartLettering()
+        case .breakApartLettering: state.breakApart()
         case .autoDigitize: autoDigitize(state)
         case .satinBorder: addSatinBorder(state)
         case .colorBlend: makeColorBlend(state)
@@ -652,6 +652,16 @@ import EmbroideryCore
                 guard state.edit(command.title, { $0 = next }) else { return }
                 state.selection = Set(ids); state.selectedNode = nil
                 state.status = ids.count == 1 ? "Welded into one fill with the settings of \(top), the topmost." : "Welded. Parts that don't touch became \(ids.count) separate fills."
+            } catch { state.status = error.localizedDescription }
+        case .joinLines:
+            guard state.draft.isEmpty else { state.status = "Finish the current path with Enter, or cancel with Escape, first."; return }
+            var next = state.design
+            do {
+                let count = state.selection.count, id = try next.joinLines(state.selection)
+                guard state.edit(command.title, { $0 = next }) else { return }
+                state.selection = [id]; state.selectedNode = nil
+                let name = next.objects.first { $0.id == id }?.name ?? "one"
+                state.status = "Joined \(count) into \(name), which keeps its settings and place in the sewing order."
             } catch { state.status = error.localizedDescription }
         case .smoothShapes:
             var next = state.design
@@ -1333,13 +1343,13 @@ import EmbroideryCore
     /// The Digitize menu's submenus, one per toolbar group (Pick & Shape, Stitch, Shape, Add): the group's tools in
     /// toolbar order, with related commands next to the tool they go with.
     static let digitizeSections: [(title: String, commands: [CommandID])] = [
-        ("Pick & Shape", [.selectTool, .nodeTool, .insertNode, .deleteNode, .toggleNodeType, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .removeOverlaps, .branching,
+        ("Pick & Shape", [.selectTool, .nodeTool, .insertNode, .deleteNode, .toggleNodeType, .editStitches, .smoothShapes, .knifeTool, .weldObjects, .joinLines, .breakApartLettering, .removeOverlaps, .branching,
                           .entryExitTool, .autoStartPoints, .clearStartEnd, .panTool, .artworkTool]),
         ("Stitch", [.runTool, .satinTool, .fillTool, .holeTool, .removeHoles, .addStitchAngles, .removeStitchAngles, .useAsFillGuide,
                     .convertRun, .convertSatin, .convertFill, .recognizeObjects, .toggleUnderlay, .focusLength, .focusSpacing, .focusAngle]),
         ("Shape", [.openShapeTool, .closedShapeTool, .freehandOpenTool, .freehandClosedTool, .rectangleTool, .ellipseTool, .basicShapeTool,
                    .finishPath, .removePoint, .cancelPath]),
-        ("Add", [.lettering, .editLettering, .breakApartLettering, .putLetteringOnLine, .addMonogram, .editMonogram, .satinBorder, .colorBlend, .outlinesOffsets, .applique, .autoDigitize, .laydown, .wreath, .repeatAlongLine, .scatter, .testSwatches])
+        ("Add", [.lettering, .editLettering, .putLetteringOnLine, .addMonogram, .editMonogram, .satinBorder, .colorBlend, .outlinesOffsets, .applique, .autoDigitize, .laydown, .wreath, .repeatAlongLine, .scatter, .testSwatches])
     ]
     /// One line of a menu: a command, or a submenu of commands (its groups split by dividers).
     enum MenuEntry { case command(CommandID), submenu(String, [[CommandID]]) }

@@ -846,7 +846,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     /// The object clicked last: where a Shift-click range in the object lists starts.
     private var selectionAnchor: UUID?
     /// Selects an object, or its whole group unless `single` (Option-click) asks for just that one. Lettering is
-    /// always selected whole: it's one object, and Edit Nodes moves its letters (Break Apart Lettering splits it).
+    /// always selected whole: it's one object, and Edit Nodes moves its letters (Break Apart splits it).
     /// `extend` (Shift-click on the canvas, ⌘-click in the lists) adds it to, or removes it from, the current selection.
     func select(_ id: UUID, extend: Bool = false, single: Bool = false) {
         selectedNode=nil
@@ -914,10 +914,11 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     /// Removes every group that has a selected member. Ungrouped letters become plain shapes: they forget their
     /// lettering recipe, since editing the text would pull them back together.
     func ungroupSelection() {
-        // Lettering stays one object: Ungroup leaves it alone (Break Apart Lettering is the way to split it).
+        // Lettering stays one object: Ungroup leaves it alone (Break Apart is the way to split it).
         let letteringGroups = Set(design.objects.filter { selection.contains($0.id) && $0.lettering != nil }.compactMap(\.groupID))
         let groups = Set(design.objects.filter { selection.contains($0.id) }.compactMap(\.groupID)).subtracting(letteringGroups)
-        let breakApart = Preferences.shared.label(.breakApartLettering).isEmpty ? "Break Apart Lettering" : "Break Apart Lettering (\(Preferences.shared.label(.breakApartLettering)))"
+        let title = CommandID.breakApartLettering.title, key = Preferences.shared.label(.breakApartLettering)
+        let breakApart = key.isEmpty ? title : "\(title) (\(key))"
         guard !groups.isEmpty else {
             status = letteringGroups.isEmpty ? "The selection isn't grouped." : "Lettering stays one object. To turn it into separate shapes, use \(breakApart)."
             return
@@ -1003,15 +1004,21 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     }
     /// True when `id` is a letter of a piece of lettering.
     func isLettering(_ id: UUID) -> Bool { design.objects.first { $0.id == id }?.lettering != nil }
-    /// Break Apart Lettering: turns the selected lettering into plain shapes (still grouped, so they move together
-    /// until ungrouped). Its text can't be edited any more, but each letter can be reshaped. One undoable step.
-    func breakApartLettering() {
-        let ids = Set(design.objects.filter { selection.contains($0.id) && $0.lettering != nil }.map(\.id))
-        guard !ids.isEmpty else { status = "Select some lettering first."; return }
-        edit("Break Apart Lettering") { design in
-            for i in design.objects.indices where ids.contains(design.objects[i].id) { design.objects[i].lettering = nil; design.objects[i].letterKey = nil }
-        }
-        status = "The lettering is now \(ids.count) separate shapes, grouped. Edit Nodes reshapes each letter; Ungroup separates them."
+    /// Break Apart: splits the selected lettering, monograms and copies along a line into plain shapes (still grouped,
+    /// so they move together until ungrouped), and gives each hole of a selected fill a fill of its own
+    /// (Design.breakApart). One undoable step; the new hole fills are added to the selection.
+    func breakApart() {
+        var next = design
+        let result = next.breakApart(selection)
+        guard !result.isEmpty else { status = "Select lettering, a monogram, copies along a line, or a fill with holes to break apart."; return }
+        guard edit(CommandID.breakApartLettering.title, { $0 = next }) else { return }
+        selection.formUnion(result.holeFills)
+        var done: [String] = []
+        if result.lettering > 0 { done.append(result.lettering == 1 ? "the lettering is now separate letters" : "\(result.lettering) pieces of lettering are now separate letters") }
+        if result.monograms > 0 { done.append(result.monograms == 1 ? "the monogram is now plain shapes" : "\(result.monograms) monograms are now plain shapes") }
+        if result.copies > 0 { done.append("the copies along a line are now ordinary objects") }
+        if !result.holeFills.isEmpty { done.append(result.holeFills.count == 1 ? "the hole has a fill of its own" : "each of \(result.holeFills.count) holes has a fill of its own") }
+        status = "Broken apart: " + done.joined(separator: "; ") + ". Edit Nodes reshapes each piece; Ungroup separates grouped ones."
     }
     /// Add Lettering's click: new lettering in the last font and size used, centered on `point`, as one step you can
     /// undo. It's selected and its text box in Properties is ready to type over.
@@ -1140,7 +1147,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         // Copies along a line are new objects when built again too, so a selected set stays selected by its id.
         let selectedRepeats = Set(updated.objects.filter { state.selection.contains($0.id) }.compactMap { $0.repeatCopy?.id ?? $0.lineRepeat?.id })
         let guideProblems = updated.syncGuides(embroideryFonts: EmbroideryFontLibrary.fonts)
-        if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaNineteen ? 19:updated.needsSchemaEighteen ? 18:updated.needsSchemaSeventeen ? 17:updated.needsSchemaSixteen ? 16:updated.needsSchemaFifteen ? 15:updated.needsSchemaFourteen ? 14:updated.needsSchemaThirteen ? 13:updated.needsSchemaTwelve ? 12:updated.needsSchemaEleven ? 11:updated.needsSchemaTen ? 10:updated.needsSchemaNine ? 9:updated.needsSchemaEight ? 8:updated.needsSchemaSeven ? 7:updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
+        if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaTwenty ? 20:updated.needsSchemaNineteen ? 19:updated.needsSchemaEighteen ? 18:updated.needsSchemaSeventeen ? 17:updated.needsSchemaSixteen ? 16:updated.needsSchemaFifteen ? 15:updated.needsSchemaFourteen ? 14:updated.needsSchemaThirteen ? 13:updated.needsSchemaTwelve ? 12:updated.needsSchemaEleven ? 11:updated.needsSchemaTen ? 10:updated.needsSchemaNine ? 9:updated.needsSchemaEight ? 8:updated.needsSchemaSeven ? 7:updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
         // The same check Save makes, before anything is recorded.
         do { try updated.validate() } catch {
             state.status = "\(action) can't be done: \(error.localizedDescription) Nothing was changed."

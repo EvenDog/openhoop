@@ -10,7 +10,7 @@ final class EmbroideryFontTests: XCTestCase {
     private func font(_ folder: String) throws -> EmbroideryFont { try EmbroideryFont(folder: Self.directory.appendingPathComponent(folder)) }
 
     func testBundledFontsAreAllPermissivelyLicensed() {
-        XCTAssertEqual(fonts.count, 18)
+        XCTAssertEqual(fonts.count, 29)
         for font in fonts {
             let license = font.licenseText.uppercased()
             XCTAssertTrue(license.contains("OPEN FONT LICENSE") || license.contains("PUBLIC DOMAIN"), font.name)
@@ -24,7 +24,8 @@ final class EmbroideryFontTests: XCTestCase {
     func testEveryBundledFontSews() throws {
         for font in fonts {
             let result = try font.shapes(text: "Hag 5", height: font.heights.lowerBound + (font.heights.upperBound - font.heights.lowerBound) / 3, color: .palette[0])
-            XCTAssertTrue(result.objects.contains { $0.kind == .satin }, "\(font.name) makes satin")
+            // Most fonts are satin; Sacramarif is all running stitch and Western Light is filled.
+            XCTAssertTrue(result.objects.contains { [.satin, .run, .fill].contains($0.kind) }, "\(font.name) makes stitches")
             XCTAssertFalse(result.warnings.contains { $0.contains("couldn't be converted") }, "\(font.name): \(result.warnings)")
             var design = Design(); design.objects = result.objects
             XCTAssertGreaterThan(try StitchEngine.compile(design).stitchCount, 50, font.name)
@@ -101,5 +102,37 @@ final class EmbroideryFontTests: XCTestCase {
         XCTAssertGreaterThan(try AreaEngine.satin(fan).sections.last!.points.count, 20)
         var design = Design(); design.objects = [fan]
         XCTAssertTrue(design.needsSchemaFive, "Older versions would reject relaxed satins, so the file says so")
+    }
+
+    /// A path that sets no fill or stroke of its own takes its group's, as in any SVG: in a layer marked "no fill,
+    /// black stroke" it's a running stitch line, not a solid fill. A path's own style still wins.
+    func testPathsTakeTheirGroupsFillAndStroke() throws {
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="100" height="100" viewBox="0 0 100 100">
+          <g inkscape:label="GlyphLayer-A" style="fill:none;stroke:#000000">
+            <path d="M 10 90 L 30 10 L 50 90" />
+            <path d="M 60 90 L 90 90 L 90 60 Z" style="fill:#000000" />
+            <g style="fill:inherit"><path d="M 10 50 L 50 50" /></g>
+          </g>
+        </svg>
+        """
+        let reader = FontSVGReader(), parser = XMLParser(data: Data(svg.utf8))
+        parser.shouldProcessNamespaces = true; parser.delegate = reader
+        XCTAssertTrue(parser.parse()); XCTAssertNil(reader.failure)
+        let elements = try XCTUnwrap(reader.finishedGlyphs()["A"]).elements
+        let kinds = elements.map { element -> String in
+            switch element { case .satin: return "satin"; case .running: return "running"; case .fill: return "fill" }
+        }
+        XCTAssertEqual(kinds, ["running", "fill", "running"], "the group's no-fill reaches the paths that don't say; the triangle's own fill wins")
+    }
+
+    /// The bundled Pacificlo's letters are satins and running lines; before groups' styles were followed, their
+    /// running lines came out as solid blobs.
+    func testPacificloHasNoStrayFills() throws {
+        let glyphs = try font("pacificlo").glyphs()
+        for letter in ["a", "A", "e", "1"] {
+            let elements = try XCTUnwrap(glyphs[letter], letter).elements
+            XCTAssertFalse(elements.contains { if case .fill = $0 { return true } else { return false } }, "\(letter) has no fills")
+        }
     }
 }

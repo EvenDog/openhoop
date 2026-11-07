@@ -1,5 +1,5 @@
 // Checks that lettering behaves as one object: clicking a letter (even Option-clicking) selects the whole word,
-// Ungroup leaves it whole, editing rebuilds it in place as one undo step, Break Apart Lettering turns it into
+// Ungroup leaves it whole, editing rebuilds it in place as one undo step, Break Apart turns it into
 // shapes, and with Edit Nodes dragging a letter's handle moves just that letter and remembers it.
 import XCTest
 import AppKit
@@ -28,7 +28,7 @@ final class LetteringObjectTests: XCTestCase {
         XCTAssertEqual(state.selection, all, "Option-clicking a letter still selects the whole word")
         state.ungroupSelection()
         XCTAssertTrue(state.design.objects.allSatisfy { $0.lettering != nil && $0.groupID != nil }, "Ungroup leaves lettering whole")
-        XCTAssertTrue(state.status.contains("Break Apart Lettering"), state.status)
+        XCTAssertTrue(state.status.contains("Break Apart"), state.status)
 
         var next = spec; next.text = "Abcd"
         XCTAssertTrue(state.rebuildLettering(next, action: "Edit Text"))
@@ -37,9 +37,9 @@ final class LetteringObjectTests: XCTestCase {
         XCTAssertEqual(state.selection, Set(state.design.objects.map(\.id)), "the new letters are selected")
         XCTAssertEqual(document.undoManager?.undoActionName, "Edit Text")
 
-        state.breakApartLettering()
+        state.breakApart()
         XCTAssertTrue(state.design.objects.allSatisfy { $0.lettering == nil && $0.groupID != nil }, "plain shapes, still grouped")
-        XCTAssertEqual(document.undoManager?.undoActionName, "Break Apart Lettering")
+        XCTAssertEqual(document.undoManager?.undoActionName, "Break Apart")
     }
 
     /// Edit Nodes: dragging the first letter's handle 2 mm up moves just that letter, and the move is kept as a nudge.

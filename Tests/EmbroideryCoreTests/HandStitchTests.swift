@@ -48,8 +48,11 @@ final class HandStitchTests: XCTestCase {
         XCTAssertEqual(twice.count, 1 + (plain.count - 1) * 3)
         XCTAssertEqual(twice.last, plain.last)
         XCTAssertEqual(try points(line(hand(count: 3))).count, 1 + (plain.count - 1) * 5)
-        // With Random at 5, some stitches get a pass more or fewer.
-        let uneven = try points(line(hand(count: 2, random: 5)))
+        // With Random at 5, some stitches get a pass more or fewer. The dice come from the object's id, so a fixed
+        // id: with a new random one each run, the extra and missing passes now and then cancel out.
+        var unevenLine = line(hand(count: 2, random: 5))
+        unevenLine.id = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+        let uneven = try points(unevenLine)
         XCTAssertNotEqual(uneven.count, twice.count)
     }
 

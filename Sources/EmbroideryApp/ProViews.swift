@@ -259,7 +259,7 @@ struct ProSewingOrder: View {
         .contentShape(Rectangle())
         .onTapGesture { state.listClick(members[0].id) }
         .overlay { ControlClickCatcher { state.listClick(members[0].id) } }
-        .help(lettering == nil ? "Group of \(members.count) objects, sewing \(first + 1)–\(first + members.count). Drag to change when it sews." : "Lettering, sewing \(first + 1)–\(first + members.count). Edit it in Properties; Break Apart Lettering splits it into shapes.")
+        .help(lettering == nil ? "Group of \(members.count) objects, sewing \(first + 1)–\(first + members.count). Drag to change when it sews." : "Lettering, sewing \(first + 1)–\(first + members.count). Edit it in Properties; Break Apart splits it into shapes.")
         // The group's lock and menu act on all its objects.
         .overlay(alignment: .trailing) { RowLock(state: state, ids: Set(members.map(\.id)), showing: hovered == "\(id.uuidString)-\(first)").padding(.trailing, 4) }
         .onHover { inside in let key = "\(id.uuidString)-\(first)"; hovered = inside ? key : (hovered == key ? nil : hovered) }
