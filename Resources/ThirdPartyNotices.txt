@@ -686,10 +686,10 @@ SOFTWARE.
 
 
 EMBROIDERY FONTS — Contents/Resources/EmbroideryFonts
-The app bundles 18 hand-digitized embroidery fonts from the Ink/Stitch embroidery font collection
+The app bundles 29 hand-digitized embroidery fonts from the Ink/Stitch embroidery font collection
 (https://github.com/inkstitch/embroidery-fonts, commit c7e3a05c3d6f5c77b881c50f257851af9a8e9cb8), unmodified.
 Each font folder contains its own LICENSE file with the font's copyright notice and full license text.
-Seventeen are licensed under the SIL Open Font License, Version 1.1; Excalibur small is public domain.
+Twenty-eight are licensed under the SIL Open Font License, Version 1.1; Excalibur small is public domain.
 The fonts are read by this app's own code; no Ink/Stitch program code is included.
 
 

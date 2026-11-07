@@ -85,7 +85,7 @@ final class CustomMotifTests: XCTestCase {
         XCTAssertThrowsError(try bad.validate(), "a motif needs at least two points")
         bad = design; bad.objects[0].digitizing?.customMotif?.stroke.append(Point(500, 0))
         XCTAssertThrowsError(try bad.validate(), "points far outside the motif's box")
-        bad = design; bad.schemaVersion = 20
+        bad = design; bad.schemaVersion = 21
         XCTAssertThrowsError(try bad.validate(), "a newer file version is refused")
     }
 }

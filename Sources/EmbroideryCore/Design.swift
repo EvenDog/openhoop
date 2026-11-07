@@ -367,7 +367,11 @@ public enum RunStyle: String, Codable, CaseIterable, Sendable {
 /// The small patterns motif runs and motif fills repeat (Motifs.swift draws them).
 public enum Motif: String, Codable, CaseIterable, Sendable {
     case heart, leaf, diamond, star, scallop, circle
-    public var title: String { rawValue.prefix(1).uppercased() + rawValue.dropFirst() }
+    // Added in file version 20.
+    case flower, tulip, teardrop, crescent, snowflake, sun, cloud, bow, bird, loop, wave, triangle, square, cross, pineTree, house
+    public var title: String { self == .pineTree ? "Pine tree" : rawValue.prefix(1).uppercased() + rawValue.dropFirst() }
+    /// The motifs added in file version 20: a design using one is saved as version 20.
+    public static let addedInVersionTwenty: Set<Motif> = Set(allCases).subtracting([.heart, .leaf, .diamond, .star, .scallop, .circle])
 }
 /// A motif of the user's own, made from running lines with Create Motif (`Motifs.make`): its name and its stroke, in
 /// the same unit box as the built-in motifs (from (0, 0) to (1, 0) along the baseline). Each object that uses it
@@ -784,6 +788,15 @@ public struct Design: Codable, Equatable, Sendable {
     public var needsSchemaNineteen: Bool {
         objects.contains { $0.digitizing?.blendFade != nil && ([.wave, .radial, .contour, .guided].contains($0.digitizing?.fillStyle) || $0.digitizing?.blendRowsPaired == true) }
     }
+    /// Schema 20 marks projects with a tatami fill on one of the patterns added in version 20 (Rain, Hills, Wood grain…),
+    /// a motif line or fill on one of the motifs added then (Flower, Sun, House…), or a monogram with one of the
+    /// ornaments or borders added then (Hearts, Laurel, Hexagon…), so older versions, which don't know those names,
+    /// refuse them instead.
+    public var needsSchemaTwenty: Bool {
+        objects.contains { ($0.kind == .fill && $0.settings.tatamiPattern.map(TatamiPattern.addedInVersionTwenty.contains) == true)
+            || $0.digitizing?.motif.map(Motif.addedInVersionTwenty.contains) == true
+            || $0.monogram.map { MonogramOrnament.addedInVersionTwenty.contains($0.ornament) || MonogramBorder.addedInVersionTwenty.contains($0.border) } == true }
+    }
     /// Schema 18 marks projects with fills on double tatami or zigzag underlay, so older versions (which don't sew
     /// those on fills) refuse them instead.
     public var needsSchemaEighteen: Bool {
@@ -824,7 +837,7 @@ public struct Design: Codable, Equatable, Sendable {
 
     /// Reject corrupt or unreasonable input before it reaches the renderer or generator.
     public func validate() throws {
-        guard (1...19).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
+        guard (1...20).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }
