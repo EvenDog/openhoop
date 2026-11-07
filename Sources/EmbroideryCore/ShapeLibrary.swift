@@ -140,6 +140,83 @@ enum ShapeLibrary {
                 PathNode(Point(0.39, 1), smooth: true, inHandle: Point(0.6, 1), outHandle: Point(0.18, 1)),
                 PathNode(Point(0, 0.42), smooth: true, inHandle: Point(0, 0.72), outHandle: Point(0, 0.18))
             ]
+        // Geometric (added with the second set of shapes)
+        case .semicircle:
+            var outline = OutlineBuilder(Point(0, 0))
+            outline.line(Point(1, 0)); outline.arc(around: Point(0.5, 0), to: Point(0, 0))
+            return outline.closed
+        case .arch:
+            // A doorway: straight sides and a round top.
+            var outline = OutlineBuilder(Point(0, 0))
+            outline.line(Point(0.7, 0), Point(0.7, 0.65)); outline.arc(around: Point(0.35, 0.65), to: Point(0, 0.65))
+            return outline.closed
+        case .kite: return corners([(0.35, 0), (0.7, 0.62), (0.35, 1), (0, 0.62)])
+        case .capsule:
+            // A pill: a rectangle with half-round ends.
+            var outline = OutlineBuilder(Point(0.2, 0))
+            outline.line(Point(0.8, 0)); outline.arc(around: Point(0.8, 0.2), to: Point(0.8, 0.4))
+            outline.line(Point(0.2, 0.4)); outline.arc(around: Point(0.2, 0.2), to: Point(0.2, 0))
+            return outline.closed
+        // Badges & labels
+        case .pennant: return corners([(0, 0), (0.06, 0), (0.06, 0.12), (1, 0.32), (0.06, 0.52), (0.06, 0.6), (0, 0.6)])   // a flag on a short pole
+        case .plaque:
+            // A rectangle with a quarter circle scooped out of each corner (arcs round the corner, clockwise).
+            let r = 0.12, w = 1.0, h = 0.6
+            var outline = OutlineBuilder(Point(r, 0))
+            outline.line(Point(w - r, 0)); outline.arc(around: Point(w, 0), to: Point(w, r), clockwise: true)
+            outline.line(Point(w, h - r)); outline.arc(around: Point(w, h), to: Point(w - r, h), clockwise: true)
+            outline.line(Point(r, h)); outline.arc(around: Point(0, h), to: Point(0, h - r), clockwise: true)
+            outline.line(Point(0, r)); outline.arc(around: Point(0, 0), to: Point(r, 0), clockwise: true)
+            return outline.closed
+        case .ticket:
+            // A rectangle with a half-round notch in the middle of each end.
+            let r = 0.1, w = 1.0, h = 0.5
+            var outline = OutlineBuilder(Point(0, 0))
+            outline.line(Point(w, 0), Point(w, h / 2 - r)); outline.arc(around: Point(w, h / 2), to: Point(w, h / 2 + r), clockwise: true)
+            outline.line(Point(w, h), Point(0, h), Point(0, h / 2 + r)); outline.arc(around: Point(0, h / 2), to: Point(0, h / 2 - r), clockwise: true)
+            return outline.closed
+        // Nature
+        case .butterfly:
+            // Four rounded wings, with points where they meet the body at the top, bottom and sides.
+            return smoothLoop([(0.5, 0.66), (0.4, 0.74), (0.1, 0.95), (0, 0.7), (0.22, 0.5), (0.08, 0.2), (0.3, 0.02), (0.45, 0.2), (0.5, 0.1),
+                               (0.55, 0.2), (0.7, 0.02), (0.92, 0.2), (0.78, 0.5), (1, 0.7), (0.9, 0.95), (0.6, 0.74)], corners: [0, 4, 8, 12])
+        case .mushroom:
+            return smoothLoop([(0.38, 0), (0.62, 0), (0.6, 0.4), (0.95, 0.4), (0.82, 0.75), (0.5, 0.88), (0.18, 0.75), (0.05, 0.4), (0.4, 0.4)],
+                              corners: [0, 1, 2, 3, 7, 8])
+        case .tulip:
+            // A cup with three points on a straight stem.
+            return smoothLoop([(0.45, 0), (0.55, 0), (0.55, 0.32), (0.78, 0.4), (0.92, 0.75), (0.95, 1), (0.72, 0.82), (0.5, 1.02), (0.28, 0.82),
+                               (0.05, 1), (0.08, 0.75), (0.22, 0.4), (0.45, 0.32)], corners: [0, 1, 2, 5, 7, 9, 12])
+        case .cactus:
+            // A round-topped trunk with an arm curving up on each side, the right one lower. Each arm goes out along
+            // its underside, up, and back down its inner side to the trunk.
+            return smoothLoop([(0.38, 0), (0.62, 0), (0.62, 0.24), (0.9, 0.28), (0.95, 0.7), (0.86, 0.72), (0.83, 0.38), (0.62, 0.35), (0.62, 0.92),
+                               (0.5, 1), (0.38, 0.92), (0.38, 0.6), (0.17, 0.62), (0.14, 0.86), (0.05, 0.84), (0.08, 0.55), (0.38, 0.5)],
+                              corners: [0, 1, 2, 7, 8, 10, 11, 16])
+        case .mountains: return corners([(0, 0), (1, 0), (0.8, 0.45), (0.68, 0.3), (0.45, 0.8), (0.3, 0.52), (0.2, 0.35)])
+        // Objects
+        case .house: return corners([(0.1, 0), (0.9, 0), (0.9, 0.55), (1, 0.55), (0.5, 1), (0, 0.55), (0.1, 0.55)])
+        case .crown: return corners([(0.08, 0), (0.92, 0), (1, 0.7), (0.74, 0.42), (0.5, 0.82), (0.26, 0.42), (0, 0.7)])
+        case .bell:
+            return smoothLoop([(0, 0.08), (1, 0.08), (0.84, 0.3), (0.78, 0.7), (0.56, 0.9), (0.56, 1), (0.44, 1), (0.44, 0.9), (0.22, 0.7), (0.16, 0.3)],
+                              corners: [0, 1, 4, 5, 6, 7])
+        case .balloon:
+            // A round balloon with a small knot at the bottom.
+            return smoothLoop([(0.44, 0.02), (0.56, 0.02), (0.52, 0.12), (0.78, 0.3), (0.9, 0.62), (0.72, 0.92), (0.5, 0.98), (0.28, 0.92), (0.1, 0.62),
+                               (0.22, 0.3), (0.48, 0.12)], corners: [0, 1, 2, 10])
+        case .tShirt:
+            return corners([(0.2, 0), (0.8, 0), (0.8, 0.55), (0.92, 0.48), (1, 0.7), (0.72, 0.9), (0.62, 0.9), (0.5, 0.8), (0.38, 0.9), (0.28, 0.9), (0, 0.7),
+                            (0.08, 0.48), (0.2, 0.55)])
+        case .cupcake:
+            // A straight-sided cake with a round frosting top that overhangs it a little.
+            return smoothLoop([(0.22, 0), (0.78, 0), (0.88, 0.45), (0.98, 0.52), (0.82, 0.78), (0.5, 0.95), (0.18, 0.78), (0.02, 0.52), (0.12, 0.45)],
+                              corners: [0, 1, 2, 8])
+        case .lightBulb:
+            return smoothLoop([(0.38, 0), (0.62, 0), (0.62, 0.2), (0.66, 0.34), (0.86, 0.58), (0.84, 0.84), (0.5, 1), (0.16, 0.84), (0.14, 0.58),
+                               (0.34, 0.34), (0.38, 0.2)], corners: [0, 1, 2, 10])
+        case .iceCream:
+            // A pointed cone with a round scoop on top.
+            return smoothLoop([(0.5, 0), (0.78, 0.5), (0.95, 0.62), (0.78, 0.92), (0.5, 1), (0.22, 0.92), (0.05, 0.62), (0.22, 0.5)], corners: [0, 1, 7])
         case .rectangle, .ellipse, .polygon, .star, .heart, .arrow, .ring, .squareFrame, .roundedFrame, .scallopFrame: return []
         }
     }

@@ -77,7 +77,7 @@ A line of stitches along your path. Set **Stitch length** in Properties.
 | **Back stitch** | Each stitch goes forward two lengths and back one: a solid, hand-sewn line | **Stitch length** |
 | **Stem stitch** | Like back stitch, with each stitch slanting across the line: a twisted rope | **Width** (1 mm), **Stitch length** |
 | **Motif** | A small pattern repeated along the line, joined by short runs: 22 built in, from hearts, leaves, stars and scallops to flowers, tulips, snowflakes, suns, clouds, bows, birds, loops, waves, pine trees and houses (projects using one of the 16 added in this version need this version of OpenHoop or later). Each motif bends with the line | **Motif**, **Motif size** (4 mm), **Gap** (1 mm) |
-| **Ripple** | The line sewn again and again, each copy the same shape but smaller, shrinking toward a **Target** dot (drag it on the canvas; **Reset target** puts it back). A closed shape spirals in, in one unbroken line; an open line is sewn there and back, each copy smaller. The target starts in the middle of a closed shape, and to one side of a straight or wavy open line | **Lines** (10, from 2 to 50), **Stitch length** |
+| **Ripple** | The line sewn again and again, each copy the same shape but smaller, shrinking toward a **Target** dot (with **Edit nodes** or the Start & End tool, drag it on the canvas; **Reset target** puts it back). A closed shape spirals in, in one unbroken line; an open line is sewn there and back, each copy smaller. The target starts in the middle of a closed shape, and to one side of a straight or wavy open line | **Lines** (10, from 2 to 50), **Stitch length** |
 
 Projects using line styles, the stipple, motif, cross stitch, gradient or guided fills, lettering on a line, or raised satin are saved as file version 6, which versions of OpenHoop before these stitches refuse to open rather than sewing them as plain stitches.
 
@@ -104,7 +104,7 @@ Trace a closed outline and press Return. Settings: **Row spacing**, **Stitch len
 | --- | --- |
 | **Tatami** | Straight rows (the default) |
 | **Contour** | Rings following the outline inward, sewn as a few long spirals |
-| **Radial** | Stitches fanning out from a center point; drag the **Center** dot on the canvas to move it |
+| **Radial** | Stitches fanning out from a center point; with **Edit nodes** or the Start & End tool, drag the **Center** dot on the canvas to move it |
 | **Wave** | Rows that ripple, with a wave height and length |
 | **Stipple** | One wandering line that loops through the whole shape and never crosses itself: the quilting look, or a light background. **Stipple spacing** (4 mm) sets how far apart its passes are; it sews without underlay, in stitches of 2 mm at most so its curves stay round |
 | **Motif** | Rows of whole motifs (hearts, leaves, stars…) across the shape at the fill angle, every other row shifted half a motif. **Motif**, **Motif size** (5 mm) and **Gap** (1.5 mm); no underlay |
@@ -144,7 +144,7 @@ Pick a stitch first, then draw. The **Shape** group in the tool strip holds them
 | **Freehand Closed Shape (⌥⇧S)** | The same, and the outline closes itself when you let go | The Closed Shape stitches |
 | **Rectangle (⌥R)** | Drag corner to corner; set **Corners** for rounded ones | The Closed Shape stitch |
 | **Ellipse (⌥J)** | Drag out from the center | The Closed Shape stitch |
-| **Basic Shapes (⌥B)** | Click one of 35 shape pictures in five groups (Geometric, Badges & labels, Nature, Objects, Frames), then drag. Polygon has 3–12 sides, Star 4–12 points, shallow to deep. Frames (ring, square, rounded, scalloped) leave the middle open; **Band** sets how wide they are (1–20 mm), and an outline goes round both edges. Turn on **Open middle** to make any other shape a frame too: its middle is cut out the Band width in from the edge all round | The Closed Shape stitch |
+| **Basic Shapes (⌥B)** | Click one of 55 shape pictures in five groups (Geometric, Badges & labels, Nature, Objects, Frames), then drag. Polygon has 3–12 sides, Star 4–12 points, shallow to deep. Frames (ring, square, rounded, scalloped) leave the middle open; **Band** sets how wide they are (1–20 mm), and an outline goes round both edges. Turn on **Open middle** to make any other shape a frame too: its middle is cut out the Band width in from the edge all round | The Closed Shape stitch |
 
 With both a fill and an outline, the shape becomes two objects, grouped so they move together: the fill, then the outline sewn on top of its edge (a satin outline is centered on the edge, like a satin border). When you pick a shape tool, the status line says what the next shape will get.
 

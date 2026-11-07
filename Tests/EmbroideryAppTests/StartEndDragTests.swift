@@ -43,4 +43,32 @@ final class StartEndDragTests: XCTestCase {
             XCTAssertEqual(document.state.design.objects[0].exit, Point(24, 24), "\(tool): one Undo puts the end back")
         }
     }
+
+    /// A radial fill's Center marker follows the same rule: with Select it doesn't show, so a drag from it moves the
+    /// whole shape; with Edit Nodes or the Start & End tool, dragging it moves the center and nothing else.
+    @MainActor func testCenterMarkerDragsOnlyWhereItShows() {
+        _ = NSApplication.shared
+        for tool in [Tool.select, .node, .entryExit] {
+            let document = DesignDocument(), state = document.state
+            let canvas = DesignCanvas(state: state); canvas.frame = NSRect(x: 0, y: 0, width: 600, height: 600); state.canvas = canvas
+            state.snap = false
+            var square = RunObject(name: "Square", nodes: [Point(0, 0), Point(30, 0), Point(30, 30), Point(0, 30)].map { PathNode($0) })
+            square.closed = true; square.digitizing = DigitizingSettings(kind: .fill)
+            square.digitizing?.fillStyle = .radial; square.digitizing?.radialCenter = Point(12, 18)
+            state.edit("Add") { $0.objects = [square] }
+            state.selection = [square.id]; state.tool = tool
+            for (type, p) in [(NSEvent.EventType.leftMouseDown, Point(12, 18)), (.leftMouseDragged, Point(16, 22)), (.leftMouseUp, Point(16, 22))] {
+                let event = NSEvent.mouseEvent(with: type, location: canvas.screen(p), modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+                switch type { case .leftMouseDown: canvas.mouseDown(with: event); case .leftMouseDragged: canvas.mouseDragged(with: event); default: canvas.mouseUp(with: event) }
+            }
+            let moved = state.design.objects[0]
+            if DesignCanvas.showsEnds(tool) {
+                XCTAssertEqual(moved.digitizing?.radialCenter?.x ?? 0, 16, accuracy: 0.01, "\(tool): the center follows the drag")
+                XCTAssertEqual(moved.digitizing?.radialCenter?.y ?? 0, 22, accuracy: 0.01, "\(tool)")
+                XCTAssertEqual(moved.nodes.map(\.point), square.nodes.map(\.point), "\(tool): the shape itself doesn't move")
+            } else {
+                XCTAssertEqual(moved.nodes.map(\.point), square.nodes.map { $0.point + Point(4, 4) }, "\(tool): the whole shape moves")
+            }
+        }
+    }
 }
