@@ -199,13 +199,15 @@ final class FontSVGReader: NSObject, XMLParserDelegate {
     /// Millimeters per SVG user unit (the font's spacing and kerning are in these units).
     var unit: Double { root.a }
     private var baseline: Double?                     // SVG units, y pointing down
-    private var stack: [(matrix: SVGMatrix, glyph: String?, skip: Bool)] = []
+    /// One entry per open element: its transform, the glyph it's in, whether it's skipped, and the fill and stroke it
+    /// passes down to the elements inside it (SVG styles are inherited unless an element sets its own).
+    private var stack: [(matrix: SVGMatrix, glyph: String?, skip: Bool, paint: [String: String])] = []
     private var raw: [String: [(subpaths: [SVGSubpath], attributes: [String: String])]] = [:]
     private var order: [String] = []
 
     func parser(_ parser: XMLParser, didStartElement name: String, namespaceURI: String?, qualifiedName: String?, attributes a: [String: String]) {
         do {
-            var context = stack.last ?? (SVGMatrix(), nil, false)
+            var context = stack.last ?? (SVGMatrix(), nil, false, [:])
             if stack.isEmpty {
                 guard name == "svg" else { throw DesignError.invalid("This isn't an SVG file.") }
                 root = try SVGReader().viewport(a)
@@ -222,6 +224,8 @@ final class FontSVGReader: NSObject, XMLParserDelegate {
             }
             if ["defs", "symbol", "metadata", "namedview", "use", "text", "image", "clipPath", "mask"].contains(name) { context.skip = true }
             if let transform = a["transform"] { context.matrix = context.matrix.joined(try SVGReader.transform(transform)) }
+            let own = Self.paint(a)
+            context.paint.merge(own) { _, mine in mine }
             if name == "g", let label = a["inkscape:label"], label.hasPrefix("GlyphLayer-") {
                 let glyph = String(label.dropFirst("GlyphLayer-".count))
                 context.glyph = glyph
@@ -232,7 +236,11 @@ final class FontSVGReader: NSObject, XMLParserDelegate {
             guard !context.skip, let glyph = context.glyph, ["path", "rect", "circle", "ellipse", "line", "polyline", "polygon"].contains(name),
                   a["inkscape:connection-end"] == nil else { return }
             let subpaths = try SVGReader().geometry(name, a, matrix: context.matrix)
-            if !subpaths.isEmpty { raw[glyph]?.append((subpaths, a)) }
+            // A path that doesn't set its own fill or stroke takes its group's: a layer marked "no fill" holds
+            // running-stitch lines, not fills.
+            var attributes = a
+            for (key, value) in context.paint where own[key] == nil { attributes[key] = value }
+            if !subpaths.isEmpty { raw[glyph]?.append((subpaths, attributes)) }
         } catch { failure = error; parser.abortParsing() }
     }
     func parser(_ parser: XMLParser, didEndElement name: String, namespaceURI: String?, qualifiedName: String?) { if !stack.isEmpty { stack.removeLast() } }
@@ -255,6 +263,18 @@ final class FontSVGReader: NSObject, XMLParserDelegate {
             result[glyph] = FontGlyph(elements: elements, minX: minX, width: maxX - minX)
         }
         return result
+    }
+
+    /// The fill and stroke an element sets itself, in its style attribute or as attributes of their own (the style
+    /// wins). "inherit" counts as not set.
+    static func paint(_ a: [String: String]) -> [String: String] {
+        var paint: [String: String] = [:]
+        for key in ["fill", "stroke"] { if let value = a[key] { paint[key] = value } }
+        for entry in (a["style"] ?? "").split(separator: ";") {
+            let parts = entry.split(separator: ":", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+            if parts.count == 2, ["fill", "stroke"].contains(parts[0]) { paint[parts[0]] = parts[1] }
+        }
+        return paint.filter { $0.value != "inherit" }
     }
 
     /// Turns one SVG element into stitched parts: a satin column, running stitches along a stroke, or a fill.
