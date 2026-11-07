@@ -20,6 +20,8 @@ struct ToolStrip: View {
     /// across the top.
     var rail = false
     @ObservedObject var preferences = Preferences.shared
+    /// The tools whose buttons have more choices on right-click, marked with a short arc in the corner.
+    static let hasMenu: Set<CommandID> = [.showUnderlay]
     /// The tools in their captioned groups, in their built-in order. View › Customize Tools… can rearrange them
     /// (`Preferences.toolArrangement`).
     static let proGroups: [(title: String, commands: [CommandID])] = [
@@ -175,8 +177,14 @@ struct ToolStrip: View {
                 .frame(width: 30, height: 30)
                 .background(active ? Theme.accent : Color.clear, in: RoundedRectangle(cornerRadius: 6))
                 .foregroundStyle(active ? Theme.onAccent : Theme.toolBandInk)
-                // A dot marks the underlay-only views, so they look different from plain "shown".
-                .overlay(alignment: .bottomTrailing) {
+                // A short arc along the bottom-right corner marks a tool with more choices on right-click.
+                .overlay {
+                    if Self.hasMenu.contains(command) {
+                        MenuCornerArc().stroke(active ? Theme.onAccent : Theme.toolBandInk, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                    }
+                }
+                // A dot in the top-right corner marks the underlay-only views, so they look different from plain "shown".
+                .overlay(alignment: .topTrailing) {
                     if command == .showUnderlay && [.onlyAll, .onlySelected].contains(state.underlayView) {
                         Circle().fill(Theme.onAccent).frame(width: 5, height: 5).padding(3)
                     }
@@ -1258,5 +1266,18 @@ struct ShortcutSettings: View {
             do { let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]; try encoder.encode(Preferences.ProfileFile(profile: preferences.profile)).write(to: url, options: .atomic) }
             catch { preferences.error = error.localizedDescription }
         }
+    }
+}
+
+/// The mark for a tool button with more choices on right-click: a quarter circle along the button's rounded
+/// bottom-right corner (6 pt radius, as the button's), 2.5 pt in from its edges.
+struct MenuCornerArc: Shape {
+    func path(in rect: CGRect) -> Path {
+        let radius = 6.0, inset = 2.5
+        var path = Path()
+        // SwiftUI's angles turn clockwise from the right, since y points down: 0° to 90° is the bottom-right quarter.
+        path.addArc(center: CGPoint(x: rect.maxX - inset - radius, y: rect.maxY - inset - radius), radius: radius,
+                    startAngle: .degrees(0), endAngle: .degrees(90), clockwise: false)
+        return path
     }
 }
