@@ -55,4 +55,21 @@ final class TatamiPatternTests: XCTestCase {
         design.objects[0].digitizing?.tatamiPattern = "no such pattern"
         XCTAssertThrowsError(try design.validate())
     }
+
+    /// The 18 patterns added in file version 20 mark a design as needing it; the first 26 don't.
+    func testNewerPatternsNeedFileVersionTwenty() throws {
+        XCTAssertEqual(TatamiPattern.library.count, 44)
+        XCTAssertEqual(TatamiPattern.addedInVersionTwenty.count, 18)
+        XCTAssertEqual(Set(TatamiPattern.library.suffix(18).map(\.id)), TatamiPattern.addedInVersionTwenty, "the new ones come last in the menu")
+        var fill = RunObject(name: "Fill", nodes: square.map { PathNode($0) })
+        fill.closed = true; fill.digitizing = DigitizingSettings(kind: .fill)
+        var design = Design(); design.objects = [fill]
+        for pattern in TatamiPattern.library {
+            design.objects[0].digitizing?.tatamiPattern = pattern.id
+            XCTAssertEqual(design.needsSchemaTwenty, TatamiPattern.addedInVersionTwenty.contains(pattern.id), pattern.name)
+        }
+        design.objects[0].digitizing?.tatamiPattern = "woodGrain"
+        design.schemaVersion = 20
+        XCTAssertNoThrow(try design.validate())
+    }
 }

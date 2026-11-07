@@ -48,6 +48,33 @@ final class MonogramTests: XCTestCase {
         for border in MonogramBorder.allCases { XCTAssertNoThrow(try spec(.bigMiddle, border: border, height: 10).build(color: ThreadColor.palette[0], embroideryFonts: fonts), "\(border)") }
     }
 
+    /// Every ornament sews (each part has stitches, even the smallest star at a 24 mm monogram), comes in a
+    /// mirrored pair, and counts as an ornament part when the monogram is rebuilt; every border goes round the
+    /// whole monogram and sews. The ornaments and borders added in file version 20 mark the design as needing it.
+    func testEveryOrnamentAndBorderSews() throws {
+        for ornament in MonogramOrnament.allCases where ornament != .none {
+            let made = try spec(.bigMiddle, ornament: ornament).build(color: ThreadColor.palette[0], embroideryFonts: fonts).objects
+            let parts = made.filter { MonogramOrnament.partNames.contains($0.name) }
+            XCTAssertFalse(parts.isEmpty, "\(ornament) has parts")
+            XCTAssertEqual(parts.count % 2, 0, "\(ornament): one set each side")
+            for part in parts {
+                var one = Design(); one.objects = [part]
+                XCTAssertGreaterThan(try StitchEngine.compile(one).stitchCount, 3, "\(ornament): \(part.name) sews")
+            }
+            var design = Design(); design.objects = made
+            XCTAssertEqual(design.needsSchemaTwenty, MonogramOrnament.addedInVersionTwenty.contains(ornament), "\(ornament)")
+        }
+        for border in MonogramBorder.allCases where border != .none {
+            let made = try spec(.bigMiddle, border: border, height: 10).build(color: ThreadColor.palette[0], embroideryFonts: fonts).objects
+            let edge = try XCTUnwrap(made.last); XCTAssertEqual(edge.name, "Monogram border", "\(border)")
+            let inner = box(Array(made.dropLast())), outer = box([edge])
+            XCTAssertTrue(outer.min.x < inner.min.x && outer.min.y < inner.min.y && outer.max.x > inner.max.x && outer.max.y > inner.max.y, "\(border) goes round it")
+            var design = Design(); design.objects = made
+            XCTAssertGreaterThan(try StitchEngine.compile(design).stitchCount, 50, "\(border) sews")
+            XCTAssertEqual(design.needsSchemaTwenty, MonogramBorder.addedInVersionTwenty.contains(border), "\(border)")
+        }
+    }
+
     func testRebuildingKeepsItsPlaceAndPosition() throws {
         var design = Design()
         let first = try spec(.sideBySide).build(color: ThreadColor.palette[0], embroideryFonts: fonts).objects
