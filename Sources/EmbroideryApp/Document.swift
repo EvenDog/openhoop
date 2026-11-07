@@ -1133,7 +1133,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         // Copies along a line are new objects when built again too, so a selected set stays selected by its id.
         let selectedRepeats = Set(updated.objects.filter { state.selection.contains($0.id) }.compactMap { $0.repeatCopy?.id ?? $0.lineRepeat?.id })
         let guideProblems = updated.syncGuides(embroideryFonts: EmbroideryFontLibrary.fonts)
-        if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaNineteen ? 19:updated.needsSchemaEighteen ? 18:updated.needsSchemaSeventeen ? 17:updated.needsSchemaSixteen ? 16:updated.needsSchemaFifteen ? 15:updated.needsSchemaFourteen ? 14:updated.needsSchemaThirteen ? 13:updated.needsSchemaTwelve ? 12:updated.needsSchemaEleven ? 11:updated.needsSchemaTen ? 10:updated.needsSchemaNine ? 9:updated.needsSchemaEight ? 8:updated.needsSchemaSeven ? 7:updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
+        if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaTwenty ? 20:updated.needsSchemaNineteen ? 19:updated.needsSchemaEighteen ? 18:updated.needsSchemaSeventeen ? 17:updated.needsSchemaSixteen ? 16:updated.needsSchemaFifteen ? 15:updated.needsSchemaFourteen ? 14:updated.needsSchemaThirteen ? 13:updated.needsSchemaTwelve ? 12:updated.needsSchemaEleven ? 11:updated.needsSchemaTen ? 10:updated.needsSchemaNine ? 9:updated.needsSchemaEight ? 8:updated.needsSchemaSeven ? 7:updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
         // The same check Save makes, before anything is recorded.
         do { try updated.validate() } catch {
             state.status = "\(action) can't be done: \(error.localizedDescription) Nothing was changed."
