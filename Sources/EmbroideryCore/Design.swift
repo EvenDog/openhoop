@@ -342,9 +342,15 @@ public enum FillStyle: String, Codable, CaseIterable, Sendable {
 /// (RunningStyles.swift).
 public enum RunStyle: String, Codable, CaseIterable, Sendable {
     case running, zigzag, blanket, backStitch, stemStitch, motif, ripple
+    // Added in file version 21 (see addedInVersionTwentyOne).
+    case chain, feather, crossStitch, herringbone, ladder, candlewick
     public var title: String {
-        switch self { case .running: return "Running"; case .zigzag: return "Zigzag"; case .blanket: return "Blanket"; case .backStitch: return "Back stitch"; case .stemStitch: return "Stem stitch"; case .motif: return "Motif"; case .ripple: return "Ripple" }
+        switch self { case .running: return "Running"; case .zigzag: return "Zigzag"; case .blanket: return "Blanket"; case .backStitch: return "Back stitch"; case .stemStitch: return "Stem stitch"; case .motif: return "Motif"; case .ripple: return "Ripple"
+        case .chain: return "Chain"; case .feather: return "Feather"; case .crossStitch: return "Cross stitch"; case .herringbone: return "Herringbone"; case .ladder: return "Ladder"; case .candlewick: return "Candlewick" }
     }
+    /// The styles added in file version 21: a design with a line in one is saved as version 21, so older versions of
+    /// the app, which can't read these names, refuse it instead.
+    public static let addedInVersionTwentyOne: Set<RunStyle> = [.chain, .feather, .crossStitch, .herringbone, .ladder, .candlewick]
     public var summary: String {
         switch self {
         case .running: return "Plain running stitch along the line."
@@ -354,15 +360,22 @@ public enum RunStyle: String, Codable, CaseIterable, Sendable {
         case .stemStitch: return "Like back stitch, but each stitch slants across the line, for a twisted rope look."
         case .motif: return "A small pattern (hearts, leaves, stars…) repeated along the line, joined by short runs."
         case .ripple: return "The line sewn again and again, each copy smaller and closer to a target point, like ripples on water: a closed shape spirals in, an open line fans out back and forth. Drag the Target dot to move where they shrink to."
+        case .chain: return "Small loops one after another, each starting inside the last, like hand chain stitch."
+        case .feather: return "A stem that bends a little from side to side, with an arm reaching forward and out at each bend, like hand feather stitch."
+        case .crossStitch: return "A row of little X's: a zigzag out along the line, and the opposite zigzag back."
+        case .herringbone: return "Slanted stitches from side to side, each crossing the last near the edge, like a woven braid."
+        case .ladder: return "Two rails along the line with rungs across, sewn out along one rail and back along the other."
+        case .candlewick: return "Little knots joined by a running line, like hand candlewicking. Each knot is a few tiny stitches in one spot."
         }
     }
     /// True for styles with a width across the line (and, for zigzag, blanket and motif, a spacing along it). For a
     /// motif they're its size and the gap between motifs.
-    public var hasWidth: Bool { self == .zigzag || self == .blanket || self == .stemStitch || self == .motif }
-    public var hasSpacing: Bool { self == .zigzag || self == .blanket || self == .motif }
+    public var hasWidth: Bool { self == .zigzag || self == .blanket || self == .stemStitch || self == .motif || Self.addedInVersionTwentyOne.contains(self) }
+    public var hasSpacing: Bool { self == .zigzag || self == .blanket || self == .motif || Self.addedInVersionTwentyOne.contains(self) }
     /// False for zigzag, whose stitches are set by its width and spacing alone (each one swings from one side to the
     /// other), so Properties doesn't offer a stitch length that would change nothing.
-    public var usesStitchLength: Bool { self != .zigzag }
+    /// Candlewick's running line between knots uses it too; the other newer styles are set by width and spacing.
+    public var usesStitchLength: Bool { ![.zigzag, .chain, .feather, .crossStitch, .herringbone, .ladder].contains(self) }
 }
 /// The small patterns motif runs and motif fills repeat (Motifs.swift draws them).
 public enum Motif: String, Codable, CaseIterable, Sendable {
@@ -532,8 +545,28 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     public var runWidth:Double?
     public var runSpacing:Double?
     /// Each line style's starting width and spacing (mm), and the sizes Properties offers and project files may hold.
-    public static func defaultRunWidth(_ style:RunStyle)->Double {style == .blanket ? 2.5 : style == .stemStitch ? 1 : style == .motif ? 4 : 2}
-    public static func defaultRunSpacing(_ style:RunStyle)->Double {style == .blanket ? 3 : style == .motif ? 1 : 1.5}
+    public static func defaultRunWidth(_ style:RunStyle)->Double {
+        switch style {
+        case .blanket:return 2.5
+        case .stemStitch:return 1
+        case .motif:return 4
+        case .feather:return 4
+        case .crossStitch:return 2.5
+        case .herringbone,.ladder:return 3
+        case .candlewick:return 1.2
+        default:return 2
+        }
+    }
+    public static func defaultRunSpacing(_ style:RunStyle)->Double {
+        switch style {
+        case .blanket,.herringbone:return 3
+        case .motif:return 1
+        case .chain:return 3.5
+        case .feather,.crossStitch,.ladder:return 2.5
+        case .candlewick:return 5
+        default:return 1.5
+        }
+    }
     /// Motif runs and motif fills: which pattern (nil means hearts).
     public var motif:Motif?
     /// Motif runs and motif fills: a motif of the user's own, used instead of `motif`. nil means a built-in one.
@@ -797,10 +830,11 @@ public struct Design: Codable, Equatable, Sendable {
             || $0.digitizing?.motif.map(Motif.addedInVersionTwenty.contains) == true
             || $0.monogram.map { MonogramOrnament.addedInVersionTwenty.contains($0.ornament) || MonogramBorder.addedInVersionTwenty.contains($0.border) } == true }
     }
-    /// Schema 21 marks projects with a tatami fill on a picture pattern (Diamonds, Hearts…), so older versions, which
-    /// don't know those names, refuse them instead.
+    /// Schema 21 marks projects with a tatami fill on a picture pattern (Diamonds, Hearts…) or a line in one of the
+    /// line styles added then (Chain, Feather…), so older versions, which don't know those names, refuse them instead.
     public var needsSchemaTwentyOne: Bool {
-        objects.contains { $0.kind == .fill && $0.settings.tatamiPattern.map(TatamiPattern.addedInVersionTwentyOne.contains) == true }
+        objects.contains { ($0.kind == .fill && $0.settings.tatamiPattern.map(TatamiPattern.addedInVersionTwentyOne.contains) == true)
+            || ($0.kind == .run && $0.settings.runStyle.map(RunStyle.addedInVersionTwentyOne.contains) == true) }
     }
     /// Schema 18 marks projects with fills on double tatami or zigzag underlay, so older versions (which don't sew
     /// those on fills) refuse them instead.

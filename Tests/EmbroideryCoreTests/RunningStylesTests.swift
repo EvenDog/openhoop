@@ -24,7 +24,8 @@ final class RunningStylesTests: XCTestCase {
         var longer = line(.zigzag, width: 2, spacing: 1.5); longer.stitchLength = 6
         XCTAssertEqual(try stitches(longer), points)
         XCTAssertFalse(RunStyle.zigzag.usesStitchLength)
-        XCTAssertTrue(RunStyle.allCases.filter { $0 != .zigzag }.allSatisfy(\.usesStitchLength))
+        XCTAssertEqual(Set(RunStyle.allCases.filter { !$0.usesStitchLength }), [.zigzag, .chain, .feather, .crossStitch, .herringbone, .ladder],
+                       "the styles set by width and spacing alone")
     }
 
     func testBlanketProngsPointIntoAClosedShape() throws {
