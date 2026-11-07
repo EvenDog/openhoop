@@ -13,21 +13,26 @@ public enum BasicShape: String, Codable, CaseIterable, Sendable {
     case teardrop, moon, cloud, leaf, flower, pineTree, lightning, sun
     case apple, fish, bone, egg
     case ring, squareFrame, roundedFrame, scallopFrame
+    case semicircle, arch, kite, capsule, pennant, plaque, ticket
+    case butterfly, mushroom, tulip, cactus, mountains
+    case house, crown, bell, balloon, tShirt, cupcake, lightBulb, iceCream
     public var title: String {
         switch self {
         case .rightTriangle: return "Right triangle"; case .roundedSquare: return "Rounded square"; case .doubleArrow: return "Double arrow"
         case .scallop: return "Scalloped badge"; case .speechBubble: return "Speech bubble"; case .pineTree: return "Pine tree"
         case .lightning: return "Lightning bolt"; case .squareFrame: return "Square frame"; case .roundedFrame: return "Rounded frame"
         case .scallopFrame: return "Scalloped frame"
+        case .tShirt: return "T-shirt"; case .lightBulb: return "Light bulb"; case .iceCream: return "Ice cream"
         default: return rawValue.capitalized
         }
     }
     /// The Basic Shapes tool's picture grid: its shapes in groups, in order.
     public static let groups: [(title: String, shapes: [BasicShape])] = [
-        ("Geometric", [.polygon, .star, .triangle, .rightTriangle, .diamond, .parallelogram, .trapezoid, .roundedSquare, .cross, .chevron, .arrow, .doubleArrow]),
-        ("Badges & labels", [.shield, .scallop, .starburst, .banner, .tag, .speechBubble]),
-        ("Nature", [.teardrop, .moon, .cloud, .leaf, .flower, .pineTree, .lightning, .sun]),
-        ("Objects", [.heart, .apple, .fish, .bone, .egg]),
+        ("Geometric", [.polygon, .star, .triangle, .rightTriangle, .diamond, .parallelogram, .trapezoid, .roundedSquare, .cross, .chevron, .arrow, .doubleArrow,
+                       .semicircle, .arch, .kite, .capsule]),
+        ("Badges & labels", [.shield, .scallop, .starburst, .banner, .tag, .speechBubble, .pennant, .plaque, .ticket]),
+        ("Nature", [.teardrop, .moon, .cloud, .leaf, .flower, .pineTree, .lightning, .sun, .butterfly, .mushroom, .tulip, .cactus, .mountains]),
+        ("Objects", [.heart, .apple, .fish, .bone, .egg, .house, .crown, .bell, .balloon, .tShirt, .cupcake, .lightBulb, .iceCream]),
         ("Frames", [.ring, .squareFrame, .roundedFrame, .scallopFrame])
     ]
     /// True for the frames: shapes with an open middle (a hole), so only a band round the edge is sewn.
