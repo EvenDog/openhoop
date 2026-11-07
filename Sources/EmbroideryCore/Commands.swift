@@ -16,6 +16,8 @@ public struct KeyBinding: Codable, Hashable, Sendable {
 
 public enum CommandID: String, Codable, CaseIterable, Sendable {
     case new, open, save, saveAs, close, importImage, importSVG, importMachine, exportMachine, exportThreadList, productionWorksheet, sample, stitchSampler, settings
+    // The ids are saved in preferences (shortcuts, the tool band), so they never change: breakApartLettering is
+    // the Break Apart command, which now splits more than lettering.
     case selectTool, artworkTool, runTool, satinTool, fillTool, holeTool, removeHoles, nodeTool, panTool, entryExitTool, autoStartPoints, clearStartEnd, lettering, editLettering, autoDigitize, satinBorder, colorBlend, outlinesOffsets, applique, done, finishPath, cancelPath, removePoint, insertNode, deleteNode, toggleNodeType, breakApartLettering, densityMap, testSwatches, useAsFillGuide, putLetteringOnLine, renameObject, convertFill, convertRun, convertSatin, recognizeObjects, toggleUnderlay, showUnderlay, focusSpacing, focusAngle
     case openShapeTool, closedShapeTool, freehandOpenTool, freehandClosedTool, rectangleTool, ellipseTool, basicShapeTool, knifeTool, weldObjects, removeOverlaps, smoothShapes, laydown, wreath, repeatAlongLine, scatter, branching, addStitchAngles, removeStitchAngles, editStitches, addMonogram, editMonogram
     case undo, redo, delete, selectAll, sequenceBySelection, sequenceByColor, alignLeft, alignCentersVertically, alignRight, alignTop, alignCentersHorizontally, alignBottom, alignCenters, spaceAcross, spaceDown, duplicate, mirrorH, mirrorV, rotateLeft, rotateRight, earlier, later, closePath, lockObject, hideObject, tieIn, tieOut, trimAfter, stopAfter, group, ungroup, threadChart, cutObjects, copyObjects, pasteObjects, createMotif
@@ -34,7 +36,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .stitchSampler:return "Open Satin + Fill Sampler"
         case .removeHoles:return "Remove All Fill Holes"
         case .satinTool:return "Satin Column";case .fillTool:return "Tatami Fill";case .holeTool:return "Add Fill Hole"
-        case .insertNode:return "Insert Node at Pointer";case .deleteNode:return "Delete Selected Node";case .toggleNodeType:return "Corner / Smooth Point";case .breakApartLettering:return "Break Apart Lettering";case .densityMap:return "Density Map";case .testSwatches:return "Make Test Swatches…";case .useAsFillGuide:return "Use Line as Fill Guide";case .putLetteringOnLine:return "Put Lettering on Line"
+        case .insertNode:return "Insert Node at Pointer";case .deleteNode:return "Delete Selected Node";case .toggleNodeType:return "Corner / Smooth Point";case .breakApartLettering:return "Break Apart";case .densityMap:return "Density Map";case .testSwatches:return "Make Test Swatches…";case .useAsFillGuide:return "Use Line as Fill Guide";case .putLetteringOnLine:return "Put Lettering on Line"
         case .renameObject:return "Rename Object…";case .convertFill:return "Convert to Tatami Fill";case .convertRun:return "Convert to Running Stitch";case .convertSatin:return "Make Satin Column from Line";case .recognizeObjects:return "Recognize Objects"
         case .toggleUnderlay:return "Toggle Underlay";case .showUnderlay:return "Show Underlay Stitches";case .focusSpacing:return "Focus Row Spacing";case .focusAngle:return "Focus Fill Angle"
         case .new: return "New Design"; case .open: return "Open Project…"; case .save: return "Save"; case .saveAs: return "Save As…"
@@ -118,7 +120,7 @@ public enum CommandID: String, Codable, CaseIterable, Sendable {
         case .insertNode: return "Add a point to the selected outline, under the pointer."
         case .deleteNode: return "Remove the selected point from the outline."
         case .toggleNodeType: return "Switch the selected point between a sharp corner and a smooth curve."
-        case .breakApartLettering: return "Turn the selected lettering into separate shapes you can reshape one by one. Its text can't be edited any more."
+        case .breakApartLettering: return "Split lettering, monograms and copies along a line into separate shapes, and give each hole of a fill a fill of its own."
         case .densityMap: return "Mark where the stitching is heavy (yellow) or too dense (red), before you sew."
         case .testSwatches: return "Make a design of copies of the selected object with one setting stepped, to sew and compare on the fabric."
         case .useAsFillGuide: return "Turn the selected line into a guide for the selected fill: the fill's rows bend to follow it."
