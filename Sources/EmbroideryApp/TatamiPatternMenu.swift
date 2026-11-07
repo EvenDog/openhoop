@@ -13,13 +13,17 @@ struct TatamiPatternThumbnail: View {
         // Canvas draws with code, like the main canvas does, instead of laying out views.
         Canvas { context, size in
             let rowGap = 1.7, stitch = 11.0, hole = 1.1
+            // A stitch here stands for a 3 mm one, so a picture's shapes are drawn at their starting size to match.
+            let pictureSize = pattern.picture.map { $0.defaultSize / 3 * stitch }
             var path = Path()
             for row in 0...Int(size.height / rowGap) {
                 let y = (Double(row) + 0.5) * rowGap
-                var x = (pattern.offset(row: row) - 1) * stitch   // the hole just left of the picture
-                while x < size.width {
-                    path.move(to: CGPoint(x: x + hole / 2, y: y)); path.addLine(to: CGPoint(x: x + stitch - hole / 2, y: y))
-                    x += stitch
+                // The row runs from a stitch before the picture to a stitch after it; pictures count heights upward.
+                let lo = -stitch, hi = size.width + stitch
+                var previous = lo
+                for x in pattern.holes(row: row, y: size.height - y, from: lo, to: hi, length: stitch, size: pictureSize) + [hi] {
+                    path.move(to: CGPoint(x: previous + hole / 2, y: y)); path.addLine(to: CGPoint(x: x - hole / 2, y: y))
+                    previous = x
                 }
             }
             let thread = color.nsColor, shade = thread.blended(withFraction: 0.15, of: .black) ?? thread

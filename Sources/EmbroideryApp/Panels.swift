@@ -754,6 +754,9 @@ struct InspectorPanel: View {
                     .frame(width: 120)
             }
             .help("Where each row's needle holes go. The lines of holes make a texture in the fill: zigzags, waves, blocks. \(pattern.name): \(pattern.tagline)")
+            if let picture = pattern.picture {
+                number("Shape size", value: s.patternSize ?? picture.defaultSize, range: DigitizingSettings.patternSizeRange, help: "How wide each shape is (mm). The shapes turn with the stitch angle: 0° stands them upright.") { value in settings(.fill, "Shape Size") { $0.patternSize = value } }
+            }
         case .stipple:
             number("Stipple spacing", value: s.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing, range: DigitizingSettings.stippleSpacingRange, help: "How far apart the line's neighbouring passes are (mm). Smaller is denser. Stipple sews without underlay.") { value in settings(.fill, "Stipple Spacing") { $0.stippleSpacing = value } }
         case .motif:
