@@ -99,6 +99,22 @@ final class StitchRecognitionTests: XCTestCase {
         XCTAssertEqual(design.objects.last?.stopAfter, true)
     }
 
+    /// A fill sewn with a tatami pattern, read back as imported stitches, comes back with that pattern, at an angle
+    /// too; a plain (Smooth) fill comes back plain.
+    func testRecognizedFillsKeepTheirTatamiPattern() throws {
+        for (id, angle) in [("smooth", 45.0), ("reverse", 45), ("sawtooth", 0), ("sawtoothReversed", 30), ("zigzag", -30), ("blocks", 90), ("steep", 15), ("hills", 60)] {
+            var fill = RunObject(name: "Fill", nodes: ShapeGeometry.nodes(.ellipse, in: (Point(-25, -20), Point(25, 20))))
+            fill.closed = true; fill.digitizing = DigitizingSettings(kind: .fill)
+            fill.digitizing?.angle = angle; fill.digitizing?.tatamiPattern = id == "smooth" ? nil : id
+            var made = Design(); made.objects = [fill]
+            var design = Design()
+            design.objects = try MachineImport.objects(from: RunningEngine.compile(made), format: "pes", name: "Fill")
+            _ = design.recognizeObjects(Set(design.objects.map(\.id)))
+            let found = try XCTUnwrap(design.objects.first { $0.kind == .fill }, id)
+            XCTAssertEqual(found.settings.tatamiPattern, id == "smooth" ? nil : id, "\(id) at \(angle)°")
+        }
+    }
+
     func testABlockWithNothingToRecognizeStaysAsItIs() throws {
         // A short straight line: no fill, no satin.
         var block = RunObject(name: "line", nodes: [], color: ThreadColor("Red", 0xff0000))
