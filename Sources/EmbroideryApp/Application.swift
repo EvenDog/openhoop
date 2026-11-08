@@ -992,7 +992,7 @@ import EmbroideryCore
     /// group, in the current thread, as one step you can undo.
     private func addLineArt(_ state: EditorState) {
         guard !state.hasVersionMismatch, state.draft.isEmpty else { state.status = "Finish the current path and regenerate older projects before adding line art."; return }
-        guard let choice = GuidedDialog.lineArt(color: state.currentColor) else { state.status = "Line art cancelled."; return }
+        guard let choice = GuidedDialog.lineArt(color: state.currentColor, hoop: state.design.hoop) else { state.status = "Line art cancelled."; return }
         do {
             let made = LineArt.objects(choice.design, size: choice.size, bean: choice.bean, color: state.currentColor)
             var candidate = state.design; candidate.objects += made; try candidate.validate()
