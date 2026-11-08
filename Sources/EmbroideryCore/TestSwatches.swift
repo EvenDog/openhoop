@@ -96,7 +96,7 @@ public enum TestSwatches {
             // Each copy's top left corner, so the grid's middle lands on the hoop's middle (y points up).
             let left = -total.width / 2 + Double(column) * (width + gap), top = total.height / 2 - Double(row) * (height + gap)
             var copy = setting.applying(value, to: object)
-            copy.id = UUID(); copy.groupID = nil; copy.lettering = nil; copy.letterKey = nil; copy.monogram = nil; copy.branchID = nil
+            copy.id = UUID(); copy.groupID = nil; copy.outerGroups = nil; copy.lettering = nil; copy.letterKey = nil; copy.monogram = nil; copy.branchID = nil
             copy.entry = nil; copy.exit = nil; copy.stitchEdits = nil; copy.locked = false; copy.visible = true
             copy.transform { $0 + Point(left - x0, top - y1) }
             copy.name = "\(setting.title) \(setting.label(value))"

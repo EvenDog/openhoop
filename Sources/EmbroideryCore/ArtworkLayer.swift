@@ -17,10 +17,10 @@ extension Design {
         if step > 0, layer < objects.count {
             layer += 1
             // Past the rest of a group, if the object just passed is in one.
-            while let group = objects[layer - 1].groupID, layer < objects.count, objects[layer].groupID == group { layer += 1 }
+            while let group = objects[layer - 1].topGroup, layer < objects.count, objects[layer].topGroup == group { layer += 1 }
         } else if step < 0, layer > 0 {
             layer -= 1
-            while let group = objects[layer].groupID, layer > 0, objects[layer - 1].groupID == group { layer -= 1 }
+            while let group = objects[layer].topGroup, layer > 0, objects[layer - 1].topGroup == group { layer -= 1 }
         }
         artwork?.layer = layer
     }

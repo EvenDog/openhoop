@@ -30,7 +30,7 @@ extension Design {
     /// is a run of one.
     public var sewingUnits: [Range<Int>] {
         func together(_ a: RunObject, _ b: RunObject) -> Bool {
-            (a.groupID != nil && a.groupID == b.groupID) || (a.lettering != nil && a.lettering?.id == b.lettering?.id) || (a.branchID != nil && a.branchID == b.branchID)
+            (a.topGroup != nil && a.topGroup == b.topGroup) || (a.lettering != nil && a.lettering?.id == b.lettering?.id) || (a.branchID != nil && a.branchID == b.branchID)
         }
         var units: [Range<Int>] = [], start = 0
         for index in objects.indices.dropFirst() where !together(objects[index - 1], objects[index]) { units.append(start..<index); start = index }
@@ -73,8 +73,8 @@ extension Design {
         var units: [[UUID]] = [], unitOfGroup: [UUID: Int] = [:]
         for id in ids {
             guard let object = objects.first(where: { $0.id == id }) else { continue }
-            if let group = object.groupID, let index = unitOfGroup[group] { units[index].append(id); continue }
-            if let group = object.groupID { unitOfGroup[group] = units.count }
+            if let group = object.topGroup, let index = unitOfGroup[group] { units[index].append(id); continue }
+            if let group = object.topGroup { unitOfGroup[group] = units.count }
             units.append([id])
         }
         return units

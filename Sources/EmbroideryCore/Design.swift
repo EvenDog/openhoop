@@ -101,8 +101,14 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
     /// sewing direction, starting node or fill corner that best matches them; nil keeps the default order.
     public var entry: Point?
     public var exit: Point?
-    /// Objects sharing a group ID are selected and moved together. Grouping never changes the stitches.
+    /// Objects sharing a group ID are selected and moved together. Grouping never changes the stitches. This is the
+    /// object's own (innermost) group: lettering, monograms, copies along a line and the like find their parts by it.
     public var groupID: UUID?
+    /// The groups wrapped around `groupID`, when groups were grouped together: innermost first, outermost last. nil
+    /// when the object's own group is its outermost. (Group adds one; Ungroup takes the outermost off.)
+    public var outerGroups: [UUID]?
+    /// The group a click selects and that moves as one: the outermost group the object is in.
+    public var topGroup: UUID? { outerGroups?.last ?? groupID }
     /// For letters made by the lettering tool: the recipe to rebuild them when the text is edited.
     public var lettering: LetteringSpec?
     /// For letters made by the lettering tool: which letter this part belongs to, as line × 1000 + the letter's place
@@ -748,15 +754,58 @@ public struct Design: Codable, Equatable, Sendable {
     /// It decides what each machine file holds, so a design using it is saved as version 7.
     public var multiHooping: MultiHooping?
     public init() {}
-    /// The IDs of every object grouped with `id` (just `id` itself when it isn't grouped).
+    /// The IDs of every object in the same outermost group as `id` (just `id` itself when it isn't grouped).
     public func groupMembers(of id: UUID) -> Set<UUID> {
-        guard let group = objects.first(where: { $0.id == id })?.groupID else { return [id] }
-        return Set(objects.filter { $0.groupID == group }.map(\.id))
+        guard let group = objects.first(where: { $0.id == id })?.topGroup else { return [id] }
+        return Set(objects.filter { $0.topGroup == group }.map(\.id))
+    }
+    /// The groups `id` is in, from the outermost in, each as its members' IDs, then `id` on its own: what a click
+    /// selects and then each Option-click on the same object (stepping one group in each time). [[id]] when it
+    /// isn't grouped.
+    public func groupLevels(of id: UUID) -> [Set<UUID>] {
+        guard let object = objects.first(where: { $0.id == id }), let own = object.groupID else { return [[id]] }
+        // Each group the object is in, outermost first; an object is in group g when it's its own group or one around it.
+        let chain = Array((object.outerGroups ?? []).reversed()) + [own]
+        return chain.map { g in Set(objects.filter { $0.groupID == g || ($0.outerGroups ?? []).contains(g) }.map(\.id)) } + [[id]]
+    }
+    /// Groups the objects in `ids` together. A whole group among them (every object of its outermost group) is
+    /// wrapped as it is, so it comes back when the new group is ungrouped; an object on its own, or one taken out of
+    /// part of a group, joins the new group directly (leaving its old group).
+    public mutating func groupObjects(_ ids: Set<UUID>) {
+        let group = UUID()
+        for i in objects.indices where ids.contains(objects[i].id) {
+            if let top = objects[i].topGroup, objects.allSatisfy({ $0.topGroup != top || ids.contains($0.id) }) {
+                objects[i].outerGroups = (objects[i].outerGroups ?? []) + [group]
+            } else {
+                objects[i].groupID = group; objects[i].outerGroups = nil
+            }
+        }
+    }
+    /// Takes the outermost group off every object grouped with something in `ids`, giving back the groups inside it.
+    /// Lettering stays one object: a lettering's own group (its letters) isn't taken apart (Break Apart does that).
+    /// A monogram's parts, ungrouped, become plain shapes; so do a branch's, which then sew separately again.
+    /// `ungrouped` is false when nothing was grouped; `hadMonogram` when a monogram became plain shapes.
+    @discardableResult
+    public mutating func ungroupObjects(_ ids: Set<UUID>) -> (ungrouped: Bool, hadMonogram: Bool) {
+        let chosen = objects.filter { ids.contains($0.id) }
+        let letteringGroups = Set(chosen.filter { $0.lettering != nil && $0.outerGroups == nil }.compactMap(\.groupID))
+        let groups = Set(chosen.compactMap(\.topGroup)).subtracting(letteringGroups)
+        guard !groups.isEmpty else { return (false, false) }
+        var hadMonogram = false
+        for i in objects.indices where objects[i].topGroup.map(groups.contains) == true {
+            if var outer = objects[i].outerGroups {
+                outer.removeLast(); objects[i].outerGroups = outer.isEmpty ? nil : outer
+            } else {
+                objects[i].groupID = nil; objects[i].branchID = nil
+                if objects[i].monogram != nil { objects[i].monogram = nil; hadMonogram = true }
+            }
+        }
+        return (true, hadMonogram)
     }
     /// Display names for groups with at least two members: "Group A", "Group B"… in sewing order.
     public var groupLabels: [UUID: String] {
         var counts: [UUID: Int] = [:], order: [UUID] = []
-        for group in objects.compactMap(\.groupID) { if counts[group] == nil { order.append(group) }; counts[group, default: 0] += 1 }
+        for group in objects.compactMap(\.topGroup) { if counts[group] == nil { order.append(group) }; counts[group, default: 0] += 1 }
         var labels: [UUID: String] = [:]
         for (index, group) in order.filter({ counts[$0]! >= 2 }).enumerated() {
             let letters = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -832,6 +881,9 @@ public struct Design: Codable, Equatable, Sendable {
             || $0.digitizing?.motif.map(Motif.addedInVersionTwenty.contains) == true
             || $0.monogram.map { MonogramOrnament.addedInVersionTwenty.contains($0.ornament) || MonogramBorder.addedInVersionTwenty.contains($0.border) } == true }
     }
+    /// Schema 23 marks projects with groups inside groups, so older versions (which would flatten them, or not keep
+    /// the groups around a group) refuse them instead.
+    public var needsSchemaTwentyThree: Bool { objects.contains { !($0.outerGroups ?? []).isEmpty } }
     /// Schema 22 marks projects with a fill sewn with hand stitch, so older versions (which would sew it neat)
     /// refuse them instead.
     public var needsSchemaTwentyTwo: Bool { objects.contains { $0.digitizing?.fillHandStitch != nil } }
@@ -881,7 +933,7 @@ public struct Design: Codable, Equatable, Sendable {
 
     /// Reject corrupt or unreasonable input before it reaches the renderer or generator.
     public func validate() throws {
-        guard (1...22).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
+        guard (1...23).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }
@@ -944,6 +996,9 @@ public struct Design: Codable, Equatable, Sendable {
             // A fill keeps its jagged edge when its style changes from satin (it only sews with satin), so any fill may have one.
             if let spec=object.lineRepeat {
                 guard object.kind == .vector,object.guideFor == spec.id,spec.isValid else{throw DesignError.invalid("Invalid copies along a line in \(object.name).")}
+            }
+            if let outer=object.outerGroups {
+                guard object.groupID != nil,!outer.isEmpty,Set(outer).count == outer.count,!outer.contains(object.groupID!) else{throw DesignError.invalid("Invalid groups in \(object.name).")}
             }
             if let hand=object.digitizing?.fillHandStitch {
                 guard object.kind == .fill,hand.isValid else{throw DesignError.invalid("Invalid fill hand stitch settings in \(object.name).")}
