@@ -169,6 +169,38 @@ final class DocumentTests: XCTestCase {
         XCTAssertEqual(document.state.selection, [ids[1], ids[2], ids[3]])
     }
 
+    /// Groups inside groups: a click selects the outermost group, and each Option-click (with Select) on the same
+    /// object steps one group in, down to the object itself. A plain group's Option-click still picks one member.
+    @MainActor func testOptionClickStepsIntoNestedGroups() {
+        _ = NSApplication.shared
+        let document = DesignDocument()
+        var design = Design()
+        design.objects = (0..<4).map { k in
+            var square = RunObject(name: "Square \(k + 1)", nodes: ShapeGeometry.nodes(.rectangle, in: (Point(Double(k) * 10, 0), Point(Double(k) * 10 + 5, 5))))
+            square.closed = true; square.digitizing = DigitizingSettings(kind: .fill)
+            return square
+        }
+        document.state.design = design
+        let ids = design.objects.map(\.id)
+        document.state.selection = [ids[0], ids[1]]; document.state.groupSelection()
+        document.state.selection = [ids[2], ids[3]]; document.state.groupSelection()
+        document.state.selection = Set(ids); document.state.groupSelection()
+        document.state.select(ids[2])
+        XCTAssertEqual(document.state.selection, Set(ids), "a click selects the outer group")
+        document.state.selectStepping(into: ids[2])
+        XCTAssertEqual(document.state.selection, [ids[2], ids[3]], "Option-click: the inner group")
+        document.state.selectStepping(into: ids[2])
+        XCTAssertEqual(document.state.selection, [ids[2]], "again: the object")
+        document.state.selectStepping(into: ids[2])
+        XCTAssertEqual(document.state.selection, [ids[2]], "it stays on the object")
+        document.state.selection = []
+        document.state.selectStepping(into: ids[0])
+        XCTAssertEqual(document.state.selection, [ids[0], ids[1]], "from nothing: one in from the outermost")
+        document.state.ungroupSelection()
+        document.state.selectStepping(into: ids[1])
+        XCTAssertEqual(document.state.selection, [ids[1]], "a plain group: Option-click picks the object, as before")
+    }
+
     @MainActor func testGroupSelectDuplicateAndUngroup() {
         _ = NSApplication.shared
         let document = DesignDocument()
