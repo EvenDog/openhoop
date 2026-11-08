@@ -856,6 +856,19 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         selectionAnchor = id
         focusCanvas()
     }
+    /// Option-click with Select: steps one group in. From the outermost group (what a click selects) to the group
+    /// inside it that holds `id`, then the next one in, and so on down to `id` itself, where it stays. From anything
+    /// else it starts one in from the outermost; in a plain group, that's `id` itself, as Option-click always picked.
+    /// Lettering stops at its own group: it's one object (Break Apart splits it).
+    func selectStepping(into id: UUID) {
+        var levels = design.groupLevels(of: id)
+        if isLettering(id), levels.count > 1 { levels.removeLast() }
+        let next = levels.firstIndex(of: selection).map { min($0 + 1, levels.count - 1) } ?? min(1, levels.count - 1)
+        selectedNode = nil
+        selection = levels[next]
+        selectionAnchor = id
+        focusCanvas()
+    }
     /// Shift-click in the object lists: selects every object in sewing order from the one clicked last through `id`,
     /// with their whole groups unless `single`. With no earlier click to start from, it selects just `id`.
     func selectRange(to id: UUID, single: Bool = false) {
@@ -908,7 +921,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     func groupSelection() {
         guard selection.count >= 2 else { status = "Select two or more objects to group."; return }
         edit("Group") { design in design.groupObjects(selection) }
-        status = "Grouped \(selection.count) objects. Click any of them to select the group; Option-click picks one."
+        status = "Grouped \(selection.count) objects. Click any of them to select the group; Option-click steps in, one group at a time."
     }
     /// Removes every group that has a selected member. Ungrouped letters become plain shapes: they forget their
     /// lettering recipe, since editing the text would pull them back together.

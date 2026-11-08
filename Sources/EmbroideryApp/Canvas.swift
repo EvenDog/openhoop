@@ -1404,6 +1404,8 @@ final class DesignCanvas: NSView {
             }
             let single = event.modifierFlags.contains(.option)   // Option-click picks one member of a group
             if adding(event) { state.select(object.id, extend: true, single: single) }
+            // With Select, each Option-click steps one group further in (groups inside groups), down to the object.
+            else if single && state.tool == .select { state.selectStepping(into: object.id) }
             else if !state.selection.contains(object.id) || single { state.select(object.id, single: single) }
             dragStart = point; dragSnapshot = state.design
         } else if state.tool == .select {
