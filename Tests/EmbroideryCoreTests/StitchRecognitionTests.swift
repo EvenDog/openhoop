@@ -147,6 +147,29 @@ final class StitchRecognitionTests: XCTestCase {
         XCTAssertFalse(try recognized("melting-face").design.objects.contains { $0.kind == .satin && $0.closed }, "eyes and mouth are open columns")
     }
 
+    /// A fill sewn with hand stitch, saved the way a machine file keeps it (every point rounded to 0.1 mm) and read
+    /// back, comes back with hand stitch at about the same strength; a plain one comes back plain. Of the five real
+    /// designs, only the hand-stitched melting face's fill gets it.
+    func testHandStitchedFillsComeBackHandStitched() throws {
+        for strength in [nil] + FillHandStitch.Strength.allCases.map(Optional.some) {
+            var fill = RunObject(name: "Fill", nodes: ShapeGeometry.nodes(.ellipse, in: (Point(-25, -20), Point(25, 20))))
+            fill.closed = true; fill.digitizing = DigitizingSettings(kind: .fill); fill.stitchLength = 4
+            if let strength { var hand = FillHandStitch(); hand.strength = strength; fill.digitizing?.fillHandStitch = hand }
+            var made = Design(); made.objects = [fill]
+            var plan = try RunningEngine.compile(made)
+            plan.commands = plan.commands.map { StitchCommand($0.op, Point(($0.point.x * 10).rounded() / 10, ($0.point.y * 10).rounded() / 10), thread: $0.thread) }
+            var design = Design()
+            design.objects = try MachineImport.objects(from: plan, format: "pes", name: "Fill")
+            _ = design.recognizeObjects(Set(design.objects.map(\.id)))
+            let found = try XCTUnwrap(design.objects.first { $0.kind == .fill })
+            XCTAssertEqual(found.settings.fillHandStitch?.strength, strength, strength?.rawValue ?? "plain")
+        }
+        for name in ["smiling-face", "smiling-face-inkstitch", "melting-face", "melting-face-hand-stitch", "grinning-face-with-sweat"] {
+            let hand = try recognized(name).design.objects.filter { $0.kind == .fill && $0.settings.fillHandStitch != nil }
+            XCTAssertEqual(hand.count, name == "melting-face-hand-stitch" ? 1 : 0, name)
+        }
+    }
+
     func testABlockWithNothingToRecognizeStaysAsItIs() throws {
         // A short straight line: no fill, no satin.
         var block = RunObject(name: "line", nodes: [], color: ThreadColor("Red", 0xff0000))

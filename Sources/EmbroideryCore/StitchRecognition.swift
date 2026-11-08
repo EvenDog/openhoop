@@ -281,6 +281,7 @@ public enum StitchRecognition {
         // Shown in Properties as −90…90°.
         let angle = (part.angle > 90 ? part.angle - 180 : part.angle).rounded()
         let pattern = tatamiPattern(part.points, rowAngle: part.angle, angle: angle, gap: gap, length: length)
+        let handStitch = fillHandStitch(part.points)
         return regions(part).map { region in
             var fill = RunObject(name: "\(color.name) fill", nodes: region[0].map { PathNode($0) }, color: color)
             fill.closed = true
@@ -289,6 +290,7 @@ public enum StitchRecognition {
             settings.angle = angle
             settings.spacing = (gap * 2 * 100).rounded() / 100        // Spacing is measured across two rows
             settings.tatamiPattern = pattern
+            settings.fillHandStitch = handStitch
             fill.digitizing = settings
             fill.stitchLength = (length * 10).rounded() / 10
             return fill
@@ -344,6 +346,28 @@ public enum StitchRecognition {
         }
         guard let best, best.error <= 0.04, best.id != TatamiPattern.smooth.id else { return nil }
         return best.id
+    }
+
+    /// A recognized fill's hand stitch (FillHandStitch.swift), or nil when its rows are neat. In a neat fill each hole
+    /// inside a row lies on the straight line between its neighbours (a machine file rounds it by at most a few
+    /// hundredths of a millimeter); hand stitch moves it off that line. So the usual distance off the line says
+    /// whether the fill was hand-stitched, and how strongly: OpenHoop's own Light, Medium and Strong come to about
+    /// 0.12, 0.23 and 0.37 mm, and the neat fills of five real designs to 0.05 mm or less.
+    static func fillHandStitch(_ points: [Point]) -> FillHandStitch? {
+        var off: [Double] = []
+        for i in 1..<max(1, points.count - 1) {
+            let a = points[i] - points[i - 1], b = points[i + 1] - points[i], across = points[i + 1] - points[i - 1]
+            let la = hypot(a.x, a.y), lb = hypot(b.x, b.y), lc = hypot(across.x, across.y)
+            // A hole between two row stitches going the same way (not a row's turn, not a short step).
+            guard la >= short, lb >= short, (a.x * b.x + a.y * b.y) / (la * lb) > 0.5 else { continue }
+            off.append(abs(a.x * across.y - a.y * across.x) / lc)
+        }
+        guard off.count >= 50 else { return nil }
+        let usual = off.sorted()[off.count / 2]
+        guard usual >= 0.09 else { return nil }
+        var hand = FillHandStitch()
+        hand.strength = usual < 0.17 ? .light : usual < 0.29 ? .medium : .strong
+        return hand
     }
 
     /// The stitches that make a fill's rows: those within 20° of the row direction, and the short turns between
