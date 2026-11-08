@@ -74,9 +74,11 @@ public enum StitchRecognition {
                 if made.isEmpty || made.contains(where: { StitchEngine.shapeProblem($0) != nil }) { made = [kept(part.points)] }
                 else { summary.fills += made.count }
             case .satin where part.points.count >= 20:
+                let spacing = satinSpacing(part.points)
                 made = satinColumns(part.points).map { rungs in
                     var satin = RunObject(name: "\(block.color.name) satin", nodes: rungs.flatMap { [PathNode($0.0), PathNode($0.1)] }, color: block.color)
                     satin.digitizing = DigitizingSettings(kind: .satin)
+                    if let spacing { satin.digitizing?.spacing = spacing }
                     return satin
                 }
                 if made.isEmpty || made.contains(where: { StitchEngine.shapeProblem($0) != nil }) { made = [kept(part.points)] }
@@ -429,6 +431,22 @@ public enum StitchRecognition {
     typealias Rung = (Point, Point)
 
     static func middle(_ rung: Rung) -> Point { (rung.0 + rung.1) * 0.5 }
+
+    /// How far apart a recognized satin's stitches are along the column: its Spacing, in mm, or nil if there are too
+    /// few stitches across to tell. Each stitch across moves on half a spacing (it goes over to one side, the next one
+    /// back to the other), so it's twice the usual step between the middles of neighbouring stitches across. Steps
+    /// longer than 1.5 mm are moves between passes, not spacing.
+    static func satinSpacing(_ points: [Point]) -> Double? {
+        guard points.count >= 3 else { return nil }
+        var steps: [Double] = []
+        for i in 0..<(points.count - 2) where points[i].distance(to: points[i + 1]) >= short && points[i + 1].distance(to: points[i + 2]) >= short {
+            let step = ((points[i] + points[i + 1]) * 0.5).distance(to: (points[i + 1] + points[i + 2]) * 0.5)
+            if step <= 1.5 { steps.append(step) }
+        }
+        guard steps.count >= 10 else { return nil }
+        let typical = steps.sorted()[steps.count / 2] * 2
+        return min(5, max(0.15, (typical * 100).rounded() / 100))   // within what Properties lets Spacing be
+    }
 
     /// A recognized satin as columns, each a list of rungs (one end on each rail). Stitches not parallel to their
     /// neighbours (travel, a stitch across) are left out. Some programs sew a satin in passes — an oval's top half
