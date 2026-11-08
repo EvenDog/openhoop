@@ -99,6 +99,21 @@ final class StitchRecognitionTests: XCTestCase {
         XCTAssertEqual(design.objects.last?.stopAfter, true)
     }
 
+    /// A satin sewn at a known spacing, read back as imported stitches, is recognized at that spacing (not the
+    /// default), so resizing it keeps the original density.
+    func testRecognizedSatinsKeepTheirSpacing() throws {
+        for spacing in [0.3, 0.6] {
+            var satin = RunObject(name: "Satin", nodes: (0..<5).flatMap { i -> [PathNode] in let x = Double(i) * 10 - 20; return [PathNode(Point(x, 0)), PathNode(Point(x, 4))] })
+            satin.digitizing = DigitizingSettings(kind: .satin); satin.digitizing?.spacing = spacing
+            var made = Design(); made.objects = [satin]
+            var design = Design()
+            design.objects = try MachineImport.objects(from: RunningEngine.compile(made), format: "pes", name: "Satin")
+            _ = design.recognizeObjects(Set(design.objects.map(\.id)))
+            let found = try XCTUnwrap(design.objects.first { $0.kind == .satin }, "spacing \(spacing)")
+            XCTAssertEqual(found.settings.spacing, spacing, accuracy: 0.03, "spacing \(spacing)")
+        }
+    }
+
     func testABlockWithNothingToRecognizeStaysAsItIs() throws {
         // A short straight line: no fill, no satin.
         var block = RunObject(name: "line", nodes: [], color: ThreadColor("Red", 0xff0000))
