@@ -169,45 +169,60 @@ struct ToolStrip: View {
     static func symbol(_ command: CommandID, hasArtwork: Bool) -> String {
         command == .artworkTool && !hasArtwork ? CommandID.importImage.symbol : command.symbol
     }
-    /// One Pro tool button: just the tool's icon. Its name and keys show when the pointer rests on it.
-    private func proButton(_ command: CommandID) -> some View {
+    /// One Pro tool button: just the tool's icon. Its name and keys show when the pointer rests on it. A button with
+    /// more choices (`hasMenu`) is a menu with a main action: a click runs the tool as usual, and clicking and holding
+    /// opens its choices, as right-clicking does (for a mouse or trackpad set up without a right-click).
+    @ViewBuilder private func proButton(_ command: CommandID) -> some View {
         let active = isActive(command), available = isAvailable(command)
-        return Button { AppDelegate.shared.perform(command) } label: {
-            Image.symbol(Self.symbol(command, hasArtwork: state.design.artwork != nil), size: 14).font(.system(size: 14))
-                .frame(width: 30, height: 30)
-                .background(active ? Theme.accent : Color.clear, in: RoundedRectangle(cornerRadius: 6))
-                .foregroundStyle(active ? Theme.onAccent : Theme.toolBandInk)
-                // A short arc along the bottom-right corner marks a tool with more choices on right-click.
-                .overlay {
-                    if Self.hasMenu.contains(command) {
-                        MenuCornerArc().stroke(active ? Theme.onAccent : Theme.toolBandInk, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
-                    }
-                }
-                // A dot in the top-right corner marks the underlay-only views, so they look different from plain "shown".
-                .overlay(alignment: .topTrailing) {
-                    if command == .showUnderlay && [.onlyAll, .onlySelected].contains(state.underlayView) {
-                        Circle().fill(Theme.onAccent).frame(width: 5, height: 5).padding(3)
-                    }
-                }
-                .contentShape(Rectangle())
+        Group {
+            if Self.hasMenu.contains(command) {
+                Menu { moreChoices(command) } label: { buttonFace(command, active: active) } primaryAction: { AppDelegate.shared.perform(command) }
+                    .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+            } else {
+                Button { AppDelegate.shared.perform(command) } label: { buttonFace(command, active: active) }
+                    .buttonStyle(.plain)
+            }
         }
-        .buttonStyle(.plain).disabled(!available).opacity(available ? 1 : 0.4)
+        .disabled(!available).opacity(available ? 1 : 0.4)
         .help(command == .showUnderlay ? underlayHelp : preferences.hint(command))
         .accessibilityLabel(command.title)
         .accessibilityAddTraits(active ? .isSelected : [])
-        // Right-click: the Underlay button offers its four views; every button keeps the band's Customize Tools.
+        // Right-click: the button's own choices, if it has any; every button keeps the band's Customize Tools.
         .contextMenu {
-            if command == .showUnderlay {
-                Picker("Underlay", selection: $state.underlayView) {
-                    Text("Shown").tag(UnderlayView.shown)
-                    Text("Hidden").tag(UnderlayView.hidden)
-                    Text("Only underlay – all objects").tag(UnderlayView.onlyAll)
-                    Text("Only underlay – selected objects").tag(UnderlayView.onlySelected)
-                }
-                .pickerStyle(.inline)
-                Divider()
-            }
+            if Self.hasMenu.contains(command) { moreChoices(command); Divider() }
             customizeButton
+        }
+    }
+    /// A tool button's face: its icon, highlighted while the tool is on.
+    private func buttonFace(_ command: CommandID, active: Bool) -> some View {
+        Image.symbol(Self.symbol(command, hasArtwork: state.design.artwork != nil), size: 14).font(.system(size: 14))
+            .frame(width: 30, height: 30)
+            .background(active ? Theme.accent : Color.clear, in: RoundedRectangle(cornerRadius: 6))
+            .foregroundStyle(active ? Theme.onAccent : Theme.toolBandInk)
+            // A short arc along the bottom-right corner marks a tool with more choices (right-click, or click and hold).
+            .overlay {
+                if Self.hasMenu.contains(command) {
+                    MenuCornerArc().stroke(active ? Theme.onAccent : Theme.toolBandInk, style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                }
+            }
+            // A dot in the top-right corner marks the underlay-only views, so they look different from plain "shown".
+            .overlay(alignment: .topTrailing) {
+                if command == .showUnderlay && [.onlyAll, .onlySelected].contains(state.underlayView) {
+                    Circle().fill(Theme.onAccent).frame(width: 5, height: 5).padding(3)
+                }
+            }
+            .contentShape(Rectangle())
+    }
+    /// The extra choices of a button in `hasMenu`: the Underlay button's four views.
+    @ViewBuilder private func moreChoices(_ command: CommandID) -> some View {
+        if command == .showUnderlay {
+            Picker("Underlay", selection: $state.underlayView) {
+                Text("Shown").tag(UnderlayView.shown)
+                Text("Hidden").tag(UnderlayView.hidden)
+                Text("Only underlay – all objects").tag(UnderlayView.onlyAll)
+                Text("Only underlay – selected objects").tag(UnderlayView.onlySelected)
+            }
+            .pickerStyle(.inline)
         }
     }
     /// The Underlay button's tooltip: what it shows now, and how to get the other views.
@@ -217,7 +232,7 @@ struct ToolStrip: View {
         case .shown: now = "Underlay shown"; case .hidden: now = "Underlay hidden"
         case .onlyAll: now = "Only underlay, all objects"; case .onlySelected: now = "Only underlay, selected objects"
         }
-        return "\(now). Click to show or hide underlay; right-click to see only the underlay of all or the selected objects."
+        return "\(now). Click to show or hide underlay; right-click, or click and hold, to see only the underlay of all or the selected objects."
     }
     /// False for commands that can't run right now, so their menu items are greyed out.
     private func isAvailable(_ command: CommandID) -> Bool {
