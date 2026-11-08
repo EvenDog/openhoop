@@ -1,7 +1,7 @@
-// The sew-out test pack: fourteen designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
+// The sew-out test pack: fifteen designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
 // machine side by side (satin widths and compensation, the fill styles, small lettering, a monogram, travel and
 // finishing, the line styles and stipple, and motifs, cross stitch, gradient and raised satin, then wide satin, Remove Overlaps and Outlines & Offsets,
-// then moves and jumps of known lengths for Review Sewing Order's warnings, then smart corners beside rounded ones, then run connectors beside jumps, then push compensation side by side, then hand stitch, then jagged edges). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
+// then moves and jumps of known lengths for Review Sewing Order's warnings, then smart corners beside rounded ones, then run connectors beside jumps, then push compensation side by side, then hand stitch, then jagged edges, then line art, candlewick knots and Join Lines bridges). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
 // designs there as OpenHoop projects:
 //   SEWOUT_DIR="$PWD/docs/sewout" swift test --filter SewOutPackTests
 import XCTest
@@ -374,6 +374,55 @@ final class SewOutPackTests: XCTestCase {
         return design
     }
 
+    /// The knot sizes on sheet 15's candlewick lines (mm): the starting size, then two bigger ones.
+    static let knotSizes = [1.2, 2.0, 3.0]
+    /// The gaps Join Lines bridges on sheet 15 (mm): one too small to notice, one that may show.
+    static let joinGaps = [2.0, 10.0]
+
+    /// 15 · Line art and knots: the 0.12.0 features that might not sew well. Top: the Snowflake line art 44 mm wide
+    /// (left; three quarters of its length is sewn twice, so doubled lines can be compared with single ones) and
+    /// 20 mm wide, the smallest size (right; are the tiny details still clean?). Bottom left: candlewick lines with
+    /// knots of each of `knotSizes` (do the many stitches in one hole break the thread or the fabric?). Bottom right:
+    /// pairs of lines, the second starting below the first's end, joined by Join Lines across each of `joinGaps`
+    /// (does the bridge show?).
+    func lineArtAndKnotsSheet() throws -> Design {
+        var design = newDesign()
+        for (width, middle) in [(44.0, Point(-22, 24)), (20.0, Point(26, 30))] {
+            let drawing = LineArt.objects(.snowflake, size: width, bean: false, color: threads[2]).map { line -> RunObject in
+                var line = line; line.name = "Snowflake \(width.formatted()) mm"; return line
+            }
+            design.objects += drawing
+            design.move(Set(drawing.map(\.id)), by: middle)
+        }
+        for (k, knot) in Self.knotSizes.enumerated() {
+            let y = -10 - Double(k) * 14
+            var line = RunObject(name: "Candlewick, \(knot.formatted()) mm knots", nodes: [PathNode(Point(-44, y)), PathNode(Point(-6, y))], color: threads[0])
+            line.digitizing = DigitizingSettings(kind: .run); line.digitizing?.runStyle = .candlewick; line.digitizing?.runWidth = knot
+            design.objects.append(line)
+        }
+        for (k, gap) in Self.joinGaps.enumerated() {
+            // The second piece starts `gap` below where the first ends, so the bridge is a step down that the
+            // drawing didn't have (in line, it would look like more of the same line).
+            let y = -12 - Double(k) * 18
+            let pieces = [(Point(6, y), Point(26, y)), (Point(26, y - gap), Point(46, y - gap))].map { from, to -> RunObject in
+                var piece = RunObject(name: "Joined across \(gap.formatted()) mm", nodes: [PathNode(from), PathNode(to)], color: threads[1])
+                piece.digitizing = DigitizingSettings(kind: .run)
+                return piece
+            }
+            design.objects += pieces
+            _ = try design.joinLines(Set(pieces.map(\.id)))
+        }
+        return design
+    }
+
+    func testLineArtAndKnotsSheetHasWhatItSays() throws {
+        let sheet = try lineArtAndKnotsSheet()
+        XCTAssertTrue(sheet.needsSchemaTwentyOne, "candlewick is a version 21 line style")
+        XCTAssertEqual(sheet.objects.filter { $0.settings.runStyle == .candlewick }.compactMap { $0.settings.runWidth }, Self.knotSizes)
+        XCTAssertEqual(sheet.objects.filter { $0.name.hasPrefix("Joined") }.count, Self.joinGaps.count, "each pair became one line")
+        XCTAssertNoThrow(try RunningEngine.compile(sheet))
+    }
+
     func testJaggedEdgeSheetJagsAllButThePlainOnes() throws {
         let sheet = jaggedEdgeSheet()
         XCTAssertTrue(sheet.needsSchemaFifteen)
@@ -460,10 +509,11 @@ final class SewOutPackTests: XCTestCase {
                                           ("4 Monogram", try monogramSheet()), ("5 Travel and finishing", try travelSheet()), ("6 Line styles and stipple", lineStyleSheet()), ("7 Motifs, cross stitch and more", patternSheet()),
                                           ("8 Wide satin, overlaps and outlines", try wideSatinOverlapsAndOutlinesSheet()), ("9 Moves and jumps", movesAndJumpsSheet()),
                                           ("10 Smart corners", try smartCornersSheet()), ("11 Connectors", try connectorsSheet()),
-                                          ("12 Push and pull", pushAndPullSheet()), ("13 Hand stitch", handStitchSheet()), ("14 Jagged edge", jaggedEdgeSheet())]
+                                          ("12 Push and pull", pushAndPullSheet()), ("13 Hand stitch", handStitchSheet()), ("14 Jagged edge", jaggedEdgeSheet()),
+                                          ("15 Line art and knots", try lineArtAndKnotsSheet())]
         for (name, sheet) in sheets {
             var design = sheet
-            design.schemaVersion = design.needsSchemaSixteen ? 16 : design.needsSchemaFifteen ? 15 : design.needsSchemaFourteen ? 14 : design.needsSchemaThirteen ? 13 : design.needsSchemaTwelve ? 12 : design.needsSchemaEleven ? 11 : design.needsSchemaTen ? 10 : design.needsSchemaNine ? 9 : design.needsSchemaEight ? 8 : design.needsSchemaSeven ? 7 : design.needsSchemaSix ? 6 : design.needsSchemaFive ? 5 : 4
+            design.schemaVersion = design.needsSchemaTwentyOne ? 21 : design.needsSchemaTwenty ? 20 : design.needsSchemaNineteen ? 19 : design.needsSchemaEighteen ? 18 : design.needsSchemaSeventeen ? 17 : design.needsSchemaSixteen ? 16 : design.needsSchemaFifteen ? 15 : design.needsSchemaFourteen ? 14 : design.needsSchemaThirteen ? 13 : design.needsSchemaTwelve ? 12 : design.needsSchemaEleven ? 11 : design.needsSchemaTen ? 10 : design.needsSchemaNine ? 9 : design.needsSchemaEight ? 8 : design.needsSchemaSeven ? 7 : design.needsSchemaSix ? 6 : design.needsSchemaFive ? 5 : 4
             let plan = try RunningEngine.compile(design)
             XCTAssertGreaterThan(plan.stitchCount, 100, name)
             XCTAssertTrue(plan.commands.allSatisfy { design.hoop.contains($0.point, tolerance: -2) }, "\(name) stays 2 mm inside the hoop")
