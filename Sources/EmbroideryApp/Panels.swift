@@ -629,8 +629,8 @@ struct InspectorPanel: View {
     /// Shown when several objects are selected: how many, which group, and a Group/Ungroup button.
     var selectionSummary: some View {
         let chosen = state.design.objects.filter { state.selection.contains($0.id) }
-        let groups = Set(chosen.compactMap(\.groupID)), labels = state.design.groupLabels
-        let grouped = groups.count == 1 && chosen.allSatisfy { $0.groupID != nil }
+        let groups = Set(chosen.compactMap(\.topGroup)), labels = state.design.groupLabels
+        let grouped = groups.count == 1 && chosen.allSatisfy { $0.topGroup != nil }
         return VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text("\(chosen.count) objects selected" + (grouped ? groups.first.flatMap { labels[$0] }.map { " · " + $0 } ?? "" : ""))

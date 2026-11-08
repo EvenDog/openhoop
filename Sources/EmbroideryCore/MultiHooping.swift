@@ -65,7 +65,7 @@ extension Design {
             if let lettering = object.lettering {
                 // Letters share their word's group, so the group is ignored; the letter key keeps a letter's parts together.
                 keys.append("letter \(lettering.id) \(object.letterKey.map(String.init) ?? "all")")
-            } else if let group = object.groupID { keys.append("group \(group)") }
+            } else if let group = object.topGroup { keys.append("group \(group)") }
             if let branch = object.branchID { keys.append("branch \(branch)") }
             for key in keys { if let other = firstWith[key] { join(i, other) } else { firstWith[key] = i } }
         }

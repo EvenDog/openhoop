@@ -55,8 +55,8 @@ struct RowLock: View {
     let objects = state.design.objects.filter { targets.contains($0.id) }
     let locked = state.allLocked(targets), hidden = !objects.isEmpty && objects.allSatisfy { !$0.visible }
     let trimmed = !objects.isEmpty && objects.allSatisfy(\.trimAfter), stopped = !objects.isEmpty && objects.allSatisfy(\.stopAfter)
-    // Groups the targets belong to, apart from lettering (which stays one object; see ungroupSelection).
-    let groups = Set(objects.filter { $0.lettering == nil }.compactMap(\.groupID))
+    // The outermost groups the targets belong to, apart from a lettering's own (it stays one object; see ungroupObjects).
+    let groups = Set(objects.filter { $0.lettering == nil || $0.outerGroups != nil }.compactMap(\.topGroup))
     let canPaste = NSPasteboard.general.data(forType: .init(ObjectClipboard.pasteboardType)) != nil
     // Selects the row's objects unless the row is already part of the selection. (Closures, not functions: a
     // menu's builder allows only `let`s.)
@@ -83,7 +83,7 @@ struct RowLock: View {
         select(); state.editSelected("Stop After") { $0.stopAfter = on; $0.stopForJump = nil }   // now a stop set by hand
     }))
     Divider()
-    if targets.count >= 2 && !(groups.count == 1 && objects.allSatisfy { $0.groupID == groups.first }) { Button("Group") { run(.group) } }
+    if targets.count >= 2 && !(groups.count == 1 && objects.allSatisfy { $0.topGroup == groups.first }) { Button("Group") { run(.group) } }
     if !groups.isEmpty { Button("Ungroup") { run(.ungroup) } }
     if objects.contains(where: { $0.kind == .raw }) { Button("Recognize Objects") { run(.recognizeObjects) } }
     Divider()

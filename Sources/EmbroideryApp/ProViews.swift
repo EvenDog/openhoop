@@ -65,7 +65,7 @@ struct PrecisionBar: View {
         let chosen = state.design.objects.filter { state.selection.contains($0.id) }
         guard let first = chosen.first else { return "Nothing selected" }
         if chosen.count == 1 { return first.name }
-        if let group = first.groupID, chosen.allSatisfy({ $0.groupID == group }), let label = state.design.groupLabels[group] { return "\(label) · \(chosen.count) objects" }
+        if let group = first.topGroup, chosen.allSatisfy({ $0.topGroup == group }), let label = state.design.groupLabels[group] { return "\(label) · \(chosen.count) objects" }
         return "\(chosen.count) objects"
     }
 
@@ -135,8 +135,8 @@ struct ProSewingOrder: View {
         while index < objects.count {
             let object = objects[index]
             var end = index + 1
-            if let group = object.groupID { while end < objects.count && objects[end].groupID == group { end += 1 } }
-            if let group = object.groupID, end - index >= 2 {
+            if let group = object.topGroup { while end < objects.count && objects[end].topGroup == group { end += 1 } }
+            if let group = object.topGroup, end - index >= 2 {
                 lines.append(.group(id: group, first: index, members: Array(objects[index..<end])))
                 // Lettering is one object: its line never opens into letter parts.
                 if opened.contains(group) && object.lettering == nil { for i in index..<end { lines.append(.object(index: i, objects[i], indented: true)) } }

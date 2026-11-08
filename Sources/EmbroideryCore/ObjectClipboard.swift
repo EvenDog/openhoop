@@ -28,6 +28,7 @@ extension Design {
             var copy = object; copy.id = UUID(); copy.locked = false; copies[object.id] = copy.id
             if offset != Point(0, 0) { copy.transform { $0 + offset } }
             if let old = copy.groupID { if newGroups[old] == nil { newGroups[old] = UUID() }; copy.groupID = newGroups[old] }
+            copy.outerGroups = copy.outerGroups?.map { old in if newGroups[old] == nil { newGroups[old] = UUID() }; return newGroups[old]! }
             if let old = copy.branchID { if newGroups[old] == nil { newGroups[old] = UUID() }; copy.branchID = newGroups[old] }   // a separate branch too
             if let old = copy.lettering?.id { if newLettering[old] == nil { newLettering[old] = UUID() }; copy.lettering?.id = newLettering[old]! }
             if let old = copy.monogram?.id { if newLettering[old] == nil { newLettering[old] = UUID() }; copy.monogram?.id = newLettering[old]! }   // a separate monogram too

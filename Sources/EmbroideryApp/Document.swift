@@ -907,29 +907,24 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     /// Puts the selected objects (two or more) into one new group, as one undoable edit.
     func groupSelection() {
         guard selection.count >= 2 else { status = "Select two or more objects to group."; return }
-        let group = UUID()
-        edit("Group") { design in for i in design.objects.indices where selection.contains(design.objects[i].id) { design.objects[i].groupID = group } }
+        edit("Group") { design in design.groupObjects(selection) }
         status = "Grouped \(selection.count) objects. Click any of them to select the group; Option-click picks one."
     }
     /// Removes every group that has a selected member. Ungrouped letters become plain shapes: they forget their
     /// lettering recipe, since editing the text would pull them back together.
     func ungroupSelection() {
-        // Lettering stays one object: Ungroup leaves it alone (Break Apart is the way to split it).
-        let letteringGroups = Set(design.objects.filter { selection.contains($0.id) && $0.lettering != nil }.compactMap(\.groupID))
-        let groups = Set(design.objects.filter { selection.contains($0.id) }.compactMap(\.groupID)).subtracting(letteringGroups)
+        // Lettering stays one object: Ungroup leaves its own group alone (Break Apart is the way to split it).
+        let chosen = design.objects.filter { selection.contains($0.id) }
+        let letteringGroups = Set(chosen.filter { $0.lettering != nil && $0.outerGroups == nil }.compactMap(\.groupID))
         let title = CommandID.breakApartLettering.title, key = Preferences.shared.label(.breakApartLettering)
         let breakApart = key.isEmpty ? title : "\(title) (\(key))"
-        guard !groups.isEmpty else {
+        var trial = design
+        guard trial.ungroupObjects(selection).ungrouped else {
             status = letteringGroups.isEmpty ? "The selection isn't grouped." : "Lettering stays one object. To turn it into separate shapes, use \(breakApart)."
             return
         }
         var hadMonogram = false
-        edit("Ungroup") { design in
-            for i in design.objects.indices where design.objects[i].groupID.map(groups.contains) == true {
-                design.objects[i].groupID = nil; design.objects[i].branchID = nil   // ungrouped branches sew separately again
-                if design.objects[i].monogram != nil { design.objects[i].monogram = nil; hadMonogram = true }
-            }
-        }
+        edit("Ungroup") { design in hadMonogram = design.ungroupObjects(selection).hadMonogram }
         status = "Ungrouped. Objects keep their place in the sewing order." + (hadMonogram ? " The monogram's parts are now plain shapes; it can't be edited as a monogram any more." : "")
             + (letteringGroups.isEmpty ? "" : " Lettering stays one object; use \(breakApart) to split it.")
     }
@@ -1070,6 +1065,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
                 var copy = object; copy.id = UUID(); copy.name += " copy"; copy.locked = false; copies[object.id] = copy.id
                 copy.transform{$0+Point(3,-3)}
                 if let old = copy.groupID { if newGroups[old] == nil { newGroups[old] = UUID() }; copy.groupID = newGroups[old] }
+                copy.outerGroups = copy.outerGroups?.map { old in if newGroups[old] == nil { newGroups[old] = UUID() }; return newGroups[old]! }
             if let old = copy.branchID { if newGroups[old] == nil { newGroups[old] = UUID() }; copy.branchID = newGroups[old] }   // a separate branch too
                 if let old = copy.lettering?.id { if newLettering[old] == nil { newLettering[old] = UUID() }; copy.lettering?.id = newLettering[old]! }
                 if let old = copy.monogram?.id { if newLettering[old] == nil { newLettering[old] = UUID() }; copy.monogram?.id = newLettering[old]! }   // a separate monogram too
@@ -1147,7 +1143,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         // Copies along a line are new objects when built again too, so a selected set stays selected by its id.
         let selectedRepeats = Set(updated.objects.filter { state.selection.contains($0.id) }.compactMap { $0.repeatCopy?.id ?? $0.lineRepeat?.id })
         let guideProblems = updated.syncGuides(embroideryFonts: EmbroideryFontLibrary.fonts)
-        if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaTwentyTwo ? 22:updated.needsSchemaTwentyOne ? 21:updated.needsSchemaTwenty ? 20:updated.needsSchemaNineteen ? 19:updated.needsSchemaEighteen ? 18:updated.needsSchemaSeventeen ? 17:updated.needsSchemaSixteen ? 16:updated.needsSchemaFifteen ? 15:updated.needsSchemaFourteen ? 14:updated.needsSchemaThirteen ? 13:updated.needsSchemaTwelve ? 12:updated.needsSchemaEleven ? 11:updated.needsSchemaTen ? 10:updated.needsSchemaNine ? 9:updated.needsSchemaEight ? 8:updated.needsSchemaSeven ? 7:updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
+        if updated.engineVersion==Design.engineVersion{updated.schemaVersion=updated.needsSchemaTwentyThree ? 23:updated.needsSchemaTwentyTwo ? 22:updated.needsSchemaTwentyOne ? 21:updated.needsSchemaTwenty ? 20:updated.needsSchemaNineteen ? 19:updated.needsSchemaEighteen ? 18:updated.needsSchemaSeventeen ? 17:updated.needsSchemaSixteen ? 16:updated.needsSchemaFifteen ? 15:updated.needsSchemaFourteen ? 14:updated.needsSchemaThirteen ? 13:updated.needsSchemaTwelve ? 12:updated.needsSchemaEleven ? 11:updated.needsSchemaTen ? 10:updated.needsSchemaNine ? 9:updated.needsSchemaEight ? 8:updated.needsSchemaSeven ? 7:updated.needsSchemaSix ? 6:updated.needsSchemaFive ? 5:4}
         // The same check Save makes, before anything is recorded.
         do { try updated.validate() } catch {
             state.status = "\(action) can't be done: \(error.localizedDescription) Nothing was changed."
