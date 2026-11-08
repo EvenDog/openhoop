@@ -430,6 +430,7 @@ extension InspectorPanel {
             case .raw: proImported(object, headed: headed)
             }
             if object.kind == .satin || object.kind == .run { proHandStitch(object) }
+            if object.kind == .fill { proFillHandStitch(object) }
             if object.kind == .satin || (object.kind == .fill && object.settings.fillStyle == .satin) { proJaggedEdge(object) }
         case .underlay:
             proUnderlay(object)
@@ -664,6 +665,29 @@ extension InspectorPanel {
     }
 
     /// Jagged edge (JaggedEdge.swift): a checkbox, then once it's on, which way and how far the edge holes move.
+    /// A fill's Hand stitch: a checkbox, then how strong and which random version (FillHandStitch.swift).
+    private func proFillHandStitch(_ object: RunObject) -> some View {
+        let hand = object.settings.fillHandStitch
+        /// Changes one fill hand stitch setting of the selection, as one undoable step called `title`.
+        func change(_ title: String, _ body: @escaping (inout FillHandStitch) -> Void) {
+            settings(.fill, title) { s in var h = s.fillHandStitch ?? FillHandStitch(); body(&h); s.fillHandStitch = h }
+        }
+        return proSection("Hand stitch", titleShown: hand != nil) {
+            toggle("Hand stitch", value: hand != nil) { on in settings(.fill, on ? "Hand Stitch" : "No Hand Stitch") { $0.fillHandStitch = on ? FillHandStitch() : nil } }
+                .help("Makes the fill look sewn by hand: its stitches tilt and cross a little, and the needle holes no longer line up. The outline stays crisp.")
+            if let hand {
+                choice("Strength", selection: Binding(get: { hand.strength }, set: { value in change("Hand Stitch Strength") { $0.strength = value } }),
+                       options: FillHandStitch.Strength.allCases.map { ($0.title, $0) },
+                       help: "How far the needle holes wander: Light is a gentle unevenness, Strong a loose, hand-sewn look.")
+                numberGrid {
+                    numberCell("Variant", value: Double(hand.variant), range: Double(FillHandStitch.variants.lowerBound)...Double(FillHandStitch.variants.upperBound), unit: nil, whole: true, help: "Another random version of the same settings, if you don't like how this one came out.") { typed in
+                        change("Hand Stitch Variant") { $0.variant = min(FillHandStitch.variants.upperBound, max(FillHandStitch.variants.lowerBound, Int(typed.rounded()))) }
+                    }
+                }
+            }
+        }
+    }
+
     private func proJaggedEdge(_ object: RunObject) -> some View {
         let kind = object.kind, jagged = object.settings.jaggedEdge
         /// Changes one jagged edge setting of the selection, as one undoable step called `title`.
