@@ -1,0 +1,1219 @@
+{
+  "engineVersion" : "digitize-3",
+  "hoop" : {
+    "height" : 100,
+    "oval" : false,
+    "width" : 100
+  },
+  "objects" : [
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "39B52D82-784C-48FB-BB17-1AA1C5F27300",
+      "locked" : false,
+      "name" : "Straight 2 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -39,
+            "y" : 20
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37,
+            "y" : 20
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -39,
+            "y" : 25
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37,
+            "y" : 25
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -39,
+            "y" : 30
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37,
+            "y" : 30
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -39,
+            "y" : 35
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37,
+            "y" : 35
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -39,
+            "y" : 40
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37,
+            "y" : 40
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "43698070-39C1-4BCD-AEB2-92B01470F64C",
+      "locked" : false,
+      "name" : "Straight 4 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -27,
+            "y" : 20
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -23,
+            "y" : 20
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -27,
+            "y" : 25
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -23,
+            "y" : 25
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -27,
+            "y" : 30
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -23,
+            "y" : 30
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -27,
+            "y" : 35
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -23,
+            "y" : 35
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -27,
+            "y" : 40
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -23,
+            "y" : 40
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 1473664,
+        "name" : "Ocean"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "1ECE6656-7A10-4436-BBC2-B67A1214E06B",
+      "locked" : false,
+      "name" : "Straight 6 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -15,
+            "y" : 20
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -9,
+            "y" : 20
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15,
+            "y" : 25
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -9,
+            "y" : 25
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15,
+            "y" : 30
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -9,
+            "y" : 30
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15,
+            "y" : 35
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -9,
+            "y" : 35
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15,
+            "y" : 40
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -9,
+            "y" : 40
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 2701122,
+        "name" : "Ink"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "8412A668-2E1C-4B09-B8FD-6955C574BFDC",
+      "locked" : false,
+      "name" : "Taper 6 → 1 mm (1)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 15,
+            "y" : 20
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 21,
+            "y" : 20
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 15.416666666666666,
+            "y" : 24
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 20.583333333333332,
+            "y" : 24
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 15.833333333333334,
+            "y" : 28
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 20.166666666666668,
+            "y" : 28
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 16.25,
+            "y" : 32
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 19.75,
+            "y" : 32
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 16.666666666666668,
+            "y" : 36
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 19.333333333333332,
+            "y" : 36
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 17.083333333333332,
+            "y" : 40
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 18.916666666666668,
+            "y" : 40
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 17.5,
+            "y" : 44
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 18.5,
+            "y" : 44
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 2701122,
+        "name" : "Ink"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "141FD3BE-DB87-40EE-8742-E6B2D0B247B9",
+      "locked" : false,
+      "name" : "Taper 6 → 1 mm (2)",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 31,
+            "y" : 20
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 37,
+            "y" : 20
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 31.416666666666668,
+            "y" : 24
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 36.583333333333336,
+            "y" : 24
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 31.833333333333332,
+            "y" : 28
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 36.166666666666664,
+            "y" : 28
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 32.25,
+            "y" : 32
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 35.75,
+            "y" : 32
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 32.666666666666664,
+            "y" : 36
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 35.333333333333336,
+            "y" : 36
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 33.083333333333336,
+            "y" : 40
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.916666666666664,
+            "y" : 40
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 33.5,
+            "y" : 44
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 34.5,
+            "y" : 44
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "6D3AB665-1E5E-44D7-A619-AB1FDCA35AA2",
+      "locked" : false,
+      "name" : "U-bend, inside radius 1.5 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -37.5,
+            "y" : -8
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -41.5,
+            "y" : -7.999999999999999
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37.4488887394336,
+            "y" : -8.38822856765378
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -41.31259204458988,
+            "y" : -9.423504748063863
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37.29903810567666,
+            "y" : -8.75
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -40.763139720814415,
+            "y" : -10.75
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37.06066017177982,
+            "y" : -9.060660171779821
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -39.889087296526014,
+            "y" : -11.88908729652601
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -36.75,
+            "y" : -9.299038105676658
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -38.75,
+            "y" : -12.763139720814412
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -36.38822856765378,
+            "y" : -9.448888739433603
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -37.42350474806386,
+            "y" : -13.312592044589875
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -36,
+            "y" : -9.5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -36,
+            "y" : -13.5
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -35.61177143234622,
+            "y" : -9.448888739433603
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -34.57649525193614,
+            "y" : -13.312592044589875
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -35.25,
+            "y" : -9.299038105676658
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -33.25,
+            "y" : -12.763139720814412
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -34.93933982822018,
+            "y" : -9.060660171779821
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -32.11091270347399,
+            "y" : -11.889087296526013
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -34.70096189432334,
+            "y" : -8.75
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -31.23686027918559,
+            "y" : -10.750000000000004
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -34.5511112605664,
+            "y" : -8.388228567653782
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -30.687407955410123,
+            "y" : -9.423504748063865
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -34.5,
+            "y" : -8
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -30.5,
+            "y" : -8.000000000000002
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "8630A44C-CA4C-4E0D-8BE1-58E970EFB065",
+      "locked" : false,
+      "name" : "U-bend, inside radius 4 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : -18,
+            "y" : -7.999999999999999
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -22,
+            "y" : -7.999999999999999
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -17.863703305156275,
+            "y" : -9.035276180410081
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -21.72740661031255,
+            "y" : -10.070552360820162
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -17.464101615137753,
+            "y" : -10
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -20.928203230275507,
+            "y" : -12
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -16.82842712474619,
+            "y" : -10.82842712474619
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -19.656854249492383,
+            "y" : -13.65685424949238
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -16,
+            "y" : -11.464101615137753
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -18.000000000000004,
+            "y" : -14.928203230275507
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -15.035276180410083,
+            "y" : -11.863703305156273
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -16.070552360820166,
+            "y" : -15.727406610312546
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -14,
+            "y" : -12
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -14.000000000000002,
+            "y" : -16
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -12.964723819589915,
+            "y" : -11.863703305156273
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11.92944763917983,
+            "y" : -15.727406610312546
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -12,
+            "y" : -11.464101615137753
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -10,
+            "y" : -14.928203230275509
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -11.17157287525381,
+            "y" : -10.828427124746192
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -8.34314575050762,
+            "y" : -13.656854249492381
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -10.535898384862247,
+            "y" : -10.000000000000002
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -7.071796769724493,
+            "y" : -12.000000000000004
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -10.136296694843727,
+            "y" : -9.035276180410083
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -6.2725933896874535,
+            "y" : -10.070552360820166
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -10,
+            "y" : -8.000000000000002
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : -6,
+            "y" : -8.000000000000002
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    },
+    {
+      "closed" : false,
+      "color" : {
+        "hex" : 14443858,
+        "name" : "Coral"
+      },
+      "digitizing" : {
+        "angle" : 45,
+        "autoSplit" : true,
+        "expansion" : 0.2,
+        "inset" : 0.4,
+        "kind" : "satin",
+        "maximumSatin" : 10,
+        "pullPercent" : 3,
+        "shortStitches" : true,
+        "spacing" : 0.4,
+        "spacingAcrossTwoRows" : true,
+        "underlay" : "auto",
+        "underlaySpacing" : 1.2
+      },
+      "id" : "33A1FFA9-360E-4AFB-9868-485914C92C03",
+      "locked" : false,
+      "name" : "U-bend, inside radius 8 mm",
+      "nodes" : [
+        {
+          "point" : {
+            "x" : 10,
+            "y" : -7.999999999999999
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 6,
+            "y" : -7.999999999999998
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 10.272593389687453,
+            "y" : -10.070552360820162
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 6.40889008453118,
+            "y" : -11.105828541230245
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 11.071796769724491,
+            "y" : -12
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 7.607695154586736,
+            "y" : -14.000000000000002
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 12.343145750507619,
+            "y" : -13.65685424949238
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 9.514718625761429,
+            "y" : -16.485281374238568
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 13.999999999999996,
+            "y" : -14.928203230275507
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 11.999999999999995,
+            "y" : -18.39230484541326
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 15.929447639179834,
+            "y" : -15.727406610312546
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 14.894171458769753,
+            "y" : -19.59110991546882
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 18,
+            "y" : -16
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 17.999999999999996,
+            "y" : -20
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 20.07055236082017,
+            "y" : -15.727406610312546
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 21.105828541230252,
+            "y" : -19.59110991546882
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 22,
+            "y" : -14.928203230275509
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 24,
+            "y" : -18.392304845413264
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 23.65685424949238,
+            "y" : -13.656854249492381
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 26.485281374238568,
+            "y" : -16.48528137423857
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 24.928203230275507,
+            "y" : -12.000000000000004
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 28.39230484541326,
+            "y" : -14.000000000000005
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 25.727406610312546,
+            "y" : -10.070552360820166
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 29.59110991546882,
+            "y" : -11.105828541230249
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 26,
+            "y" : -8.000000000000002
+          },
+          "smooth" : false
+        },
+        {
+          "point" : {
+            "x" : 30,
+            "y" : -8.000000000000004
+          },
+          "smooth" : false
+        }
+      ],
+      "stitchLength" : 2.5,
+      "stopAfter" : false,
+      "tieIn" : true,
+      "tieOut" : true,
+      "trimAfter" : true,
+      "visible" : true
+    }
+  ],
+  "schemaVersion" : 5
+}
