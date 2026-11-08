@@ -723,7 +723,7 @@ struct InspectorPanel: View {
     }
     /// Satin from a center line: a width and a button that turns this line into a satin column.
     @ViewBuilder func satinLine(_ object: RunObject) -> some View {
-        number("Satin width", value: preferences.data.satinLineWidth ?? SatinLine.defaultWidth, range: SatinLine.widths, help: "Turn this line into a satin column this wide, centered on the line.") { value in preferences.data.satinLineWidth = value; preferences.save() }
+        number("Satin width", value: preferences.data.satinLineWidth ?? SatinLine.defaultWidth, range: SatinLine.widths, unit: "mm", help: "Turn this line into a satin column this wide, centered on the line.") { value in preferences.data.satinLineWidth = value; preferences.save() }
         Button("Make satin column") { AppDelegate.shared.perform(.convertSatin) }.buttonStyle(ThemedButtonStyle())
             .help("Turn this line into a satin column centered on it (\(Preferences.shared.label(.convertSatin).isEmpty ? "Digitize menu" : Preferences.shared.label(.convertSatin)))")
     }
@@ -755,23 +755,23 @@ struct InspectorPanel: View {
             }
             .help("Where each row's needle holes go. The lines of holes make a texture in the fill: zigzags, waves, blocks. \(pattern.name): \(pattern.tagline)")
             if let picture = pattern.picture {
-                number("Shape size", value: s.patternSize ?? picture.defaultSize, range: DigitizingSettings.patternSizeRange, help: "How wide each shape is (mm). The shapes turn with the stitch angle: 0° stands them upright.") { value in settings(.fill, "Shape Size") { $0.patternSize = value } }
+                number("Shape size", value: s.patternSize ?? picture.defaultSize, range: DigitizingSettings.patternSizeRange, unit: "mm", help: "How wide each shape is (mm). The shapes turn with the stitch angle: 0° stands them upright.") { value in settings(.fill, "Shape Size") { $0.patternSize = value } }
             }
         case .stipple:
-            number("Stipple spacing", value: s.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing, range: DigitizingSettings.stippleSpacingRange, help: "How far apart the line's neighbouring passes are (mm). Smaller is denser. Stipple sews without underlay.") { value in settings(.fill, "Stipple Spacing") { $0.stippleSpacing = value } }
+            number("Stipple spacing", value: s.stippleSpacing ?? DigitizingSettings.defaultStippleSpacing, range: DigitizingSettings.stippleSpacingRange, unit: "mm", help: "How far apart the line's neighbouring passes are (mm). Smaller is denser. Stipple sews without underlay.") { value in settings(.fill, "Stipple Spacing") { $0.stippleSpacing = value } }
         case .motif:
             motifPicker(object, kind: .fill)
-            number("Motif size", value: s.patternSize ?? DigitizingSettings.defaultPatternSize(.motif), range: DigitizingSettings.patternSizeRange, help: "How big each motif is (mm). Only whole motifs that fit inside the shape are sewn.") { value in settings(.fill, "Motif Size") { $0.patternSize = value } }
-            number("Gap", value: s.patternGap ?? DigitizingSettings.defaultPatternGap, range: DigitizingSettings.patternGapRange, help: "The space between motifs (mm).") { value in settings(.fill, "Motif Gap") { $0.patternGap = value } }
+            number("Motif size", value: s.patternSize ?? DigitizingSettings.defaultPatternSize(.motif), range: DigitizingSettings.patternSizeRange, unit: "mm", help: "How big each motif is (mm). Only whole motifs that fit inside the shape are sewn.") { value in settings(.fill, "Motif Size") { $0.patternSize = value } }
+            number("Gap", value: s.patternGap ?? DigitizingSettings.defaultPatternGap, range: DigitizingSettings.patternGapRange, unit: "mm", help: "The space between motifs (mm).") { value in settings(.fill, "Motif Gap") { $0.patternGap = value } }
         case .crossStitch:
-            number("Square size", value: s.patternSize ?? DigitizingSettings.defaultPatternSize(.crossStitch), range: DigitizingSettings.patternSizeRange, help: "The size of each cross-stitch square (mm). Smaller squares follow the shape more closely and take more stitches.") { value in settings(.fill, "Square Size") { $0.patternSize = value } }
+            number("Square size", value: s.patternSize ?? DigitizingSettings.defaultPatternSize(.crossStitch), range: DigitizingSettings.patternSizeRange, unit: "mm", help: "The size of each cross-stitch square (mm). Smaller squares follow the shape more closely and take more stitches.") { value in settings(.fill, "Square Size") { $0.patternSize = value } }
         case .gradient:
             let gradientHelp = s.blendFade != nil
                 ? "Spacing at start: how close the rows are where this color is solid, in mm\(s.blendRowsPaired == true ? ", measured across two rows like tatami spacing" : ""). Spacing at end: rows further apart than this are left out, so past its fade this color sews nothing."
                 : "Row spacing where the rows start (the solid end) and where they finish (the open end), in mm. The rows run at the fill angle and open up from one side of the shape to the other; turning the angle by 180° swaps the sides."
             blendMix(object)
-            number("Spacing at start", value: s.gradientStart ?? DigitizingSettings.defaultGradientStart, range: DigitizingSettings.gradientSpacingRange, help: gradientHelp) { value in settings(.fill, "Gradient Start") { $0.gradientStart = value } }
-            number("Spacing at end", value: s.gradientEnd ?? DigitizingSettings.defaultGradientEnd, range: DigitizingSettings.gradientSpacingRange, help: gradientHelp) { value in settings(.fill, "Gradient End") { $0.gradientEnd = value } }
+            number("Spacing at start", value: s.gradientStart ?? DigitizingSettings.defaultGradientStart, range: DigitizingSettings.gradientSpacingRange, unit: "mm", help: gradientHelp) { value in settings(.fill, "Gradient Start") { $0.gradientStart = value } }
+            number("Spacing at end", value: s.gradientEnd ?? DigitizingSettings.defaultGradientEnd, range: DigitizingSettings.gradientSpacingRange, unit: "mm", help: gradientHelp) { value in settings(.fill, "Gradient End") { $0.gradientEnd = value } }
         case .satin:
             // For fills, Auto split is on unless turned off (nil counts as on).
             toggle("Auto split", value: s.autoSplit != false) { on in settings(.fill, "Auto Split") { $0.autoSplit = on ? nil : false } }
@@ -817,11 +817,11 @@ struct InspectorPanel: View {
         .help(style.summary)
         if style == .motif { motifPicker(object, kind: .run) }
         if style.hasWidth {
-            number(style == .blanket ? "Prong length" : style == .motif ? "Motif size" : style == .candlewick ? "Knot size" : "Width", value: object.settings.runWidth ?? DigitizingSettings.defaultRunWidth(style), range: DigitizingSettings.runWidthRange,
+            number(style == .blanket ? "Prong length" : style == .motif ? "Motif size" : style == .candlewick ? "Knot size" : "Width", value: object.settings.runWidth ?? DigitizingSettings.defaultRunWidth(style), range: DigitizingSettings.runWidthRange, unit: "mm",
                    help: style == .blanket ? "How far each prong reaches from the line (mm)." : style == .motif ? "How long each motif is along the line (mm)." : style == .candlewick ? "How wide each knot is (mm)." : "How wide the stitch is across the line (mm).") { value in settings(.run, "Line Width") { $0.runWidth = value } }
         }
         if style.hasSpacing {
-            number(style == .blanket ? "Prong spacing" : style == .motif ? "Gap" : style == .chain ? "Link length" : "Spacing", value: object.settings.runSpacing ?? DigitizingSettings.defaultRunSpacing(style), range: DigitizingSettings.runSpacingRange,
+            number(style == .blanket ? "Prong spacing" : style == .motif ? "Gap" : style == .chain ? "Link length" : "Spacing", value: object.settings.runSpacing ?? DigitizingSettings.defaultRunSpacing(style), range: DigitizingSettings.runSpacingRange, unit: "mm",
                    help: style == .blanket ? "How far apart the prongs are along the line (mm)." : style == .motif ? "The running stitch between motifs (mm)." : style == .chain ? "How long each loop is (mm)." : style == .candlewick ? "How far apart the knots are (mm)." : style == .zigzag ? "How far the needle moves along the line with each swing (mm). Smaller is denser." : "How far apart the repeats are along the line (mm). Smaller is denser.") { value in settings(.run, "Line Spacing") { $0.runSpacing = value } }
         }
         if style == .ripple {
@@ -860,11 +860,13 @@ struct InspectorPanel: View {
     /// A labeled number field. `help` explains the setting, as a tooltip.
     /// `length` marks a size or position: it's shown and typed in the chosen unit (mm or inches), with the unit beside it.
     /// `whole` marks a count, shown without decimals.
-    @ViewBuilder func number(_ title: String, value: Double, id: String = "", range: ClosedRange<Double>, length: Bool = false, whole: Bool = false, help: String? = nil, commit: @escaping (Double) -> Void) -> some View {
+    /// `length`: a length on the canvas, shown in the unit chosen in Settings (mm or inches). `unit`: a label that
+    /// never converts, such as "mm" for a stitch setting (those always stay in millimeters, see LengthUnit.swift).
+    @ViewBuilder func number(_ title: String, value: Double, id: String = "", range: ClosedRange<Double>, length: Bool = false, unit: String? = nil, whole: Bool = false, help: String? = nil, commit: @escaping (Double) -> Void) -> some View {
         HStack {
             Text(title).font(Theme.body(11, weight: .regular)); Spacer()
             NumberField(value: value, identifier: id, range: range, unit: length ? preferences.unit : nil, commit: commit, focusCanvas: state.focusCanvas, whole: whole).frame(width: 84, height: 21)
-            if length { Text(preferences.unit.symbol).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).fixedSize().frame(width: 18, alignment: .leading) }
+            if let label = length ? preferences.unit.symbol : unit { Text(label).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).fixedSize().frame(width: 18, alignment: .leading) }
         }
         .help(help ?? "")
     }
