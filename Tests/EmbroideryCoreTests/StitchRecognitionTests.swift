@@ -111,6 +111,9 @@ final class StitchRecognitionTests: XCTestCase {
             _ = design.recognizeObjects(Set(design.objects.map(\.id)))
             let found = try XCTUnwrap(design.objects.first { $0.kind == .satin }, "spacing \(spacing)")
             XCTAssertEqual(found.settings.spacing, spacing, accuracy: 0.03, "spacing \(spacing)")
+        }
+    }
+
     /// A fill sewn with a tatami pattern, read back as imported stitches, comes back with that pattern, at an angle
     /// too; a plain (Smooth) fill comes back plain.
     func testRecognizedFillsKeepTheirTatamiPattern() throws {
