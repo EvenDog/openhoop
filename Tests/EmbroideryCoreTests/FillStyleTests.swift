@@ -177,9 +177,19 @@ final class FillStyleTests: XCTestCase {
         }
     }
 
+    /// Contour rings of `ring` sewn plainly, one after another with a step across after each (no spiral).
+    private func sections(ofRings ring: [Point]) -> [[Point]] {
+        var steps = [[ring]], rings: [[Point]] = []
+        for level in 0..<200 {
+            guard let inset = try? FillStyles.shrunk(&steps, by: 0.2 + Double(level) * 0.4), !inset.isEmpty else { break }
+            rings += inset.map { $0 + [$0[0]] }
+        }
+        return [rings.flatMap { $0 }]
+    }
+
     /// On round shapes, contour rings spiral into each other instead of stepping across at the end of each lap, so
     /// there's no seam: the needle never drops a whole row inward in one stitch. Shapes with points sharper than 55°
-    /// (a star's) keep the step (the laps come out uneven there).
+    /// (a star's) spiral corner to corner.
     func testContourSpiralsOnRoundShapesWithoutASeam() throws {
         func inwardSteps(_ sections: [[Point]], center: Point) -> Int {
             sections.map { s in zip(s, s.dropFirst()).filter { $0.distance(to: center) - $1.distance(to: center) > 0.3 }.count }.reduce(0, +)
@@ -192,12 +202,24 @@ final class FillStyleTests: XCTestCase {
         XCTAssertLessThan(flat.last!, 1.5, "it still reaches the middle")
         XCTAssertTrue(round[0].allSatisfy { AreaGeometry.contains($0, rings: [circle]) })
         XCTAssertTrue(zip(round[0], round[0].dropFirst()).allSatisfy { $0.distance(to: $1) <= 3.0001 }, "no stitch over the stitch length")
+        // A star spirals too, corner to corner; only where its rings stop being star-shaped (a pentagon in the
+        // middle) can the corners not pair up, and that ring steps across.
         let star = AreaGeometry.ring(ShapeGeometry.nodes(.star, in: (Point(-15, -15), Point(15, 15))))
-        XCTAssertGreaterThan(inwardSteps(try FillStyles.contour(in: [star], spacing: 0.4, length: 3, start: nil), center: Point(0, 0)), 5, "a star keeps its steps")
+        let starred = try FillStyles.contour(in: [star], spacing: 0.4, length: 3, start: nil)
+        // (Distance to the middle doesn't tell on a star, whose sides run in toward it; depth, the distance in from the
+        // edge, stays the same round a ring, grows gradually over a spiral lap, and jumps a row at a step.)
+        func depth(_ p: Point) -> Double { zip(star, star.dropFirst() + [star[0]]).map { p.distance(to: AreaGeometry.projection(p, $0, $1)) }.min()! }
+        func deeperSteps(_ sections: [[Point]]) -> Int { sections.map { s in zip(s, s.dropFirst()).filter { depth($1) - depth($0) > 0.3 }.count }.reduce(0, +) }
+        // (At most a few: the last stitch into the middle, and an outer lap that cuts a notch's V a little short.)
+        XCTAssertLessThanOrEqual(deeperSteps(starred), 3, "the star spirals")
+        let stepped = sections(ofRings: star)
+        XCTAssertGreaterThan(deeperSteps(stepped), 10, "(plain rings stepping across would show)")
+        XCTAssertTrue(starred.allSatisfy { $0.allSatisfy { AreaGeometry.contains($0, rings: [star]) } }, "inside the star")
+        XCTAssertTrue(starred.allSatisfy { zip($0, $0.dropFirst()).allSatisfy { $0.distance(to: $1) <= 3.0001 } }, "no stitch over the stitch length")
     }
 
     /// Rings with corners no sharper than about 60° (here a square's) spiral too, each corner drifting into the next
-    /// ring's corner: no lap ends with a step inward, so there's no line from the start to the middle. Stars keep it.
+    /// ring's corner: no lap ends with a step inward, so there's no line from the start to the middle.
     func testContourSpiralsOnSquareCornersWithoutASeam() throws {
         let square = rectangle(20, 20)
         let sections = try FillStyles.contour(in: [square], spacing: 0.4, length: 3, start: nil)
