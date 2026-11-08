@@ -254,6 +254,24 @@ final class ShapeTests: XCTestCase {
         XCTAssertThrowsError(try ShapeStitching.openShape(stub, stitch: .satin, satinWidth: 3, name: "Stub", color: .palette[0]))
     }
 
+    /// Every line style can be picked before drawing, not just in Properties after (Ripple aside: it repeats a
+    /// closed outline inward, so it's no choice for a new open line). A new line or outline gets the style itself.
+    func testShapeToolsOfferEveryLineStyle() throws {
+        let offered = Set(OpenShapeStitch.allCases.compactMap(\.runStyle))
+        XCTAssertEqual(offered, Set(RunStyle.allCases).subtracting([.running, .ripple]))
+        let line = [PathNode(Point(-20, 0)), PathNode(Point(0, 8), smooth: true), PathNode(Point(20, 0))]
+        let square = ShapeGeometry.nodes(.rectangle, in: (Point(-10, -10), Point(10, 10)))
+        for stitch in OpenShapeStitch.allCases {
+            guard let style = stitch.runStyle else { continue }
+            let open = try ShapeStitching.openShape(line, stitch: stitch, satinWidth: 3, name: "Line", color: .palette[0])
+            XCTAssertEqual(open.settings.runStyle, style, stitch.title)
+            let edge = try XCTUnwrap(ShapeStitching.closedShape(square, fill: nil, outline: stitch, name: "Square", color: .palette[0]).first)
+            XCTAssertEqual(edge.settings.runStyle, style, stitch.title)
+            var design = Design(); design.objects = [open, edge]
+            XCTAssertGreaterThan(try RunningEngine.compile(design).stitchCount, 20, stitch.title)
+        }
+    }
+
     /// The shape tools are on ⌥ keys that no other command uses.
     func testShapeToolKeys() {
         let profile = ShortcutProfile()

@@ -13,11 +13,12 @@ struct LineArtChoice: Equatable {
 extension GuidedDialog {
     /// The choices used last, so the dialog opens where it was left.
     static var lastLineArt = LineArtChoice()
-    /// The Line Art dialog: returns the choice, or nil if the person cancelled.
-    static func lineArt(color: ThreadColor) -> LineArtChoice? {
+    /// The Line Art dialog: returns the choice, or nil if the person cancelled. `hoop` is the design's, so the dialog
+    /// can warn when the drawing won't fit it.
+    static func lineArt(color: ThreadColor, hoop: Hoop) -> LineArtChoice? {
         var made: LineArtChoice?   // the dialog's closure writes the choice here before it closes
         let confirmed = run(width: 780) { finish in
-            LineArtView(choice: lastLineArt, color: color) { choice in
+            LineArtView(choice: lastLineArt, color: color, hoop: hoop) { choice in
                 if let choice { lastLineArt = choice }
                 made = choice; finish(choice != nil)
             }
@@ -29,6 +30,8 @@ extension GuidedDialog {
 struct LineArtView: View {
     @State var choice: LineArtChoice
     let color: ThreadColor
+    /// The design's hoop: the drawing goes in its middle.
+    let hoop: Hoop
     /// Called with the choice (nil for Cancel).
     let done: (LineArtChoice?) -> Void
 
@@ -60,7 +63,11 @@ struct LineArtView: View {
                         StitchThumbnail(objects: lines, label: "Preview of the \(choice.design.title.lowercased())")
                     }
                     .frame(height: 240).clipShape(RoundedRectangle(cornerRadius: 14))
-                    Text(sizeNote(lines)).font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).fixedSize(horizontal: false, vertical: true)
+                    let note = Self.sizeNote(lines, size: choice.size, hoop: hoop, unit: Preferences.shared.unit)
+                    // Too big for the hoop: the note turns into a warning, in the color of the status bar's warnings.
+                    Label { Text(note.text) } icon: { if !note.fits { Image(systemName: "exclamationmark.triangle.fill") } }
+                        .font(Theme.body(12)).foregroundStyle(note.fits ? Theme.inkSecondary : Theme.primaryAction)
+                        .fixedSize(horizontal: false, vertical: true)
                     Stepper(value: $choice.size, in: LineArt.sizes, step: 5) {
                         Text("Width: \(Preferences.shared.unit.short(choice.size))").font(Theme.body(13, weight: .semibold))
                     }
@@ -95,12 +102,24 @@ struct LineArtView: View {
         .accessibilityValue(choice.design == design ? "Chosen" : "")
     }
 
-    /// How big the drawing comes out, and how many separate lines (each one more jump) it has.
-    private func sizeNote(_ lines: [RunObject]) -> String {
+    /// How big the drawing comes out and how many separate lines (each one more jump) it has, as `text`. `fits` says
+    /// whether it fits inside `hoop` when put in its middle, as it's added. When it doesn't, `text` says so, and
+    /// `fittingWidth` is the widest size that fits, in the Width stepper's 5 mm steps (nil if even the smallest
+    /// size is too big). `lines` are the drawing at `size` mm wide, centered on 0,0, as LineArt.objects makes them.
+    static func sizeNote(_ lines: [RunObject], size: Double, hoop: Hoop, unit: LengthUnit) -> (text: String, fits: Bool, fittingWidth: Double?) {
         let points = lines.flatMap { $0.outlinePaths.flatMap { $0 } }
-        guard let minX = points.map(\.x).min(), let maxX = points.map(\.x).max(), let minY = points.map(\.y).min(), let maxY = points.map(\.y).max() else { return "" }
-        let unit = Preferences.shared.unit
+        guard let minX = points.map(\.x).min(), let maxX = points.map(\.x).max(), let minY = points.map(\.y).min(), let maxY = points.map(\.y).max() else { return ("", true, nil) }
         let parts = lines.count == 1 ? "one continuous line" : "\(lines.count) lines (\(lines.count - 1) jump\(lines.count == 2 ? "" : "s"))"
-        return "About \(unit.short((maxX - minX).rounded())) × \(unit.short((maxY - minY).rounded())), \(parts)."
+        let about = "About \(unit.short((maxX - minX).rounded())) × \(unit.short((maxY - minY).rounded())), \(parts)."
+        func fits(_ scale: Double) -> Bool { points.allSatisfy { hoop.contains($0 * scale) } }
+        if fits(1) { return (about, true, nil) }
+        // The drawing grows evenly from its middle, so the biggest share of this size that fits is found by halving
+        // the gap between a share that fits and one that doesn't.
+        var low = 0.0, high = 1.0
+        for _ in 0..<30 { let middle = (low + high) / 2; if fits(middle) { low = middle } else { high = middle } }
+        let widest = (size * low / 5).rounded(.down) * 5
+        let hoopName = "\(unit.short(hoop.width)) × \(unit.short(hoop.height)) hoop"
+        guard widest >= LineArt.sizes.lowerBound else { return ("\(about) Too big for the \(hoopName), even at its smallest.", false, nil) }
+        return ("\(about) Too big for the \(hoopName): \(unit.short(widest)) wide fits.", false, widest)
     }
 }

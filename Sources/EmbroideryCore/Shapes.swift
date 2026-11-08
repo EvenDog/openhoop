@@ -43,17 +43,22 @@ public enum BasicShape: String, Codable, CaseIterable, Sendable {
 
 /// The stitch the Open Shape tool puts on a new line.
 public enum OpenShapeStitch: String, Codable, CaseIterable, Sendable {
-    case running, bean, satin, zigzag, blanket, backStitch, stemStitch, motif
+    case running, bean, satin, zigzag, blanket, backStitch, stemStitch, motif, chain, feather, crossStitch, herringbone, ladder, candlewick
     public var title: String {
         switch self {
         case .running: return "Running"; case .bean: return "Bean (triple run)"; case .satin: return "Satin line"
         case .zigzag: return "Zigzag"; case .blanket: return "Blanket"; case .backStitch: return "Back stitch"; case .stemStitch: return "Stem stitch"
         case .motif: return "Motif (hearts)"
+        case .chain, .feather, .crossStitch, .herringbone, .ladder, .candlewick: return runStyle?.title ?? rawValue
         }
     }
     /// The line stitch style this choice puts on a running line, for the styles that are one.
     public var runStyle: RunStyle? {
-        switch self { case .zigzag: return .zigzag; case .blanket: return .blanket; case .backStitch: return .backStitch; case .stemStitch: return .stemStitch; case .motif: return .motif; default: return nil }
+        switch self {
+        case .zigzag: return .zigzag; case .blanket: return .blanket; case .backStitch: return .backStitch; case .stemStitch: return .stemStitch; case .motif: return .motif
+        case .chain: return .chain; case .feather: return .feather; case .crossStitch: return .crossStitch; case .herringbone: return .herringbone; case .ladder: return .ladder; case .candlewick: return .candlewick
+        default: return nil
+        }
     }
 }
 
@@ -90,7 +95,7 @@ public struct ShapeSettings: Codable, Equatable, Sendable {
         let outline = closedOutline.map { outline -> String in
             switch outline {
             case .running: return "running outline"; case .bean: return "bean outline"; case .satin: return "satin outline"
-            case .zigzag, .blanket, .backStitch, .stemStitch, .motif: return "\(outline.runStyle!.title.lowercased()) outline"
+            case .zigzag, .blanket, .backStitch, .stemStitch, .motif, .chain, .feather, .crossStitch, .herringbone, .ladder, .candlewick: return "\(outline.runStyle!.title.lowercased()) outline"
             }
         }
         guard let fill = closedFill else { return outline!.prefix(1).uppercased() + outline!.dropFirst() }   // one of them is always on
@@ -293,7 +298,7 @@ public enum ShapeStitching {
         case .running: return line
         case .bean: line.digitizing = DigitizingSettings(kind: .run); line.digitizing?.runPasses = 3; return line
         case .satin: return try SatinLine.column(from: line, width: satinWidth)
-        case .zigzag, .blanket, .backStitch, .stemStitch, .motif: line.digitizing = DigitizingSettings(kind: .run); line.digitizing?.runStyle = stitch.runStyle; return line
+        case .zigzag, .blanket, .backStitch, .stemStitch, .motif, .chain, .feather, .crossStitch, .herringbone, .ladder, .candlewick: line.digitizing = DigitizingSettings(kind: .run); line.digitizing?.runStyle = stitch.runStyle; return line
         }
     }
 
@@ -319,7 +324,7 @@ public enum ShapeStitching {
             case .running: break
             case .bean: edge.digitizing = DigitizingSettings(kind: .run); edge.digitizing?.runPasses = 3
             case .satin: edge = try SatinLine.column(from: edge, width: satinWidth)
-            case .zigzag, .blanket, .backStitch, .stemStitch, .motif: edge.digitizing = DigitizingSettings(kind: .run); edge.digitizing?.runStyle = outline.runStyle
+            case .zigzag, .blanket, .backStitch, .stemStitch, .motif, .chain, .feather, .crossStitch, .herringbone, .ladder, .candlewick: edge.digitizing = DigitizingSettings(kind: .run); edge.digitizing?.runStyle = outline.runStyle
             }
             made.append(edge)
         }
