@@ -616,7 +616,7 @@ extension InspectorPanel {
                 change("Hand Stitch \(title)") { set(&$0, min(range.upperBound, max(range.lowerBound, Int(typed.rounded())))) }
             }
         }
-        return proSection("Hand stitch") {
+        return proSection("Hand stitch", titleShown: hand != nil) {
             toggle("Hand stitch", value: hand != nil) { on in settings(kind, on ? "Hand Stitch" : "No Hand Stitch") { $0.handStitch = on ? HandStitch() : nil } }
                 .help("Makes the stitches look sewn by hand: uneven lengths, slightly tilted stitches and, with Count, stitches sewn over more than once. Works best without underlay on small shapes.")
             if let hand {
@@ -669,7 +669,7 @@ extension InspectorPanel {
         func change(_ title: String, _ body: @escaping (inout JaggedEdge) -> Void) {
             settings(kind, title) { s in var j = s.jaggedEdge ?? JaggedEdge(); body(&j); s.jaggedEdge = j }
         }
-        return proSection("Jagged edge") {
+        return proSection("Jagged edge", titleShown: jagged != nil) {
             toggle("Jagged edge", value: jagged != nil) { on in settings(kind, on ? "Jagged Edge" : "No Jagged Edge") { $0.jaggedEdge = on ? JaggedEdge() : nil } }
                 .help("Gives the satin's edge a rough, uneven look, for fur, grass or feathers: each stitch ends a random distance in from the edge, or out past it.")
             if let jagged {
@@ -846,12 +846,16 @@ extension InspectorPanel {
 
     /// A small uppercase heading over a group of settings, with a divider above it. With no title, just the settings:
     /// for a section right under a tab that already names it.
-    private func proSection<Content: View>(_ title: String?, @ViewBuilder _ content: () -> Content) -> some View {
+    /// `titleShown` false leaves out the heading but keeps the line above, for a section that starts with a checkbox
+    /// of the same name: the heading only shows once it's ticked and the section's settings appear under it.
+    private func proSection<Content: View>(_ title: String?, titleShown: Bool = true, @ViewBuilder _ content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             if let title {
                 Theme.divider.frame(height: 1)
-                Text(title.uppercased()).font(.system(size: 9, weight: .bold, design: .rounded)).tracking(0.7).foregroundStyle(Theme.inkSecondary)
-                    .padding(.top, 2)
+                if titleShown {
+                    Text(title.uppercased()).font(.system(size: 9, weight: .bold, design: .rounded)).tracking(0.7).foregroundStyle(Theme.inkSecondary)
+                        .padding(.top, 2)
+                }
             }
             content()
         }
