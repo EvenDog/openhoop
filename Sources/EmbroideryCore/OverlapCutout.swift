@@ -104,6 +104,10 @@ extension Design {
     /// pieces with its settings, in its place in the sewing order and grouped together; a fill covered completely
     /// is removed. Locked fills are left alone. Returns the pieces made (a fill cut without splitting is one piece,
     /// keeping its ID) and the names of the fills removed.
+    /// Whether `ids` has a fill `removeOverlaps` could cut (an unlocked one). Properties offers Remove overlaps only then.
+    public func canRemoveOverlaps(_ ids: Set<UUID>) -> Bool {
+        objects.contains { ids.contains($0.id) && $0.kind == .fill && !$0.locked }
+    }
     public mutating func removeOverlaps(in ids: Set<UUID>) throws -> (pieces: [UUID], removed: [String]) {
         var made: [UUID] = [], removed: [String] = [], index = 0
         while index < objects.count {
