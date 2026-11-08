@@ -1,7 +1,7 @@
-// The sew-out test pack: fifteen designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
+// The sew-out test pack: sixteen designs for a 100 × 100 mm hoop that put the stitch settings worth checking on a real
 // machine side by side (satin widths and compensation, the fill styles, small lettering, a monogram, travel and
 // finishing, the line styles and stipple, and motifs, cross stitch, gradient and raised satin, then wide satin, Remove Overlaps and Outlines & Offsets,
-// then moves and jumps of known lengths for Review Sewing Order's warnings, then smart corners beside rounded ones, then run connectors beside jumps, then push compensation side by side, then hand stitch, then jagged edges, then line art, candlewick knots and Join Lines bridges). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
+// then moves and jumps of known lengths for Review Sewing Order's warnings, then smart corners beside rounded ones, then run connectors beside jumps, then push compensation side by side, then hand stitch, then jagged edges, then line art, candlewick knots and Join Lines bridges, then satin ends and curves). The test checks each one sews and fits the hoop. Run it with SEWOUT_DIR set to a folder to write the
 // designs there as OpenHoop projects:
 //   SEWOUT_DIR="$PWD/docs/sewout" swift test --filter SewOutPackTests
 import XCTest
@@ -415,6 +415,48 @@ final class SewOutPackTests: XCTestCase {
         return design
     }
 
+    /// The widths of sheet 16's straight satin columns (mm), and the inside radii of its curves (mm).
+    static let satinEndWidths = [2.0, 4.0, 6.0], curveRadii = [1.5, 4.0, 8.0]
+
+    /// 16 · Satin ends and curves: whether satins sew thin where they end or bend, before anything is changed for it.
+    /// Top left: straight columns 2, 4 and 6 mm wide, 24 mm long (thread 1): do their ends come out short or thin?
+    /// Top right: two columns tapering from 6 mm to 1 mm (thread 3): does the thin end vanish? Bottom: U-bends 4 mm
+    /// wide round an inside radius of 1.5, 4 and 8 mm (thread 2): does the inside crowd and the outside thin out?
+    func satinEndsAndCurvesSheet() -> Design {
+        var design = newDesign()
+        for (k, width) in Self.satinEndWidths.enumerated() {
+            design.objects.append(column("Straight \(width.formatted()) mm", at: Point(-38 + Double(k) * 13, 20), length: 24, width: width, color: threads[0]))
+        }
+        for k in 0..<2 {
+            let x = 18 + Double(k) * 16
+            let rungs = stride(from: 0.0, through: 24, by: 4).flatMap { y -> [PathNode] in
+                let half = (6 - 5 * y / 24) / 2
+                return [PathNode(Point(x - half, 20 + y)), PathNode(Point(x + half, 20 + y))]
+            }
+            var taper = RunObject(name: "Taper 6 → 1 mm (\(k + 1))", nodes: rungs, color: threads[2])
+            taper.digitizing = DigitizingSettings(kind: .satin)
+            design.objects.append(taper)
+        }
+        for (k, inner) in Self.curveRadii.enumerated() {
+            let center = Point([-36.0, -14, 18][k], -8), outer = inner + 4
+            let rungs = stride(from: 180.0, through: 360, by: 15).flatMap { degrees -> [PathNode] in
+                let a = degrees * .pi / 180, direction = Point(cos(a), sin(a))
+                return [PathNode(center + direction * inner), PathNode(center + direction * outer)]
+            }
+            var bend = RunObject(name: "U-bend, inside radius \(inner.formatted()) mm", nodes: rungs, color: threads[1])
+            bend.digitizing = DigitizingSettings(kind: .satin)
+            design.objects.append(bend)
+        }
+        return design
+    }
+
+    func testSatinEndsAndCurvesSheetHasWhatItSays() throws {
+        let sheet = satinEndsAndCurvesSheet()
+        XCTAssertEqual(sheet.objects.count, Self.satinEndWidths.count + 2 + Self.curveRadii.count)
+        XCTAssertTrue(sheet.objects.allSatisfy { $0.kind == .satin })
+        XCTAssertNoThrow(try RunningEngine.compile(sheet))
+    }
+
     func testLineArtAndKnotsSheetHasWhatItSays() throws {
         let sheet = try lineArtAndKnotsSheet()
         XCTAssertTrue(sheet.needsSchemaTwentyOne, "candlewick is a version 21 line style")
@@ -510,7 +552,7 @@ final class SewOutPackTests: XCTestCase {
                                           ("8 Wide satin, overlaps and outlines", try wideSatinOverlapsAndOutlinesSheet()), ("9 Moves and jumps", movesAndJumpsSheet()),
                                           ("10 Smart corners", try smartCornersSheet()), ("11 Connectors", try connectorsSheet()),
                                           ("12 Push and pull", pushAndPullSheet()), ("13 Hand stitch", handStitchSheet()), ("14 Jagged edge", jaggedEdgeSheet()),
-                                          ("15 Line art and knots", try lineArtAndKnotsSheet())]
+                                          ("15 Line art and knots", try lineArtAndKnotsSheet()), ("16 Satin ends and curves", satinEndsAndCurvesSheet())]
         for (name, sheet) in sheets {
             var design = sheet
             design.schemaVersion = design.needsSchemaTwentyOne ? 21 : design.needsSchemaTwenty ? 20 : design.needsSchemaNineteen ? 19 : design.needsSchemaEighteen ? 18 : design.needsSchemaSeventeen ? 17 : design.needsSchemaSixteen ? 16 : design.needsSchemaFifteen ? 15 : design.needsSchemaFourteen ? 14 : design.needsSchemaThirteen ? 13 : design.needsSchemaTwelve ? 12 : design.needsSchemaEleven ? 11 : design.needsSchemaTen ? 10 : design.needsSchemaNine ? 9 : design.needsSchemaEight ? 8 : design.needsSchemaSeven ? 7 : design.needsSchemaSix ? 6 : design.needsSchemaFive ? 5 : 4
