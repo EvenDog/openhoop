@@ -75,8 +75,10 @@ public enum StitchRecognition {
                 else { summary.fills += made.count }
             case .satin where part.points.count >= 20:
                 let spacing = satinSpacing(part.points)
-                made = satinColumns(part.points).map { rungs in
+                made = satinColumns(part.points).map { column in
+                    let ring = closedRing(column), rungs = ring ?? column
                     var satin = RunObject(name: "\(block.color.name) satin", nodes: rungs.flatMap { [PathNode($0.0), PathNode($0.1)] }, color: block.color)
+                    satin.closed = ring != nil
                     satin.digitizing = DigitizingSettings(kind: .satin)
                     if let spacing { satin.digitizing?.spacing = spacing }
                     return satin
@@ -480,6 +482,21 @@ public enum StitchRecognition {
             joined.append(pass)
         }
         return joined.map { cleaned(smoothed(withoutTurningBack(picked(sameSides($0))))) }.filter { !$0.isEmpty }
+    }
+
+    /// A column whose two ends meet (a satin ring, such as a border round a shape) as a closed satin's rungs: the
+    /// rungs at the end that come back over the first one (within 1.5 mm of it) are dropped, so the ring closes
+    /// smoothly instead of pinching where it meets itself. nil when the ends are apart, when the column is too short
+    /// to go round anything, or when its rails would join crossed (left to right).
+    static func closedRing(_ rungs: [Rung]) -> [Rung]? {
+        guard rungs.count >= 8, let first = rungs.first else { return nil }
+        var kept = rungs
+        while kept.count > 3, middle(kept[kept.count - 1]).distance(to: middle(first)) <= 1.5 { kept.removeLast() }
+        guard kept.count >= 6, let last = kept.last, middle(last).distance(to: middle(first)) <= 3 else { return nil }
+        let around = zip(kept, kept.dropFirst()).reduce(0) { $0 + middle($1.0).distance(to: middle($1.1)) }
+        guard around >= 10 else { return nil }
+        let straight = last.0.distance(to: first.0) + last.1.distance(to: first.1), crossed = last.0.distance(to: first.1) + last.1.distance(to: first.0)
+        return straight < crossed ? kept : nil
     }
 
     /// Each rung's ends swapped where needed so the first end stays on the same rail as the last rung's.

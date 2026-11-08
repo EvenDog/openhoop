@@ -130,6 +130,23 @@ final class StitchRecognitionTests: XCTestCase {
         }
     }
 
+    /// A satin ring (a border round a shape) comes back as one closed satin, not an open column with a notch where
+    /// its ends meet; so does the grinning face's mouth ring. Columns whose ends are apart stay open.
+    func testASatinRingComesBackClosed() throws {
+        let ring = try ShapeStitching.closedShape(ShapeGeometry.nodes(.ellipse, in: (Point(-25, -15), Point(25, 15))), fill: nil, outline: .satin, satinWidth: 3, name: "Ring", color: .palette[0])
+        var made = Design(); made.objects = ring
+        var design = Design()
+        design.objects = try MachineImport.objects(from: RunningEngine.compile(made), format: "pes", name: "Ring")
+        _ = design.recognizeObjects(Set(design.objects.map(\.id)))
+        let satins = design.objects.filter { $0.kind == .satin }
+        XCTAssertEqual(satins.count, 1)
+        XCTAssertEqual(satins.first?.closed, true)
+        XCTAssertNoThrow(try RunningEngine.compile(design))
+        let grinning = try recognized("grinning-face-with-sweat").design.objects.filter { $0.kind == .satin }
+        XCTAssertEqual(grinning.filter(\.closed).count, 1, "the mouth ring")
+        XCTAssertFalse(try recognized("melting-face").design.objects.contains { $0.kind == .satin && $0.closed }, "eyes and mouth are open columns")
+    }
+
     func testABlockWithNothingToRecognizeStaysAsItIs() throws {
         // A short straight line: no fill, no satin.
         var block = RunObject(name: "line", nodes: [], color: ThreadColor("Red", 0xff0000))
