@@ -62,13 +62,15 @@ enum FillStyles {
         // Then the stitches. Stepping straight across after every ring lines the steps up into a visible seam from the
         // edge to the middle, so between two rings the needle spirals instead: over the lap, it drifts from this ring to
         // the next (by the share of the lap sewn so far), ending where the next ring begins. A run of spiral laps starts
-        // and ends with a plain ring, so the edges stay covered. Rings with corners sharper than 55° (a star's points) keep
-        // the step: their tips are much farther apart than their sides, and with corners close together the laps come out
-        // uneven. So do rings running opposite ways round (an outline's rings and a hole's): drifting from one to the
-        // other would swing the stitches across the hole.
+        // and ends with a plain ring, so the edges stay covered. Rings with corners sharper than 55° (a star's points)
+        // drift corner to corner (spiralByCorners): their tips are much farther apart than their sides, so matching by
+        // nearest point made the laps uneven. Where their corners don't pair up (deep in a star, its rings turn into a
+        // pentagon) they keep the step. So do rings running opposite ways round (an outline's rings and a hole's):
+        // drifting from one to the other would swing the stitches across the hole.
+        func sharp(_ k: Int) -> Bool { max(order[k].sharpest, order[k + 1].sharpest) > 125 }
         func spirals(_ k: Int) -> Bool {
-            k >= 0 && k + 1 < order.count && order[k + 1].joined && max(order[k].sharpest, order[k + 1].sharpest) <= 125
-                && order[k].counterclockwise == order[k + 1].counterclockwise
+            k >= 0 && k + 1 < order.count && order[k + 1].joined && order[k].counterclockwise == order[k + 1].counterclockwise
+                && (!sharp(k) || cornerMatch(order[k].loop, order[k + 1].loop) != nil)
         }
         var sections: [[Point]] = []
         for k in order.indices {
@@ -78,7 +80,9 @@ enum FillStyles {
                 // Round rings match points by the share of the way round; rings with corners by the nearest point, so
                 // each corner drifts into the next ring's corner (by share, a square's laps would cut across its corners).
                 let round = max(order[k].sharpest, order[k + 1].sharpest) <= 60
-                stitches += spiral(order[k].loop, into: order[k + 1].loop, length: length, byNearest: !round).dropFirst(stitches.isEmpty ? 0 : 1)
+                let lap = sharp(k) ? spiralByCorners(order[k].loop, into: order[k + 1].loop, length: length)!
+                    : spiral(order[k].loop, into: order[k + 1].loop, length: length, byNearest: !round)
+                stitches += lap.dropFirst(stitches.isEmpty ? 0 : 1)
             }
             if order[k].joined, var last = sections.popLast() {
                 // A spiral lap already ends on this ring's first point. After a plain ring the needle is still on that
@@ -293,6 +297,86 @@ enum FillStyles {
             if lengths > 0 { sharpest = max(sharpest, acos(max(-1, min(1, (u.x * v.x + u.y * v.y) / lengths))) * 180 / .pi) }
         }
         return sharpest
+    }
+
+    /// The sharp corners of a closed lap (last point = first), as indexes: turns of more than 25°, either pointing out
+    /// of the shape (`tips`, turning the way the ring goes round) or into it (`notches`).
+    static func corners(_ loop: [Point]) -> (tips: [Int], notches: [Int]) {
+        let ring = Array(loop.dropLast()), n = ring.count
+        guard n >= 3 else { return ([], []) }
+        let way: Double = AreaGeometry.area(ring) > 0 ? 1 : -1, sharp = 25 * Double.pi / 180
+        var tips: [Int] = [], notches: [Int] = []
+        for i in ring.indices {
+            let u = ring[i] - ring[(i + n - 1) % n], v = ring[(i + 1) % n] - ring[i]
+            let turn = atan2(AreaGeometry.cross(u, v), u.x * v.x + u.y * v.y) * way
+            if turn > sharp { tips.append(i) } else if turn < -sharp { notches.append(i) }
+        }
+        return (tips, notches)
+    }
+    /// Points of `loop` paired with points of `next` (as indexes, in order round both), for a spiral lap to drift
+    /// between: their tips, when both have the same number (at least three), the first of `next`'s being the one
+    /// that keeps paired tips closest; and between two paired tips, their notches when each ring has exactly one
+    /// there. (Tips stay sharp as the rings go in; notches round off into small arcs, split differently from ring
+    /// to ring, so they're only paired where that's clear.) nil when the tips don't pair up.
+    static func cornerMatch(_ loop: [Point], _ next: [Point]) -> [(here: Int, there: Int)]? {
+        let here = corners(loop), there = corners(next)
+        guard here.tips.count >= 3, here.tips.count == there.tips.count else { return nil }
+        let n = here.tips.count
+        let shift = (0..<n).min { a, b in
+            func cost(_ s: Int) -> Double { (0..<n).reduce(0) { $0 + loop[here.tips[$1]].distance(to: next[there.tips[($1 + s) % n]]) } }
+            return cost(a) < cost(b)
+        }!
+        /// The notches strictly between corners `a` and `b` going round a ring of `count` points.
+        func between(_ notches: [Int], _ a: Int, _ b: Int, count: Int) -> [Int] {
+            notches.filter { i in let d = (i - a + count) % count; return d > 0 && d < (b - a + count) % count }
+        }
+        let hereCount = loop.count - 1, thereCount = next.count - 1
+        var pairs: [(here: Int, there: Int)] = []
+        for k in 0..<n {
+            let a = here.tips[k], b = here.tips[(k + 1) % n], ta = there.tips[(k + shift) % n], tb = there.tips[(k + 1 + shift) % n]
+            pairs.append((a, ta))
+            let mine = between(here.notches, a, b, count: hereCount), theirs = between(there.notches, ta, tb, count: thereCount)
+            if mine.count == 1, theirs.count == 1 { pairs.append((mine[0], theirs[0])) }
+        }
+        return pairs
+    }
+    /// A spiral lap like `spiral`'s, matching points corner to corner (`cornerMatch`): each paired corner of `loop`
+    /// drifts into its partner on `next`, and a point between two paired corners into the point the same share of the
+    /// way between theirs. nil when the rings' corners don't pair up.
+    static func spiralByCorners(_ loop: [Point], into next: [Point], length: Double) -> [Point]? {
+        guard let pairs = cornerMatch(loop, next) else { return nil }
+        let ringHere = Array(loop.dropLast()), ringThere = Array(next.dropLast()), n = pairs.count
+        /// The stretch of a ring from one point to another (inclusive), going round.
+        func stretch(_ ring: [Point], from a: Int, to b: Int) -> [Point] {
+            var points = [ring[a]], i = a
+            repeat { i = (i + 1) % ring.count; points.append(ring[i]) } while i != b
+            return points
+        }
+        // Each point of `loop` (in order round the lap) and its match on `next`.
+        var matches: [Point] = Array(repeating: next[0], count: loop.count)
+        for k in 0..<n {
+            let (a, ta) = pairs[k], (b, tb) = pairs[(k + 1) % n]
+            let arc = Arc(stretch(ringHere, from: a, to: b)), theirs = Arc(stretch(ringThere, from: ta, to: tb))
+            var i = a, step = 0
+            repeat {
+                matches[i] = theirs.at(arc.length > 0 ? arc.lengths[step] / arc.length : 0)
+                i = (i + 1) % ringHere.count; step += 1
+            } while i != b
+        }
+        matches[loop.count - 1] = matches[0]
+        let lap = Arc(loop)
+        guard lap.length > 0 else { return nil }
+        var result: [Point] = []
+        for (i, (p, along)) in zip(loop, lap.lengths).enumerated() {
+            let t = along / lap.length
+            let q = i == loop.count - 1 ? next[0] : p + (matches[i] - p) * t
+            if let last = result.last, last.distance(to: q) > length {
+                let pieces = Int(ceil(last.distance(to: q) / length))
+                for piece in 1..<pieces { result.append(last + (q - last) * (Double(piece) / Double(pieces))) }
+            }
+            result.append(q)
+        }
+        return result
     }
 
     /// The lap `loop` (closed: its last point is its first) drifting into `next` (closed the same way): each point
