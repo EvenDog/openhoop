@@ -74,11 +74,13 @@ public enum StitchRecognition {
                 if made.isEmpty || made.contains(where: { StitchEngine.shapeProblem($0) != nil }) { made = [kept(part.points)] }
                 else { summary.fills += made.count }
             case .satin where part.points.count >= 20:
+                let spacing = satinSpacing(part.points)
                 made = satinColumns(part.points).map { column in
                     let ring = closedRing(column), rungs = ring ?? column
                     var satin = RunObject(name: "\(block.color.name) satin", nodes: rungs.flatMap { [PathNode($0.0), PathNode($0.1)] }, color: block.color)
                     satin.closed = ring != nil
                     satin.digitizing = DigitizingSettings(kind: .satin)
+                    if let spacing { satin.digitizing?.spacing = spacing }
                     return satin
                 }
                 if made.isEmpty || made.contains(where: { StitchEngine.shapeProblem($0) != nil }) { made = [kept(part.points)] }
@@ -278,6 +280,7 @@ public enum StitchRecognition {
         let gap = rowGap(part.points, angle: part.angle), length = typicalStitch(part.points)
         // Shown in Properties as −90…90°.
         let angle = (part.angle > 90 ? part.angle - 180 : part.angle).rounded()
+        let pattern = tatamiPattern(part.points, rowAngle: part.angle, angle: angle, gap: gap, length: length)
         return regions(part).map { region in
             var fill = RunObject(name: "\(color.name) fill", nodes: region[0].map { PathNode($0) }, color: color)
             fill.closed = true
@@ -285,10 +288,62 @@ public enum StitchRecognition {
             var settings = DigitizingSettings(kind: .fill)
             settings.angle = angle
             settings.spacing = (gap * 2 * 100).rounded() / 100        // Spacing is measured across two rows
+            settings.tatamiPattern = pattern
             fill.digitizing = settings
             fill.stitchLength = (length * 10).rounded() / 10
             return fill
         }
+    }
+
+    /// The tatami pattern a recognized fill was sewn with (its id), or nil for Smooth, or when no row pattern in the
+    /// library matches closely (picture and random patterns aren't looked for). A pattern says how far along each
+    /// row's needle holes start, row after row in the order they're sewn; so the rows are numbered in the direction
+    /// they were sewn, and for each one the shift of its holes from the row before is measured hole by hole against
+    /// that row's nearest hole (so a small error in the stitch length doesn't add up along the row). That list of
+    /// shifts is compared with each pattern's, from each of its rows in turn. `rowAngle` is the rows' direction as
+    /// measured (0–180°), `angle` the fill's Angle as set (−90–90°): the rows are turned by it as the fill engine does.
+    static func tatamiPattern(_ points: [Point], rowAngle: Double, angle: Double, gap: Double, length: Double) -> String? {
+        guard gap > 0, length > 0 else { return nil }
+        let stitches = rowStitches(points, angle: rowAngle).filter { $0.0.distance(to: $0.1) >= short }
+            .map { (AreaGeometry.rotate($0.0, degrees: -angle), AreaGeometry.rotate($0.1, degrees: -angle)) }
+        guard let first = stitches.first, let last = stitches.last, let low = stitches.map({ min($0.0.y, $0.1.y) }).min(),
+              let high = stitches.map({ max($0.0.y, $0.1.y) }).max() else { return nil }
+        // Rows numbered from the side the fill started on.
+        let upward = first.0.y <= last.0.y
+        func row(_ y: Double) -> Int { Int(((upward ? y - low : high - y) / gap).rounded()) }
+        var holes: [Int: Set<Double>] = [:]
+        for (a, b) in stitches { for p in [a, b] { holes[row(p.y), default: []].insert((p.x * 100).rounded() / 100) } }
+        let rows = holes.mapValues { $0.sorted() }
+        func fraction(_ x: Double) -> Double { x - floor(x) }
+        func apart(_ a: Double, _ b: Double) -> Double { let d = abs(a - b); return min(d, 1 - d) }
+        // Each row's shift from the row before, as a fraction of a stitch (0 up to 1); a row's end holes are on the
+        // fill's edge, not on its pattern, so they're left out.
+        var shifts: [(row: Int, shift: Double)] = []
+        for (number, these) in rows where these.count >= 4 {
+            guard let before = rows[number - 1], before.count >= 4 else { continue }
+            let inner = Array(before.dropFirst().dropLast())
+            let measured = these.dropFirst().dropLast().map { x in fraction((x - inner.min { abs($0 - x) < abs($1 - x) }!) / length) }
+            // The usual shift: the commonest 1/32 of a stitch, averaged with its neighbours.
+            var counts = [Int](repeating: 0, count: 32)
+            for m in measured { counts[Int(m * 32) % 32] += 1 }
+            let usual = (Double(counts.indices.max { counts[$0] < counts[$1] }!) + 0.5) / 32
+            let near = measured.filter { apart($0, usual) <= 1.0 / 32 }
+            guard near.count >= 2 else { continue }
+            let pull = near.map { $0 - usual > 0.5 ? $0 - 1 : usual - $0 > 0.5 ? $0 + 1 : $0 }
+            shifts.append((number, fraction(pull.reduce(0, +) / Double(pull.count))))
+        }
+        guard shifts.count >= 8 else { return nil }
+        var best: (id: String, error: Double)?
+        for pattern in TatamiPattern.library where pattern.picture == nil && !pattern.rows.isEmpty {
+            let starts = pattern.rows, n = starts.count
+            let steps = (0..<n).map { fraction(starts[($0 + 1) % n] - starts[$0]) }
+            for phase in 0..<n {
+                let error = shifts.reduce(0) { $0 + apart($1.shift, steps[(($1.row - 1 + phase) % n + n) % n]) } / Double(shifts.count)
+                if error < best?.error ?? .infinity { best = (pattern.id, error) }
+            }
+        }
+        guard let best, best.error <= 0.04, best.id != TatamiPattern.smooth.id else { return nil }
+        return best.id
     }
 
     /// The stitches that make a fill's rows: those within 20° of the row direction, and the short turns between
@@ -378,6 +433,22 @@ public enum StitchRecognition {
     typealias Rung = (Point, Point)
 
     static func middle(_ rung: Rung) -> Point { (rung.0 + rung.1) * 0.5 }
+
+    /// How far apart a recognized satin's stitches are along the column: its Spacing, in mm, or nil if there are too
+    /// few stitches across to tell. Each stitch across moves on half a spacing (it goes over to one side, the next one
+    /// back to the other), so it's twice the usual step between the middles of neighbouring stitches across. Steps
+    /// longer than 1.5 mm are moves between passes, not spacing.
+    static func satinSpacing(_ points: [Point]) -> Double? {
+        guard points.count >= 3 else { return nil }
+        var steps: [Double] = []
+        for i in 0..<(points.count - 2) where points[i].distance(to: points[i + 1]) >= short && points[i + 1].distance(to: points[i + 2]) >= short {
+            let step = ((points[i] + points[i + 1]) * 0.5).distance(to: (points[i + 1] + points[i + 2]) * 0.5)
+            if step <= 1.5 { steps.append(step) }
+        }
+        guard steps.count >= 10 else { return nil }
+        let typical = steps.sorted()[steps.count / 2] * 2
+        return min(5, max(0.15, (typical * 100).rounded() / 100))   // within what Properties lets Spacing be
+    }
 
     /// A recognized satin as columns, each a list of rungs (one end on each rail). Stitches not parallel to their
     /// neighbours (travel, a stitch across) are left out. Some programs sew a satin in passes — an oval's top half
