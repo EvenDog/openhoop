@@ -430,6 +430,7 @@ extension InspectorPanel {
             case .raw: proImported(object, headed: headed)
             }
             if object.kind == .satin || object.kind == .run { proHandStitch(object) }
+            if object.kind == .fill { proFillHandStitch(object) }
             if object.kind == .satin || (object.kind == .fill && object.settings.fillStyle == .satin) { proJaggedEdge(object) }
         case .underlay:
             proUnderlay(object)
@@ -591,11 +592,12 @@ extension InspectorPanel {
     /// A line's settings; `headed` as for `proFill`.
     private func proRunning(_ object: RunObject, headed: Bool) -> some View {
         proSection(headed ? "Running" : nil) {
+            // The style first, with its own sizes, then the stitch length for the styles that use one.
+            runStyle(object)
             // Not for zigzag lines: Width and Spacing set their stitches.
             if (object.settings.runStyle ?? .running).usesStitchLength {
-                number("Stitch length", value: object.stitchLength, id: "stitchLength", range: 0.3...10, help: "How far the needle moves per stitch. Shorter stitches follow curves more closely.") { value in state.editSelected("Stitch Length") { $0.stitchLength = value } }
+                number("Stitch length", value: object.stitchLength, id: "stitchLength", range: 0.3...10, unit: "mm", help: "How far the needle moves per stitch. Shorter stitches follow curves more closely.") { value in state.editSelected("Stitch Length") { $0.stitchLength = value } }
             }
-            runStyle(object)
             if (object.settings.runStyle ?? .running) == .running { runPasses(object) }
             toggle("Closed path", value: object.closed) { _ in AppDelegate.shared.perform(.closePath) }.help(preferences.hint(.closePath))
             satinLine(object)
@@ -616,7 +618,7 @@ extension InspectorPanel {
                 change("Hand Stitch \(title)") { set(&$0, min(range.upperBound, max(range.lowerBound, Int(typed.rounded())))) }
             }
         }
-        return proSection("Hand stitch") {
+        return proSection("Hand stitch", titleShown: hand != nil) {
             toggle("Hand stitch", value: hand != nil) { on in settings(kind, on ? "Hand Stitch" : "No Hand Stitch") { $0.handStitch = on ? HandStitch() : nil } }
                 .help("Makes the stitches look sewn by hand: uneven lengths, slightly tilted stitches and, with Count, stitches sewn over more than once. Works best without underlay on small shapes.")
             if let hand {
@@ -663,13 +665,36 @@ extension InspectorPanel {
     }
 
     /// Jagged edge (JaggedEdge.swift): a checkbox, then once it's on, which way and how far the edge holes move.
+    /// A fill's Hand stitch: a checkbox, then how strong and which random version (FillHandStitch.swift).
+    private func proFillHandStitch(_ object: RunObject) -> some View {
+        let hand = object.settings.fillHandStitch
+        /// Changes one fill hand stitch setting of the selection, as one undoable step called `title`.
+        func change(_ title: String, _ body: @escaping (inout FillHandStitch) -> Void) {
+            settings(.fill, title) { s in var h = s.fillHandStitch ?? FillHandStitch(); body(&h); s.fillHandStitch = h }
+        }
+        return proSection("Hand stitch", titleShown: hand != nil) {
+            toggle("Hand stitch", value: hand != nil) { on in settings(.fill, on ? "Hand Stitch" : "No Hand Stitch") { $0.fillHandStitch = on ? FillHandStitch() : nil } }
+                .help("Makes the fill look sewn by hand: its stitches tilt and cross a little, and the needle holes no longer line up. The outline stays crisp.")
+            if let hand {
+                choice("Strength", selection: Binding(get: { hand.strength }, set: { value in change("Hand Stitch Strength") { $0.strength = value } }),
+                       options: FillHandStitch.Strength.allCases.map { ($0.title, $0) },
+                       help: "How far the needle holes wander: Light is a gentle unevenness, Strong a loose, hand-sewn look.")
+                numberGrid {
+                    numberCell("Variant", value: Double(hand.variant), range: Double(FillHandStitch.variants.lowerBound)...Double(FillHandStitch.variants.upperBound), unit: nil, whole: true, help: "Another random version of the same settings, if you don't like how this one came out.") { typed in
+                        change("Hand Stitch Variant") { $0.variant = min(FillHandStitch.variants.upperBound, max(FillHandStitch.variants.lowerBound, Int(typed.rounded()))) }
+                    }
+                }
+            }
+        }
+    }
+
     private func proJaggedEdge(_ object: RunObject) -> some View {
         let kind = object.kind, jagged = object.settings.jaggedEdge
         /// Changes one jagged edge setting of the selection, as one undoable step called `title`.
         func change(_ title: String, _ body: @escaping (inout JaggedEdge) -> Void) {
             settings(kind, title) { s in var j = s.jaggedEdge ?? JaggedEdge(); body(&j); s.jaggedEdge = j }
         }
-        return proSection("Jagged edge") {
+        return proSection("Jagged edge", titleShown: jagged != nil) {
             toggle("Jagged edge", value: jagged != nil) { on in settings(kind, on ? "Jagged Edge" : "No Jagged Edge") { $0.jaggedEdge = on ? JaggedEdge() : nil } }
                 .help("Gives the satin's edge a rough, uneven look, for fur, grass or feathers: each stitch ends a random distance in from the edge, or out past it.")
             if let jagged {
@@ -846,12 +871,16 @@ extension InspectorPanel {
 
     /// A small uppercase heading over a group of settings, with a divider above it. With no title, just the settings:
     /// for a section right under a tab that already names it.
-    private func proSection<Content: View>(_ title: String?, @ViewBuilder _ content: () -> Content) -> some View {
+    /// `titleShown` false leaves out the heading but keeps the line above, for a section that starts with a checkbox
+    /// of the same name: the heading only shows once it's ticked and the section's settings appear under it.
+    private func proSection<Content: View>(_ title: String?, titleShown: Bool = true, @ViewBuilder _ content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             if let title {
                 Theme.divider.frame(height: 1)
-                Text(title.uppercased()).font(.system(size: 9, weight: .bold, design: .rounded)).tracking(0.7).foregroundStyle(Theme.inkSecondary)
-                    .padding(.top, 2)
+                if titleShown {
+                    Text(title.uppercased()).font(.system(size: 9, weight: .bold, design: .rounded)).tracking(0.7).foregroundStyle(Theme.inkSecondary)
+                        .padding(.top, 2)
+                }
             }
             content()
         }

@@ -99,6 +99,77 @@ final class StitchRecognitionTests: XCTestCase {
         XCTAssertEqual(design.objects.last?.stopAfter, true)
     }
 
+    /// A satin sewn at a known spacing, read back as imported stitches, is recognized at that spacing (not the
+    /// default), so resizing it keeps the original density.
+    func testRecognizedSatinsKeepTheirSpacing() throws {
+        for spacing in [0.3, 0.6] {
+            var satin = RunObject(name: "Satin", nodes: (0..<5).flatMap { i -> [PathNode] in let x = Double(i) * 10 - 20; return [PathNode(Point(x, 0)), PathNode(Point(x, 4))] })
+            satin.digitizing = DigitizingSettings(kind: .satin); satin.digitizing?.spacing = spacing
+            var made = Design(); made.objects = [satin]
+            var design = Design()
+            design.objects = try MachineImport.objects(from: RunningEngine.compile(made), format: "pes", name: "Satin")
+            _ = design.recognizeObjects(Set(design.objects.map(\.id)))
+            let found = try XCTUnwrap(design.objects.first { $0.kind == .satin }, "spacing \(spacing)")
+            XCTAssertEqual(found.settings.spacing, spacing, accuracy: 0.03, "spacing \(spacing)")
+        }
+    }
+
+    /// A fill sewn with a tatami pattern, read back as imported stitches, comes back with that pattern, at an angle
+    /// too; a plain (Smooth) fill comes back plain.
+    func testRecognizedFillsKeepTheirTatamiPattern() throws {
+        for (id, angle) in [("smooth", 45.0), ("reverse", 45), ("sawtooth", 0), ("sawtoothReversed", 30), ("zigzag", -30), ("blocks", 90), ("steep", 15), ("hills", 60)] {
+            var fill = RunObject(name: "Fill", nodes: ShapeGeometry.nodes(.ellipse, in: (Point(-25, -20), Point(25, 20))))
+            fill.closed = true; fill.digitizing = DigitizingSettings(kind: .fill)
+            fill.digitizing?.angle = angle; fill.digitizing?.tatamiPattern = id == "smooth" ? nil : id
+            var made = Design(); made.objects = [fill]
+            var design = Design()
+            design.objects = try MachineImport.objects(from: RunningEngine.compile(made), format: "pes", name: "Fill")
+            _ = design.recognizeObjects(Set(design.objects.map(\.id)))
+            let found = try XCTUnwrap(design.objects.first { $0.kind == .fill }, id)
+            XCTAssertEqual(found.settings.tatamiPattern, id == "smooth" ? nil : id, "\(id) at \(angle)°")
+        }
+    }
+
+    /// A satin ring (a border round a shape) comes back as one closed satin, not an open column with a notch where
+    /// its ends meet; so does the grinning face's mouth ring. Columns whose ends are apart stay open.
+    func testASatinRingComesBackClosed() throws {
+        let ring = try ShapeStitching.closedShape(ShapeGeometry.nodes(.ellipse, in: (Point(-25, -15), Point(25, 15))), fill: nil, outline: .satin, satinWidth: 3, name: "Ring", color: .palette[0])
+        var made = Design(); made.objects = ring
+        var design = Design()
+        design.objects = try MachineImport.objects(from: RunningEngine.compile(made), format: "pes", name: "Ring")
+        _ = design.recognizeObjects(Set(design.objects.map(\.id)))
+        let satins = design.objects.filter { $0.kind == .satin }
+        XCTAssertEqual(satins.count, 1)
+        XCTAssertEqual(satins.first?.closed, true)
+        XCTAssertNoThrow(try RunningEngine.compile(design))
+        let grinning = try recognized("grinning-face-with-sweat").design.objects.filter { $0.kind == .satin }
+        XCTAssertEqual(grinning.filter(\.closed).count, 1, "the mouth ring")
+        XCTAssertFalse(try recognized("melting-face").design.objects.contains { $0.kind == .satin && $0.closed }, "eyes and mouth are open columns")
+    }
+
+    /// A fill sewn with hand stitch, saved the way a machine file keeps it (every point rounded to 0.1 mm) and read
+    /// back, comes back with hand stitch at about the same strength; a plain one comes back plain. Of the five real
+    /// designs, only the hand-stitched melting face's fill gets it.
+    func testHandStitchedFillsComeBackHandStitched() throws {
+        for strength in [nil] + FillHandStitch.Strength.allCases.map(Optional.some) {
+            var fill = RunObject(name: "Fill", nodes: ShapeGeometry.nodes(.ellipse, in: (Point(-25, -20), Point(25, 20))))
+            fill.closed = true; fill.digitizing = DigitizingSettings(kind: .fill); fill.stitchLength = 4
+            if let strength { var hand = FillHandStitch(); hand.strength = strength; fill.digitizing?.fillHandStitch = hand }
+            var made = Design(); made.objects = [fill]
+            var plan = try RunningEngine.compile(made)
+            plan.commands = plan.commands.map { StitchCommand($0.op, Point(($0.point.x * 10).rounded() / 10, ($0.point.y * 10).rounded() / 10), thread: $0.thread) }
+            var design = Design()
+            design.objects = try MachineImport.objects(from: plan, format: "pes", name: "Fill")
+            _ = design.recognizeObjects(Set(design.objects.map(\.id)))
+            let found = try XCTUnwrap(design.objects.first { $0.kind == .fill })
+            XCTAssertEqual(found.settings.fillHandStitch?.strength, strength, strength?.rawValue ?? "plain")
+        }
+        for name in ["smiling-face", "smiling-face-inkstitch", "melting-face", "melting-face-hand-stitch", "grinning-face-with-sweat"] {
+            let hand = try recognized(name).design.objects.filter { $0.kind == .fill && $0.settings.fillHandStitch != nil }
+            XCTAssertEqual(hand.count, name == "melting-face-hand-stitch" ? 1 : 0, name)
+        }
+    }
+
     func testABlockWithNothingToRecognizeStaysAsItIs() throws {
         // A short straight line: no fill, no satin.
         var block = RunObject(name: "line", nodes: [], color: ThreadColor("Red", 0xff0000))

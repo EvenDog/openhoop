@@ -52,7 +52,7 @@ extension InspectorPanel {
                 .labelsHidden().fixedSize()
             }
             .help("How the needle gets from one letter (or part of a letter) to the next. Trim when far keeps the font's own trims; Jump never trims; Run sews running stitches that the next letter covers, with no trims or ties.")
-            number("Letter spacing", value: spec.letterSpacing ?? 0, range: LetteringSpec.letterSpacings,
+            number("Letter spacing", value: spec.letterSpacing ?? 0, range: LetteringSpec.letterSpacings, unit: "mm",
                    help: "Extra space between letters in mm, on top of the font's own spacing (negative pulls them closer).") { spacing in
                 var next = spec; next.letterSpacing = abs(spacing) < 0.005 ? nil : spacing
                 state.rebuildLettering(next, action: "Letter Spacing")

@@ -9,6 +9,13 @@ extension Design {
     /// sewing order; the others are removed. Returns its ID. Throws, changing nothing, when fewer than two are
     /// selected, when any can't be joined (closed shapes, fills, lettering, monograms, guide lines, imported stitches
     /// or locked objects), or when lines and satin columns are mixed.
+    /// Whether `joinLines` would accept `ids`: two or more open lines, or two or more open satin columns (not both),
+    /// none of them locked or otherwise unjoinable. Properties offers Join lines only then.
+    public func canJoinLines(_ ids: Set<UUID>) -> Bool {
+        let chosen = objects.filter { ids.contains($0.id) }
+        guard chosen.count >= 2, chosen.allSatisfy(\.canContinueDrawing) else { return false }
+        return Set(chosen.map { $0.kind == .satin }).count == 1
+    }
     public mutating func joinLines(_ ids: Set<UUID>) throws -> UUID {
         let chosen = objects.filter { ids.contains($0.id) }
         guard chosen.count >= 2 else { throw DesignError.invalid("Select two or more lines, or two or more satin columns, to join.") }

@@ -496,6 +496,8 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     public var handStitch:HandStitch?
     /// Satin columns and satin fills: the jagged edge effect (JaggedEdge.swift). nil means off.
     public var jaggedEdge:JaggedEdge?
+    /// Fills: the hand stitch effect for fills (FillHandStitch.swift). nil means off.
+    public var fillHandStitch:FillHandStitch?
     /// True for fills sewn in straight rows at the fill angle (tatami, wave, gradient and satin fills without stitch
     /// angle lines): their compensation lengthens the rows at their ends, and push compensation applies.
     public var hasStraightRows:Bool {[.tatami,.wave,.gradient,.satin].contains(fillStyle ?? .tatami) && (angleLines ?? []).isEmpty}
@@ -830,6 +832,9 @@ public struct Design: Codable, Equatable, Sendable {
             || $0.digitizing?.motif.map(Motif.addedInVersionTwenty.contains) == true
             || $0.monogram.map { MonogramOrnament.addedInVersionTwenty.contains($0.ornament) || MonogramBorder.addedInVersionTwenty.contains($0.border) } == true }
     }
+    /// Schema 22 marks projects with a fill sewn with hand stitch, so older versions (which would sew it neat)
+    /// refuse them instead.
+    public var needsSchemaTwentyTwo: Bool { objects.contains { $0.digitizing?.fillHandStitch != nil } }
     /// Schema 21 marks projects with a tatami fill on a picture pattern (Diamonds, Hearts…) or a line in one of the
     /// line styles added then (Chain, Feather…), so older versions, which don't know those names, refuse them instead.
     public var needsSchemaTwentyOne: Bool {
@@ -876,7 +881,7 @@ public struct Design: Codable, Equatable, Sendable {
 
     /// Reject corrupt or unreasonable input before it reaches the renderer or generator.
     public func validate() throws {
-        guard (1...21).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
+        guard (1...22).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }
@@ -939,6 +944,9 @@ public struct Design: Codable, Equatable, Sendable {
             // A fill keeps its jagged edge when its style changes from satin (it only sews with satin), so any fill may have one.
             if let spec=object.lineRepeat {
                 guard object.kind == .vector,object.guideFor == spec.id,spec.isValid else{throw DesignError.invalid("Invalid copies along a line in \(object.name).")}
+            }
+            if let hand=object.digitizing?.fillHandStitch {
+                guard object.kind == .fill,hand.isValid else{throw DesignError.invalid("Invalid fill hand stitch settings in \(object.name).")}
             }
             if let jagged=object.digitizing?.jaggedEdge {
                 guard object.kind == .satin || object.kind == .fill,jagged.isValid else{throw DesignError.invalid("Invalid jagged edge settings in \(object.name).")}
