@@ -627,11 +627,20 @@ struct InspectorPanel: View {
             FlowLayout(spacing: 6) {
                 Button("Sew in click order") { AppDelegate.shared.perform(.sequenceBySelection) }
                     .help("Sequence by Selection Order: these objects sew one after another in the order you clicked them.")
-                Button("Weld") { AppDelegate.shared.perform(.weldObjects) }
-                    .help("Merge these shapes into one fill, with the settings of the topmost (the one sewn last).")
+                // Only the buttons that would do something to this selection: Weld and Remove overlaps for fills,
+                // Join lines for lines or satin columns.
+                if state.design.canWeld(state.selection) {
+                    Button("Weld") { AppDelegate.shared.perform(.weldObjects) }
+                        .help("Merge these shapes into one fill, with the settings of the topmost (the one sewn last).")
+                }
+                if state.design.canJoinLines(state.selection) {
+                    Button("Join lines") { AppDelegate.shared.perform(.joinLines) }.help(preferences.hint(.joinLines))
+                }
                 Button("Branch") { AppDelegate.shared.perform(.branching) }
                     .help("Branching: sew these one after another in one thread, travelling inside them instead of trimming.")
-                Button("Remove overlaps") { AppDelegate.shared.perform(.removeOverlaps) }.help(preferences.hint(.removeOverlaps))
+                if state.design.canRemoveOverlaps(state.selection) {
+                    Button("Remove overlaps") { AppDelegate.shared.perform(.removeOverlaps) }.help(preferences.hint(.removeOverlaps))
+                }
             }.buttonStyle(ThemedButtonStyle())
             // Align and space: objects line up with the one selected last.
             FlowLayout(spacing: 0) {

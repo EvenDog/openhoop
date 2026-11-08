@@ -34,6 +34,11 @@ extension Design {
     /// a fill in its color with the usual fill settings. The fill takes the topmost object's place in the sewing
     /// order. Parts that don't touch become separate fills. Returns the new fills' IDs, largest first (empty if
     /// fewer than two objects could be welded; locked objects are left out).
+    /// Whether `weld` would join anything in `ids`: two or more unlocked shapes with an area (fills and closed
+    /// outlines). Properties offers Weld only then.
+    public func canWeld(_ ids: Set<UUID>) -> Bool {
+        objects.filter { ids.contains($0.id) && !$0.locked && $0.areaRings != nil }.count >= 2
+    }
     public mutating func weld(_ ids: Set<UUID>) throws -> [UUID] {
         let welding = objects.filter { ids.contains($0.id) && !$0.locked && $0.areaRings != nil }
         guard welding.count >= 2, let top = welding.last, let topIndex = objects.firstIndex(where: { $0.id == top.id }) else { return [] }
