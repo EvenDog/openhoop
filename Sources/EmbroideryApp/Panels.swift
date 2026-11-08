@@ -748,10 +748,9 @@ struct InspectorPanel: View {
             EmptyView()   // patterns are for straight rows: with stitch angle lines, the rows keep the Smooth pattern
         case .tatami:
             let pattern = TatamiPattern.of(s)
-            HStack {
-                Text("Pattern").font(Theme.body(11, weight: .regular)); Spacer()
+            labeledRow("Pattern") {
                 TatamiPatternMenu(state: state, pattern: pattern, color: object.color) { value in settings(.fill, "Tatami Pattern") { $0.tatamiPattern = value == .smooth ? nil : value.id } }
-                    .frame(width: 120)
+                    .frame(width: Self.patternMenuWidth)
             }
             .help("Where each row's needle holes go. The lines of holes make a texture in the fill: zigzags, waves, blocks. \(pattern.name): \(pattern.tagline)")
             if let picture = pattern.picture {
@@ -804,15 +803,17 @@ struct InspectorPanel: View {
         }
         .help("The pattern that's repeated. Make your own from running lines with \(CommandID.createMotif.title) in the Edit menu.")
     }
+    /// How wide the Line style and Pattern buttons are: wide enough for the longest name in each list (Herringbone,
+    /// Sawtooth reversed) beside its picture, so none is cut short. (The name gets the width less about 58 pt.)
+    static let lineStyleMenuWidth: CGFloat = 132, patternMenuWidth: CGFloat = 164
     /// A line's stitch style (running, zigzag, blanket, back or stem stitch, motif), with the width and spacing the style
     /// uses. The style's explanation shows as a tooltip.
     @ViewBuilder func runStyle(_ object: RunObject) -> some View {
         let style = object.settings.runStyle ?? .running
-        HStack {
-            Text("Line style").font(Theme.body(11, weight: .regular)); Spacer()
+        labeledRow("Line style") {
             LineStyleMenu(state: state, style: style, color: object.color) { value in
                 settings(.run, "Line Style") { $0.runStyle = value == .running ? nil : value; $0.runWidth = nil; $0.runSpacing = nil }
-            }.frame(width: 120)
+            }.frame(width: Self.lineStyleMenuWidth)
         }
         .help(style.summary)
         if style == .motif { motifPicker(object, kind: .run) }
