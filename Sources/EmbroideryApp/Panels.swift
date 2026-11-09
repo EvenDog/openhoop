@@ -643,13 +643,16 @@ struct InspectorPanel: View {
                 Button("Sew in click order") { AppDelegate.shared.perform(.sequenceBySelection) }
                     .help("Sequence by Selection Order: these objects sew one after another in the order you clicked them.")
                 // Only the buttons that would do something to this selection: Weld and Remove overlaps for fills,
-                // Join lines for lines or satin columns.
+                // Join lines for lines or satin columns, Redwork for running lines.
                 if state.design.canWeld(state.selection) {
                     Button("Weld") { AppDelegate.shared.perform(.weldObjects) }
                         .help("Merge these shapes into one fill, with the settings of the topmost (the one sewn last).")
                 }
                 if state.design.canJoinLines(state.selection) {
                     Button("Join lines") { AppDelegate.shared.perform(.joinLines) }.help(preferences.hint(.joinLines))
+                }
+                if state.design.canMakeRedwork(state.selection) {
+                    Button("Redwork") { AppDelegate.shared.perform(.redwork) }.help(preferences.hint(.redwork))
                 }
                 Button("Branch") { AppDelegate.shared.perform(.branching) }
                     .help("Branching: sew these one after another in one thread, travelling inside them instead of trimming.")
@@ -859,11 +862,16 @@ struct InspectorPanel: View {
             }
         }
     }
-    /// Running stitch passes: Single, or bean stitch sewing each stitch 3 or 5 times.
-    func runPasses(_ object: RunObject) -> some View {
+    /// Running stitch passes: Single, or bean stitch sewing each stitch 3 or 5 times. A bean line also offers sewing
+    /// the stretches it goes back over once (redwork), and shows it ticked on lines Make Redwork made.
+    @ViewBuilder func runPasses(_ object: RunObject) -> some View {
         choice("Passes", selection: Binding(get: { object.settings.runPasses ?? 1 }, set: { value in settings(.run, "Running Passes") { $0.runPasses = value == 1 ? nil : value } }),
                options: [("Single", 1), ("Bean ×3", 3), ("Bean ×5", 5)],
                help: "How many times each stitch is sewn. Bean stitch (3 or 5) goes forward, back and forward again for a bold line.")
+        if (object.settings.runPasses ?? 1) > 1 {
+            toggle("Sew retraced parts once", value: object.settings.retraceOnce == true) { on in settings(.run, on ? "Sew Retraced Parts Once" : "Bean Retraced Parts") { $0.retraceOnce = on ? true : nil } }
+                .help("Where the line goes back over a stretch it has already sewn, sew it once, not as bean again, so it isn't twice as heavy")
+        }
     }
     /// A setting picked from a few options: its name with the options as buttons beside it; in a panel too narrow for
     /// both, the buttons on their own line under the name; and if even they don't fit, a menu beside the name.

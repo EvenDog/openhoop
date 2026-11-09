@@ -955,7 +955,7 @@ public enum StitchEngine {
                                               spacing:s.runSpacing ?? DigitizingSettings.defaultRunSpacing(style),length:object.stitchLength,motif:s.motifStroke,
                                               target:s.radialCenter,lines:s.rippleLines ?? DigitizingSettings.defaultRippleLines)
             let line=try styled ?? RunningEngine.stitches(for:ordered)
-            let sewn=styled != nil ? line : try RunningEngine.repeated(line,passes:s.runPasses ?? 1)
+            let sewn=styled != nil ? line : try RunningEngine.repeated(line,passes:s.runPasses ?? 1,retraceOnce:s.retraceOnce == true)
             var points=sewn
             // A start point part way along an open line: start there and run back along the line to its first end.
             if !object.closed,let entry=object.entry,let lead=RunningEngine.leadIn(along:line,from:entry) {points=lead+points.dropFirst()}

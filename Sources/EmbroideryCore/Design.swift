@@ -541,6 +541,10 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     /// line). nil (the default, and in older files) means once.
     public var runPasses:Int?
     public static let runPassChoices=[1,3,5]
+    /// Bean stitch only (redwork): true sews a stitch that goes back over a stretch this line has already sewn once,
+    /// not `runPasses` times, so a line the route has to cross again comes out nearly as bold as the rest instead of
+    /// twice as heavy. nil (the default, and in older files) sews every stitch `runPasses` times.
+    public var retraceOnce:Bool?
     /// Running lines only: the line stitch (nil, the default and in older files, means plain running stitch), and its
     /// width across the line and spacing along it in mm (nil uses the style's defaults below).
     public var runStyle:RunStyle?
@@ -835,6 +839,9 @@ public struct Design: Codable, Equatable, Sendable {
     /// Schema 22 marks projects with a fill sewn with hand stitch, so older versions (which would sew it neat)
     /// refuse them instead.
     public var needsSchemaTwentyTwo: Bool { objects.contains { $0.digitizing?.fillHandStitch != nil } }
+    /// Schema 24 marks projects with a bean line that sews its retraced stretches once (redwork), so older versions
+    /// (which would sew them as bean too) refuse them instead. (23 is taken by groups inside groups.)
+    public var needsSchemaTwentyFour: Bool { objects.contains { $0.kind == .run && $0.digitizing?.retraceOnce == true } }
     /// Schema 21 marks projects with a tatami fill on a picture pattern (Diamonds, Hearts…) or a line in one of the
     /// line styles added then (Chain, Feather…), so older versions, which don't know those names, refuse them instead.
     public var needsSchemaTwentyOne: Bool {
@@ -881,7 +888,7 @@ public struct Design: Codable, Equatable, Sendable {
 
     /// Reject corrupt or unreasonable input before it reaches the renderer or generator.
     public func validate() throws {
-        guard (1...22).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
+        guard (1...24).contains(schemaVersion) else { throw DesignError.invalid("This project uses an unsupported file version.") }
         guard hoop.width.isFinite, hoop.height.isFinite, (1...1000).contains(hoop.width), (1...1000).contains(hoop.height), (hoop.name?.count ?? 0) <= 100 else { throw DesignError.invalid("Hoop dimensions must be between 1 and 1,000 mm.") }
         guard objects.count <= 10_000, Set(objects.map(\.id)).count == objects.count else { throw DesignError.invalid("The object list is invalid or too large.") }
         guard basting.map(Self.bastingMargins.contains) ?? true else { throw DesignError.invalid("The basting box margin must be between 0 and 20 mm.") }
