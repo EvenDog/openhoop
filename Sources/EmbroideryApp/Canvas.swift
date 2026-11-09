@@ -69,9 +69,8 @@ final class DesignCanvas: NSView {
     /// A rotate or skew drag: from just outside a corner (dx and dy both set, as for resizing) it turns the selection,
     /// from a skew handle on a side it leans it. Also the selection's box (mm) when the drag began.
     private var turnDrag: (dx: Int, dy: Int, low: Point, high: Point)?
-    /// True while the pointer is just outside a corner of the selection (or of the reference image), where a drag
-    /// rotates; the pointer is then a curved arrow.
-    private var overRotateCorner = false
+    /// True while the pointer is over a handle and shows that handle's pointer (HandleCursors.swift).
+    private var overHandle = false
     /// Where (on screen) a press landed on an object that was already selected. If the mouse comes up there without
     /// moving, the handles switch between resize and rotate/skew.
     private var clickAgainAt: CGPoint?
@@ -1123,27 +1122,38 @@ final class DesignCanvas: NSView {
             return handle.dx != 0 && handle.dy != 0 && distance > 6 && distance <= 22
         }.map { ($0.dx, $0.dy) }
     }
-    /// A curved arrow, the pointer just outside a corner where dragging rotates (macOS has no rotate pointer of its
-    /// own). It's black with a white edge, so it shows on any thread or fabric.
-    private static let rotateCursor: NSCursor = {
-        let size = NSSize(width: 22, height: 22), image = NSImage(size: size)
-        image.lockFocus()
-        for (color, weight) in [(NSColor.white, NSFont.Weight.black), (NSColor.black, NSFont.Weight.semibold)] {
-            let configuration = NSImage.SymbolConfiguration(pointSize: 14, weight: weight).applying(.init(paletteColors: [color]))
-            if let arrow = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "Rotate")?.withSymbolConfiguration(configuration) {
-                arrow.draw(in: NSRect(x: (size.width - arrow.size.width) / 2, y: (size.height - arrow.size.height) / 2, width: arrow.size.width, height: arrow.size.height))
-            }
+    /// The pointer for the handle under `location` with Select, showing what a drag there does: a curved double
+    /// arrow just outside a corner (rotate), a diagonal arrow on a corner square (resize), ↔ or ↕ on a side square
+    /// (stretch) or ⇄ on a skew diamond. Nil anywhere else.
+    func handleCursor(at location: CGPoint) -> NSCursor? {
+        if state.tool == .artwork { return artworkHandleCursor(at: location) }
+        guard state.tool == .select, !state.hasVersionMismatch, !routeShown, let box = selectionBox(in: state.design) else { return nil }
+        if let handle = resizeHandles(box).first(where: { hypot($0.point.x - location.x, $0.point.y - location.y) <= 6 }) {
+            if handle.dx != 0 && handle.dy != 0 { return HandleCursor.diagonal(rising: handle.dx == handle.dy) }
+            if state.skewHandles { return handle.dy != 0 ? HandleCursor.skewSideways : HandleCursor.skewUpDown }
+            return handle.dx != 0 ? .resizeLeftRight : .resizeUpDown
         }
-        image.unlockFocus()
-        return NSCursor(image: image, hotSpot: NSPoint(x: 11, y: 11))
-    }()
-    /// Shows the rotate pointer while the pointer is just outside a corner, and the tool's pointer again once it
-    /// moves off. Like the guide pointer, it's set directly, only when it changes.
-    private func updateRotateCursor(at location: CGPoint) {
-        let over = turnDrag == nil && artworkTurnDrag == nil && (rotateCorner(at: location) != nil || artworkRotateCorner(at: location) != nil)
-        guard over != overRotateCorner else { return }
-        overRotateCorner = over
-        (over ? Self.rotateCursor : toolCursor).set()
+        return rotateCorner(at: location) != nil ? HandleCursor.rotate : nil
+    }
+    /// The same for the reference image with Move & Size Artwork. Its corners and sides turn with it, so a corner's
+    /// arrow follows which way the corner lies from the middle, and a side's ⇄ or ⇅ which way the side runs.
+    private func artworkHandleCursor(at location: CGPoint) -> NSCursor? {
+        guard let artwork = state.design.artwork, artwork.visible else { return nil }
+        let corners = artwork.corners.map(screen), middle = screen(artwork.center)
+        func near(_ p: CGPoint) -> Bool { hypot(p.x - location.x, p.y - location.y) <= 9 }
+        if let corner = corners.first(where: near) { return HandleCursor.diagonal(rising: (corner.x - middle.x) * (corner.y - middle.y) > 0) }
+        if state.artworkSkewHandles, let side = artworkSideHandles(artwork).firstIndex(where: near) {
+            let a = corners[side], b = corners[(side + 1) % 4]
+            return abs(b.x - a.x) >= abs(b.y - a.y) ? HandleCursor.skewSideways : HandleCursor.skewUpDown
+        }
+        return artworkRotateCorner(at: location) != nil ? HandleCursor.rotate : nil
+    }
+    /// Shows the handle's pointer while the pointer is over one, and the tool's pointer again once it moves off.
+    /// Like the guide pointer it's set directly (cursor areas can't overlap the canvas's own).
+    private func updateHandleCursor(at location: CGPoint) {
+        let dragging = turnDrag != nil || resizeDrag != nil || artworkTurnDrag != nil || artworkDrag != nil
+        if !dragging, let cursor = handleCursor(at: location) { cursor.set(); overHandle = true }
+        else if overHandle { overHandle = false; toolCursor.set() }
     }
     /// While reviewing: the way from where the step before ended (a faint ×) to this step's start, dashed, with what
     /// happens on the way beside it, such as "Trim, then 18.6 mm".
@@ -1560,7 +1570,7 @@ final class DesignCanvas: NSView {
             if let node=added.node{state.selectedNode=node;state.status="Curve node added · drag it and the edge bends smoothly through it"}
         }
     }
-    override func mouseMoved(with event:NSEvent){pointer=model(convert(event.locationInWindow,from:nil));state.pointer.position=pointer;if shapeFollowsPointer,let start=shapeStart,state.tool.dragsShape{sizeShape(from:start,to:convert(event.locationInWindow,from:nil),flags:event.modifierFlags)};moveRulerMarks(to:convert(event.locationInWindow,from:nil));if state.angleStart != nil{needsDisplay=true};updateGuideCursor(at:convert(event.locationInWindow,from:nil));updateRotateCursor(at:convert(event.locationInWindow,from:nil));updateContinueHover(at:convert(event.locationInWindow,from:nil))}
+    override func mouseMoved(with event:NSEvent){pointer=model(convert(event.locationInWindow,from:nil));state.pointer.position=pointer;if shapeFollowsPointer,let start=shapeStart,state.tool.dragsShape{sizeShape(from:start,to:convert(event.locationInWindow,from:nil),flags:event.modifierFlags)};moveRulerMarks(to:convert(event.locationInWindow,from:nil));if state.angleStart != nil{needsDisplay=true};updateGuideCursor(at:convert(event.locationInWindow,from:nil));updateHandleCursor(at:convert(event.locationInWindow,from:nil));updateContinueHover(at:convert(event.locationInWindow,from:nil))}
     override func mouseExited(with event: NSEvent) { state.pointer.position = nil; hoveredGuide = nil; moveRulerMarks(to: nil); updateContinueHover(at: nil) }
     override func mouseDragged(with event: NSEvent) {
         let location = convert(event.locationInWindow, from: nil)
