@@ -167,6 +167,35 @@ final class SelectionHandlesTests: XCTestCase {
         XCTAssertTrue(canvas.handleCursor(at: CGPoint(x: (low.x + high.x) / 2, y: high.y + 6)) === HandleCursor.skewSideways, "on the top side")
     }
 
+    /// Near a corner the pointer doesn't flicker: once ↗↙ or ↻ shows, its zone holds on a few points, so a wobble
+    /// across the border keeps it; moving clearly out changes it. A press does what the pointer shows.
+    @MainActor func testHandlePointersHoldOnNearTheBorder() {
+        let document = DesignDocument(), state = document.state
+        let (canvas, mouse) = canvas(for: state)
+        let object = square()
+        state.edit("Setup") { $0.objects = [object] }
+        state.selection = [object.id]; state.tool = .select; state.snap = false
+        let corner = canvas.screen(Point(10, 10)), handle = CGPoint(x: corner.x + 6, y: corner.y + 6)
+        /// A point `distance` points out from the corner handle, along the diagonal.
+        func out(_ distance: CGFloat) -> CGPoint { CGPoint(x: handle.x + distance / 2.squareRoot(), y: handle.y + distance / 2.squareRoot()) }
+        func move(_ p: CGPoint) {
+            canvas.mouseMoved(with: NSEvent.mouseEvent(with: .mouseMoved, location: p, modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 0, pressure: 0)!)
+        }
+        XCTAssertTrue(canvas.handleCursor(at: out(8)) === HandleCursor.rotate, "coming from nowhere, 8 points out is the rotate zone")
+        move(out(4))
+        XCTAssertTrue(canvas.handleCursor(at: out(8)) === HandleCursor.rising, "with ↗↙ showing, 8 points out still resizes")
+        move(out(8)); move(out(11))
+        XCTAssertTrue(canvas.handleCursor(at: out(11)) === HandleCursor.rotate, "moving clearly out shows ↻")
+        XCTAssertTrue(canvas.handleCursor(at: out(5)) === HandleCursor.rotate, "with ↻ showing, 5 points out still rotates")
+        XCTAssertTrue(canvas.handleCursor(at: out(24)) === HandleCursor.rotate, "and a little past 22 too")
+        // Pressing at 5 points out while ↻ shows rotates, as the pointer says, rather than resizing.
+        move(out(5))
+        let before = state.design.objects[0].nodes[0].point
+        mouse(.leftMouseDown, out(5), []); mouse(.leftMouseDragged, CGPoint(x: out(5).x - 40, y: out(5).y + 40), []); mouse(.leftMouseUp, CGPoint(x: out(5).x - 40, y: out(5).y + 40), [])
+        XCTAssertEqual(document.undoManager?.undoActionName, "Rotate Objects")
+        XCTAssertNotEqual(state.design.objects[0].nodes[0].point, before)
+    }
+
     /// Without a start point set, the marker shows where the stitches really begin (here with the Start & End tool);
     /// dragging it sets the start point.
     @MainActor func testRealStartShowsAndCanBeDragged() async throws {
