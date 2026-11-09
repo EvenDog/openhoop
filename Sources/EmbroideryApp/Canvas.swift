@@ -38,12 +38,28 @@ final class DesignCanvas: NSView {
     private var nodeJustAdded = false
     private var draggedHandle: (location: NodeLocation, outgoing: Bool)?   // a Bézier handle being dragged
     private var drawingHandle: Int?   // while tracing: the new draft node whose handles the drag is pulling out
-    private var shapeStart: Point?    // while dragging out a rectangle, ellipse or basic shape: where the drag began
+    private var shapeStart: Point?    // while drawing a rectangle, ellipse or basic shape: where the press or first click was
+    /// True after a click (no drag) that started a rectangle, ellipse or basic shape: the shape follows the pointer
+    /// until the next click puts it down.
+    private var shapeFollowsPointer = false
     private var freehandStroke: [Point]?   // while drawing with a Freehand tool: the points the pointer has passed through, in mm
-    /// True while a rectangle, ellipse or basic shape is being dragged out.
-    var isDraggingShape: Bool { shapeStart != nil }
-    /// Escape mid-drag: forgets the shape being dragged (or the freehand stroke), so moving on and letting go add nothing.
-    func cancelShapeDrag() { shapeStart = nil; freehandStroke = nil; needsDisplay = true }
+    /// True while a rectangle, ellipse or basic shape is being dragged out with the mouse held down (not while one
+    /// follows the pointer after a click).
+    var isDraggingShape: Bool { shapeStart != nil && !shapeFollowsPointer }
+    /// Escape mid-drag, or after a shape's first click: forgets the shape (or the freehand stroke), so moving on and
+    /// letting go or clicking add nothing.
+    func cancelShapeDrag() { shapeStart = nil; shapeFollowsPointer = false; freehandStroke = nil; needsDisplay = true }
+    /// Sizes the rectangle, ellipse or basic shape being drawn from `start` to `location` (in the view), as the draft:
+    /// none while it's under 1 mm across (still just a click). ⌘ keeps the shape even (a square, circle or regular
+    /// shape); ⇧ grows it out from `start`. Ellipses always grow from their center.
+    private func sizeShape(from start: Point, to location: NSPoint, flags: NSEvent.ModifierFlags) {
+        let shape = state.tool.draggedShape ?? .rectangle
+        let even = flags.contains(.command)
+        let box = ShapeGeometry.box(from: start, to: snapped(model(location)), even: even, fromCenter: shape == .ellipse || flags.contains(.shift))
+        let tooSmall = box.max.x - box.min.x < 1 || box.max.y - box.min.y < 1
+        state.draft = tooSmall ? [] : ShapeGeometry.nodes(shape, in: box, settings: Preferences.shared.shapes, keepProportions: even)
+        needsDisplay = true
+    }
     /// The markers shown on a selected object: where it starts and ends sewing, and a radial fill's center.
     private enum Marker { case start, end, center }
     private var draggedMarker: (object: UUID, kind: Marker)?   // a marker being dragged
@@ -1315,7 +1331,16 @@ final class DesignCanvas: NSView {
             state.addDraftPoint(point, smooth: event.modifierFlags.contains(.control), reach: 3 / state.zoom)   // 3 screen points
             drawingHandle = state.draft.count - 1; return
         }
-        if state.tool.dragsShape { shapeStart = point; return }
+        if state.tool.dragsShape {
+            // The second click of click, move, click puts the shape down where the pointer is. One too close to the
+            // first click to make a shape is ignored, and the shape keeps following.
+            if shapeFollowsPointer, let start = shapeStart {
+                sizeShape(from: start, to: location, flags: event.modifierFlags)
+                guard !state.draft.isEmpty else { return }
+                cancelShapeDrag(); state.finishShape(state.tool.draggedShape ?? .rectangle); return
+            }
+            shapeStart = point; return
+        }
         // Freehand ignores Snap: a stroke pulled onto grid points would be jagged.
         if state.tool.freehand { freehandStroke = [model(location)]; state.draft = [PathNode(model(location))]; return }
         if state.tool == .pan { screenStart = location; panStart = pan; return }
@@ -1431,7 +1456,7 @@ final class DesignCanvas: NSView {
             if let node=added.node{state.selectedNode=node;state.status="Curve node added · drag it and the edge bends smoothly through it"}
         }
     }
-    override func mouseMoved(with event:NSEvent){pointer=model(convert(event.locationInWindow,from:nil));state.pointer.position=pointer;moveRulerMarks(to:convert(event.locationInWindow,from:nil));if state.angleStart != nil{needsDisplay=true};updateGuideCursor(at:convert(event.locationInWindow,from:nil));updateContinueHover(at:convert(event.locationInWindow,from:nil))}
+    override func mouseMoved(with event:NSEvent){pointer=model(convert(event.locationInWindow,from:nil));state.pointer.position=pointer;if shapeFollowsPointer,let start=shapeStart,state.tool.dragsShape{sizeShape(from:start,to:convert(event.locationInWindow,from:nil),flags:event.modifierFlags)};moveRulerMarks(to:convert(event.locationInWindow,from:nil));if state.angleStart != nil{needsDisplay=true};updateGuideCursor(at:convert(event.locationInWindow,from:nil));updateContinueHover(at:convert(event.locationInWindow,from:nil))}
     override func mouseExited(with event: NSEvent) { state.pointer.position = nil; hoveredGuide = nil; moveRulerMarks(to: nil); updateContinueHover(at: nil) }
     override func mouseDragged(with event: NSEvent) {
         let location = convert(event.locationInWindow, from: nil)
@@ -1482,16 +1507,7 @@ final class DesignCanvas: NSView {
             if freehandStroke!.last.map({ $0.distance(to: p) >= 0.1 }) ?? true { freehandStroke!.append(p); state.draft.append(PathNode(p)) }
             needsDisplay = true; return
         }
-        if let start = shapeStart {
-            // ⌘ keeps the shape even (a square, circle or regular shape); ⇧ grows it out
-            // from where the drag began. Ellipses always grow from their center.
-            let shape = state.tool.draggedShape ?? .rectangle
-            let even = event.modifierFlags.contains(.command)
-            let box = ShapeGeometry.box(from: start, to: snapped(model(location)), even: even, fromCenter: shape == .ellipse || event.modifierFlags.contains(.shift))
-            let tooSmall = box.max.x - box.min.x < 1 || box.max.y - box.min.y < 1   // under 1 mm: still just a click
-            state.draft = tooSmall ? [] : ShapeGeometry.nodes(shape, in: box, settings: Preferences.shared.shapes, keepProportions: even)
-            needsDisplay = true; return
-        }
+        if let start = shapeStart, !shapeFollowsPointer { sizeShape(from: start, to: location, flags: event.modifierFlags); return }
         if let index = drawingHandle, state.draft.indices.contains(index) {
             // A tiny wobble is still a click (a corner); past a few screen points the drag pulls out the node's handles.
             let target = snapped(model(location))
@@ -1650,9 +1666,12 @@ final class DesignCanvas: NSView {
         }
         if let stroke = freehandStroke { freehandStroke = nil; state.finishFreehand(stroke); return }
         if shapeStart != nil {
-            shapeStart = nil
-            if state.draft.isEmpty { state.status = state.tool == .ellipse ? "Drag out the ellipse from its center: hold ⌘ for a circle." : "Drag to draw the shape: hold ⌘ to keep it even, ⇧ to draw it from the center." }
-            else { state.finishShape(state.tool.draggedShape ?? .rectangle) }
+            if shapeFollowsPointer { return }   // letting go of a click that didn't put the shape down
+            if state.draft.isEmpty {
+                // A click, not a drag: the shape follows the pointer until the next click.
+                shapeFollowsPointer = true
+                state.status = (state.tool == .ellipse ? "Move out from the center, then click to put the ellipse down · ⌘ for a circle" : "Move to size the shape, then click to put it down · ⌘ keeps it even · ⇧ from the center") + " · Esc cancels"
+            } else { cancelShapeDrag(); state.finishShape(state.tool.draggedShape ?? .rectangle) }
             return
         }
         let action = hoopingDrag != nil ? "Move Hooping" : angleDrag != nil ? "Move Stitch Angle" : fillAngleDrag.map { $0.slideFrom == nil ? "Fill Angle" : "Move Stitch Angle Line" } ?? artworkDrag.map { $0 < 0 ? "Move Artwork" : "Resize Artwork" } ?? draggedMarker.map { $0.kind == .end ? "Move End Point" : $0.kind == .start ? "Move Start Point" : "Move Radial Center" } ?? (draggedHandle != nil ? "Shape Curve" : draggedNode == nil ? "Move Objects" : nodeJustAdded ? "Add Node" : "Move Node")
