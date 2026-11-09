@@ -128,15 +128,17 @@ extension Design {
 
     /// Skew: leans the objects in `ids` sideways by `degrees` (positive leans the top to the right, like italics),
     /// keeping the level line through `center` in place. Points keep their height and slide across in proportion
-    /// to it. Fill rows lean along, so they keep their look.
-    public mutating func skew(_ ids: Set<UUID>, by degrees: Double, around center: Point) {
+    /// to it. With `vertical`, it leans them up and down instead (positive lifts the right side), keeping the
+    /// upright line through `center` in place. Fill rows lean along, so they keep their look.
+    public mutating func skew(_ ids: Set<UUID>, by degrees: Double, around center: Point, vertical: Bool = false) {
         let slant = tan(degrees * .pi / 180)
         for i in objects.indices where ids.contains(objects[i].id) {
-            objects[i].transform { p in Point(p.x + (p.y - center.y) * slant, p.y) }
+            objects[i].transform { p in vertical ? Point(p.x, p.y + (p.x - center.x) * slant) : Point(p.x + (p.y - center.y) * slant, p.y) }
             if objects[i].kind == .fill {
-                // The rows' direction (cos, sin) slides the same way: across by its height times the slant.
-                let radians = objects[i].settings.angle * .pi / 180
-                objects[i].digitizing?.angle = atan2(sin(radians), cos(radians) + sin(radians) * slant) * 180 / .pi
+                // The rows' direction (cos, sin) slides the same way: across by its height times the slant (or, leaning
+                // up and down, up by its width times the slant).
+                let radians = objects[i].settings.angle * .pi / 180, (c, s) = (cos(radians), sin(radians))
+                objects[i].digitizing?.angle = (vertical ? atan2(s + c * slant, c) : atan2(s, c + s * slant)) * 180 / .pi
             }
             objects[i].refreshStitchEdits()
         }

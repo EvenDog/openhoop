@@ -66,6 +66,12 @@ final class DesignCanvas: NSView {
     /// A resize handle being dragged (Select tool): which sides it moves (-1 left/bottom, 1 right/top, 0 neither), and
     /// the selection's box (mm) when the drag began.
     private var resizeDrag: (dx: Int, dy: Int, low: Point, high: Point)?
+    /// A rotate or skew handle being dragged: which one (dx, dy as for resizing) and the selection's box (mm) when
+    /// the drag began.
+    private var turnDrag: (dx: Int, dy: Int, low: Point, high: Point)?
+    /// Where (on screen) a press landed on an object that was already selected. If the mouse comes up there without
+    /// moving, the handles switch between resize and rotate/skew.
+    private var clickAgainAt: CGPoint?
     /// A letter being moved with Edit Nodes: its lettering, its letter key, and its parts.
     private var letterDrag: (lettering: UUID, key: Int, parts: Set<UUID>)?
     /// An envelope handle being dragged with Edit Nodes: the lettering's recipe as the drag began, and the handle.
@@ -726,7 +732,9 @@ final class DesignCanvas: NSView {
         if let drag = fillAngleDrag, drag.slideFrom == nil, let object = (preview ?? state.design).objects.first(where: { $0.id == drag.object }),
            let ends = StitchAngleLine.ends(of: object) { drawAngleReading(ends.0, ends.1, at: drag.pointer) }
         // The route has no resize handles: they'd cover its numbers.
-        if state.tool == .select && !state.hasVersionMismatch && !routeShown, let box = selectionBox(in: design) { drawResizeHandles(box) }
+        if state.tool == .select && !state.hasVersionMismatch && !routeShown, let box = selectionBox(in: design) {
+            if state.turnHandles { drawTurnHandles(box) } else { drawResizeHandles(box) }
+        }
         if state.tool == .node { for envelope in envelopes(in: design) { drawEnvelope(envelope.spec) } }
         if state.tool == .node { for letter in letterHandles(in: design) { drawLetterHandle(letter.point, active: letterDrag?.key == letter.key && letterDrag?.lettering == letter.lettering) } }
         if state.tool == .branch, let start = state.branchPoints.first { drawMarker(start, label: "Branch start", color: Theme.Canvas.entry) }
@@ -1058,6 +1066,25 @@ final class DesignCanvas: NSView {
             NSColor(white: 0.2, alpha: 1).setFill(); square.fill(); NSColor.white.setStroke(); square.lineWidth = 1; square.stroke()
         }
     }
+    /// The rotate and skew handles: hollow circles on the corners (drag one to turn the selection) and diamonds on
+    /// the sides (drag one to lean it), with a ring and cross in the middle, the point it turns around.
+    private func drawTurnHandles(_ box: CGRect) {
+        let dark = NSColor(white: 0.2, alpha: 1)
+        for handle in resizeHandles(box) {
+            let p = handle.point, shape: NSBezierPath
+            if handle.dx != 0 && handle.dy != 0 { shape = NSBezierPath(ovalIn: CGRect(x: p.x - 4.5, y: p.y - 4.5, width: 9, height: 9)) }
+            else {
+                shape = NSBezierPath()
+                shape.move(to: CGPoint(x: p.x, y: p.y + 5)); shape.line(to: CGPoint(x: p.x + 5, y: p.y)); shape.line(to: CGPoint(x: p.x, y: p.y - 5)); shape.line(to: CGPoint(x: p.x - 5, y: p.y)); shape.close()
+            }
+            NSColor.white.setFill(); shape.fill(); dark.setStroke(); shape.lineWidth = 1.5; shape.stroke()
+        }
+        let c = CGPoint(x: box.midX, y: box.midY), pivot = NSBezierPath(ovalIn: CGRect(x: c.x - 4, y: c.y - 4, width: 8, height: 8))
+        pivot.move(to: CGPoint(x: c.x - 7, y: c.y)); pivot.line(to: CGPoint(x: c.x + 7, y: c.y))
+        pivot.move(to: CGPoint(x: c.x, y: c.y - 7)); pivot.line(to: CGPoint(x: c.x, y: c.y + 7))
+        NSColor.white.setStroke(); pivot.lineWidth = 3; pivot.stroke()   // a white edge, so it shows on dark thread
+        dark.setStroke(); pivot.lineWidth = 1.2; pivot.stroke()
+    }
     /// While reviewing: the way from where the step before ended (a faint ×) to this step's start, dashed, with what
     /// happens on the way beside it, such as "Trim, then 18.6 mm".
     private func drawTravel(_ travel: SewingTravel, to start: Point, warned: Bool) {
@@ -1269,6 +1296,7 @@ final class DesignCanvas: NSView {
     override func mouseDown(with event: NSEvent) {
         state.focusCanvas()
         dragRevision = state.revision
+        clickAgainAt = nil
         let location = convert(event.locationInWindow, from: nil)
         if state.tool == .zoomBox { zoomBox = (location, location); return }   // zooming works in older projects too
         // Dragging out of a ruler adds a guide: down from the top ruler a horizontal one, right from the left ruler a
@@ -1368,10 +1396,13 @@ final class DesignCanvas: NSView {
             draggedMarker = marker; dragStart = point; dragSnapshot = state.design; return
         }
         // A resize handle round the selection: dragging it resizes the selection from the opposite side or corner.
+        // With the rotate and skew handles showing, a corner turns it and a side leans it instead.
         if state.tool == .select, !state.hasVersionMismatch, !routeShown, let box = selectionBox(in: state.design),
            let handle = resizeHandles(box).first(where: { hypot($0.point.x - location.x, $0.point.y - location.y) <= 6 }) {
-            resizeDrag = (handle.dx, handle.dy, model(CGPoint(x: box.minX, y: box.minY)), model(CGPoint(x: box.maxX, y: box.maxY)))
-            dragStart = point; dragSnapshot = state.design; return
+            let low = model(CGPoint(x: box.minX, y: box.minY)), high = model(CGPoint(x: box.maxX, y: box.maxY))
+            if state.turnHandles { turnDrag = (handle.dx, handle.dy, low, high); dragStart = model(location) }   // turning ignores Snap
+            else { resizeDrag = (handle.dx, handle.dy, low, high); dragStart = point }
+            dragSnapshot = state.design; return
         }
         if state.tool == .entryExit { setEntryOrExit(at: point, exit: event.modifierFlags.contains(.option)); return }
         pointer=point
@@ -1428,6 +1459,8 @@ final class DesignCanvas: NSView {
                 state.select(object.id); DispatchQueue.main.async { AppDelegate.shared.perform(.editLettering) }; return
             }
             let single = event.modifierFlags.contains(.option)   // Option-click picks one member of a group
+            // A plain click on what's already selected may switch its handles (decided on mouse up, if it didn't move).
+            if state.tool == .select, !adding(event), !single, state.selection.contains(object.id) { clickAgainAt = location }
             if adding(event) { state.select(object.id, extend: true, single: single) }
             else if !state.selection.contains(object.id) || single { state.select(object.id, single: single) }
             dragStart = point; dragSnapshot = state.design
@@ -1529,6 +1562,31 @@ final class DesignCanvas: NSView {
             state.status = "Size \(Preferences.shared.unit.size(width * sx, height * sy))" + (corner ? " · ⇧ stretches freely" : "")
             needsDisplay = true; return
         }
+        if let drag = turnDrag {
+            let p = model(location), ids = state.editableSelection, step = event.modifierFlags.contains(.shift) ? 15.0 : 1
+            let low = Point(min(drag.low.x, drag.high.x), min(drag.low.y, drag.high.y)), high = Point(max(drag.low.x, drag.high.x), max(drag.low.y, drag.high.y))
+            if drag.dx != 0 && drag.dy != 0 {
+                // A corner turns the selection round the middle of its box by the angle the pointer has swung through,
+                // in whole degrees (counterclockwise is positive, as in the Rotate box).
+                let center = (low + high) * 0.5
+                let swung = (atan2(p.y - center.y, p.x - center.x) - atan2(start.y - center.y, start.x - center.x)) * 180 / .pi
+                let degrees = (remainder(swung, 360) / step).rounded() * step   // remainder keeps it within -180…180
+                next.rotate(ids, by: degrees, around: center)
+                state.status = "Rotate \(Int(degrees))° · ⇧ turns in steps of 15°"
+            } else {
+                // The top or bottom handle leans the selection sideways, the left or right one up and down. The opposite
+                // side stays put, and the dragged side follows the pointer.
+                let vertical = drag.dx != 0
+                let anchor = vertical ? (drag.dx > 0 ? low.x : high.x) : (drag.dy > 0 ? low.y : high.y)
+                let reach = (vertical ? (drag.dx > 0 ? high.x : low.x) : (drag.dy > 0 ? high.y : low.y)) - anchor   // anchor to dragged side
+                guard abs(reach) > 0.01 else { return }
+                let moved = vertical ? p.y - start.y : p.x - start.x
+                let degrees = min(60, max(-60, (atan(moved / reach) * 180 / .pi / step).rounded() * step))   // as far as the Skew box goes
+                next.skew(ids, by: degrees, around: vertical ? Point(anchor, 0) : Point(0, anchor), vertical: vertical)
+                state.status = "Skew \(Int(degrees))° · ⇧ leans in steps of 15°"
+            }
+            preview = next; needsDisplay = true; return
+        }
         if let index = hoopingDrag, let before = dragSnapshot?.multiHooping?.hoopings, before.indices.contains(index) {
             next.multiHooping!.hoopings[index].center = before[index].center + (snapped(model(location)) - start)
             preview = next; needsDisplay = true; return
@@ -1618,6 +1676,10 @@ final class DesignCanvas: NSView {
             if let preview { state.document?.replace(preview, action: "Resize Objects") }
             resizeDrag = nil; preview = nil; dragStart = nil; dragSnapshot = nil; needsDisplay = true; return
         }
+        if let drag = turnDrag {
+            if let preview { state.document?.replace(preview, action: drag.dx != 0 && drag.dy != 0 ? "Rotate Objects" : "Skew Objects") }
+            turnDrag = nil; preview = nil; dragStart = nil; dragSnapshot = nil; needsDisplay = true; return
+        }
         if let drag = guideDrag {
             // Let go over its own ruler, a guide is removed (or, if it was just dragged out, never added).
             let removing = overOwnRuler(convert(event.locationInWindow, from: nil), vertical: drag.vertical)
@@ -1674,6 +1736,16 @@ final class DesignCanvas: NSView {
             } else { cancelShapeDrag(); state.finishShape(state.tool.draggedShape ?? .rectangle) }
             return
         }
+        // A click that didn't move, on what was already selected, switches between resize and rotate/skew handles.
+        if let pressed = clickAgainAt {
+            clickAgainAt = nil
+            let here = convert(event.locationInWindow, from: nil)
+            if hypot(here.x - pressed.x, here.y - pressed.y) < 3 {
+                state.turnHandles.toggle()
+                state.status = state.turnHandles ? "Rotate & skew · drag a corner to turn, a side to lean · ⇧ in steps of 15° · click again to resize" : "Resize · click the selection again to rotate or skew"
+                needsDisplay = true
+            }
+        }
         let action = hoopingDrag != nil ? "Move Hooping" : angleDrag != nil ? "Move Stitch Angle" : fillAngleDrag.map { $0.slideFrom == nil ? "Fill Angle" : "Move Stitch Angle Line" } ?? artworkDrag.map { $0 < 0 ? "Move Artwork" : "Resize Artwork" } ?? draggedMarker.map { $0.kind == .end ? "Move End Point" : $0.kind == .start ? "Move Start Point" : "Move Radial Center" } ?? (draggedHandle != nil ? "Shape Curve" : draggedNode == nil ? "Move Objects" : nodeJustAdded ? "Add Node" : "Move Node")
         // A node or handle drag that leaves its object unable to sew (a satin rung crossing a rail, a fill's edge
         // crossing itself) goes back, unless the object was already broken (then any edit may be the fix).
@@ -1700,7 +1772,7 @@ final class DesignCanvas: NSView {
     private func dropDragIfDesignChanged() -> Bool {
         guard state.revision != dragRevision, stitchDrag != nil || dragSnapshot != nil else { return false }
         stitchDrag = nil; stitchPreview = nil; preview = nil; dragSnapshot = nil; dragStart = nil; angleDrag = nil; fillAngleDrag = nil; guideDrag = nil
-        draggedNode = nil; draggedHandle = nil; draggedMarker = nil; artworkDrag = nil; hoopingDrag = nil; nodeJustAdded = false; dragProblem = nil; resizeDrag = nil; letterDrag = nil; envelopeDrag = nil; needsDisplay = true
+        draggedNode = nil; draggedHandle = nil; draggedMarker = nil; artworkDrag = nil; hoopingDrag = nil; nodeJustAdded = false; dragProblem = nil; resizeDrag = nil; turnDrag = nil; letterDrag = nil; envelopeDrag = nil; needsDisplay = true
         state.status = "The design changed during the drag, so the drag was cancelled."
         return true
     }

@@ -117,4 +117,19 @@ final class ArrangingTests: XCTestCase {
         XCTAssertEqual(design.objects[0].nodes[2].point.x, 5, accuracy: 1e-9, "skewing back undoes it")
         XCTAssertEqual(design.objects[0].settings.angle, 90, accuracy: 1e-9)
     }
+
+    func testVerticalSkewLeansUpAndDownAndFillRowsLeanAlong() throws {
+        var design = Design()
+        design.objects = [square("A", at: Point(0, 0), size: 10)]
+        design.objects[0].digitizing?.angle = 0   // level rows
+        let id = design.objects[0].id
+        design.skew([id], by: 45, around: Point(0, 0), vertical: true)
+        for (point, expected) in zip(design.objects[0].nodes.map(\.point), [Point(-5, -10), Point(5, 0), Point(5, 10), Point(-5, 0)]) {
+            XCTAssertEqual(point.distance(to: expected), 0, accuracy: 1e-9, "the right side rises, the left side drops")
+        }
+        XCTAssertEqual(design.objects[0].settings.angle, 45, accuracy: 1e-9, "level rows tilt up by the same 45°")
+        design.skew([id], by: -45, around: Point(0, 0), vertical: true)
+        XCTAssertEqual(design.objects[0].nodes[2].point.y, 5, accuracy: 1e-9, "skewing back undoes it")
+        XCTAssertEqual(design.objects[0].settings.angle, 0, accuracy: 1e-9)
+    }
 }
