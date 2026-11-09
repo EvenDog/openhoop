@@ -6,6 +6,26 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.13.1</title>
+            <pubDate>Mon, 09 Nov 2026 16:46:51 GMT</pubDate>
+            <sparkle:version>47</sparkle:version>
+            <sparkle:shortVersionString>0.13.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.13.1</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.13.1</h3>
+<h4>Shape tools</h4>
+<ul>
+<li>Picking a closed-shape tool (Closed Shape, Freehand Closed, Rectangle, Ellipse or Basic Shapes) now always starts the next shape at a <b>Tatami</b> fill with no outline, instead of the fill you picked last time. A change you make while the tool is on still lasts until you pick a tool again.</li>
+<li><b>Sew: Fill | Outline | Both</b>, at the top of Next shape's Stitches, makes an outline-only shape one click. The Fill and Outline menus show only for what's on, so they no longer offer None.</li>
+</ul>
+<h4>Files</h4>
+<p>Nothing changes in files: 0.13.1 saves the same files as 0.13.0.</p>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.13.1/OpenHoop-0.13.1.dmg" sparkle:edSignature="2rkRj/JYjXFr/Pe1nCwfQ/6LQbYFzj9NLQv5UuF3GZh6WJCO0eMJxCLOXVeUzssitSMmxh+Cc3Ox2+7z+3g3AQ==" length="43182983" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.13.0</title>
             <pubDate>Mon, 09 Nov 2026 16:18:50 GMT</pubDate>
             <sparkle:version>46</sparkle:version>
