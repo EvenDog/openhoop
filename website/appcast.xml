@@ -6,6 +6,27 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.13.2</title>
+            <pubDate>Mon, 09 Nov 2026 17:07:26 GMT</pubDate>
+            <sparkle:version>48</sparkle:version>
+            <sparkle:shortVersionString>0.13.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.13.2</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.13.2</h3>
+<h4>Click, move, click</h4>
+<ul>
+<li><b>Rectangle</b>, <b>Ellipse</b> and <b>Basic Shapes</b> can now be drawn without holding the mouse down: click where the shape starts (an ellipse's center), let go, move the pointer and the shape follows it, then click again to put it down.</li>
+<li>Pressing and dragging still works as before. <b>⌘</b> keeps the shape even and <b>⇧</b> draws it from the center either way.</li>
+<li><b>Esc</b> after the first click cancels the shape; <b>Return</b> puts it down as it is.</li>
+</ul>
+<h4>Files</h4>
+<p>Nothing changes in files: 0.13.2 saves the same files as 0.13.0.</p>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.13.2/OpenHoop-0.13.2.dmg" sparkle:edSignature="0ODt8XTn67qOb+QUT3ecitEeEimYNetRUDLCGgBhyS4ftQZNGXjzIqjfYiVxvcnnjif8i8SroNCkSJPvkHPkDA==" length="43161313" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.13.1</title>
             <pubDate>Mon, 09 Nov 2026 16:46:51 GMT</pubDate>
             <sparkle:version>47</sparkle:version>
