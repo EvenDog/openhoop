@@ -519,7 +519,7 @@ import EmbroideryCore
             case .hole:state.status="Trace a hole inside the selected fill · Enter to finish · Escape cancels"
             case .run:state.status="Click corners · Drag while clicking to pull out a curve · Secondary-click for an automatic curve · Enter to finish"
             case .node:state.status="Drag nodes · Click an edge to add a corner node, right-click for a curve node · Drag a node's handles to shape its curve (Option: one side) · Delete removes the selected node · Esc when done"
-            case .artwork:state.status="Drag the image to move it · Drag a corner to resize (Shift: stretch) · Arrow keys nudge · Esc when done"
+            case .artwork:state.status="Drag the image to move it · Drag a corner to resize (Shift: stretch) · Click it to rotate or skew · Arrow keys nudge · Esc when done"
             case .entryExit:state.status="Click where the selected object should start sewing · Option-click sets where it ends · Drag a marker to move it · Esc when done"
             case .openShape:state.status="Open shape · Click corners · Drag or secondary-click for curves · Enter to finish"
             case .knife:state.status="Knife · Click points across what to cut (the selection, or anything if nothing is selected) · Return cuts · Esc cancels"

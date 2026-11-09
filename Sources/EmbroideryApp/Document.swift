@@ -97,6 +97,9 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     /// True once the selection is clicked again with Select: the handles round it then turn it (corners) and lean it
     /// (sides) instead of resizing it. Any change to the selection brings the resize handles back.
     var turnHandles = false
+    /// The same for the reference image with Move & Size Artwork: clicking the image switches its corner handles to
+    /// rotate and skew handles. Picking another tool brings the resize handles back.
+    var artworkTurnHandles = false
     /// True just after a tool with Next shape choices is picked: Properties shows those choices even while something
     /// is selected, until the selection changes (such as the shape just drawn being selected).
     @Published var toolPicked = false
@@ -107,6 +110,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         // would remove a line you can't see).
         didSet {
             if ![.node, .addAngles, .removeAngles].contains(tool) { selectedAngle = nil }; canvas?.toolDidChange()
+            if tool != oldValue { artworkTurnHandles = false }
             // Reviewing carries on with the tools that look and set start and end points; drawing tools finish it.
             if reviewing && ![.select, .entryExit, .node, .pan, .zoomBox].contains(tool) { reviewing = false }
             // Leaving Paint Stitches (Esc, another tool) drops the painting; zooming keeps it.

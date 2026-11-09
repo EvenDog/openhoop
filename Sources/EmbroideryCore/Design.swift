@@ -687,28 +687,106 @@ public struct Artwork: Codable, Equatable, Sendable {
     public init(data: Data, name: String, width: Double, height: Double) {
         self.data = data; self.name = name; self.width = width; self.height = height
     }
-    /// The image's corners in millimeters, in order: bottom-left, bottom-right, top-right, top-left.
+    /// Where the image's own rightward and upward directions point on the canvas, as two arrows (nil means plain:
+    /// right (1, 0) and up (0, 1)). Turning, flipping and skewing the image change these arrows; `width` and
+    /// `height` stay the image's own size. Like the rest of the artwork they never change the stitches, so older
+    /// versions can safely ignore them (they show the image plain).
+    public var xAxis: Point?
+    public var yAxis: Point?
+    /// The image's two arrows, plain when they aren't set.
+    public var axes: (x: Point, y: Point) { (xAxis ?? Point(1, 0), yAxis ?? Point(0, 1)) }
+    /// True once the image has been turned, flipped or skewed.
+    public var isTransformed: Bool { xAxis != nil || yAxis != nil }
+    /// A point in the image's own frame (mm from its center, along its own right and up) → where it is on the canvas.
+    public func place(_ local: Point) -> Point { let a = axes; return center + a.x * local.x + a.y * local.y }
+    /// The reverse of `place`: a point on the canvas → the image's own frame. It undoes the two arrows by solving
+    /// center + x·xAxis + y·yAxis = point for x and y.
+    public func local(_ point: Point) -> Point {
+        let a = axes, d = point - center, det = a.x.x * a.y.y - a.y.x * a.x.y
+        guard abs(det) > 1e-12 else { return Point(0, 0) }
+        return Point((d.x * a.y.y - d.y * a.y.x) / det, (a.x.x * d.y - a.x.y * d.x) / det)
+    }
+    /// The image's corners in millimeters, in order: its own bottom-left, bottom-right, top-right, top-left.
     public var corners: [Point] {
         let w = width / 2, h = height / 2
-        return [Point(center.x - w, center.y - h), Point(center.x + w, center.y - h), Point(center.x + w, center.y + h), Point(center.x - w, center.y + h)]
+        return [Point(-w, -h), Point(w, -h), Point(w, h), Point(-w, h)].map(place)
     }
+    /// The smallest level box round the image on the canvas.
+    public var bounds: (min: Point, max: Point) {
+        let c = corners
+        return (Point(c.map(\.x).min()!, c.map(\.y).min()!), Point(c.map(\.x).max()!, c.map(\.y).max()!))
+    }
+    /// The image with `map` (a turn, flip or lean about its center, on the canvas) applied to its arrows. Arrows
+    /// that come back to plain (four quarter turns, say) are cleared.
+    private func mapped(_ map: (Point) -> Point) -> Artwork {
+        var result = self, a = axes
+        a = (map(a.x), map(a.y))
+        let plain = a.x.distance(to: Point(1, 0)) < 1e-9 && a.y.distance(to: Point(0, 1)) < 1e-9
+        result.xAxis = plain ? nil : a.x; result.yAxis = plain ? nil : a.y
+        return result
+    }
+    /// The image turned by `degrees` (positive is counterclockwise) about its center.
+    public func rotated(by degrees: Double) -> Artwork {
+        let radians = degrees * .pi / 180, c = cos(radians), s = sin(radians)
+        return mapped { Point($0.x * c - $0.y * s, $0.x * s + $0.y * c) }
+    }
+    /// The image mirrored about its center: left to right, or (`horizontally` false) top to bottom.
+    public func flipped(horizontally: Bool) -> Artwork { mapped { horizontally ? Point(-$0.x, $0.y) : Point($0.x, -$0.y) } }
+    /// The image leaned by `degrees` about its center, as `Design.skew` leans objects: sideways (positive leans the
+    /// top to the right) or, `vertical`, up and down (positive lifts the right side).
+    public func skewed(by degrees: Double, vertical: Bool = false) -> Artwork {
+        let slant = tan(degrees * .pi / 180)
+        return mapped { vertical ? Point($0.x, $0.y + $0.x * slant) : Point($0.x + $0.y * slant, $0.y) }
+    }
+    /// The image back to plain: not turned, flipped or skewed, at the same center and size.
+    public var straightened: Artwork { var result = self; result.xAxis = nil; result.yAxis = nil; return result }
+
     /// The image after a drag from `start` to `point` (millimeters): corner -1 moves it; corner 0…3 resizes it from
     /// that corner while the opposite corner stays still. Resizing keeps the proportions, following whichever
-    /// direction grew more, unless `free` (Shift) lets it stretch. It never gets smaller than 2 mm.
+    /// direction grew more, unless `free` (Shift) lets it stretch. It never gets smaller than 2 mm. A turned or
+    /// skewed image resizes along its own sides.
     public func adjusted(corner: Int, from start: Point, to point: Point, free: Bool) -> Artwork {
         var result = self
         guard corner >= 0 else { result.center = center + (point - start); return result }
-        let anchor = corners[(corner + 2) % 4], dragged = corners[corner]
+        // Worked out in the image's own frame, where its sides are level and upright.
+        let w = width / 2, h = height / 2, own = [Point(-w, -h), Point(w, -h), Point(w, h), Point(-w, h)]
+        let anchor = own[(corner + 2) % 4], dragged = own[corner], target = local(point)
         let signX: Double = dragged.x > anchor.x ? 1 : -1, signY: Double = dragged.y > anchor.y ? 1 : -1
-        var newWidth = max(2, (point.x - anchor.x) * signX), newHeight = max(2, (point.y - anchor.y) * signY)
+        var newWidth = max(2, (target.x - anchor.x) * signX), newHeight = max(2, (target.y - anchor.y) * signY)
         if !free {
             let scale = max(newWidth / width, newHeight / height)
             newWidth = width * scale; newHeight = height * scale
             if min(newWidth, newHeight) < 2 { let grow = 2 / min(newWidth, newHeight); newWidth *= grow; newHeight *= grow }
         }
         result.width = newWidth; result.height = newHeight
-        result.center = Point(anchor.x + signX * newWidth / 2, anchor.y + signY * newHeight / 2)
+        result.center = place(Point(anchor.x + signX * newWidth / 2, anchor.y + signY * newHeight / 2))
         return result
+    }
+    /// The image after one of its rotate and skew handles is dragged from `start` to `point` (millimeters). A corner
+    /// (0…3, as in `corners`) turns it about its center by the angle the pointer swung through. A side (4 bottom,
+    /// 5 right, 6 top, 7 left, its own sides) leans it along that side, up to 60°, while the opposite side stays
+    /// still. The angle is rounded to `step` degrees and returned too, for the status line.
+    public func turned(handle: Int, from start: Point, to point: Point, step: Double = 1) -> (artwork: Artwork, degrees: Double) {
+        func rounded(_ degrees: Double) -> Double { (degrees / step).rounded() * step }
+        if handle < 4 {
+            let swung = (atan2(point.y - center.y, point.x - center.x) - atan2(start.y - center.y, start.x - center.x)) * 180 / .pi
+            let degrees = rounded(remainder(swung, 360))   // remainder keeps it within -180…180
+            return (rotated(by: degrees), degrees)
+        }
+        // In the image's own frame: the bottom or top side slides sideways, the right or left side up and down.
+        let sideways = handle == 4 || handle == 6
+        let anchor = sideways ? (handle == 6 ? -height / 2 : height / 2) : (handle == 5 ? -width / 2 : width / 2)
+        let reach = sideways ? (handle == 6 ? height : -height) : (handle == 5 ? width : -width)   // anchor to the dragged side
+        let from = local(start), to = local(point)
+        let degrees = min(60, max(-60, rounded(atan(((sideways ? to.x - from.x : to.y - from.y)) / reach) * 180 / .pi)))
+        let slant = tan(degrees * .pi / 180), a = axes
+        // Leaning the own frame by the slant keeps the anchor side still: one arrow tips by the slant times the
+        // other, and the center slides by half the lean.
+        var result = self
+        if sideways { result.yAxis = a.y + a.x * slant; result.xAxis = a.x; result.center = center - a.x * (anchor * slant) }
+        else { result.xAxis = a.x + a.y * slant; result.yAxis = a.y; result.center = center - a.y * (anchor * slant) }
+        if degrees == 0 { result = self }
+        return (result, degrees)
     }
 }
 

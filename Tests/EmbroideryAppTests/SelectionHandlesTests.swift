@@ -1,6 +1,6 @@
 // Checks the handles round a selection (Select tool): a side handle stretches one way and a corner keeps the
 // proportions, each from the opposite side, as one undoable step; clicking the selection again switches to handles
-// that rotate (corners) and skew (sides); and a selected object's real start shows as a marker that can be dragged
+// that rotate (corners) and skew (sides), for objects and for the reference image; and a selected object's real start shows as a marker that can be dragged
 // to set its start point.
 import XCTest
 import AppKit
@@ -97,6 +97,33 @@ final class SelectionHandlesTests: XCTestCase {
         XCTAssertFalse(state.turnHandles)
         box = bounds(state.design.objects[0])
         XCTAssertEqual(box.low.x, 2, accuracy: 1e-6, "it moved instead")
+    }
+
+    /// With Move & Size Artwork, clicking the image switches its corner handles to rotate and skew handles: a corner
+    /// then turns it. Dragging the image still moves it, and picking another tool brings the resize handles back.
+    @MainActor func testClickingTheReferenceImageTurnsIt() {
+        let document = DesignDocument(), state = document.state
+        let (canvas, mouse) = canvas(for: state)
+        state.edit("Setup") { $0.artwork = Artwork(data: Data(), name: "logo.png", width: 40, height: 20) }
+        state.tool = .artwork; state.snap = false
+
+        mouse(.leftMouseDown, canvas.screen(Point(5, 0)), []); mouse(.leftMouseUp, canvas.screen(Point(5, 0)), [])
+        XCTAssertTrue(state.artworkTurnHandles, "a click on the image switches to rotate and skew handles")
+        XCTAssertEqual(state.design.artwork?.center, Point(0, 0), "and doesn't move it")
+
+        // The top-right corner swung a quarter turn counterclockwise.
+        mouse(.leftMouseDown, canvas.screen(Point(20, 10)), [])
+        mouse(.leftMouseDragged, canvas.screen(Point(-10, 20)), [])
+        mouse(.leftMouseUp, canvas.screen(Point(-10, 20)), [])
+        let turned = try! XCTUnwrap(state.design.artwork)
+        XCTAssertEqual(turned.corners[0].distance(to: Point(10, -20)), 0, accuracy: 1e-6, "its own bottom-left is now bottom-right")
+        XCTAssertEqual(document.undoManager?.undoActionName, "Rotate Artwork")
+
+        mouse(.leftMouseDown, canvas.screen(Point(0, 5)), []); mouse(.leftMouseDragged, canvas.screen(Point(3, 5)), []); mouse(.leftMouseUp, canvas.screen(Point(3, 5)), [])
+        XCTAssertEqual(state.design.artwork!.center.distance(to: Point(3, 0)), 0, accuracy: 1e-6, "a drag moves it")
+        XCTAssertTrue(state.artworkTurnHandles, "and keeps the handles as they were")
+        state.tool = .select; state.tool = .artwork
+        XCTAssertFalse(state.artworkTurnHandles, "another tool brings the resize handles back")
     }
 
     /// Without a start point set, the marker shows where the stitches really begin (here with the Start & End tool);
