@@ -607,10 +607,9 @@ struct OutlinesOffsetsView: View {
                                                        set: { options.offsets[index] = $0 ? distances[index] : nil }))
                 .font(Theme.body(13, weight: .semibold))
             Spacer(minLength: 8)
-            NumberField(value: options.offsets[index] ?? distances[index], range: OutlinesOffsets.distances, unit: Preferences.shared.unit,
-                        commit: { distances[index] = $0; options.offsets[index] = $0 }, focusCanvas: {})
-                .frame(width: 70, height: 22)
-            Text(Preferences.shared.unit.symbol).font(Theme.body(12)).foregroundStyle(Theme.inkSecondary)
+            NumberWell(field: NumberField(value: options.offsets[index] ?? distances[index], range: OutlinesOffsets.distances, unit: Preferences.shared.unit,
+                                          commit: { distances[index] = $0; options.offsets[index] = $0 }, focusCanvas: {}),
+                       unit: Preferences.shared.unit.symbol, width: 92)
         }
     }
 }

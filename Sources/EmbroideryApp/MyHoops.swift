@@ -67,9 +67,9 @@ private struct MyHoopRow: View {
                 .onSubmit(commitName)
                 .onChange(of: editingName) { _, editing in if !editing { commitName() } }
             Spacer(minLength: 12)
-            NumberField(value: hoop.width, range: 1...1000, unit: preferences.unit, commit: { value in update { $0.width = value } }, focusCanvas: {}).frame(width: 64, height: 22)
+            NumberWell(field: NumberField(value: hoop.width, range: 1...1000, unit: preferences.unit, commit: { value in update { $0.width = value } }, focusCanvas: {}), width: 64)
             Text("×").foregroundStyle(Theme.inkSecondary)
-            NumberField(value: hoop.height, range: 1...1000, unit: preferences.unit, commit: { value in update { $0.height = value } }, focusCanvas: {}).frame(width: 64, height: 22)
+            NumberWell(field: NumberField(value: hoop.height, range: 1...1000, unit: preferences.unit, commit: { value in update { $0.height = value } }, focusCanvas: {}), width: 64)
             Text(preferences.unit.symbol).font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).frame(width: 22, alignment: .leading)
             Toggle("Oval", isOn: Binding(get: { hoop.oval }, set: { oval in update { $0.oval = oval } })).toggleStyle(.checkbox).font(Theme.body(12))
             Button { preferences.setMyHoops(preferences.myHoops.filter { $0 != hoop }) } label: { Image(systemName: "trash") }

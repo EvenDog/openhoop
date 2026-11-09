@@ -12,6 +12,12 @@ enum Theme {
     static let divider = adaptive(light: 0xEDE3D3, dark: 0x3A3029)        // soft lines inside cards
     static let controlBorder = adaptive(light: 0xDCCDB6, dark: 0x43382F)  // outline around buttons and fields
     static let edge = adaptive(light: 0xD9C7A8, dark: 0x3A3029)           // the line under the docked tool strip
+    static let well = adaptive(light: 0xF1E8DA, dark: 0x221C18)           // the soft dip a number field sits in
+    /// The shadow inside a number field's well, so it looks pressed into the panel (darker in the walnut look).
+    static let wellShadow = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            ? NSColor.black.withAlphaComponent(0.5) : NSColor(srgbRed: 0.31, green: 0.22, blue: 0.12, alpha: 0.2)
+    })
 
     // Text
     static let ink = adaptive(light: 0x2E2520, dark: 0xF2E9DC)            // main text
