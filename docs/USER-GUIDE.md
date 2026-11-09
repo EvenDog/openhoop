@@ -152,9 +152,9 @@ Pick a stitch first, then draw. The **Shape** group in the tool strip holds them
 | **Digitize Closed Shape (⌥S)** | The same, and the outline closes itself | **Sew** a fill, an outline or both: a **Fill** (Tatami, Contour, Radial, Wave or Stipple) and an **Outline** (Running, Bean, Satin line or any of the line styles above) |
 | **Freehand Open Shape (⌥⇧O)** | Press and drag; the line follows the pointer and is smoothed when you let go | The Open Shape stitch |
 | **Freehand Closed Shape (⌥⇧S)** | The same, and the outline closes itself when you let go | The Closed Shape stitches |
-| **Rectangle (⌥R)** | Drag corner to corner; set **Corners** for rounded ones | The Closed Shape stitch |
-| **Ellipse (⌥J)** | Drag out from the center | The Closed Shape stitch |
-| **Basic Shapes (⌥B)** | Click one of 55 shape pictures in five groups (Geometric, Badges & labels, Nature, Objects, Frames), then drag. Polygon has 3–12 sides, Star 4–12 points, shallow to deep. Frames (ring, square, rounded, scalloped) leave the middle open; **Band** sets how wide they are (1–20 mm), and an outline goes round both edges. Turn on **Open middle** to make any other shape a frame too: its middle is cut out the Band width in from the edge all round | The Closed Shape stitch |
+| **Rectangle (⌥R)** | Click one corner, let go, then click the opposite one (the shape follows the pointer in between), or drag corner to corner; set **Corners** for rounded ones | The Closed Shape stitch |
+| **Ellipse (⌥J)** | Click the center, then click again, or drag out from the center | The Closed Shape stitch |
+| **Basic Shapes (⌥B)** | Click one of 55 shape pictures in five groups (Geometric, Badges & labels, Nature, Objects, Frames), then click twice or drag, as with Rectangle. Polygon has 3–12 sides, Star 4–12 points, shallow to deep. Frames (ring, square, rounded, scalloped) leave the middle open; **Band** sets how wide they are (1–20 mm), and an outline goes round both edges. Turn on **Open middle** to make any other shape a frame too: its middle is cut out the Band width in from the edge all round | The Closed Shape stitch |
 
 With both a fill and an outline, the shape becomes two objects, grouped so they move together: the fill, then the outline sewn on top of its edge (a satin outline is centered on the edge, like a satin border). When you pick a shape tool, the status line says what the next shape will get.
 

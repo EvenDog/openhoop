@@ -508,6 +508,7 @@ import EmbroideryCore
                 state.angleTarget=object.id
             } else {state.angleTarget=nil}
             state.angleStart=nil; state.selectedAngle=nil
+            state.canvas?.cancelShapeDrag()   // a shape's first click, with nothing drawn yet, is forgotten
             state.tool = Tool.forCommand[command] ?? .select
             state.toolPicked = NextShapeOptions.shows(state.tool)   // Properties switches to the tool's choices
             // A closed-shape tool starts with a tatami fill and no outline; a change made then lasts until a tool is picked again.
@@ -530,8 +531,8 @@ import EmbroideryCore
             case .closedShape:state.status="Closed shape · Click corners · Drag or secondary-click for curves · Enter to finish"
             case .freehandOpen:state.status="Freehand open shape · Press and drag; the line follows the pointer · Let go to finish · Esc cancels"
             case .freehandClosed:state.status="Freehand closed shape · Press and drag; the outline follows the pointer · Let go to finish, it closes itself · Esc cancels"
-            case .ellipse:state.status="Drag out from the center · Hold ⌘ for a circle"
-            case .rectangle,.basicShape:state.status="Drag to draw the shape · Hold ⌘ to keep it even · Hold ⇧ to draw it from the center"
+            case .ellipse:state.status="Click the center, then click again, or drag out from the center · Hold ⌘ for a circle"
+            case .rectangle,.basicShape:state.status="Click, then click again where it ends, or drag · Hold ⌘ to keep it even · Hold ⇧ to draw it from the center"
             default:state.status="Select and drag objects. Shift-click to select more than one, or drag a box round them."
             }
             // Closed shapes say what stitches they'll get, so the Next Shape choices in Properties aren't missed.

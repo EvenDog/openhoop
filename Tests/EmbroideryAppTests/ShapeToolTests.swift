@@ -100,6 +100,54 @@ final class ShapeToolTests: XCTestCase {
         XCTAssertEqual(restored.closed, true, "a closed rectangle, not an open running line")
     }
 
+    /// Click, move, click: a click without a drag starts the shape, it follows the pointer, and the next click puts it
+    /// down where the pointer is (a click right on top of the first one doesn't). Escape forgets it; Return puts a
+    /// following shape down as it is.
+    @MainActor func testClickMoveClickDrawsAShape() throws {
+        _ = NSApplication.shared
+        let document = DesignDocument(), state = document.state
+        let canvas = DesignCanvas(state: state); canvas.frame = NSRect(x: 0, y: 0, width: 600, height: 600); state.canvas = canvas
+        func mouse(_ type: NSEvent.EventType, _ x: Double, _ y: Double) {
+            let event = NSEvent.mouseEvent(with: type, location: NSPoint(x: x, y: y), modifierFlags: [], timestamp: 0, windowNumber: 0,
+                                           context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+            switch type {
+            case .leftMouseDown: canvas.mouseDown(with: event); case .leftMouseDragged: canvas.mouseDragged(with: event)
+            case .mouseMoved: canvas.mouseMoved(with: event); default: canvas.mouseUp(with: event)
+            }
+        }
+        state.tool = .rectangle
+        mouse(.leftMouseDown, 300, 300); mouse(.leftMouseUp, 300, 300)   // the first click
+        XCTAssertTrue(state.draft.isEmpty); XCTAssertTrue(state.design.objects.isEmpty)
+        XCTAssertFalse(canvas.isDraggingShape, "the mouse is up: the shape follows the pointer")
+        mouse(.mouseMoved, 380, 360)
+        XCTAssertFalse(state.draft.isEmpty, "the shape follows the pointer")
+        mouse(.leftMouseDown, 300, 300); mouse(.leftMouseUp, 300, 300)   // on top of the first click: nothing yet
+        XCTAssertTrue(state.design.objects.isEmpty)
+        mouse(.mouseMoved, 400, 380); mouse(.leftMouseDown, 400, 380)
+        let perShape = state.design.objects.count
+        XCTAssertGreaterThan(perShape, 0, "the second click puts it down")
+        XCTAssertEqual(state.design.objects.first?.name, "Rectangle 1")
+        // It's as big as from the first click to the second, the same as a drag between them.
+        let box = state.design.objects[0].nodes.map(\.point), width = box.map(\.x).max()! - box.map(\.x).min()!
+        XCTAssertEqual(width * state.zoom, 100, accuracy: 1)
+        mouse(.leftMouseUp, 400, 380)
+        mouse(.mouseMoved, 500, 500)
+        XCTAssertTrue(state.draft.isEmpty, "letting go of the second click starts nothing new")
+        XCTAssertEqual(state.design.objects.count, perShape)
+
+        // Escape after the first click, then moving and clicking, adds nothing.
+        mouse(.leftMouseDown, 100, 100); mouse(.leftMouseUp, 100, 100); mouse(.mouseMoved, 150, 150)
+        canvas.cancelShapeDrag(); state.draft = []   // what Escape does
+        mouse(.mouseMoved, 200, 200)
+        XCTAssertTrue(state.draft.isEmpty)
+        // Return puts a following shape down as it is.
+        mouse(.leftMouseDown, 100, 100); mouse(.leftMouseUp, 100, 100); mouse(.mouseMoved, 160, 140)
+        state.finishPath()
+        XCTAssertEqual(state.design.objects.count, 2 * perShape)
+        mouse(.mouseMoved, 300, 300)
+        XCTAssertTrue(state.draft.isEmpty, "and stops following")
+    }
+
     /// Freehand: pressing and dragging draws a stroke that follows the pointer; letting go adds it with the Next shape
     /// choices, closed for Freehand Closed Shape, open for Freehand Open Shape. Escape mid-stroke adds nothing, and
     /// so does a click without a drag.

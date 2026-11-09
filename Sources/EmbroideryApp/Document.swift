@@ -376,8 +376,9 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         guard !hasVersionMismatch else{return}
         if let shape=tool.draggedShape {
             // Return while the mouse is still dragging out the shape does nothing (letting go adds it). A shape
-            // left unfinished, as when a draft is restored after a crash, is added as it is.
-            if canvas?.isDraggingShape != true {finishShape(shape)}
+            // following the pointer after a click, or left unfinished (as when a draft is restored after a crash),
+            // is added as it is.
+            if canvas?.isDraggingShape != true {canvas?.cancelShapeDrag();finishShape(shape)}
             return
         }
         if tool == .knife {cutAlongDraft();return}
