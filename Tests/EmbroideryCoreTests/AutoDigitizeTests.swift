@@ -150,6 +150,25 @@ final class AutoDigitizeTests: XCTestCase {
         XCTAssertEqual(abs(AreaGeometry.area(square)), 64, accuracy: 6)
     }
 
+    func testACroppedImageTracesOnlyThePartThatShows() throws {
+        // Red on the left half, blue on the right, on white: cropped to the right half, only blue is traced, and
+        // where it shows.
+        let context = CGContext(data: nil, width: 200, height: 100, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        context.setFillColor(red: 1, green: 1, blue: 1, alpha: 1); context.fill(CGRect(x: 0, y: 0, width: 200, height: 100))
+        context.setFillColor(red: 0.8, green: 0.1, blue: 0.1, alpha: 1); context.fill(CGRect(x: 20, y: 30, width: 40, height: 40))
+        context.setFillColor(red: 0.1, green: 0.1, blue: 0.8, alpha: 1); context.fill(CGRect(x: 140, y: 30, width: 40, height: 40))
+        let data = NSMutableData()
+        let destination = CGImageDestinationCreateWithData(data, UTType.png.identifier as CFString, 1, nil)!
+        CGImageDestinationAddImage(destination, context.makeImage()!, nil); XCTAssertTrue(CGImageDestinationFinalize(destination))
+        let artwork = try XCTUnwrap(Artwork(data: data as Data, name: "two.png", width: 40, height: 20).cropped(from: Point(0, -10), to: Point(20, 10)))
+        var options = AutoDigitizeOptions(); options.colors = 3
+        let result = try AutoDigitize.run(artwork, options: options)
+        XCTAssertEqual(result.objects.count, 1, "only the blue square is in the part that shows")
+        XCTAssertGreaterThan((result.objects.first?.color.hex ?? 0) & 0xFF, 0x80, "it's the blue one")
+        let square = try XCTUnwrap(result.objects.first).nodes.map(\.point)
+        XCTAssertEqual(square.map(\.x).min()!, 8, accuracy: 0.5); XCTAssertEqual(square.map(\.x).max()!, 16, accuracy: 0.5)
+    }
+
     func testNothingToTraceIsExplained() throws {
         XCTAssertThrowsError(try run(picture(40) { _, _ in nil }))
         XCTAssertThrowsError(try run(picture(40) { _, _ in 0xFFFFFF }), "A blank picture is all background")

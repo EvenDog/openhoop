@@ -126,6 +126,31 @@ final class SelectionHandlesTests: XCTestCase {
         XCTAssertFalse(state.artworkTurnHandles, "another tool brings the resize handles back")
     }
 
+    /// While cropping, a box dragged over the image keeps just that part, as one undoable step, and cropping ends. A
+    /// click (no box) keeps cropping.
+    @MainActor func testDraggingABoxCropsTheReferenceImage() {
+        let document = DesignDocument(), state = document.state
+        let (canvas, mouse) = canvas(for: state)
+        state.edit("Setup") { $0.artwork = Artwork(data: Data(), name: "logo.png", width: 40, height: 20) }
+        state.tool = .artwork; state.snap = false; state.croppingArtwork = true
+
+        mouse(.leftMouseDown, canvas.screen(Point(2, 2)), []); mouse(.leftMouseUp, canvas.screen(Point(2, 2)), [])
+        XCTAssertTrue(state.croppingArtwork, "a click isn't a box: still cropping")
+        XCTAssertNil(state.design.artwork?.crop)
+
+        mouse(.leftMouseDown, canvas.screen(Point(0, 0)), [])
+        mouse(.leftMouseDragged, canvas.screen(Point(30, 20)), [])
+        mouse(.leftMouseUp, canvas.screen(Point(30, 20)), [])
+        let kept = try! XCTUnwrap(state.design.artwork)
+        XCTAssertEqual(kept.width, 20, accuracy: 1e-6, "clipped to the image's right edge"); XCTAssertEqual(kept.height, 10, accuracy: 1e-6)
+        XCTAssertEqual(kept.center.distance(to: Point(10, 5)), 0, accuracy: 1e-6, "the part kept stays where it was")
+        XCTAssertNotNil(kept.crop)
+        XCTAssertFalse(state.croppingArtwork, "cropping ends")
+        XCTAssertEqual(document.undoManager?.undoActionName, "Crop Artwork")
+        state.tool = .select; state.tool = .artwork; state.croppingArtwork = true; state.tool = .select
+        XCTAssertFalse(state.croppingArtwork, "another tool stops cropping")
+    }
+
     /// Without a start point set, the marker shows where the stitches really begin (here with the Start & End tool);
     /// dragging it sets the start point.
     @MainActor func testRealStartShowsAndCanBeDragged() async throws {

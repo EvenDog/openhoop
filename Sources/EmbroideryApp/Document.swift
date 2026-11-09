@@ -100,6 +100,9 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     /// The same for the reference image with Move & Size Artwork: clicking the image switches its corner handles to
     /// rotate and skew handles. Picking another tool brings the resize handles back.
     var artworkTurnHandles = false
+    /// True after Crop in the Reference image panel: dragging a box over the image (with Move & Size Artwork) keeps
+    /// just that part. Letting go, Esc, or another tool ends it.
+    @Published var croppingArtwork = false
     /// True just after a tool with Next shape choices is picked: Properties shows those choices even while something
     /// is selected, until the selection changes (such as the shape just drawn being selected).
     @Published var toolPicked = false
@@ -110,7 +113,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         // would remove a line you can't see).
         didSet {
             if ![.node, .addAngles, .removeAngles].contains(tool) { selectedAngle = nil }; canvas?.toolDidChange()
-            if tool != oldValue { artworkTurnHandles = false }
+            if tool != oldValue { artworkTurnHandles = false; croppingArtwork = false }
             // Reviewing carries on with the tools that look and set start and end points; drawing tools finish it.
             if reviewing && ![.select, .entryExit, .node, .pan, .zoomBox].contains(tool) { reviewing = false }
             // Leaving Paint Stitches (Esc, another tool) drops the painting; zooming keeps it.

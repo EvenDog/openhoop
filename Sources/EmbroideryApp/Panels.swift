@@ -589,11 +589,19 @@ struct InspectorPanel: View {
                 artworkButton("arrow.left.and.right.righttriangle.left.righttriangle.right", "Flip the image left to right") { changeArtwork("Flip Artwork") { $0.flipped(horizontally: true) } }
                 artworkButton("arrow.up.and.down.righttriangle.up.righttriangle.down", "Flip the image top to bottom") { changeArtwork("Flip Artwork") { $0.flipped(horizontally: false) } }
                 Spacer(minLength: 4)
+                Button("Crop") { cropArtwork() }.buttonStyle(ThemedButtonStyle(prominent: state.croppingArtwork))
+                    .help("Drag a box over the part of the image to keep; the rest is hidden, not thrown away (Esc cancels)")
+            }
+            if artwork.crop != nil || artwork.isTransformed { HStack {
+                if artwork.crop != nil {
+                    Button("Uncrop") { changeArtwork("Uncrop Artwork") { $0.uncropped } }.buttonStyle(ThemedButtonStyle())
+                        .help("Show the whole image again, at the same scale, with the part you kept where it is")
+                }
                 if artwork.isTransformed {
                     Button("Straighten") { changeArtwork("Straighten Artwork") { $0.straightened } }.buttonStyle(ThemedButtonStyle())
                         .help("Take away every turn, flip and skew: the image goes back to level and the right way round, at the same size and place")
                 }
-            }
+            } }
             toggle("Show reference", value: artwork.visible) { _ in AppDelegate.shared.perform(.artwork) }.help(preferences.hint(.artwork))
             Button { AppDelegate.shared.perform(.autoDigitize) } label: { Label("Auto-digitize…", systemImage: "wand.and.rays") }.buttonStyle(ThemedButtonStyle()).help(preferences.hint(.autoDigitize))
         } else {
@@ -606,6 +614,15 @@ struct InspectorPanel: View {
     private func changeArtwork(_ action: String, _ change: @escaping (Artwork) -> Artwork) {
         guard let artwork = state.design.artwork, change(artwork) != artwork else { return }
         state.edit(action) { $0.artwork = change(artwork) }
+    }
+    /// Starts cropping: Move & Size Artwork comes on (if it isn't already) and the next box dragged over the image is
+    /// what's kept. Clicking Crop again while cropping stops.
+    private func cropArtwork() {
+        if state.croppingArtwork { state.croppingArtwork = false; state.status = "Crop cancelled."; return }
+        if state.tool != .artwork { AppDelegate.shared.perform(.artworkTool) }
+        guard state.tool == .artwork else { return }   // the image is hidden: perform said so
+        state.croppingArtwork = true
+        state.status = "Crop · Drag a box over the part of the image to keep · Esc cancels"
     }
     /// A small icon button for turning or flipping the reference image.
     private func artworkButton(_ symbol: String, _ help: String, action: @escaping () -> Void) -> some View {

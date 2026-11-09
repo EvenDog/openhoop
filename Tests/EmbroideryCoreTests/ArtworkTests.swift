@@ -1,4 +1,4 @@
-// Moving and sizing the reference image by dragging it or its corners, and turning, flipping and skewing it.
+// Moving and sizing the reference image by dragging it or its corners; turning, flipping, skewing and cropping it.
 import XCTest
 @testable import EmbroideryCore
 
@@ -74,5 +74,32 @@ final class ArtworkTests: XCTestCase {
         let bigger = turned.adjusted(corner: 2, from: Point(-20, 40), to: Point(-30, 60), free: true)
         XCTAssertEqual(bigger.width, 100, accuracy: 1e-9); XCTAssertEqual(bigger.height, 50, accuracy: 1e-9)
         XCTAssertEqual(near(bigger.corners)[0], near(turned.corners)[0], "its own bottom-left corner stays put")
+    }
+
+    func testCroppingKeepsThePartInTheBoxWhereItWasAndUncropBringsTheRestBack() throws {
+        // A box from (0, 0) to (30, 15) on the 80 × 40 image: its right half's lower-middle part.
+        let kept = try XCTUnwrap(art.cropped(from: Point(30, 15), to: Point(0, 0)))
+        XCTAssertEqual(kept.width, 30, accuracy: 1e-9); XCTAssertEqual(kept.height, 15, accuracy: 1e-9)
+        XCTAssertEqual(kept.center, Point(15, 7.5))
+        let crop = try XCTUnwrap(kept.crop)
+        XCTAssertEqual(crop.left, 0.5, accuracy: 1e-9); XCTAssertEqual(crop.right, 0.875, accuracy: 1e-9)
+        XCTAssertEqual(crop.bottom, 0.5, accuracy: 1e-9); XCTAssertEqual(crop.top, 0.875, accuracy: 1e-9)
+        // Cropping again takes a share of the part already kept.
+        let again = try XCTUnwrap(kept.cropped(from: Point(0, 0), to: Point(15, 15)))
+        XCTAssertEqual(again.crop!.left, 0.5, accuracy: 1e-9); XCTAssertEqual(again.crop!.right, 0.6875, accuracy: 1e-9)
+        XCTAssertEqual(near(again.uncropped.corners), near(art.corners), "Uncrop puts the whole picture back where it was")
+        // A box reaching past the image is clipped to it; one under 1 mm is no crop.
+        XCTAssertEqual(art.cropped(from: Point(-100, -100), to: Point(0, 100))?.width, 40)
+        XCTAssertNil(art.cropped(from: Point(0, 0), to: Point(0.5, 10)))
+        XCTAssertNil(art.cropped(from: Point(-100, -100), to: Point(100, 100))?.crop, "a box round all of it crops nothing")
+    }
+
+    func testCroppingATurnedImageFollowsItsOwnSides() throws {
+        let turned = art.rotated(by: 90)   // its own right half is the top half on the canvas
+        let kept = try XCTUnwrap(turned.cropped(from: Point(-20, 0), to: Point(20, 40)))
+        XCTAssertEqual(kept.width, 40, accuracy: 1e-9); XCTAssertEqual(kept.height, 40, accuracy: 1e-9)
+        XCTAssertEqual(kept.crop!.left, 0.5, accuracy: 1e-9); XCTAssertEqual(kept.crop!.right, 1, accuracy: 1e-9)
+        XCTAssertEqual(near([kept.center]), [Point(0, 20)])
+        XCTAssertEqual(near(kept.uncropped.corners), near(turned.corners))
     }
 }

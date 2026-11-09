@@ -673,6 +673,14 @@ public struct Hoop: Codable, Hashable, Sendable {
     }
 }
 
+/// The part of a reference picture that shows after cropping, as shares (0…1) of the whole picture's width and height,
+/// measured from its own left and bottom edges.
+public struct ArtworkCrop: Codable, Equatable, Sendable {
+    public var left: Double, bottom: Double, right: Double, top: Double
+    public init(left: Double, bottom: Double, right: Double, top: Double) { self.left = left; self.bottom = bottom; self.right = right; self.top = top }
+    public static let whole = ArtworkCrop(left: 0, bottom: 0, right: 1, top: 1)
+}
+
 public struct Artwork: Codable, Equatable, Sendable {
     public var data: Data
     public var name: String
@@ -693,6 +701,10 @@ public struct Artwork: Codable, Equatable, Sendable {
     /// versions can safely ignore them (they show the image plain).
     public var xAxis: Point?
     public var yAxis: Point?
+    /// The part of the picture that shows, or nil for all of it. `width`, `height` and `center` are always the shown
+    /// part's, so moving, sizing, turning and skewing work on what you see. The rest is kept, for `uncropped`. Older
+    /// versions show the whole picture, the size of the shown part.
+    public var crop: ArtworkCrop?
     /// The image's two arrows, plain when they aren't set.
     public var axes: (x: Point, y: Point) { (xAxis ?? Point(1, 0), yAxis ?? Point(0, 1)) }
     /// True once the image has been turned, flipped or skewed.
@@ -737,6 +749,33 @@ public struct Artwork: Codable, Equatable, Sendable {
     public func skewed(by degrees: Double, vertical: Bool = false) -> Artwork {
         let slant = tan(degrees * .pi / 180)
         return mapped { vertical ? Point($0.x, $0.y + $0.x * slant) : Point($0.x + $0.y * slant, $0.y) }
+    }
+    /// The image cropped to the box with corners `a` and `b` (canvas mm), measured along the image's own sides and
+    /// clipped to it: the part inside stays exactly where it was. Nil when the box is under 1 mm either way.
+    public func cropped(from a: Point, to b: Point) -> Artwork? {
+        let p = local(a), q = local(b), w = width / 2, h = height / 2
+        let low = Point(max(-w, min(p.x, q.x)), max(-h, min(p.y, q.y))), high = Point(min(w, max(p.x, q.x)), min(h, max(p.y, q.y)))
+        guard high.x - low.x >= 1, high.y - low.y >= 1 else { return nil }
+        // The box as shares of the whole picture: the shown part spans `shown`, and the box a share of that.
+        let shown = crop ?? .whole, spanX = shown.right - shown.left, spanY = shown.top - shown.bottom
+        func across(_ x: Double) -> Double { shown.left + (x / width + 0.5) * spanX }
+        func up(_ y: Double) -> Double { shown.bottom + (y / height + 0.5) * spanY }
+        var result = self
+        let kept = ArtworkCrop(left: across(low.x), bottom: up(low.y), right: across(high.x), top: up(high.y))
+        result.crop = kept == .whole ? nil : kept
+        result.width = high.x - low.x; result.height = high.y - low.y
+        result.center = place((low + high) * 0.5)
+        return result
+    }
+    /// The whole picture again, at the same scale, with the part that was shown staying where it was.
+    public var uncropped: Artwork {
+        guard let crop else { return self }
+        let fullWidth = width / (crop.right - crop.left), fullHeight = height / (crop.top - crop.bottom)
+        // The whole picture's middle, measured from the shown part's middle along its own sides.
+        let middle = Point((0.5 - (crop.left + crop.right) / 2) * fullWidth, (0.5 - (crop.bottom + crop.top) / 2) * fullHeight)
+        var result = self
+        result.center = place(middle); result.width = fullWidth; result.height = fullHeight; result.crop = nil
+        return result
     }
     /// The image back to plain: not turned, flipped or skewed, at the same center and size.
     public var straightened: Artwork { var result = self; result.xAxis = nil; result.yAxis = nil; return result }
