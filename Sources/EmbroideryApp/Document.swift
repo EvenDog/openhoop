@@ -91,15 +91,15 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             selectionOrder.removeAll { !selection.contains($0) }
             if !joined.isEmpty { selectionOrder += design.objects.map(\.id).filter(joined.contains) }
             if let angle = selectedAngle, !selection.contains(angle.object) { selectedAngle = nil }
-            if selection != oldValue { toolPicked = false; turnHandles = false }   // the selection's properties and resize handles show again
+            if selection != oldValue { toolPicked = false; skewHandles = false }   // the selection's properties and resize handles show again
         }
     }
-    /// True once the selection is clicked again with Select: the handles round it then turn it (corners) and lean it
-    /// (sides) instead of resizing it. Any change to the selection brings the resize handles back.
-    var turnHandles = false
-    /// The same for the reference image with Move & Size Artwork: clicking the image switches its corner handles to
-    /// rotate and skew handles. Picking another tool brings the resize handles back.
-    var artworkTurnHandles = false
+    /// True once the selection is clicked again with Select: the handles on its sides then lean it (skew) instead of
+    /// stretching it. Any change to the selection brings the stretch handles back.
+    var skewHandles = false
+    /// The same for the reference image with Move & Size Artwork: clicking the image turns the handles on its sides
+    /// into skew handles. Picking another tool brings the corner handles alone back.
+    var artworkSkewHandles = false
     /// True after Crop in the Reference image panel: dragging a box over the image (with Move & Size Artwork) keeps
     /// just that part. Letting go, Esc, or another tool ends it.
     @Published var croppingArtwork = false
@@ -113,7 +113,7 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
         // would remove a line you can't see).
         didSet {
             if ![.node, .addAngles, .removeAngles].contains(tool) { selectedAngle = nil }; canvas?.toolDidChange()
-            if tool != oldValue { artworkTurnHandles = false; croppingArtwork = false }
+            if tool != oldValue { artworkSkewHandles = false; croppingArtwork = false }
             // Reviewing carries on with the tools that look and set start and end points; drawing tools finish it.
             if reviewing && ![.select, .entryExit, .node, .pan, .zoomBox].contains(tool) { reviewing = false }
             // Leaving Paint Stitches (Esc, another tool) drops the painting; zooming keeps it.
