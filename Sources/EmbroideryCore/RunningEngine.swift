@@ -119,14 +119,38 @@ public enum RunningEngine {
 
     /// Bean stitch: sews each stitch `passes` times, back and forth (A→B, back to A, on to B for 3 passes), so the
     /// line is bolder while the needle still ends where the single line would. 1 pass returns the points unchanged.
-    public static func repeated(_ points: [Point], passes: Int) throws -> [Point] {
+    /// `retraceOnce` (redwork): a stitch that goes back over a stretch already sewn (see `retraced`) is sewn once.
+    public static func repeated(_ points: [Point], passes: Int, retraceOnce: Bool = false) throws -> [Point] {
         guard passes > 1, let first = points.first else { return points }
         guard points.count * passes <= 1_000_000 else { throw DesignError.invalid("This path exceeds the one-million-command limit with bean stitch. Shorten it, increase the stitch length or use fewer passes.") }
+        let once = retraceOnce ? retraced(points) : []
         var result = [first]
         for i in 1..<points.count {
+            if once.contains(i) { result.append(points[i]); continue }
             for pass in 1...passes { result.append(pass % 2 == 1 ? points[i] : points[i - 1]) }   // odd passes go forward
         }
         return result
+    }
+
+    /// The stitches of a line (by the index of the point each one ends at) that go back over a stretch the line has
+    /// already sewn: the stitch's start, middle and end all lie within `tolerance` mm of earlier stitches. A stitch
+    /// that only crosses an earlier one, or turns a corner, has its middle off them, so it doesn't count.
+    static func retraced(_ points: [Point], tolerance: Double = 0.3) -> Set<Int> {
+        // Earlier stitches filed by the 2 mm grid squares they come near, so each check looks at only a few.
+        let cell = 2.0
+        func key(_ x: Double, _ y: Double) -> [Int] { [Int(floor(x / cell)), Int(floor(y / cell))] }
+        var grid: [[Int]: [Int]] = [:], found: Set<Int> = []
+        func onEarlier(_ p: Point) -> Bool {
+            grid[key(p.x, p.y)]?.contains { AreaGeometry.projection(p, points[$0 - 1], points[$0]).distance(to: p) <= tolerance } == true
+        }
+        for i in 1..<max(1, points.count) {
+            let a = points[i - 1], b = points[i]
+            if onEarlier(a) && onEarlier((a + b) * 0.5) && onEarlier(b) { found.insert(i) }
+            // File this stitch under every square its box (grown by the tolerance) touches.
+            let low = key(min(a.x, b.x) - tolerance, min(a.y, b.y) - tolerance), high = key(max(a.x, b.x) + tolerance, max(a.y, b.y) + tolerance)
+            for x in low[0]...high[0] { for y in low[1]...high[1] { grid[[x, y], default: []].append(i) } }
+        }
+        return found
     }
 
     /// The run that takes an open line's sewing from its start point to the end it sews from: from the point on the
