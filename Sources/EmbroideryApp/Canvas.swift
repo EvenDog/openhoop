@@ -392,14 +392,30 @@ final class DesignCanvas: NSView {
     }
     /// ↔ for an up-and-down guide, ↕ for a side-to-side one.
     private func guideCursor(vertical: Bool) -> NSCursor { vertical ? .resizeLeftRight : .resizeUpDown }
+    /// The pointer the canvas wants right now: a handle's (rotate, resize, skew), ↔ or ↕ over or dragging a guide, a
+    /// pointing hand where a click carries on a shape, or else the tool's own.
+    private var wantedCursor: NSCursor {
+        if let cursor = shownHandleCursor { return cursor }
+        if let drag = guideDrag { return guideCursor(vertical: drag.vertical) }
+        if let over = hoveredGuide, let guides = state.design.guides, guides.indices.contains(over) { return guideCursor(vertical: guides[over].vertical) }
+        if hoveredPick != nil { return .pointingHand }
+        return toolCursor
+    }
+    /// Shows `wantedCursor`, and makes it the canvas's pointer for macOS too (resetCursorRects). That matters:
+    /// macOS puts a view's own pointer back whenever something in the window moves or changes, which here is on
+    /// every mouse move (the ruler marks follow the pointer, and the x/y readout changes). If the canvas's own pointer
+    /// were still the tool's, it would keep flicking back to it between moves.
+    private func showWantedCursor() {
+        wantedCursor.set()
+        window?.invalidateCursorRects(for: self)
+    }
     /// With Select, the pointer turns ↔ or ↕ over a guide wherever a drag would grab it (no object under it), and back
-    /// when it moves off. Cursor areas mustn't overlap the canvas's own (resetCursorRects), so the pointer is set
-    /// directly, only when it moves on or off a guide.
+    /// when it moves off.
     private func updateGuideCursor(at location: CGPoint) {
         let over = state.tool == .select && guideDrag == nil ? guide(near: location).flatMap { hit(model(location)) == nil ? $0 : nil } : nil
         guard over != hoveredGuide else { return }
         hoveredGuide = over
-        if let over { guideCursor(vertical: state.design.guides![over].vertical).set() } else { toolCursor.set() }
+        showWantedCursor()
     }
     /// With a drawing tool and nothing drawn yet, pointing at a place where a click picks up the selected shape (an end
     /// of a line or column, a point of a closed outline) fills in its marker, turns the pointer into a hand and says in
@@ -415,13 +431,10 @@ final class DesignCanvas: NSView {
             case .end(_, let fromStart): state.status = "Click to carry on ‘\(object.name)’ from its \(fromStart ? "start" : "end")."
             case .after: state.status = "Click to add points to ‘\(object.name)’ between this point and the next one (marked)."
             }
-            NSCursor.pointingHand.set()
-        } else {
-            if let saved = statusBeforeHint { state.status = saved; statusBeforeHint = nil }
-            toolCursor.set()
-        }
+        } else if let saved = statusBeforeHint { state.status = saved; statusBeforeHint = nil }
+        showWantedCursor()
     }
-    override func resetCursorRects() { addCursorRect(bounds, cursor: toolCursor) }
+    override func resetCursorRects() { addCursorRect(bounds, cursor: wantedCursor) }
     /// The grid lines' color: the custom one from Settings, or automatically light lines on dark cloth and dark lines
     /// on light cloth. The default linen (no fabric color) follows light or dark mode, as it always has.
     static func gridColor(fabric: Int?, custom: Int?, opacity: Double?) -> NSColor {
@@ -1170,12 +1183,12 @@ final class DesignCanvas: NSView {
         return artworkRotateCorner(at: location) != nil ? HandleCursor.rotate : nil
     }
     /// Shows the handle's pointer while the pointer is over one, and the tool's pointer again once it moves off.
-    /// Like the guide pointer it's set directly (cursor areas can't overlap the canvas's own).
     private func updateHandleCursor(at location: CGPoint) {
-        guard turnDrag == nil, resizeDrag == nil, artworkTurnDrag == nil, artworkDrag == nil else { return }
+        guard turnDrag == nil, resizeDrag == nil, artworkTurnDrag == nil, artworkDrag == nil else { return }   // during a drag the pointer stays what it was
         let cursor = handleCursor(at: location)
-        if let cursor { cursor.set() } else if shownHandleCursor != nil { toolCursor.set() }
+        guard cursor !== shownHandleCursor else { return }
         shownHandleCursor = cursor
+        showWantedCursor()
     }
     /// While reviewing: the way from where the step before ended (a faint ×) to this step's start, dashed, with what
     /// happens on the way beside it, such as "Trim, then 18.6 mm".
@@ -1397,7 +1410,7 @@ final class DesignCanvas: NSView {
         if rulersShown && inTopRuler != inLeftRuler {
             guard !state.hasVersionMismatch else { return }
             guideDrag = ((state.design.guides ?? []).count, inLeftRuler, true, location); dragSnapshot = state.design
-            guideCursor(vertical: inLeftRuler).set(); return
+            showWantedCursor(); return
         }
         if state.tool == .measure { let point = snapped(model(location)); measurement = (point, point); measuring = true; needsDisplay = true; return }
         if state.tool == .text { state.addLettering(at: snapped(model(location))); return }
@@ -1441,7 +1454,7 @@ final class DesignCanvas: NSView {
             // Closed Shape tool) picks it up there, to draw more points into it.
             if state.draft.isEmpty, let pick = continuePick(near: location) {
                 // The hover hint is done with: the status line now explains continuing, and the marker gives way to the drawing.
-                hoveredPick = nil; statusBeforeHint = nil; toolCursor.set()
+                hoveredPick = nil; statusBeforeHint = nil; showWantedCursor()
                 switch pick {
                 case .end(let id, let fromStart): state.continueDrawing(id, fromStart: fromStart)
                 case .after(let id, let index): state.drawInto(id, after: index)
@@ -1550,7 +1563,7 @@ final class DesignCanvas: NSView {
         // With Select, a guide can be grabbed wherever no object is under the pointer.
         if state.tool == .select, !state.hasVersionMismatch, hit(point) == nil, let index = guide(near: location) {
             guideDrag = (index, state.design.guides![index].vertical, false, location); dragSnapshot = state.design
-            guideCursor(vertical: state.design.guides![index].vertical).set()
+            showWantedCursor()
             state.status = "Drag the guide · let go over its ruler to remove it"; return
         }
         if let object = hit(point) {
@@ -1808,7 +1821,7 @@ final class DesignCanvas: NSView {
             }
             guideDrag = nil; preview = nil; dragSnapshot = nil; needsDisplay = true
             // Back to the tool's pointer, or ↔/↕ if the pointer is still over a guide.
-            hoveredGuide = nil; toolCursor.set(); updateGuideCursor(at: convert(event.locationInWindow, from: nil)); return
+            hoveredGuide = nil; showWantedCursor(); updateGuideCursor(at: convert(event.locationInWindow, from: nil)); return
         }
         if stitchDrag != nil {
             if let moved = stitchPreview { state.setStitches(moved, action: "Move Stitches") }
