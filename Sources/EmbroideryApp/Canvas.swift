@@ -1480,7 +1480,7 @@ final class DesignCanvas: NSView {
             // Elsewhere nothing happens.
             guard let artwork = state.design.artwork, artwork.visible else { return }
             let reach = artworkHandleReach
-        func near(_ p: CGPoint) -> Bool { hypot(p.x - location.x, p.y - location.y) <= reach }
+            func near(_ p: CGPoint) -> Bool { hypot(p.x - location.x, p.y - location.y) <= reach }
             let sides = state.artworkSkewHandles ? artworkSideHandles(artwork) : []
             if let corner = artwork.corners.map(screen).firstIndex(where: near) { artworkDrag = corner }
             else if let side = sides.firstIndex(where: near) { artworkTurnDrag = 4 + side }
