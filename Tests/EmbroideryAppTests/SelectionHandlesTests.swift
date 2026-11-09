@@ -1,7 +1,7 @@
 // Checks the handles round a selection (Select tool): a side handle stretches one way and a corner keeps the
-// proportions, each from the opposite side, as one undoable step; clicking the selection again switches to handles
-// that rotate (corners) and skew (sides); and a selected object's real start shows as a marker that can be dragged
-// to set its start point.
+// proportions, each from the opposite side, as one undoable step; just outside a corner rotates, and clicking the
+// selection again turns the side handles into skew handles; and a selected object's real start shows as a marker
+// that can be dragged to set its start point.
 import XCTest
 import AppKit
 import EmbroideryCore
@@ -54,27 +54,27 @@ final class SelectionHandlesTests: XCTestCase {
         XCTAssertEqual(box.high.x, 30, accuracy: 1e-6); XCTAssertEqual(box.high.y, 15, accuracy: 1e-6, "a corner keeps the proportions")
     }
 
-    /// Clicking the selected object again switches its handles: a corner then turns it round the middle of its box,
-    /// and the top side leans it sideways with the bottom side staying put. Clicking again, or selecting something
-    /// else, brings the resize handles back.
-    @MainActor func testClickAgainRotatesAndSkews() {
+    /// Just outside a corner, a drag turns the selection round the middle of its box (the corner square itself still
+    /// resizes). Clicking the selected object again turns the side handles into skew handles: the top one then leans
+    /// it sideways with the bottom side staying put. Clicking again, or selecting something else, brings back the
+    /// stretch handles.
+    @MainActor func testOutsideACornerRotatesAndClickingAgainSkews() {
         let document = DesignDocument(), state = document.state
         let (canvas, mouse) = canvas(for: state)
         let object = square()
         state.edit("Setup") { $0.objects = [object] }
         state.selection = [object.id]; state.tool = .select; state.snap = false
 
-        mouse(.leftMouseDown, canvas.screen(Point(5, 5)), []); mouse(.leftMouseUp, canvas.screen(Point(5, 5)), [])
-        XCTAssertTrue(state.turnHandles, "a click on what's already selected switches to rotate and skew handles")
-
-        // The top-right corner handle swung a quarter turn counterclockwise, to the top-left: (0, 0) goes to (10, 0).
+        // From just outside the top-right corner, swung a quarter turn counterclockwise: (0, 0) goes to (10, 0).
         let topRight = canvas.screen(Point(10, 10)), topLeft = canvas.screen(Point(0, 10))
-        mouse(.leftMouseDown, CGPoint(x: topRight.x + 6, y: topRight.y + 6), [])
-        mouse(.leftMouseDragged, CGPoint(x: topLeft.x - 6, y: topLeft.y + 6), [])
-        mouse(.leftMouseUp, CGPoint(x: topLeft.x - 6, y: topLeft.y + 6), [])
+        mouse(.leftMouseDown, CGPoint(x: topRight.x + 16, y: topRight.y + 16), [])
+        mouse(.leftMouseDragged, CGPoint(x: topLeft.x - 16, y: topLeft.y + 16), [])
+        mouse(.leftMouseUp, CGPoint(x: topLeft.x - 16, y: topLeft.y + 16), [])
         XCTAssertEqual(state.design.objects[0].nodes[0].point.distance(to: Point(10, 0)), 0, accuracy: 1e-6)
         XCTAssertEqual(document.undoManager?.undoActionName, "Rotate Objects")
-        XCTAssertTrue(state.turnHandles, "the handles stay rotate and skew after a turn")
+
+        mouse(.leftMouseDown, canvas.screen(Point(5, 5)), []); mouse(.leftMouseUp, canvas.screen(Point(5, 5)), [])
+        XCTAssertTrue(state.skewHandles, "a click on what's already selected switches the sides to skew handles")
 
         // The top side's handle dragged 10 mm right on a 10 mm tall square: 45°, the bottom side stays put.
         let top = canvas.screen(Point(5, 10))
@@ -86,17 +86,25 @@ final class SelectionHandlesTests: XCTestCase {
         XCTAssertEqual(box.high.y - box.low.y, 10, accuracy: 1e-6, "skewing keeps the height")
         XCTAssertEqual(document.undoManager?.undoActionName, "Skew Objects")
 
-        mouse(.leftMouseDown, canvas.screen(Point(10, 5)), []); mouse(.leftMouseUp, canvas.screen(Point(10, 5)), [])
-        XCTAssertFalse(state.turnHandles, "clicking again brings the resize handles back")
-        mouse(.leftMouseDown, canvas.screen(Point(10, 5)), []); mouse(.leftMouseUp, canvas.screen(Point(10, 5)), [])
+        // With skew handles on, a corner square still resizes.
+        let corner = canvas.screen(Point(20, 10))
+        mouse(.leftMouseDown, CGPoint(x: corner.x + 6, y: corner.y + 6), [])
+        mouse(.leftMouseDragged, canvas.screen(Point(40, 20)), []); mouse(.leftMouseUp, canvas.screen(Point(40, 20)), [])
+        XCTAssertEqual(document.undoManager?.undoActionName, "Resize Objects")
+
+        let middle = { () -> CGPoint in let b = self.bounds(state.design.objects[0]); return canvas.screen((b.low + b.high) * 0.5) }
+        mouse(.leftMouseDown, middle(), []); mouse(.leftMouseUp, middle(), [])
+        XCTAssertFalse(state.skewHandles, "clicking again brings the stretch handles back")
+        mouse(.leftMouseDown, middle(), []); mouse(.leftMouseUp, middle(), [])
         state.selection = []; state.selection = [object.id]
-        XCTAssertFalse(state.turnHandles, "a change of selection brings the resize handles back")
+        XCTAssertFalse(state.skewHandles, "a change of selection brings the stretch handles back")
 
         // A drag that moves the object isn't a click: the handles stay as they were.
-        mouse(.leftMouseDown, canvas.screen(Point(10, 5)), []); mouse(.leftMouseDragged, canvas.screen(Point(12, 5)), []); mouse(.leftMouseUp, canvas.screen(Point(12, 5)), [])
-        XCTAssertFalse(state.turnHandles)
+        let before = bounds(state.design.objects[0]).low.x, start = middle()
+        mouse(.leftMouseDown, start, []); mouse(.leftMouseDragged, CGPoint(x: start.x + 2 * state.zoom, y: start.y), []); mouse(.leftMouseUp, CGPoint(x: start.x + 2 * state.zoom, y: start.y), [])
+        XCTAssertFalse(state.skewHandles)
         box = bounds(state.design.objects[0])
-        XCTAssertEqual(box.low.x, 2, accuracy: 1e-6, "it moved instead")
+        XCTAssertEqual(box.low.x, before + 2, accuracy: 1e-6, "it moved instead")
     }
 
     /// Without a start point set, the marker shows where the stitches really begin (here with the Start & End tool);
