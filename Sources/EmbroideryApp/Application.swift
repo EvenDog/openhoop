@@ -553,6 +553,9 @@ import EmbroideryCore
             // Escape with Zoom Box on just puts the tool before it back (and keeps a path being drawn).
             state.tool = state.toolBeforeZoom; state.status = "Zoom cancelled."
             state.canvas?.window?.invalidateCursorRects(for: state.canvas!)
+        case .done where state.croppingArtwork:
+            // Escape while cropping just stops cropping; the image tool stays on.
+            state.croppingArtwork = false; state.canvas?.cancelCrop(); state.status = "Crop cancelled."
         case .done:
             // Escape when not drawing: stop the stitch player, show the whole design, and go back to Select.
             playbackTimer?.invalidate(); state.playing = false; state.playback = 1; state.holeTarget = nil; state.angleStart = nil

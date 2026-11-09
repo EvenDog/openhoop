@@ -85,6 +85,9 @@ final class DesignCanvas: NSView {
     private var envelopeDrag: (spec: LetteringSpec, handle: EnvelopeHandle)?
     private var artworkDrag: Int?   // adjusting the artwork: -1 moves it, 0…3 resizes from that corner
     private var artworkTurnDrag: Int?   // turning the artwork from outside a corner (0…3), or leaning it by a side (4…7)
+    private var cropBox: (start: Point, end: Point)?   // while cropping: the box being dragged over the image (mm)
+    /// Drops a crop box being dragged (Esc).
+    func cancelCrop() { cropBox = nil; needsDisplay = true }
     private var hoopingDrag: Int?   // the hooping being dragged with the Hoopings tool
     private var zoomBox: (start: CGPoint, end: CGPoint)?   // the box being dragged with the Zoom Box tool, in canvas points
     private var selectBox: (start: CGPoint, end: CGPoint)?   // a box dragged from empty canvas with Select, in canvas points
@@ -487,7 +490,7 @@ final class DesignCanvas: NSView {
     /// While ↻ shows, the zone holds on 4 points further out and 3 points onto the image (see `handleReach`).
     private func artworkRotateCorner(at location: CGPoint) -> Int? {
         let holding = shownHandleCursor === HandleCursor.rotate
-        guard state.tool == .artwork, let artwork = state.design.artwork, artwork.visible, !artworkContains(artwork, location, inset: holding ? 3 : 0) else { return nil }
+        guard state.tool == .artwork, !state.croppingArtwork, let artwork = state.design.artwork, artwork.visible, !artworkContains(artwork, location, inset: holding ? 3 : 0) else { return nil }
         let corners = artwork.corners.map(screen), reach = artworkHandleReach, outer: CGFloat = holding ? 28 : 24
         return corners.indices.first { let distance = hypot(corners[$0].x - location.x, corners[$0].y - location.y); return distance > reach && distance <= outer }
     }
@@ -540,12 +543,23 @@ final class DesignCanvas: NSView {
             placing.transformStruct = NSAffineTransformStruct(m11: axes.x.x, m12: axes.x.y, m21: axes.y.x, m22: axes.y.y, tX: middle.x, tY: middle.y)
             placing.concat()
             let rect = CGRect(x: -artwork.width * state.zoom / 2, y: -artwork.height * state.zoom / 2, width: artwork.width * state.zoom, height: artwork.height * state.zoom)
-            image?.draw(in: rect, from: .zero, operation: .sourceOver, fraction: state.artworkOpacityPreview ?? artwork.opacity)   // live while its slider is dragged
+            // A cropped image draws just its shown part (NSImage counts from its bottom-left corner, as crops do).
+            let source = artwork.crop.map { crop in image.map { CGRect(x: crop.left * $0.size.width, y: crop.bottom * $0.size.height, width: (crop.right - crop.left) * $0.size.width, height: (crop.top - crop.bottom) * $0.size.height) } ?? .zero } ?? .zero
+            image?.draw(in: rect, from: source, operation: .sourceOver, fraction: state.artworkOpacityPreview ?? artwork.opacity)   // live while its slider is dragged
             NSGraphicsContext.restoreGraphicsState()
             // While adjusting it, the image gets a frame and squares on its corners that resize it; once it's clicked,
             // diamonds on its sides lean it. While it's rotated, a cross marks the middle it turns about.
             if state.tool == .artwork {
                 Theme.Canvas.handle.setStroke(); let frame = artworkOutline(artwork); frame.lineWidth = 1.5; frame.stroke()
+                // While cropping there are no handles, just the box being dragged, along the image's own sides.
+                if state.croppingArtwork {
+                    if let box = cropBox, let kept = artwork.cropped(from: box.start, to: box.end) {
+                        let outline = artworkOutline(kept)
+                        NSColor.white.withAlphaComponent(0.25).setFill(); outline.fill()
+                        Theme.Canvas.handle.setStroke(); outline.lineWidth = 2; outline.setLineDash([6, 4], count: 2, phase: 0); outline.stroke()
+                    }
+                    return
+                }
                 for p in artwork.corners.map(screen) {
                     let knob = NSBezierPath(rect: CGRect(x: p.x - 5, y: p.y - 5, width: 10, height: 10))
                     NSColor.white.setFill(); knob.fill(); Theme.Canvas.handle.setStroke(); knob.lineWidth = 1.5; knob.stroke()
@@ -1171,7 +1185,7 @@ final class DesignCanvas: NSView {
     /// The same for the reference image with Move & Size Artwork. Its corners and sides turn with it, so a corner's
     /// arrow follows which way the corner lies from the middle, and a side's ⇄ or ⇅ which way the side runs.
     private func artworkHandleCursor(at location: CGPoint) -> NSCursor? {
-        guard let artwork = state.design.artwork, artwork.visible else { return nil }
+        guard let artwork = state.design.artwork, artwork.visible, !state.croppingArtwork else { return nil }   // cropping shows no handles
         let corners = artwork.corners.map(screen), middle = screen(artwork.center)
         let reach = artworkHandleReach
         func near(_ p: CGPoint) -> Bool { hypot(p.x - location.x, p.y - location.y) <= reach }
@@ -1492,6 +1506,7 @@ final class DesignCanvas: NSView {
             // leans it. Anywhere on the image moves it, and a click there without moving shows or hides the diamonds.
             // Elsewhere nothing happens.
             guard let artwork = state.design.artwork, artwork.visible else { return }
+            if state.croppingArtwork { cropBox = (model(location), model(location)); return }   // a box starts anywhere
             let reach = artworkHandleReach
             func near(_ p: CGPoint) -> Bool { hypot(p.x - location.x, p.y - location.y) <= reach }
             let sides = state.artworkSkewHandles ? artworkSideHandles(artwork) : []
@@ -1614,6 +1629,7 @@ final class DesignCanvas: NSView {
         if let start = screenStart { pan = CGPoint(x: panStart.x + location.x - start.x, y: panStart.y + location.y - start.y); needsDisplay = true; return }
         if let box = zoomBox { zoomBox = (box.start, location); needsDisplay = true; return }
         if let box = selectBox { selectBox = (box.start, location); needsDisplay = true; return }
+        if let box = cropBox { cropBox = (box.start, model(location)); needsDisplay = true; return }
         if state.tool == .paintStitches { state.paintPatch(at: model(location)); return }   // dragging paints every part it crosses
         if dropDragIfDesignChanged() { return }
         if let drag = guideDrag, var next = dragSnapshot {
@@ -1834,6 +1850,16 @@ final class DesignCanvas: NSView {
             for (s, section) in state.stitchSections.enumerated() { for (i, p) in section.points.enumerated() where p.x >= lo.x && p.x <= hi.x && p.y >= lo.y && p.y <= hi.y { state.selectedStitches.insert(StitchRef(section: s, index: i)) } }
             stitchBox = nil; needsDisplay = true
             if !state.selectedStitches.isEmpty { state.status = "\(state.selectedStitches.count) needle point\(state.selectedStitches.count == 1 ? "" : "s") selected · Drag to move · \(Preferences.shared.key(.delete)) deletes" }
+            return
+        }
+        if let box = cropBox {
+            // Letting go crops to the box (a box under 1 mm, such as a click, keeps cropping).
+            cropBox = nil; needsDisplay = true
+            if let artwork = state.design.artwork, let kept = artwork.cropped(from: box.start, to: model(convert(event.locationInWindow, from: nil))) {
+                state.croppingArtwork = false
+                state.edit("Crop Artwork") { $0.artwork = kept }
+                state.status = "Cropped · Uncrop in the Reference image panel brings the rest back"
+            }
             return
         }
         if let box = selectBox {

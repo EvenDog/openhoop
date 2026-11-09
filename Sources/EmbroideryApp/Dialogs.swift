@@ -283,6 +283,8 @@ enum AutoDigitizeOutcome { case stitches(AutoDigitizeResult), paint(AutoDigitize
 /// and compare the picture with the traced fills. Tracing reruns in the background after every change.
 struct AutoDigitizeView: View {
     let artwork: Artwork
+    /// The picture as it shows on the canvas (cropped, turned, flipped or skewed), made once when the dialog opens.
+    @State private var shownPicture: NSImage?
     @State var options: AutoDigitizeOptions
     /// Called with the options and what to do next (nil for Cancel).
     let done: (AutoDigitizeOptions, AutoDigitizeOutcome?) -> Void
@@ -296,6 +298,14 @@ struct AutoDigitizeView: View {
     private let smallestChoices: [Double] = [0.5, 1, 2, 5, 10]
     /// How tall the colors-and-notes column is (it scrolls past that).
     static let columnHeight: CGFloat = 240
+    /// Pixels (red, green, blue, alpha, not premultiplied) as an image to show.
+    static func picture(_ pixels: PixelImage) -> NSImage? {
+        guard let provider = CGDataProvider(data: Data(pixels.rgba) as CFData),
+              let image = CGImage(width: pixels.width, height: pixels.height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: pixels.width * 4,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue),
+                                  provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent) else { return nil }
+        return NSImage(cgImage: image, size: NSSize(width: pixels.width, height: pixels.height))
+    }
 
     var body: some View {
         DialogFrame(eyebrow: "Auto-digitize", title: "Trace your image into stitches",
@@ -311,7 +321,7 @@ struct AutoDigitizeView: View {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top, spacing: 16) {
                     picture("Your image") {
-                        if let image = NSImage(data: artwork.data) { Image(nsImage: image).resizable().scaledToFit().padding(14) }
+                        if let image = shownPicture ?? NSImage(data: artwork.data) { Image(nsImage: image).resizable().scaledToFit().padding(14) }
                     }
                     picture("Traced stitches") {
                         switch built {
@@ -333,6 +343,13 @@ struct AutoDigitizeView: View {
                     }.frame(height: AutoDigitizeView.columnHeight)
                 }
             }
+        }
+        // A cropped, turned, flipped or skewed image is shown the way it sits on the canvas, as it's traced.
+        .task {
+            guard artwork.crop != nil || artwork.isTransformed else { return }
+            let artwork = artwork
+            let shown = await Task.detached(priority: .userInitiated) { try? AutoDigitize.shown(artwork).image }.value
+            shownPicture = shown.flatMap(Self.picture)
         }
         // .task(id:) restarts whenever the options change, cancelling the previous trace if it hasn't finished.
         .task(id: options) {

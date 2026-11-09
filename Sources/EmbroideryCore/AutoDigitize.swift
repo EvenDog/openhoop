@@ -45,6 +45,16 @@ public struct PixelImage: Sendable {
         rgba = bytes
     }
 
+    /// The part of this picture inside `crop`, to the nearest whole pixel (at least one).
+    public func cropped(_ crop: ArtworkCrop) -> PixelImage {
+        func pixel(_ share: Double, _ size: Int) -> Int { min(size, max(0, Int((share * Double(size)).rounded()))) }
+        let left = min(pixel(crop.left, width), width - 1), right = max(left + 1, pixel(crop.right, width))
+        let top = min(pixel(1 - crop.top, height), height - 1), bottom = max(top + 1, pixel(1 - crop.bottom, height))   // rows run down from the top
+        var bytes: [UInt8] = []; bytes.reserveCapacity((right - left) * (bottom - top) * 4)
+        for row in top..<bottom { bytes += rgba[(row * width + left) * 4..<(row * width + right) * 4] }
+        return PixelImage(width: right - left, height: bottom - top, rgba: bytes)
+    }
+
     /// This image (the artwork's picture, decoded) drawn the way `artwork` sits on the canvas, turned, flipped or
     /// skewed, into a level grid covering `box` (mm) at `width` × `height` pixels. Each pixel takes the color under its
     /// middle (the nearest picture pixel); pixels outside the picture are transparent and marked in `outside`.
@@ -148,16 +158,27 @@ public enum AutoDigitize {
     }
 
     /// Traces the artwork's image into patches of color, each with the stitch auto-digitize suggests, ready to build.
-    /// A turned, flipped or skewed image is traced the way it sits on the canvas.
+    /// It's traced the way it shows on the canvas: cropped, turned, flipped or skewed.
     public static func trace(_ artwork: Artwork, options: AutoDigitizeOptions) throws -> AutoDigitizeTrace {
-        let image = try PixelImage(data: artwork.data, maxSide: tracingSize(for: artwork))
-        guard artwork.isTransformed else { return try trace(image, center: artwork.center, width: artwork.width, height: artwork.height, options: options) }
+        let shown = try shown(artwork)
+        return try trace(shown.image, center: shown.center, width: shown.width, height: shown.height, options: options, outside: shown.outside)
+    }
+
+    /// The artwork's picture the way it shows on the canvas, as pixels: just the cropped part, and for a turned,
+    /// flipped or skewed image, drawn into a level grid round it. Also where that grid sits (its center and size in
+    /// mm) and, for the level grid, which of its pixels are outside the picture.
+    public static func shown(_ artwork: Artwork) throws -> (image: PixelImage, center: Point, width: Double, height: Double, outside: [Bool]?) {
+        // A cropped picture is decoded larger, so the part that shows is still about as fine as an uncropped one.
+        let share = artwork.crop.map { min($0.right - $0.left, $0.top - $0.bottom) } ?? 1
+        let whole = try PixelImage(data: artwork.data, maxSide: min(4000, Int(Double(tracingSize(for: artwork)) / max(0.05, share))))
+        let image = artwork.crop.map(whole.cropped) ?? whole
+        guard artwork.isTransformed else { return (image, artwork.center, artwork.width, artwork.height, nil) }
         // Drawn into a level grid round it, about as fine as the picture itself.
         let box = artwork.bounds, boxWidth = box.max.x - box.min.x, boxHeight = box.max.y - box.min.y
         let pixel = max(artwork.width / Double(image.width), artwork.height / Double(image.height))
         let width = max(2, min(1200, Int((boxWidth / pixel).rounded()))), height = max(2, min(1200, Int((boxHeight / pixel).rounded())))
         let placed = image.placed(artwork, in: box, width: width, height: height)
-        return try trace(placed.image, center: (box.min + box.max) * 0.5, width: boxWidth, height: boxHeight, options: options, outside: placed.outside)
+        return (placed.image, (box.min + box.max) * 0.5, boxWidth, boxHeight, placed.outside)
     }
 
     /// Traces `image`, shown `width` × `height` mm and centered on `center`, into patches of color: each patch's
