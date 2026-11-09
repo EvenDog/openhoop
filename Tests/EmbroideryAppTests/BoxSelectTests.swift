@@ -37,8 +37,9 @@ final class BoxSelectTests: XCTestCase {
         drag(Point(-8, -3), Point(8, 13), .shift)
         XCTAssertEqual(state.selection, [left.id, middle.id])
 
-        // Without Shift, a new box starts again; the middle square, only half inside, is left out.
-        drag(Point(-33, -3), Point(0, 13))
+        // Without Shift, a new box starts again; the middle square, only half inside, is left out. (It starts well
+        // clear of the selection's corners: just outside one, a drag rotates the selection instead.)
+        drag(Point(-40, -10), Point(0, 13))
         XCTAssertEqual(state.selection, [left.id])
 
         // A box round one member of a group picks nothing; round the whole group, both members.
