@@ -1,6 +1,6 @@
 // Pointers for the handles round a selection or the reference image, so the pointer shows what a drag will do:
 // rotate, resize from a corner, or skew. (Stretching from a side uses the system's own ↔ and ↕.) macOS has no
-// pointers for these, so they're drawn here in code.
+// pointers for these, so they're drawn here in code (rotate uses an SF Symbol).
 import AppKit
 
 /// Pointer pictures for the handles round a selection, drawn in code: black lines with a white edge, like the
@@ -44,18 +44,21 @@ enum HandleCursorArt {
         return Stroke(path: path, heads: [(a, b), (b, a)])
     }
 
-    /// Rotate: an arc over the top, like ↶ and ↷ joined, with an arrowhead at each end following the curve down.
+    /// Rotate: Apple's round arrow (the SF Symbol "arrow.clockwise", ↻), black with a white edge. The edge is a
+    /// white copy drawn nudged a little in twelve directions round it, underneath.
     static var rotate: NSImage {
-        let center = CGPoint(x: 12, y: 10), radius: CGFloat = 7.5, right: CGFloat = -25, left: CGFloat = 205
-        func point(_ degrees: CGFloat) -> CGPoint { CGPoint(x: center.x + radius * cos(degrees * .pi / 180), y: center.y + radius * sin(degrees * .pi / 180)) }
-        let trim = 4.5 / radius * 180 / .pi   // the line stops where each arrowhead begins
-        let path = NSBezierPath(); path.appendArc(withCenter: center, radius: radius, startAngle: right + trim, endAngle: left - trim)
-        // Each head points along the circle at its end: clockwise at the right end, counterclockwise at the left.
-        func head(_ degrees: CGFloat, clockwise: Bool) -> (tip: CGPoint, from: CGPoint) {
-            let tip = point(degrees), r = degrees * .pi / 180, sign: CGFloat = clockwise ? 1 : -1
-            return (tip, CGPoint(x: tip.x - sign * sin(r) * 5, y: tip.y + sign * cos(r) * 5))
+        NSImage(size: NSSize(width: 24, height: 24), flipped: false) { _ in
+            for (color, ring) in [(NSColor.white, CGFloat(1.4)), (NSColor.black, 0)] {
+                let configuration = NSImage.SymbolConfiguration(pointSize: 15, weight: .semibold).applying(.init(paletteColors: [color]))
+                guard let arrow = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "Rotate")?.withSymbolConfiguration(configuration) else { continue }
+                let rect = NSRect(x: (24 - arrow.size.width) / 2, y: (24 - arrow.size.height) / 2, width: arrow.size.width, height: arrow.size.height)
+                for step in 0..<(ring > 0 ? 12 : 1) {
+                    let angle = CGFloat(step) * .pi / 6
+                    arrow.draw(in: rect.offsetBy(dx: cos(angle) * ring, dy: sin(angle) * ring))
+                }
+            }
+            return true
         }
-        return image([Stroke(path: path, heads: [head(right, clockwise: true), head(left, clockwise: false)])])
     }
     /// Resize from a corner: a diagonal double arrow, up-right/down-left (`rising`) or up-left/down-right.
     static func diagonal(rising: Bool) -> NSImage {
