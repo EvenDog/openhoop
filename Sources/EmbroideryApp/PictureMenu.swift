@@ -147,17 +147,6 @@ struct PictureListMenu<Option: Hashable, Picture: View>: View {
     }
 }
 
-/// The picture for a "None" choice (no fill, or no outline): bare cloth with a crossed-out circle.
-struct NoStitchPicture: View {
-    var body: some View {
-        Image(systemName: "circle.slash").font(.system(size: 13)).foregroundStyle(Theme.inkSecondary)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(nsColor: Theme.Canvas.fabric))
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-            .accessibilityHidden(true)
-    }
-}
-
 /// The line at the foot of a picture menu: what the canvas shows while the pointer is over `pointedAt`.
 func pictureMenuNote(pointedAt: String?, current: String, kind: String) -> some View {
     let text = pointedAt.map { "Your shape shows \($0). Click to keep it; move away to go back to \(current)." } ?? "Point at a \(kind) to see it stitched on your shape."

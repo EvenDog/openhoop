@@ -123,21 +123,17 @@ struct FillStyleMenu: View {
     }
 }
 
-/// The Next shape bar's Fill menu: the fill the next closed shape gets, or None (first) for just an outline, in the
-/// thread it gets. There's no shape yet to show a choice on, so pointing at one only highlights it.
+/// The Next shape bar's Fill menu: the fill the next closed shape gets, in the thread it gets. (The Sew buttons
+/// above it turn the fill off.) There's no shape yet to show a choice on, so pointing at one only highlights it.
 struct NewShapeFillMenu: View {
-    let current: EmbroideryCore.FillStyle?
+    let current: EmbroideryCore.FillStyle
     let color: ThreadColor
-    let choose: (EmbroideryCore.FillStyle?) -> Void
+    let choose: (EmbroideryCore.FillStyle) -> Void
 
     var body: some View {
-        // Optional.some wraps each style, so the list can hold None (nil) too.
-        let options: [EmbroideryCore.FillStyle?] = [nil] + EmbroideryCore.FillStyle.forNewShapes.map(Optional.some)
-        PictureListMenu(label: "Fill", options: options, current: current, name: { $0?.title ?? "None" },
-                        tagline: { $0?.tagline ?? "No fill: just the outline." }, help: { $0?.summary ?? "The shape gets no fill, just its outline." },
-                        picture: { option in
-                            if let option { FillStyleThumbnail(style: option, color: color) } else { NoStitchPicture() }
-                        }, choose: choose)
+        PictureListMenu(label: "Fill", options: EmbroideryCore.FillStyle.forNewShapes, current: current, name: \.title,
+                        tagline: \.tagline, help: \.summary,
+                        picture: { FillStyleThumbnail(style: $0, color: color) }, choose: choose)
         .onAppear { FillStyleSamples.shared.load() }
     }
 }
