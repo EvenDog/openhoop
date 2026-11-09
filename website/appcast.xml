@@ -6,6 +6,51 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.13.0</title>
+            <pubDate>Mon, 09 Nov 2026 16:18:50 GMT</pubDate>
+            <sparkle:version>46</sparkle:version>
+            <sparkle:shortVersionString>0.13.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.13.0</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.13.0</h3>
+<h4>Redwork</h4>
+<ul>
+<li><b>Make Redwork</b> (Digitize › Pick &amp; Shape, or the <b>Redwork</b> button in Properties) turns the selected running lines into redwork: one continuous bean-stitch line for every set of lines that touch, going back over a line already sewn instead of trimming. Lines that don't touch anything stay separate, in one group.</li>
+<li>Where the route goes back over a line, it's sewn once instead of three times, so those lines come out nearly as bold as the rest instead of twice as heavy. <b>Sew retraced parts once</b>, under Passes, turns this on or off for any bean line.</li>
+</ul>
+<h4>Hand stitch for fills</h4>
+<ul>
+<li>Fills can now be sewn with <b>Hand stitch</b>: the needle holes inside each row move a little at random, so the rows look sewn by hand. Choose <b>Light</b>, <b>Medium</b> or <b>Strong</b>, and a <b>Variant</b> for a different random pattern. Row ends and underlay stay put.</li>
+</ul>
+<h4>Recognize Objects</h4>
+<ul>
+<li>Satin columns get their own <b>spacing</b>, measured from the stitches, instead of the default.</li>
+<li>Fills get their <b>tatami pattern</b> read from the needle holes.</li>
+<li>Satin rings come back <b>closed</b>, without a notch.</li>
+<li>Hand-stitched fills come back with <b>Hand stitch</b> turned on.</li>
+</ul>
+<h4>Easier to use</h4>
+<ul>
+<li><b>Click and hold</b> a tool button to open its choices, as right-click does.</li>
+<li>Properties offers only the buttons that suit the selection, and a new <b>Join lines</b> button.</li>
+<li>The shape tools offer every line style.</li>
+<li>Every millimeter setting in Properties says <b>mm</b>.</li>
+<li>The Line style and Pattern menus are wide enough for their longest names, and Line style comes first.</li>
+<li>The Hand stitch and Jagged edge settings show only once they're turned on.</li>
+<li><b>Add Line Art…</b> warns when the drawing won't fit the hoop.</li>
+</ul>
+<h4>Fixes</h4>
+<ul>
+<li><b>Contour fill</b> on stars and other pointy shapes now spirals corner to corner, instead of rows cutting across each other at the tips.</li>
+</ul>
+<h4>Files</h4>
+<p>Files saved by 0.13.0 open in 0.12.0 and earlier unless they have a fill sewn with Hand stitch, or a bean line with Sew retraced parts once (which Make Redwork turns on). Those files need 0.13.0.</p>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.13.0/OpenHoop-0.13.0.dmg" sparkle:edSignature="8nXMBpzo49fjghCMNZE62ctvsictVAShPGCjKl05CGRQsyInHTGVeX0AuspVzIbPp1zb1v9a1NP0TFnZsM2uAw==" length="43144343" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.12.0</title>
             <pubDate>Sat, 07 Nov 2026 04:45:59 GMT</pubDate>
             <sparkle:version>45</sparkle:version>
