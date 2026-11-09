@@ -69,8 +69,13 @@ final class DesignCanvas: NSView {
     /// A rotate or skew drag: from just outside a corner (dx and dy both set, as for resizing) it turns the selection,
     /// from a skew handle on a side it leans it. Also the selection's box (mm) when the drag began.
     private var turnDrag: (dx: Int, dy: Int, low: Point, high: Point)?
-    /// True while the pointer is over a handle and shows that handle's pointer (HandleCursors.swift).
-    private var overHandle = false
+    /// The handle pointer showing now (HandleCursors.swift), or nil while the tool's own pointer shows.
+    private var shownHandleCursor: NSCursor?
+    /// How near a handle's middle (in points) the pointer must be to use it. Near a corner three zones meet (the
+    /// design, the corner square, and the rotate zone just outside), so a zone holds on a little once its pointer is
+    /// showing: the pointer then changes only when it clearly moves out, instead of flickering on a border. That's
+    /// called hysteresis. A press uses the same zones, so it always does what the pointer shows.
+    private var handleReach: CGFloat { shownHandleCursor == nil ? 6 : shownHandleCursor === HandleCursor.rotate ? 4 : 9 }
     /// Where (on screen) a press landed on an object that was already selected. If the mouse comes up there without
     /// moving, the handles switch between resize and rotate/skew.
     private var clickAgainAt: CGPoint?
@@ -1088,11 +1093,15 @@ final class DesignCanvas: NSView {
     }
     /// Which corner of the selection the pointer is just outside, where a drag rotates: within 22 points of a corner
     /// handle but not on it, and not over the selection's box. Nil anywhere else, or when nothing can be rotated.
+    /// While ↻ shows, the zone holds on 4 points further out and 3 points into the box (see `handleReach`).
     private func rotateCorner(at location: CGPoint) -> (dx: Int, dy: Int)? {
-        guard state.tool == .select, !state.hasVersionMismatch, !routeShown, let box = selectionBox(in: state.design), !box.contains(location) else { return nil }
+        let holding = shownHandleCursor === HandleCursor.rotate
+        guard state.tool == .select, !state.hasVersionMismatch, !routeShown, let box = selectionBox(in: state.design),
+              !(holding ? box.insetBy(dx: 3, dy: 3) : box).contains(location) else { return nil }
+        let reach = handleReach, outer: CGFloat = holding ? 26 : 22
         return resizeHandles(box).first { handle in
             let distance = hypot(handle.point.x - location.x, handle.point.y - location.y)
-            return handle.dx != 0 && handle.dy != 0 && distance > 6 && distance <= 22
+            return handle.dx != 0 && handle.dy != 0 && distance > reach && distance <= outer
         }.map { ($0.dx, $0.dy) }
     }
     /// The pointer for the handle under `location` with Select, showing what a drag there does: a curved double
@@ -1100,7 +1109,8 @@ final class DesignCanvas: NSView {
     /// (stretch) or ⇄ on a skew diamond. Nil anywhere else.
     func handleCursor(at location: CGPoint) -> NSCursor? {
         guard state.tool == .select, !state.hasVersionMismatch, !routeShown, let box = selectionBox(in: state.design) else { return nil }
-        if let handle = resizeHandles(box).first(where: { hypot($0.point.x - location.x, $0.point.y - location.y) <= 6 }) {
+        let reach = handleReach
+        if let handle = resizeHandles(box).first(where: { hypot($0.point.x - location.x, $0.point.y - location.y) <= reach }) {
             if handle.dx != 0 && handle.dy != 0 { return HandleCursor.diagonal(rising: handle.dx == handle.dy) }
             if state.skewHandles { return handle.dy != 0 ? HandleCursor.skewSideways : HandleCursor.skewUpDown }
             return handle.dx != 0 ? .resizeLeftRight : .resizeUpDown
@@ -1110,8 +1120,10 @@ final class DesignCanvas: NSView {
     /// Shows the handle's pointer while the pointer is over one, and the tool's pointer again once it moves off.
     /// Like the guide pointer it's set directly (cursor areas can't overlap the canvas's own).
     private func updateHandleCursor(at location: CGPoint) {
-        if turnDrag == nil, resizeDrag == nil, let cursor = handleCursor(at: location) { cursor.set(); overHandle = true }
-        else if overHandle { overHandle = false; toolCursor.set() }
+        guard turnDrag == nil, resizeDrag == nil else { return }
+        let cursor = handleCursor(at: location)
+        if let cursor { cursor.set() } else if shownHandleCursor != nil { toolCursor.set() }
+        shownHandleCursor = cursor
     }
     /// While reviewing: the way from where the step before ended (a faint ×) to this step's start, dashed, with what
     /// happens on the way beside it, such as "Trim, then 18.6 mm".
@@ -1426,7 +1438,7 @@ final class DesignCanvas: NSView {
         // A resize handle round the selection: dragging it resizes the selection from the opposite side or corner.
         // With the rotate and skew handles showing, a corner turns it and a side leans it instead.
         if state.tool == .select, !state.hasVersionMismatch, !routeShown, let box = selectionBox(in: state.design),
-           let handle = resizeHandles(box).first(where: { hypot($0.point.x - location.x, $0.point.y - location.y) <= 6 }) {
+           let handle = resizeHandles(box).first(where: { hypot($0.point.x - location.x, $0.point.y - location.y) <= handleReach }) {
             let low = model(CGPoint(x: box.minX, y: box.minY)), high = model(CGPoint(x: box.maxX, y: box.maxY))
             let side = handle.dx == 0 || handle.dy == 0
             if state.skewHandles && side { turnDrag = (handle.dx, handle.dy, low, high); dragStart = model(location) }   // leaning ignores Snap
