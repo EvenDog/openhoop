@@ -107,6 +107,26 @@ final class SelectionHandlesTests: XCTestCase {
         XCTAssertEqual(box.low.x, before + 2, accuracy: 1e-6, "it moved instead")
     }
 
+    /// Each handle shows a pointer for what a drag there does: diagonal arrows on the corners, ↔ and ↕ on the sides
+    /// (⇄ once they're skew handles), a curved double arrow just outside a corner, and none elsewhere.
+    @MainActor func testHandlesShowWhatTheyDo() {
+        let document = DesignDocument(), state = document.state
+        let (canvas, mouse) = canvas(for: state)
+        let object = square()
+        state.edit("Setup") { $0.objects = [object] }
+        state.selection = [object.id]; state.tool = .select; state.snap = false
+        let low = canvas.screen(Point(0, 0)), high = canvas.screen(Point(10, 10)), middleY = (low.y + high.y) / 2
+        XCTAssertTrue(canvas.handleCursor(at: CGPoint(x: high.x + 6, y: high.y + 6)) === HandleCursor.rising, "top-right corner: ↗↙")
+        XCTAssertTrue(canvas.handleCursor(at: CGPoint(x: low.x - 6, y: high.y + 6)) === HandleCursor.falling, "top-left corner: ↖↘")
+        XCTAssertTrue(canvas.handleCursor(at: CGPoint(x: high.x + 6, y: middleY)) === NSCursor.resizeLeftRight)
+        XCTAssertTrue(canvas.handleCursor(at: CGPoint(x: high.x + 18, y: high.y + 18)) === HandleCursor.rotate, "just outside a corner")
+        XCTAssertNil(canvas.handleCursor(at: canvas.screen(Point(5, 5))), "over the object itself")
+        XCTAssertNil(canvas.handleCursor(at: CGPoint(x: high.x + 60, y: high.y + 60)), "far away")
+        mouse(.leftMouseDown, canvas.screen(Point(5, 5)), []); mouse(.leftMouseUp, canvas.screen(Point(5, 5)), [])
+        XCTAssertTrue(canvas.handleCursor(at: CGPoint(x: high.x + 6, y: middleY)) === HandleCursor.skewUpDown, "a skew handle on the right side")
+        XCTAssertTrue(canvas.handleCursor(at: CGPoint(x: (low.x + high.x) / 2, y: high.y + 6)) === HandleCursor.skewSideways, "on the top side")
+    }
+
     /// Without a start point set, the marker shows where the stitches really begin (here with the Start & End tool);
     /// dragging it sets the start point.
     @MainActor func testRealStartShowsAndCanBeDragged() async throws {
