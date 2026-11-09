@@ -648,8 +648,23 @@ extension InspectorPanel {
         func change(_ title: String, _ body: @escaping (inout LineRepeat) -> Void) { state.edit(title) { $0.setLineRepeat(id, body) } }
         return proSection("Copies along line") {
             number("Copies", value: Double(spec.copies), range: Double(LineRepeat.copyRange.lowerBound)...Double(LineRepeat.copyRange.upperBound), whole: true,
-                   help: "How many copies, spread evenly from one end of the line to the other.") { typed in
-                change("Copies Along Line") { $0.copies = min(LineRepeat.copyRange.upperBound, max(LineRepeat.copyRange.lowerBound, Int(typed.rounded()))) }
+                   help: "How many copies, spread evenly from one end of the line to the other. Moving Spacing sets this to as many as fit.") { typed in
+                change("Copies Along Line") { $0.copies = min(LineRepeat.copyRange.upperBound, max(LineRepeat.copyRange.lowerBound, Int(typed.rounded()))); $0.spacing = nil }
+            }
+            // Spacing: closer copies means more of them along the line, wider means fewer; they still run end to end.
+            // The copies are built again as the slider moves, and one drag (or a run of them) undoes as one step.
+            if let gap = state.design.repeatSpacing(id) {
+                let range = LineRepeat.spacingRange, shown = min(max(spec.spacing ?? gap, range.lowerBound), range.upperBound)
+                HStack {
+                    Text("Spacing").font(Theme.body(11, weight: .regular))
+                    Slider(value: Binding(get: { shown }, set: { value in
+                        let rounded = (value * 2).rounded() / 2   // half-millimeter steps
+                        guard rounded != spec.spacing else { return }
+                        state.edit("Copies Spacing", run: "Copies Spacing \(id)") { $0.setLineRepeat(id) { $0.spacing = rounded } }
+                    }), in: range).controlSize(.small).tint(Theme.accent)
+                    Text("\((gap * 10).rounded() / 10, specifier: "%g") mm").font(Theme.body(11)).monospacedDigit().frame(width: 52, alignment: .trailing)
+                }
+                .help("How far apart the copies are. Closer fits more copies along the line, wider fewer; they still run from one end to the other.")
             }
             toggle("Turn with line", value: spec.turnsWithLine) { on in change(on ? "Turn Copies With Line" : "Keep Copies Upright") { $0.turnsWithLine = on } }
                 .help("On, each copy turns to follow the line where it sits. Off, they all stay upright.")

@@ -16,6 +16,10 @@ public struct LineRepeat: Codable, Hashable, Sendable {
     public var id = UUID()
     /// How many copies, spread evenly from one end of the line to the other.
     public var copies = 5
+    /// When set, the copies fill the line about this far apart (mm, center to center), and `copies` becomes however
+    /// many fit: the gap is rounded so the first and last copies still sit on the line's ends. nil keeps `copies` as
+    /// typed. (`copies` is saved too, so older versions, which don't know this, set out the same copies.)
+    public var spacing: Double?
     /// True when each copy turns to follow the line's direction where it sits; false keeps them all upright.
     public var turnsWithLine = true
     public var placement = Placement.center
@@ -26,8 +30,13 @@ public struct LineRepeat: Codable, Hashable, Sendable {
     /// a setting changes) builds them again too.
     public var path: [Point]?
     public static let copyRange = 1...200
+    public static let spacingRange = 2.0...50.0
     public init(id: UUID = UUID(), copies: Int = 5) { self.id = id; self.copies = copies }
-    var isValid: Bool { Self.copyRange.contains(copies) }
+    var isValid: Bool { Self.copyRange.contains(copies) && spacing.map(Self.spacingRange.contains) != false }
+    /// How many copies fit a line `length` mm long about `spacing` mm apart, end to end (at least 2, at most 200).
+    public static func copiesFitting(length: Double, spacing: Double) -> Int {
+        min(copyRange.upperBound, max(2, Int((length / spacing).rounded()) + 1))
+    }
 }
 
 /// On each object of a copy along a line: which set of copies it belongs to, which copy it's part of (0 is the
@@ -129,7 +138,9 @@ extension Design {
         let spec = objects[g].lineRepeat!, path = objects[g].outlinePaths.first ?? []
         let members = objects.filter { $0.repeatCopy?.id == id }
         guard let lowest = members.map({ $0.repeatCopy!.index }).min() else { throw DesignError.invalid("These copies along a line have no copies left.") }
-        guard let places = Self.places(along: path, count: spec.copies) else { throw DesignError.invalid("The line is too short to set copies along.") }
+        // With a spacing, as many copies as fit the line's length now.
+        if let spacing = spec.spacing { objects[g].lineRepeat!.copies = LineRepeat.copiesFitting(length: Self.length(of: path), spacing: spacing) }
+        guard let places = Self.places(along: path, count: objects[g].lineRepeat!.copies) else { throw DesignError.invalid("The line is too short to set copies along.") }
         // The motif: the first copy moved back from where it sits to the origin, upright and not mirrored, then
         // centered there. Copies made from it start without a set, so pasting them doesn't link them to anything.
         let upright = RepeatFrame(origin: Point(0, 0), right: Point(1, 0), up: Point(0, 1))
@@ -177,6 +188,16 @@ extension Design {
         let at = objects.firstIndex { $0.repeatCopy?.id == id || $0.lineRepeat?.id == id }!
         objects.removeAll { $0.repeatCopy?.id == id || $0.lineRepeat?.id == id }
         objects.insert(contentsOf: ordered + [guide], at: min(at, objects.count))
+    }
+
+    /// How long a path is (mm).
+    static func length(of path: [Point]) -> Double { zip(path, path.dropFirst()).reduce(0) { $0 + $1.0.distance(to: $1.1) } }
+
+    /// The distance between neighbouring copies along a line `id` (mm, center to center, measured along the line),
+    /// for Properties' Spacing slider; nil with a single copy.
+    public func repeatSpacing(_ id: UUID) -> Double? {
+        guard let guide = objects.first(where: { $0.lineRepeat?.id == id }), let spec = guide.lineRepeat, spec.copies > 1 else { return nil }
+        return Self.length(of: guide.outlinePaths.first ?? []) / Double(spec.copies - 1)
     }
 
     /// `count` places spread evenly along `path` from one end to the other (one copy sits in the middle), each with
