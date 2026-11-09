@@ -159,22 +159,18 @@ struct LineStyleMenu: View {
     }
 }
 
-/// The Next shape bar's Stitch (an open shape's stitch) and Outline (a closed shape's, where None is the first
-/// choice) menus, in the thread the next shape gets.
+/// The Next shape bar's Stitch (an open shape's stitch) and Outline (a closed shape's) menus, in the thread the
+/// next shape gets. (The Sew buttons above Outline turn the outline off.)
 struct NewLineStitchMenu: View {
     let label: String
-    let current: OpenShapeStitch?
-    var offersNone = false
+    let current: OpenShapeStitch
     let color: ThreadColor
-    let choose: (OpenShapeStitch?) -> Void
+    let choose: (OpenShapeStitch) -> Void
 
     var body: some View {
-        let options: [OpenShapeStitch?] = (offersNone ? [nil] : []) + OpenShapeStitch.allCases.map(Optional.some)
-        PictureListMenu(label: label, options: options, current: current, name: { $0?.title ?? "None" },
-                        tagline: { $0?.tagline ?? "No outline: just the fill." }, help: { $0?.summary ?? "The shape gets no outline, just its fill." },
-                        picture: { option in
-                            if let option { LineStitchThumbnail(stitch: .newLine(option), color: color) } else { NoStitchPicture() }
-                        }, choose: choose)
+        PictureListMenu(label: label, options: OpenShapeStitch.allCases, current: current, name: \.title,
+                        tagline: \.tagline, help: \.summary,
+                        picture: { LineStitchThumbnail(stitch: .newLine($0), color: color) }, choose: choose)
         .onAppear { LineStitchSamples.shared.load() }
     }
 }

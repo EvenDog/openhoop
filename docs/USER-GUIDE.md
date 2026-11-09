@@ -144,12 +144,12 @@ If you delete the guide, the fill keeps sewing the last shape it had. **Running 
 
 ### Shapes and the stitch picker
 
-Pick a stitch first, then draw. The **Shape** group in the tool strip holds them. Picking one shows the **Next shape** in the **Properties** panel, even while something is selected (select something again to see its properties): its shape and stitches, with a small drawing of it. Its **Stitch**, **Fill** and **Outline** buttons open lists with a picture of each choice's stitches, in the thread the shape will get. Your choices are remembered, except the outline: picking a closed-shape tool starts it with **Outline: None**, and an outline you pick then lasts until you pick a tool again. Picking a shape tool opens Properties if it's closed.
+Pick a stitch first, then draw. The **Shape** group in the tool strip holds them. Picking one shows the **Next shape** in the **Properties** panel, even while something is selected (select something again to see its properties): its shape and stitches, with a small drawing of it. For a closed shape, the **Sew** buttons pick **Fill**, **Outline** (just the outline) or **Both**. Its **Stitch**, **Fill** and **Outline** buttons open lists with a picture of each choice's stitches, in the thread the shape will get. Picking a closed-shape tool always starts it at a **Tatami** fill with no outline; a change you make then lasts until you pick a tool again. The open-shape stitch is remembered. Picking a shape tool opens Properties if it's closed.
 
 | Tool | How to draw | Stitch it gets |
 | --- | --- | --- |
 | **Digitize Open Shape (⌥O)** | Click corners, drag or secondary-click for curves, Return to finish | Running, Bean (triple run), Satin line (as wide as **Width** in the bar), or a line style: Zigzag, Blanket, Back stitch, Stem stitch, Motif, Chain, Feather, Cross stitch, Herringbone, Ladder or Candlewick |
-| **Digitize Closed Shape (⌥S)** | The same, and the outline closes itself | A **Fill** (Tatami, Contour, Radial, Wave, Stipple or None) and an **Outline** (Running, Bean, Satin line, any of the line styles above, or None) |
+| **Digitize Closed Shape (⌥S)** | The same, and the outline closes itself | **Sew** a fill, an outline or both: a **Fill** (Tatami, Contour, Radial, Wave or Stipple) and an **Outline** (Running, Bean, Satin line or any of the line styles above) |
 | **Freehand Open Shape (⌥⇧O)** | Press and drag; the line follows the pointer and is smoothed when you let go | The Open Shape stitch |
 | **Freehand Closed Shape (⌥⇧S)** | The same, and the outline closes itself when you let go | The Closed Shape stitches |
 | **Rectangle (⌥R)** | Drag corner to corner; set **Corners** for rounded ones | The Closed Shape stitch |

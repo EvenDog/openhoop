@@ -83,10 +83,28 @@ public struct ShapeSettings: Codable, Equatable, Sendable {
     /// Frames group's shapes always have an open middle).
     public var openMiddle = false
     public init() {}
-    /// Picking a closed-shape tool starts it without an outline. A shape with no fill keeps its outline, since a
-    /// closed shape needs one of the two.
-    public mutating func startWithoutOutline() {
-        if closedFill != nil { closedOutline = nil }
+    /// Picking a closed-shape tool starts it fresh: a tatami fill and no outline, whatever was picked last time.
+    /// A change made while the tool is on lasts until a tool is picked again.
+    public mutating func startFresh() {
+        closedFill = .tatami; closedOutline = nil
+    }
+
+    /// What a closed shape sews: a fill, an outline, or both (the Next shape bar's Sew buttons).
+    public enum Sew: String, CaseIterable, Sendable {
+        case fill, outline, both
+        public var title: String { rawValue.prefix(1).uppercased() + rawValue.dropFirst() }
+    }
+    /// The next closed shape's fill and outline as one of three choices. Setting it keeps the fill or outline stitch
+    /// already picked where there is one; one turned on fresh starts as tatami, or a running outline.
+    public var closedSew: Sew {
+        get { closedFill == nil ? .outline : closedOutline == nil ? .fill : .both }
+        set {
+            // Each side is turned on before the other is turned off, so the "one is always on" rule above never steps in.
+            if newValue != .fill { closedOutline = closedOutline ?? .running }
+            if newValue != .outline { closedFill = closedFill ?? .tatami }
+            if newValue == .fill { closedOutline = nil }
+            if newValue == .outline { closedFill = nil }
+        }
     }
     public static let polygonSideRange = 3...12, starPointRange = 4...12, starInnerRange = 0.2...0.8, cornerRadiusRange = 0.0...20.0, frameWidthRange = 1.0...20.0
 

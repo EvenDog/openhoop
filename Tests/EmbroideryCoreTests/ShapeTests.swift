@@ -349,14 +349,29 @@ final class StitchNameTests: XCTestCase {
         XCTAssertEqual(contour.objects[4].name, "Contour Fill 5")
     }
 
-    func testPickingAShapeToolStartsWithoutAnOutline() {
-        var settings = ShapeSettings(); settings.closedOutline = .satin
-        settings.startWithoutOutline()
+    func testPickingAShapeToolStartsWithTatamiAndNoOutline() {
+        var settings = ShapeSettings(); settings.closedFill = .contour; settings.closedOutline = .satin
+        settings.startFresh()
+        XCTAssertEqual(settings.closedFill, .tatami, "not the fill picked last time")
         XCTAssertNil(settings.closedOutline)
-        XCTAssertEqual(settings.closedFill, .tatami, "The fill stays as picked")
-        // With no fill, the outline is the shape's only stitching, so it stays.
+        // Outline only last time: back to a tatami fill too.
         settings.closedOutline = .bean; settings.closedFill = nil
-        settings.startWithoutOutline()
-        XCTAssertEqual(settings.closedOutline, .bean)
+        settings.startFresh()
+        XCTAssertEqual(settings.closedFill, .tatami); XCTAssertNil(settings.closedOutline)
+    }
+
+    func testSewSwitchesBetweenFillOutlineAndBoth() {
+        var settings = ShapeSettings()
+        XCTAssertEqual(settings.closedSew, .fill)
+        settings.closedSew = .outline
+        XCTAssertNil(settings.closedFill); XCTAssertEqual(settings.closedOutline, .running, "a fresh outline is running stitch")
+        settings.closedOutline = .satin
+        settings.closedSew = .both
+        XCTAssertEqual(settings.closedFill, .tatami); XCTAssertEqual(settings.closedOutline, .satin, "the outline picked stays")
+        XCTAssertEqual(settings.closedSew, .both)
+        settings.closedFill = .wave
+        settings.closedSew = .fill
+        XCTAssertEqual(settings.closedFill, .wave, "the fill picked stays"); XCTAssertNil(settings.closedOutline)
+        XCTAssertEqual(ShapeSettings.Sew.allCases.map(\.title), ["Fill", "Outline", "Both"])
     }
 }

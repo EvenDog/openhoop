@@ -258,19 +258,27 @@ struct NextShapeOptions: View {
             caption("Stitches")
             if tool.makesOpenShape {
                 row("Stitch", help: "The stitch the next open shape gets. Change it later in Properties.") {
-                    NewLineStitchMenu(label: "Stitch", current: shapes.openStitch, color: state.currentColor) { value in
-                        if let value { setting(\.openStitch).wrappedValue = value }
-                    }.frame(width: menuWidth)
+                    NewLineStitchMenu(label: "Stitch", current: shapes.openStitch, color: state.currentColor) { setting(\.openStitch).wrappedValue = $0 }
+                        .frame(width: menuWidth)
                 }
             } else {
-                // Both are optional: nil is "None".
-                row("Fill", help: "The fill the next shape gets, or None for just an outline. Change it later in Properties.") {
-                    NewShapeFillMenu(current: shapes.closedFill, color: state.currentColor) { setting(\.closedFill).wrappedValue = $0 }
-                        .frame(width: menuWidth)
+                // Fill, outline or both, one click each; then the menus for the stitches of the ones that are on.
+                row("Sew", help: "Whether the next shape gets a fill, just an outline, or both. Picking a shape tool starts at Fill.") {
+                    Picker("Sew", selection: setting(\.closedSew)) {
+                        ForEach(ShapeSettings.Sew.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }.labelsHidden().pickerStyle(.segmented).fixedSize()
                 }
-                row("Outline", help: "The stitch sewn along the next shape's edge, after its fill. With a fill, the two are grouped.") {
-                    NewLineStitchMenu(label: "Outline", current: shapes.closedOutline, offersNone: true, color: state.currentColor) { setting(\.closedOutline).wrappedValue = $0 }
-                        .frame(width: menuWidth)
+                if let fill = shapes.closedFill {
+                    row("Fill", help: "The fill the next shape gets. Change it later in Properties.") {
+                        NewShapeFillMenu(current: fill, color: state.currentColor) { setting(\.closedFill).wrappedValue = $0 }
+                            .frame(width: menuWidth)
+                    }
+                }
+                if let outline = shapes.closedOutline {
+                    row("Outline", help: "The stitch sewn along the next shape's edge, after its fill. With a fill, the two are grouped.") {
+                        NewLineStitchMenu(label: "Outline", current: outline, color: state.currentColor) { setting(\.closedOutline).wrappedValue = $0 }
+                            .frame(width: menuWidth)
+                    }
                 }
             }
             if (tool.makesOpenShape ? shapes.openStitch : shapes.closedOutline) == .satin {
