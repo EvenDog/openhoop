@@ -6,6 +6,27 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.13.3</title>
+            <pubDate>Mon, 09 Nov 2026 17:31:09 GMT</pubDate>
+            <sparkle:version>49</sparkle:version>
+            <sparkle:shortVersionString>0.13.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.13.3</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.13.3</h3>
+<h4>Copies Along Line: Spacing</h4>
+<ul>
+<li>A <b>Spacing</b> slider (2–50 mm), under Copies in Properties, sets the copies closer together or further apart. They still run from one end of the line to the other: the line fills with as many copies as fit, and the label shows the real gap.</li>
+<li>Reshape the line and it fills again at the same spacing, so a longer vine gets more leaves.</li>
+<li>Typing a number in <b>Copies</b> goes back to that many. One slider drag undoes as one step.</li>
+</ul>
+<h4>Files</h4>
+<p>Files with a spacing open in older versions with the same copies; they just don't refill when the line is reshaped there.</p>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.13.3/OpenHoop-0.13.3.dmg" sparkle:edSignature="JWc39/0hyZrUrBxy9abajxOvraNtzoNISs0BXA1xhfsX4xb8YtKDd6xIXijV4Cxuhix7y/HLvxpY/tJMdMdCDA==" length="43199139" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.13.2</title>
             <pubDate>Mon, 09 Nov 2026 17:07:26 GMT</pubDate>
             <sparkle:version>48</sparkle:version>
