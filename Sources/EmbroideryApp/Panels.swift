@@ -143,7 +143,7 @@ struct ToolStrip: View {
         case .hole: return ("Hole", "trace inside the fill" + key(.finishPath, "finishes"))
         case .pan: return ("Pan", "drag to move the view")
         case .entryExit: return ("Start & end", "click sets the start · Option-click the end")
-        case .artwork: return ("Move artwork", "drag to move · drag a corner to resize")
+        case .artwork: return ("Move artwork", "drag to move · a corner resizes · just outside one rotates · click to skew")
         case .openShape: return ("Open shape", "click corners, drag for curves" + key(.finishPath, "finishes"))
         case .closedShape: return ("Closed shape", "trace the outline" + key(.finishPath, "finishes"))
         case .freehandOpen: return ("Freehand open", "press and drag · let go to finish")
@@ -581,12 +581,36 @@ struct InspectorPanel: View {
             number("Width", value: artwork.width, range: 0.1...1000, length: true, help: "The reference image's width; its height follows.") { value in state.edit("Scale Artwork") { design in design.artwork?.width = value; design.artwork?.height = artwork.height * value / artwork.width } }
             number("Center X", value: artwork.center.x, range: -1000...1000, length: true, help: "Where the image's center sits, right of the hoop's center (left is negative).") { value in state.edit("Move Artwork") { $0.artwork?.center.x = value } }
             number("Center Y", value: artwork.center.y, range: -1000...1000, length: true, help: "Where the image's center sits, above the hoop's center (below is negative).") { value in state.edit("Move Artwork") { $0.artwork?.center.y = value } }
+            number("Rotate", value: 0, range: -360...360, unit: "°", help: "Type an angle and press Return to turn the image by it (positive turns counterclockwise). Or, with Move & size on canvas, drag from just outside a corner of the image.") { value in changeArtwork("Rotate Artwork") { $0.rotated(by: value) } }
+            number("Skew", value: 0, range: -60...60, unit: "°", help: "Type an angle and press Return to lean the image sideways by it (positive leans the top to the right). Or, with Move & size on canvas, click the image and drag a diamond on a side.") { value in changeArtwork("Skew Artwork") { $0.skewed(by: value) } }
+            HStack(spacing: 0) {
+                artworkButton("rotate.left", "Turn the image 90° counterclockwise") { changeArtwork("Rotate Artwork") { $0.rotated(by: 90) } }
+                artworkButton("rotate.right", "Turn the image 90° clockwise") { changeArtwork("Rotate Artwork") { $0.rotated(by: -90) } }
+                artworkButton("arrow.left.and.right.righttriangle.left.righttriangle.right", "Flip the image left to right") { changeArtwork("Flip Artwork") { $0.flipped(horizontally: true) } }
+                artworkButton("arrow.up.and.down.righttriangle.up.righttriangle.down", "Flip the image top to bottom") { changeArtwork("Flip Artwork") { $0.flipped(horizontally: false) } }
+                Spacer(minLength: 4)
+                if artwork.isTransformed {
+                    Button("Straighten") { changeArtwork("Straighten Artwork") { $0.straightened } }.buttonStyle(ThemedButtonStyle())
+                        .help("Take away every turn, flip and skew: the image goes back to level and the right way round, at the same size and place")
+                }
+            }
             toggle("Show reference", value: artwork.visible) { _ in AppDelegate.shared.perform(.artwork) }.help(preferences.hint(.artwork))
             Button { AppDelegate.shared.perform(.autoDigitize) } label: { Label("Auto-digitize…", systemImage: "wand.and.rays") }.buttonStyle(ThemedButtonStyle()).help(preferences.hint(.autoDigitize))
         } else {
             Text("No reference image").font(Theme.heading(16))
             Button { AppDelegate.shared.perform(.importImage) } label: { Label("Import artwork…", systemImage: "photo.badge.plus") }.buttonStyle(ThemedButtonStyle()).help(preferences.hint(.importImage))
         }
+    }
+    /// Changes the reference image with `change`, as one undoable step. A change that changes nothing (a 0° turn) is
+    /// skipped, so it leaves nothing to undo.
+    private func changeArtwork(_ action: String, _ change: @escaping (Artwork) -> Artwork) {
+        guard let artwork = state.design.artwork, change(artwork) != artwork else { return }
+        state.edit(action) { $0.artwork = change(artwork) }
+    }
+    /// A small icon button for turning or flipping the reference image.
+    private func artworkButton(_ symbol: String, _ help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Image(systemName: symbol).font(.system(size: 12)).frame(width: 26, height: 22).contentShape(Rectangle()) }
+            .buttonStyle(.plain).foregroundStyle(Theme.ink).help(help).accessibilityLabel(help)
     }
     /// The artwork's opacity as a slider with a % readout. The image fades live while it's dragged; letting go saves
     /// it as one undoable step.

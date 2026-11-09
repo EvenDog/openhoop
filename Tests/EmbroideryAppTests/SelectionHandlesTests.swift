@@ -1,7 +1,8 @@
 // Checks the handles round a selection (Select tool): a side handle stretches one way and a corner keeps the
+// Checks the handles round a selection (Select tool): a side handle stretches one way and a corner keeps the
 // proportions, each from the opposite side, as one undoable step; just outside a corner rotates, and clicking the
-// selection again turns the side handles into skew handles; and a selected object's real start shows as a marker
-// that can be dragged to set its start point.
+// selection again turns the side handles into skew handles, for objects and for the reference image; and a selected
+// object's real start shows as a marker that can be dragged to set its start point.
 import XCTest
 import AppKit
 import EmbroideryCore
@@ -105,6 +106,45 @@ final class SelectionHandlesTests: XCTestCase {
         XCTAssertFalse(state.skewHandles)
         box = bounds(state.design.objects[0])
         XCTAssertEqual(box.low.x, before + 2, accuracy: 1e-6, "it moved instead")
+    }
+
+    /// With Move & Size Artwork, a drag from just outside a corner of the image turns it, and its corner squares
+    /// still resize it. Clicking the image shows skew diamonds on its sides; dragging the image still moves it, and
+    /// picking another tool hides the diamonds again.
+    @MainActor func testOutsideACornerTurnsTheReferenceImageAndClickingShowsSkewHandles() {
+        let document = DesignDocument(), state = document.state
+        let (canvas, mouse) = canvas(for: state)
+        state.edit("Setup") { $0.artwork = Artwork(data: Data(), name: "logo.png", width: 40, height: 20) }
+        state.tool = .artwork; state.snap = false
+        let cornerPoint = canvas.screen(Point(20, 10))
+        XCTAssertTrue(canvas.handleCursor(at: cornerPoint) === HandleCursor.rising, "the top-right corner resizes: ↗↙")
+        XCTAssertTrue(canvas.handleCursor(at: CGPoint(x: cornerPoint.x + 14, y: cornerPoint.y + 14)) === HandleCursor.rotate)
+        XCTAssertNil(canvas.handleCursor(at: canvas.screen(Point(0, 0))), "the image itself keeps the hand")
+
+        // From 14 points beyond the top-right corner (along the line from the middle through it), swung a quarter
+        // turn counterclockwise.
+        let reach = 1 + 14 / state.zoom / Point(20, 10).distance(to: Point(0, 0))
+        let start = Point(20, 10) * reach, end = Point(-start.y, start.x)
+        mouse(.leftMouseDown, canvas.screen(start), []); mouse(.leftMouseDragged, canvas.screen(end), []); mouse(.leftMouseUp, canvas.screen(end), [])
+        let turned = try! XCTUnwrap(state.design.artwork)
+        XCTAssertEqual(turned.corners[0].distance(to: Point(10, -20)), 0, accuracy: 1e-6, "its own bottom-left is now bottom-right")
+        XCTAssertEqual(document.undoManager?.undoActionName, "Rotate Artwork")
+
+        mouse(.leftMouseDown, canvas.screen(Point(0, 5)), []); mouse(.leftMouseUp, canvas.screen(Point(0, 5)), [])
+        XCTAssertTrue(state.artworkSkewHandles, "a click on the image shows the skew handles")
+        XCTAssertEqual(state.design.artwork?.center, Point(0, 0), "and doesn't move it")
+
+        // A corner square still resizes.
+        let corner = canvas.screen(turned.corners[2])
+        mouse(.leftMouseDown, corner, []); mouse(.leftMouseDragged, CGPoint(x: corner.x - 10 * state.zoom, y: corner.y + 20 * state.zoom), [])
+        mouse(.leftMouseUp, CGPoint(x: corner.x - 10 * state.zoom, y: corner.y + 20 * state.zoom), [])
+        XCTAssertEqual(document.undoManager?.undoActionName, "Resize Artwork")
+
+        mouse(.leftMouseDown, canvas.screen(Point(0, 5)), []); mouse(.leftMouseDragged, canvas.screen(Point(3, 5)), []); mouse(.leftMouseUp, canvas.screen(Point(3, 5)), [])
+        XCTAssertEqual(document.undoManager?.undoActionName, "Move Artwork", "a drag moves it")
+        XCTAssertTrue(state.artworkSkewHandles, "and keeps the handles as they were")
+        state.tool = .select; state.tool = .artwork
+        XCTAssertFalse(state.artworkSkewHandles, "another tool hides the skew handles")
     }
 
     /// Each handle shows a pointer for what a drag there does: diagonal arrows on the corners, ↔ and ↕ on the sides

@@ -44,6 +44,24 @@ public struct PixelImage: Sendable {
         }
         rgba = bytes
     }
+
+    /// This image (the artwork's picture, decoded) drawn the way `artwork` sits on the canvas, turned, flipped or
+    /// skewed, into a level grid covering `box` (mm) at `width` × `height` pixels. Each pixel takes the color under its
+    /// middle (the nearest picture pixel); pixels outside the picture are transparent and marked in `outside`.
+    public func placed(_ artwork: Artwork, in box: (min: Point, max: Point), width: Int, height: Int) -> (image: PixelImage, outside: [Bool]) {
+        var bytes = [UInt8](repeating: 0, count: width * height * 4), outside = [Bool](repeating: true, count: width * height)
+        let pixelWidth = (box.max.x - box.min.x) / Double(width), pixelHeight = (box.max.y - box.min.y) / Double(height)
+        for row in 0..<height { for column in 0..<width {
+            // The pixel's middle on the canvas (rows run down from the top), then in the picture's own frame.
+            let own = artwork.local(Point(box.min.x + (Double(column) + 0.5) * pixelWidth, box.max.y - (Double(row) + 0.5) * pixelHeight))
+            let u = Int(((own.x / artwork.width) + 0.5) * Double(self.width)), v = Int((0.5 - own.y / artwork.height) * Double(self.height))
+            guard (0..<self.width).contains(u), (0..<self.height).contains(v) else { continue }
+            let from = (v * self.width + u) * 4, to = (row * width + column) * 4
+            for c in 0..<4 { bytes[to + c] = rgba[from + c] }
+            outside[row * width + column] = false
+        } }
+        return (PixelImage(width: width, height: height, rgba: bytes), outside)
+    }
 }
 
 public struct AutoDigitizeOptions: Equatable, Sendable {
@@ -130,14 +148,22 @@ public enum AutoDigitize {
     }
 
     /// Traces the artwork's image into patches of color, each with the stitch auto-digitize suggests, ready to build.
+    /// A turned, flipped or skewed image is traced the way it sits on the canvas.
     public static func trace(_ artwork: Artwork, options: AutoDigitizeOptions) throws -> AutoDigitizeTrace {
         let image = try PixelImage(data: artwork.data, maxSide: tracingSize(for: artwork))
-        return try trace(image, center: artwork.center, width: artwork.width, height: artwork.height, options: options)
+        guard artwork.isTransformed else { return try trace(image, center: artwork.center, width: artwork.width, height: artwork.height, options: options) }
+        // Drawn into a level grid round it, about as fine as the picture itself.
+        let box = artwork.bounds, boxWidth = box.max.x - box.min.x, boxHeight = box.max.y - box.min.y
+        let pixel = max(artwork.width / Double(image.width), artwork.height / Double(image.height))
+        let width = max(2, min(1200, Int((boxWidth / pixel).rounded()))), height = max(2, min(1200, Int((boxHeight / pixel).rounded())))
+        let placed = image.placed(artwork, in: box, width: width, height: height)
+        return try trace(placed.image, center: (box.min + box.max) * 0.5, width: boxWidth, height: boxHeight, options: options, outside: placed.outside)
     }
 
     /// Traces `image`, shown `width` × `height` mm and centered on `center`, into patches of color: each patch's
     /// outline and holes, its thread, and the stitches its width suggests (see `stitch(_:as:in:mask:thread:)`).
-    public static func trace(_ image: PixelImage, center: Point, width: Double, height: Double, options: AutoDigitizeOptions) throws -> AutoDigitizeTrace {
+    /// `outside` marks pixels that aren't part of the picture at all (round a turned image); they're left out.
+    public static func trace(_ image: PixelImage, center: Point, width: Double, height: Double, options: AutoDigitizeOptions, outside: [Bool]? = nil) throws -> AutoDigitizeTrace {
         guard image.width > 1, image.height > 1, image.rgba.count == image.width * image.height * 4, width > 0, height > 0 else { throw DesignError.invalid("The reference image is empty.") }
         guard AutoDigitizeOptions.colorRange.contains(options.colors) else { throw DesignError.invalid("Choose between 2 and 8 colors.") }
         let w = image.width, h = image.height
@@ -149,12 +175,19 @@ public enum AutoDigitize {
         cleanSpecks(&labels, width: w, height: h)
 
         // The background is the transparent area if there is one, otherwise the color most common around the edges.
-        let hasTransparency = labels.contains(-1)
+        // Pixels outside the picture are left out like transparent ones but aren't its transparent area: round a
+        // turned picture, its edges are the pixels beside them.
+        let hasTransparency = outside.map { outside in labels.indices.contains { labels[$0] == -1 && !outside[$0] } } ?? labels.contains(-1)
         var background: Int? = nil
         if options.skipBackground && !hasTransparency {
             var counts = [Int](repeating: 0, count: centers.count)
-            for x in 0..<w { counts[labels[x]] += 1; counts[labels[(h - 1) * w + x]] += 1 }
-            for y in 0..<h { counts[labels[y * w]] += 1; counts[labels[y * w + w - 1]] += 1 }
+            if let outside {
+                func out(_ x: Int, _ y: Int) -> Bool { x < 0 || y < 0 || x >= w || y >= h || outside[y * w + x] }
+                for y in 0..<h { for x in 0..<w where labels[y * w + x] >= 0 && (out(x - 1, y) || out(x + 1, y) || out(x, y - 1) || out(x, y + 1)) { counts[labels[y * w + x]] += 1 } }
+            } else {
+                for x in 0..<w { counts[labels[x]] += 1; counts[labels[(h - 1) * w + x]] += 1 }
+                for y in 0..<h { counts[labels[y * w]] += 1; counts[labels[y * w + w - 1]] += 1 }
+            }
             background = counts.indices.max { counts[$0] < counts[$1] }
         }
 

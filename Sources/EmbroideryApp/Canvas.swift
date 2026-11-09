@@ -84,6 +84,7 @@ final class DesignCanvas: NSView {
     /// An envelope handle being dragged with Edit Nodes: the lettering's recipe as the drag began, and the handle.
     private var envelopeDrag: (spec: LetteringSpec, handle: EnvelopeHandle)?
     private var artworkDrag: Int?   // adjusting the artwork: -1 moves it, 0…3 resizes from that corner
+    private var artworkTurnDrag: Int?   // turning the artwork from outside a corner (0…3), or leaning it by a side (4…7)
     private var hoopingDrag: Int?   // the hooping being dragged with the Hoopings tool
     private var zoomBox: (start: CGPoint, end: CGPoint)?   // the box being dragged with the Zoom Box tool, in canvas points
     private var selectBox: (start: CGPoint, end: CGPoint)?   // a box dragged from empty canvas with Select, in canvas points
@@ -469,10 +470,35 @@ final class DesignCanvas: NSView {
             number.draw(at: CGPoint(x: badge.midX - number.size().width / 2, y: badge.midY - number.size().height / 2))
         }
     }
-    /// The reference image's rectangle on screen.
-    func artworkRect(_ artwork: Artwork) -> CGRect {
-        CGRect(x: screen(artwork.center).x - artwork.width * state.zoom / 2, y: screen(artwork.center).y - artwork.height * state.zoom / 2, width: artwork.width * state.zoom, height: artwork.height * state.zoom)
+    /// The reference image's outline on screen: a rectangle, or the slanted shape a turned or skewed image takes.
+    func artworkOutline(_ artwork: Artwork) -> NSBezierPath {
+        let corners = artwork.corners.map(screen), outline = NSBezierPath()
+        outline.move(to: corners[0]); for corner in corners.dropFirst() { outline.line(to: corner) }; outline.close()
+        return outline
     }
+    /// The image's skew handles on screen: the middles of its own bottom, right, top and left sides (handles 4…7 in
+    /// `Artwork.turned`).
+    private func artworkSideHandles(_ artwork: Artwork) -> [CGPoint] {
+        let corners = artwork.corners
+        return (0..<4).map { screen((corners[$0] + corners[($0 + 1) % 4]) * 0.5) }
+    }
+    /// Which corner of the reference image (0…3, as in `Artwork.corners`) the pointer is just outside, with Move &
+    /// Size Artwork: within 24 points of it but off its handle and off the image. A drag there rotates the image.
+    /// While ↻ shows, the zone holds on 4 points further out and 3 points onto the image (see `handleReach`).
+    private func artworkRotateCorner(at location: CGPoint) -> Int? {
+        let holding = shownHandleCursor === HandleCursor.rotate
+        guard state.tool == .artwork, let artwork = state.design.artwork, artwork.visible, !artworkContains(artwork, location, inset: holding ? 3 : 0) else { return nil }
+        let corners = artwork.corners.map(screen), reach = artworkHandleReach, outer: CGFloat = holding ? 28 : 24
+        return corners.indices.first { let distance = hypot(corners[$0].x - location.x, corners[$0].y - location.y); return distance > reach && distance <= outer }
+    }
+    /// True when `location` (on screen) is on the image, at least `inset` points in from its edges (measured along
+    /// its own sides).
+    private func artworkContains(_ artwork: Artwork, _ location: CGPoint, inset: CGFloat) -> Bool {
+        let own = artwork.local(model(location)), margin = Double(inset) / state.zoom
+        return abs(own.x) < artwork.width / 2 - margin && abs(own.y) < artwork.height / 2 - margin
+    }
+    /// The reference image's handles are bigger than a selection's (9 points), and hold on the same way.
+    private var artworkHandleReach: CGFloat { shownHandleCursor == nil ? 9 : shownHandleCursor === HandleCursor.rotate ? 7 : 12 }
 
 
     override func draw(_ dirtyRect: NSRect) {
@@ -506,15 +532,26 @@ final class DesignCanvas: NSView {
         func drawArtwork() {
             guard let artwork = design.artwork, artwork.visible else { return }
             if imageData != artwork.data { imageData = artwork.data; image = NSImage(data: artwork.data) }
-            let rect = CGRect(x: screen(artwork.center).x - artwork.width * state.zoom / 2, y: screen(artwork.center).y - artwork.height * state.zoom / 2, width: artwork.width * state.zoom, height: artwork.height * state.zoom)
+            // Drawn level round its own center, with the drawing turned, flipped or leaned by the image's two arrows
+            // (an affine transform: each point goes to x times one arrow plus y times the other).
+            let axes = artwork.axes, middle = screen(artwork.center)
+            NSGraphicsContext.saveGraphicsState()
+            let placing = NSAffineTransform()
+            placing.transformStruct = NSAffineTransformStruct(m11: axes.x.x, m12: axes.x.y, m21: axes.y.x, m22: axes.y.y, tX: middle.x, tY: middle.y)
+            placing.concat()
+            let rect = CGRect(x: -artwork.width * state.zoom / 2, y: -artwork.height * state.zoom / 2, width: artwork.width * state.zoom, height: artwork.height * state.zoom)
             image?.draw(in: rect, from: .zero, operation: .sourceOver, fraction: state.artworkOpacityPreview ?? artwork.opacity)   // live while its slider is dragged
-            // While adjusting it, the image gets a frame and corner handles.
+            NSGraphicsContext.restoreGraphicsState()
+            // While adjusting it, the image gets a frame and squares on its corners that resize it; once it's clicked,
+            // diamonds on its sides lean it. While it's rotated, a cross marks the middle it turns about.
             if state.tool == .artwork {
-                Theme.Canvas.handle.setStroke(); let frame = NSBezierPath(rect: rect); frame.lineWidth = 1.5; frame.stroke()
-                for corner in artwork.corners.map(screen) {
-                    let knob = NSBezierPath(rect: CGRect(x: corner.x - 5, y: corner.y - 5, width: 10, height: 10))
+                Theme.Canvas.handle.setStroke(); let frame = artworkOutline(artwork); frame.lineWidth = 1.5; frame.stroke()
+                for p in artwork.corners.map(screen) {
+                    let knob = NSBezierPath(rect: CGRect(x: p.x - 5, y: p.y - 5, width: 10, height: 10))
                     NSColor.white.setFill(); knob.fill(); Theme.Canvas.handle.setStroke(); knob.lineWidth = 1.5; knob.stroke()
                 }
+                if state.artworkSkewHandles { for p in artworkSideHandles(artwork) { drawSkewHandle(p, color: Theme.Canvas.handle) } }
+                if let handle = artworkTurnDrag, handle < 4 { drawPivot(middle) }
             }
         }
         let artworkLayer = state.artworkOnTop ? design.objects.count : design.artworkLayer   // on top: over every object
@@ -1121,6 +1158,7 @@ final class DesignCanvas: NSView {
     /// arrow just outside a corner (rotate), a diagonal arrow on a corner square (resize), ↔ or ↕ on a side square
     /// (stretch) or ⇄ on a skew diamond. Nil anywhere else.
     func handleCursor(at location: CGPoint) -> NSCursor? {
+        if state.tool == .artwork { return artworkHandleCursor(at: location) }
         guard state.tool == .select, !state.hasVersionMismatch, !routeShown, let box = selectionBox(in: state.design) else { return nil }
         let reach = handleReach
         if let handle = resizeHandles(box).first(where: { hypot($0.point.x - location.x, $0.point.y - location.y) <= reach }) {
@@ -1130,9 +1168,23 @@ final class DesignCanvas: NSView {
         }
         return rotateCorner(at: location) != nil ? HandleCursor.rotate : nil
     }
+    /// The same for the reference image with Move & Size Artwork. Its corners and sides turn with it, so a corner's
+    /// arrow follows which way the corner lies from the middle, and a side's ⇄ or ⇅ which way the side runs.
+    private func artworkHandleCursor(at location: CGPoint) -> NSCursor? {
+        guard let artwork = state.design.artwork, artwork.visible else { return nil }
+        let corners = artwork.corners.map(screen), middle = screen(artwork.center)
+        let reach = artworkHandleReach
+        func near(_ p: CGPoint) -> Bool { hypot(p.x - location.x, p.y - location.y) <= reach }
+        if let corner = corners.first(where: near) { return HandleCursor.diagonal(rising: (corner.x - middle.x) * (corner.y - middle.y) > 0) }
+        if state.artworkSkewHandles, let side = artworkSideHandles(artwork).firstIndex(where: near) {
+            let a = corners[side], b = corners[(side + 1) % 4]
+            return abs(b.x - a.x) >= abs(b.y - a.y) ? HandleCursor.skewSideways : HandleCursor.skewUpDown
+        }
+        return artworkRotateCorner(at: location) != nil ? HandleCursor.rotate : nil
+    }
     /// Shows the handle's pointer while the pointer is over one, and the tool's pointer again once it moves off.
     private func updateHandleCursor(at location: CGPoint) {
-        guard turnDrag == nil, resizeDrag == nil else { return }   // during a drag the pointer stays what it was
+        guard turnDrag == nil, resizeDrag == nil, artworkTurnDrag == nil, artworkDrag == nil else { return }   // during a drag the pointer stays what it was
         let cursor = handleCursor(at: location)
         guard cursor !== shownHandleCursor else { return }
         shownHandleCursor = cursor
@@ -1436,11 +1488,17 @@ final class DesignCanvas: NSView {
             needsDisplay = true; return
         }
         if state.tool == .artwork {
-            // A corner handle resizes; anywhere on the image moves it; elsewhere nothing happens.
+            // A corner handle resizes; just outside a corner rotates; once the image is clicked, a side's diamond
+            // leans it. Anywhere on the image moves it, and a click there without moving shows or hides the diamonds.
+            // Elsewhere nothing happens.
             guard let artwork = state.design.artwork, artwork.visible else { return }
-            let corners = artwork.corners.map(screen)
-            if let corner = corners.indices.first(where: { hypot(corners[$0].x - location.x, corners[$0].y - location.y) <= 9 }) { artworkDrag = corner }
-            else if artworkRect(artwork).contains(location) { artworkDrag = -1 } else { return }
+            let reach = artworkHandleReach
+            func near(_ p: CGPoint) -> Bool { hypot(p.x - location.x, p.y - location.y) <= reach }
+            let sides = state.artworkSkewHandles ? artworkSideHandles(artwork) : []
+            if let corner = artwork.corners.map(screen).firstIndex(where: near) { artworkDrag = corner }
+            else if let side = sides.firstIndex(where: near) { artworkTurnDrag = 4 + side }
+            else if let corner = artworkRotateCorner(at: location) { artworkTurnDrag = corner }
+            else if artworkOutline(artwork).contains(location) { artworkDrag = -1; clickAgainAt = location } else { return }
             dragStart = model(location); dragSnapshot = state.design; return
         }
         // Markers sit on top of everything, so grabbing one wins over setting a new point. (Edit Nodes grabs them further
@@ -1650,6 +1708,12 @@ final class DesignCanvas: NSView {
             next.multiHooping!.hoopings[index].center = before[index].center + (snapped(model(location)) - start)
             preview = next; needsDisplay = true; return
         }
+        if let handle = artworkTurnDrag, let artwork = next.artwork {
+            let turned = artwork.turned(handle: handle, from: start, to: model(location), step: event.modifierFlags.contains(.shift) ? 15 : 1)
+            next.artwork = turned.artwork
+            state.status = (handle < 4 ? "Rotate \(Int(turned.degrees))° · ⇧ turns" : "Skew \(Int(turned.degrees))° · ⇧ leans") + " in steps of 15°"
+            preview = next; needsDisplay = true; return
+        }
         if let corner = artworkDrag, let artwork = next.artwork {
             next.artwork = artwork.adjusted(corner: corner, from: start, to: snapped(model(location)), free: event.modifierFlags.contains(.shift))
             preview = next; needsDisplay = true; return
@@ -1739,6 +1803,10 @@ final class DesignCanvas: NSView {
             if let preview { state.document?.replace(preview, action: drag.dx != 0 && drag.dy != 0 ? "Rotate Objects" : "Skew Objects") }
             turnDrag = nil; preview = nil; dragStart = nil; dragSnapshot = nil; needsDisplay = true; return
         }
+        if let handle = artworkTurnDrag {
+            if let preview { state.document?.replace(preview, action: handle < 4 ? "Rotate Artwork" : "Skew Artwork") }
+            artworkTurnDrag = nil; preview = nil; dragStart = nil; dragSnapshot = nil; needsDisplay = true; return
+        }
         if let drag = guideDrag {
             // Let go over its own ruler, a guide is removed (or, if it was just dragged out, never added).
             let removing = overOwnRuler(convert(event.locationInWindow, from: nil), vertical: drag.vertical)
@@ -1799,7 +1867,11 @@ final class DesignCanvas: NSView {
         if let pressed = clickAgainAt {
             clickAgainAt = nil
             let here = convert(event.locationInWindow, from: nil)
-            if hypot(here.x - pressed.x, here.y - pressed.y) < 3 {
+            if hypot(here.x - pressed.x, here.y - pressed.y) < 3, state.tool == .artwork {
+                state.artworkSkewHandles.toggle(); preview = nil   // a click, not a move
+                state.status = state.artworkSkewHandles ? "Skew the image · drag a diamond on a side to lean it · ⇧ in steps of 15° · click it again to hide them" : "Drag a corner to resize the image · just outside a corner to rotate · click it to skew"
+                needsDisplay = true
+            } else if hypot(here.x - pressed.x, here.y - pressed.y) < 3 {
                 state.skewHandles.toggle()
                 state.status = state.skewHandles ? "Skew · drag a diamond on a side to lean the selection · ⇧ in steps of 15° · click again to stretch" : "Drag a corner to resize · just outside a corner to rotate · click the selection again to skew"
                 needsDisplay = true
@@ -1831,7 +1903,7 @@ final class DesignCanvas: NSView {
     private func dropDragIfDesignChanged() -> Bool {
         guard state.revision != dragRevision, stitchDrag != nil || dragSnapshot != nil else { return false }
         stitchDrag = nil; stitchPreview = nil; preview = nil; dragSnapshot = nil; dragStart = nil; angleDrag = nil; fillAngleDrag = nil; guideDrag = nil
-        draggedNode = nil; draggedHandle = nil; draggedMarker = nil; artworkDrag = nil; hoopingDrag = nil; nodeJustAdded = false; dragProblem = nil; resizeDrag = nil; turnDrag = nil; letterDrag = nil; envelopeDrag = nil; needsDisplay = true
+        draggedNode = nil; draggedHandle = nil; draggedMarker = nil; artworkDrag = nil; hoopingDrag = nil; nodeJustAdded = false; dragProblem = nil; resizeDrag = nil; turnDrag = nil; artworkTurnDrag = nil; letterDrag = nil; envelopeDrag = nil; needsDisplay = true
         state.status = "The design changed during the drag, so the drag was cancelled."
         return true
     }
