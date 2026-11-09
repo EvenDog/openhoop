@@ -92,6 +92,34 @@ final class LineRepeatTests: XCTestCase {
         XCTAssertEqual(made[1].settings.angle, 45, accuracy: 0.001, "rows turn with the line")
     }
 
+    /// A spacing fills the line end to end with as many copies as fit (the gap rounded to fit), keeps doing so when
+    /// the line is reshaped, and typing a number of copies goes back to that number.
+    func testSpacingFillsTheLineWithAsManyCopiesAsFit() throws {
+        var (design, id) = try repeated(5) { $0.spacing = 4 }
+        var made = copies(design)
+        XCTAssertEqual(made.count, 11, "40 mm at 4 mm apart, end to end")
+        XCTAssertEqual(middle(design, made[0]).x, 0, accuracy: 0.001); XCTAssertEqual(middle(design, made[10]).x, 40, accuracy: 0.001)
+        XCTAssertEqual(design.repeatSpacing(id)!, 4, accuracy: 0.001)
+        XCTAssertEqual(design.objects.first { $0.lineRepeat != nil }?.lineRepeat?.copies, 11, "saved too, for older versions")
+        // 6 mm doesn't divide 40: 40 / 6 rounds to 7 gaps, so 8 copies about 5.7 mm apart, still end to end.
+        design.setLineRepeat(id) { $0.spacing = 6 }; design.syncGuides()
+        made = copies(design)
+        XCTAssertEqual(made.count, 8)
+        XCTAssertEqual(middle(design, made[7]).x, 40, accuracy: 0.001)
+        // Stretch the line to 80 mm: 80 / 6 rounds to 13 gaps at the same spacing, so 14 copies.
+        let g = design.objects.firstIndex { $0.lineRepeat != nil }!
+        design.objects[g].nodes[1] = PathNode(Point(80, 0)); design.syncGuides()
+        XCTAssertEqual(copies(design).count, 14)
+        // Typing Copies goes back to a fixed number.
+        design.setLineRepeat(id) { $0.copies = 3; $0.spacing = nil }; design.syncGuides()
+        XCTAssertEqual(copies(design).count, 3)
+        XCTAssertEqual(design.repeatSpacing(id)!, 40, accuracy: 0.001)
+        // Very close copies stop at 200.
+        XCTAssertEqual(LineRepeat.copiesFitting(length: 1000, spacing: 2), 200)
+        var bad = design; bad.setLineRepeat(id) { $0.spacing = 0.5 }
+        XCTAssertThrowsError(try bad.validate(), "spacing is 2–50 mm")
+    }
+
     func testMovingEverythingTogetherBuildsNothingAgain() throws {
         var (design, _) = try repeated(3)
         let before = design.objects.map(\.id)
