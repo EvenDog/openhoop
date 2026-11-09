@@ -6,6 +6,35 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.13.4</title>
+            <pubDate>Mon, 09 Nov 2026 22:49:50 GMT</pubDate>
+            <sparkle:version>50</sparkle:version>
+            <sparkle:shortVersionString>0.13.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.13.4</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.13.4</h3>
+<h4>Rotate and skew on the canvas</h4>
+<ul>
+<li><b>Rotate:</b> just outside any corner of the selection, the pointer turns into a round arrow. Drag there to turn the selection around its middle; a small cross marks the middle while it turns, and the status line shows the angle. The corner squares still resize.</li>
+<li><b>Skew:</b> click the selection again (without dragging) and the handles on its sides become diamonds. Drag the top or bottom one to lean it sideways, or the left or right one to lean it up and down; the opposite side stays put. Click again for the stretch handles.</li>
+<li>Hold <b>⇧</b> to turn or lean in steps of 15°. Fill rows turn and lean with the shape.</li>
+<li>The pointer shows what a drag will do: ↻ to rotate, diagonal arrows on corners, ↔ and ↕ on sides, ⇄ on skew diamonds.</li>
+</ul>
+<h4>Reference image: rotate, flip, skew and crop</h4>
+<ul>
+<li>With <b>Move &amp; Size Artwork</b> (⌥D), drag just outside a corner of the image to rotate it, and click the image for skew diamonds on its sides, the same as for objects.</li>
+<li>The Reference image panel has <b>Rotate</b> and <b>Skew</b> boxes, buttons that turn the image 90° or flip it, and <b>Straighten</b>, which takes every turn, flip and skew away.</li>
+<li><b>Crop:</b> click Crop and drag a box over the part of the image to keep. The rest is hidden, not thrown away: <b>Uncrop</b> brings it back where it was.</li>
+<li><b>Auto-digitize</b> traces the image the way it sits on the canvas, turned, flipped, skewed or cropped, and its dialog shows it that way.</li>
+</ul>
+<h4>Files</h4>
+<p>A turned, flipped, skewed or cropped reference image shows plain and uncropped in older versions. It never changes the stitches.</p>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.13.4/OpenHoop-0.13.4.dmg" sparkle:edSignature="KlPb1piPeGLxHrVNzTZUk0sP+IlO3x6J+BdmX6T59cPSPqTAvnXjbWlQ/ZCEWswZQB43kmixdQ4nahLoXihICw==" length="43307583" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.13.3</title>
             <pubDate>Mon, 09 Nov 2026 17:31:09 GMT</pubDate>
             <sparkle:version>49</sparkle:version>
