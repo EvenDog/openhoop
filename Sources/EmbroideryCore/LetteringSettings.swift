@@ -11,7 +11,7 @@ enum LetterSettings {
     /// Settings that aren't carried over: the stitch kind (a part converted to another kind is a different part), and
     /// what belongs to one letter's shape or place: its fill angle (carried as a turn instead), stitch angle lines,
     /// and a radial fill's center.
-    static let skipped: Set<String> = ["kind", "angle", "radialCenter", "angleLines", "angleLineCenter", "guideLine"]
+    static let skipped: Set<String> = ["kind", "angle", "radialCenter", "angleLines", "angleLineCenter", "angleLineLength", "guideLine"]
 
     /// Where each part sits: its letter (line × 1000 + place) and its place among that letter's parts, in sewing order.
     private struct Place: Hashable { var letter: Int; var part: Int }

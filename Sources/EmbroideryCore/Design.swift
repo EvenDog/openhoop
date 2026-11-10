@@ -143,6 +143,11 @@ public struct RunObject: Codable, Hashable, Identifiable, Sendable {
         if let center = digitizing?.radialCenter { digitizing?.radialCenter = body(center) }
         if let lines = digitizing?.angleLines { digitizing?.angleLines = lines.map { $0.map(body) } }
         if let guide = digitizing?.guideLine { digitizing?.guideLine = guide.map(body) }
+        // The line's length is how far apart its ends are, so it stretches as they move (resizing the shape).
+        if let length = digitizing?.angleLineLength, let center = digitizing?.angleLineCenter, let angle = digitizing?.angle {
+            let half = Point(cos(angle * .pi / 180), sin(angle * .pi / 180)) * (length / 2)
+            digitizing?.angleLineLength = body(center + half).distance(to: body(center - half))
+        }
         if let center = digitizing?.angleLineCenter { digitizing?.angleLineCenter = body(center) }
         // Edited stitches move with the object, and still count as made from it.
         if stitchEdits != nil { for s in stitchEdits!.sections.indices { stitchEdits!.sections[s].points = stitchEdits!.sections[s].points.map(body) } }
@@ -537,6 +542,9 @@ public struct DigitizingSettings: Codable, Hashable, Sendable {
     /// Tatami and wave fills: where Edit Nodes draws the line showing `angle` (StitchAngleLine.swift), in mm; nil
     /// is the middle of the shape. Only where the line is drawn: it never changes the stitches.
     public var angleLineCenter:Point?
+    /// Tatami and wave fills: how long (mm) that line is drawn, once an end has been dragged; nil reaches across the
+    /// whole shape. Only where the line is drawn, like `angleLineCenter`.
+    public var angleLineLength:Double?
     /// Running stitch only: how many times each stitch is sewn, back and forth (3 or 5 is "bean stitch", a bold
     /// line). nil (the default, and in older files) means once.
     public var runPasses:Int?
@@ -1090,6 +1098,7 @@ public struct Design: Codable, Equatable, Sendable {
                 // The fill style's own settings: out-of-range values would make the fill engines overflow or run for ages.
                 guard s.radialCenter.map({ $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 }) ?? true,
                       s.angleLineCenter.map({ $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 }) ?? true,
+                      s.angleLineLength.map({ $0.isFinite && $0 > 0 && $0 <= 30_000 }) ?? true,
                       s.angleLines.map({ lines in lines.count <= 100 && lines.allSatisfy { $0.count == 2 && $0.allSatisfy { $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 } } }) ?? true,
                       s.guideLine.map({ line in line.count <= 20_000 && line.allSatisfy { $0.finite && abs($0.x) <= 10_000 && abs($0.y) <= 10_000 } }) ?? true,
                       s.waveHeight.map(DigitizingSettings.waveHeightRange.contains) ?? true,

@@ -228,7 +228,7 @@ final class RandomDesignTests: XCTestCase {
                 s.angleLines = (0..<Int.random(in: 1...3, using: &r)).map { _ in [anywhere(&r), anywhere(&r)] }
             }
             if Int.random(in: 0..<3, using: &r) == 0 { s.cutOutOverlaps = true }
-            if Bool.random(using: &r) { s.angleLineCenter = anywhere(&r) }
+            if Bool.random(using: &r) { s.angleLineCenter = anywhere(&r); if Bool.random(using: &r) { s.angleLineLength = .random(in: 1...200, using: &r) } }
             object.digitizing = s
             object.stitchLength = .random(in: 1...7, using: &r)
             if Int.random(in: 0..<4, using: &r) == 0 {
