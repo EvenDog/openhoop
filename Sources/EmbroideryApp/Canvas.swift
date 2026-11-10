@@ -92,7 +92,21 @@ final class DesignCanvas: NSView {
     private var zoomBox: (start: CGPoint, end: CGPoint)?   // the box being dragged with the Zoom Box tool, in canvas points
     private var selectBox: (start: CGPoint, end: CGPoint)?   // a box dragged from empty canvas with Select, in canvas points
     var measurement: (start: Point, end: Point)?   // the Measure tool's line, in mm; shown until the tool changes
-    private var measuring = false   // true while that line is being dragged
+    /// Where the Measure tool's line is up to: being dragged with the mouse held down; following the pointer after a
+    /// click (click, move, click); or the mouse is still down on the click that put its end down. Nil otherwise.
+    private enum MeasureStep { case dragging, following, placed }
+    private var measureStep: MeasureStep?
+    /// True after a Measure click (no drag): the line's end follows the pointer until the next click.
+    var measureFollowsPointer: Bool { measureStep == .following }
+    /// Escape while the line follows the pointer: forgets that line; the Measure tool stays on.
+    func cancelMeasuring() { measurement = nil; measureStep = nil; needsDisplay = true }
+    /// Moves the end of the Measure tool's line to `location` (in the view) and reads it out in the status bar.
+    private func moveMeasurementEnd(to location: NSPoint) {
+        guard let line = measurement else { return }
+        measurement = (line.start, snapped(model(location)))
+        state.status = "Measured " + Self.measurementText(from: line.start, to: measurement!.end, unit: Preferences.shared.unit)
+        needsDisplay = true
+    }
     // Edit Stitch: needle points being dragged (where the drag began, and the stitches before it), the stitches
     // as they'd be (shown while dragging), and a selection box being dragged.
     private var stitchDrag: (start: Point, sections: [StitchEdits.Section])?
@@ -385,7 +399,7 @@ final class DesignCanvas: NSView {
     }
     /// Called whenever the tool changes: the Measure tool's line goes, and the pointer takes the new tool's shape.
     func toolDidChange() {
-        if state.tool != .measure { measurement = nil; measuring = false }
+        if state.tool != .measure { measurement = nil; measureStep = nil }
         hoveredGuide = nil; hoveredPick = nil; statusBeforeHint = nil
         window?.invalidateCursorRects(for: self); needsDisplay = true
     }
@@ -1426,7 +1440,16 @@ final class DesignCanvas: NSView {
             guideDrag = ((state.design.guides ?? []).count, inLeftRuler, true, location); dragSnapshot = state.design
             showWantedCursor(); return
         }
-        if state.tool == .measure { let point = snapped(model(location)); measurement = (point, point); measuring = true; needsDisplay = true; return }
+        if state.tool == .measure {
+            if measureStep == .following, let line = measurement {
+                // The second click of click, move, click puts the line's end down where the pointer is. One right on
+                // top of the first click (under 3 screen points away) is ignored, and the line keeps following.
+                let point = snapped(model(location))
+                guard line.start.distance(to: point) * state.zoom >= 3 else { return }
+                moveMeasurementEnd(to: location); measureStep = .placed; return
+            }
+            let point = snapped(model(location)); measurement = (point, point); measureStep = .dragging; needsDisplay = true; return
+        }
         if state.tool == .text { state.addLettering(at: snapped(model(location))); return }
         if state.tool == .branch { state.addBranchPoint(snapped(model(location))); return }
         if state.tool == .scatter { return }   // its choices are all in Properties
@@ -1621,7 +1644,7 @@ final class DesignCanvas: NSView {
             if let node=added.node{state.selectedNode=node;state.status="Curve node added · drag it and the edge bends smoothly through it"}
         }
     }
-    override func mouseMoved(with event:NSEvent){pointer=model(convert(event.locationInWindow,from:nil));state.pointer.position=pointer;if shapeFollowsPointer,let start=shapeStart,state.tool.dragsShape{sizeShape(from:start,to:convert(event.locationInWindow,from:nil),flags:event.modifierFlags)};moveRulerMarks(to:convert(event.locationInWindow,from:nil));if state.angleStart != nil{needsDisplay=true};updateGuideCursor(at:convert(event.locationInWindow,from:nil));updateHandleCursor(at:convert(event.locationInWindow,from:nil));updateContinueHover(at:convert(event.locationInWindow,from:nil))}
+    override func mouseMoved(with event:NSEvent){pointer=model(convert(event.locationInWindow,from:nil));state.pointer.position=pointer;if shapeFollowsPointer,let start=shapeStart,state.tool.dragsShape{sizeShape(from:start,to:convert(event.locationInWindow,from:nil),flags:event.modifierFlags)};if measureStep == .following,state.tool == .measure{moveMeasurementEnd(to:convert(event.locationInWindow,from:nil))};moveRulerMarks(to:convert(event.locationInWindow,from:nil));if state.angleStart != nil{needsDisplay=true};updateGuideCursor(at:convert(event.locationInWindow,from:nil));updateHandleCursor(at:convert(event.locationInWindow,from:nil));updateContinueHover(at:convert(event.locationInWindow,from:nil))}
     override func mouseExited(with event: NSEvent) { state.pointer.position = nil; hoveredGuide = nil; moveRulerMarks(to: nil); updateContinueHover(at: nil) }
     override func mouseDragged(with event: NSEvent) {
         let location = convert(event.locationInWindow, from: nil)
@@ -1662,11 +1685,8 @@ final class DesignCanvas: NSView {
             }
             fillAngleDrag = (drag.object, model(location), drag.slideFrom); preview = next; needsDisplay = true; return
         }
-        if measuring, let line = measurement {
-            measurement = (line.start, snapped(model(location)))
-            state.status = "Measured " + Self.measurementText(from: line.start, to: measurement!.end, unit: Preferences.shared.unit)
-            needsDisplay = true; return
-        }
+        if measureStep == .dragging { moveMeasurementEnd(to: location); return }
+        if measureStep == .placed { return }   // the click that put the line down: a wobble doesn't move it
         if freehandStroke != nil {
             // The stroke follows the pointer; points closer than 0.1 mm are skipped (finishing smooths it anyway).
             let p = model(location)
@@ -1787,7 +1807,19 @@ final class DesignCanvas: NSView {
         }
     }
     override func mouseUp(with event: NSEvent) {
-        if measuring { measuring = false; return }
+        if let step = measureStep, guideDrag == nil {
+            switch step {
+            case .dragging:
+                // Under 3 screen points long, it was a click, not a drag: the line's end follows the pointer until the next click.
+                if let line = measurement, line.start.distance(to: line.end) * state.zoom < 3 {
+                    measureStep = .following
+                    state.status = "Move to the other point, then click to measure · Esc cancels"
+                } else { measureStep = nil }
+            case .placed: measureStep = nil
+            case .following: break   // letting go of a click right on the first one: the line keeps following
+            }
+            return
+        }
         if dropDragIfDesignChanged() { return }
         if let drag = envelopeDrag {
             if let spec = bentEnvelope(drag, to: snapped(model(convert(event.locationInWindow, from: nil))), flags: event.modifierFlags), spec != drag.spec {

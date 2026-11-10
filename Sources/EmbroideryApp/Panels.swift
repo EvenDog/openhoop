@@ -151,7 +151,7 @@ struct ToolStrip: View {
         case .ellipse: return ("Ellipse", "click the center, click again (or drag) · ⌘ for a circle")
         case .rectangle, .basicShape: return ("Shape", "click, click again (or drag) · ⌘ keeps it even · ⇧ from the center")
         case .zoomBox: return ("Zoom box", "drag a box to zoom into · click zooms in 2×")
-        case .measure: return ("Measure", "drag between two points")
+        case .measure: return ("Measure", "drag, or click one point then another")
         case .hooping: return ("Hoopings", "drag one to move it · click to see what it sews")
         case .text: return ("Lettering", "click where it goes, then type in Properties")
         case .knife: return ("Knife", "click points across shapes" + key(.finishPath, "cuts"))
