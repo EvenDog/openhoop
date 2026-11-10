@@ -6,6 +6,41 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.13.6</title>
+            <pubDate>Tue, 10 Nov 2026 22:28:26 GMT</pubDate>
+            <sparkle:version>52</sparkle:version>
+            <sparkle:shortVersionString>0.13.6</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.13.6</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.13.6</h3>
+<h4>Straight lines in 15° steps</h4>
+<ul>
+<li>While drawing with a point-by-point tool (Running, Satin, Fill, Hole, Open and Closed Shape, Knife), hold <b>⌘</b> (or <b>⌃ Control</b>): a dashed line from the last point shows where the next click goes, turned to the nearest 15° step (straight across, 15°, 30°, 45°, … straight up), with its angle. Click with the key held to put a corner there.</li>
+<li>The same key snaps the <b>Measure</b> line and <b>Add Stitch Angles</b> lines, both when clicking the second point and when dragging an end.</li>
+<li>Control-click no longer adds a curve point while drawing; secondary-click (two-finger click) and press-and-drag still make curves.</li>
+</ul>
+<h4>Stitch angle line</h4>
+<ul>
+<li>With <b>Edit Nodes</b> (H) on a fill, dragging an end of its stitch angle line now keeps the <b>other end where it is</b>: the line runs from it to the pointer, as long as you drag it, and the stitches turn smoothly to match. It no longer swings around the middle of the shape.</li>
+<li>Hold <b>⌘</b>, <b>⌃</b> or <b>⇧</b> while dragging for 15° steps.</li>
+<li><b>Double-click</b> the line to put it back across the whole shape, through the middle. The angle stays.</li>
+</ul>
+<h4>Line art</h4>
+<ul>
+<li><b>Add Line Art…</b> with <b>Bean (triple)</b> sews the stretches where a drawing goes back over itself once instead of three more times, as Make Redwork does, so they come out about as bold as the rest of the line.</li>
+</ul>
+<h4>Smaller fixes</h4>
+<ul>
+<li>The Basic Shapes tool's hint says 55 shapes (it said 35), and the drawing tools' hints point to <b>Next shape</b> in Properties.</li>
+</ul>
+<h4>Files</h4>
+<p>Bean line art now saves as file version 24, which needs OpenHoop 0.13.0 or later. Where the stitch angle line is drawn is saved too; older versions ignore it, and it never changes the stitches.</p>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.13.6/OpenHoop-0.13.6.dmg" sparkle:edSignature="1a+Y87HBzUCffJiNN9guQE9/PxUaRVY0AiQwfo8YyQkzs7tIgCRngze7HddxqDLwl6ZT5dmmQPXzehiCoRKPAQ==" length="43235019" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.13.5</title>
             <pubDate>Tue, 10 Nov 2026 19:52:07 GMT</pubDate>
             <sparkle:version>51</sparkle:version>
