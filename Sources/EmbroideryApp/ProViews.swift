@@ -74,7 +74,7 @@ struct PrecisionBar: View {
     private func field(_ label: String, _ value: Double, range: ClosedRange<Double>, length: Bool = false, help: String, commit: @escaping (Double) -> Void) -> some View {
         HStack(spacing: 4) {
             Text(label).font(Theme.body(11)).foregroundStyle(Theme.inkSecondary).fixedSize()   // labels never get squeezed out
-            NumberField(value: value, range: range, unit: length ? preferences.unit : nil, commit: commit, focusCanvas: state.focusCanvas).frame(width: 56, height: 20)
+            NumberWell(field: NumberField(value: value, range: range, unit: length ? preferences.unit : nil, commit: commit, focusCanvas: state.focusCanvas), width: 56)
         }
         .help(help)
     }
@@ -493,14 +493,9 @@ extension InspectorPanel {
             if angled {
                 VStack(spacing: 4) {
                     AngleDial(angle: object.settings.angle) { angle, dragStart in setFillAngle(angle, run: "angle dial \(dragStart.timeIntervalSince1970)") }
-                    HStack(spacing: 1) {
-                        NumberField(value: object.settings.angle, identifier: "fillAngle", range: -180...180, commit: { setFillAngle($0, run: nil) }, focusCanvas: state.focusCanvas, whole: true)
-                            .frame(width: 34, height: 19)
-                        Text("°").font(Theme.body(11, weight: .bold))
-                    }
-                    .padding(.horizontal, 3).padding(.vertical, 1)
-                    .background(Theme.card.opacity(0.94), in: RoundedRectangle(cornerRadius: 5))
-                    .help("The direction the fill rows run. Type an angle, or drag the dial.")
+                    NumberWell(field: NumberField(value: object.settings.angle, identifier: "fillAngle", range: -180...180, commit: { setFillAngle($0, run: nil) }, focusCanvas: state.focusCanvas, whole: true),
+                               unit: "°", width: 52)
+                        .help("The direction the fill rows run. Type an angle, or drag the dial.")
                 }
                 .padding(7)
             }
@@ -916,11 +911,8 @@ extension InspectorPanel {
         let shownUnit = length ? preferences.unit.symbol : unit
         return VStack(alignment: .leading, spacing: 2) {
             Text(title).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).lineLimit(1).minimumScaleFactor(0.8)
-            HStack(spacing: 3) {
-                NumberField(value: value, identifier: id, range: range, unit: length ? preferences.unit : nil, commit: commit, focusCanvas: state.focusCanvas, whole: whole)
-                    .frame(height: 21)
-                if let shownUnit { Text(shownUnit).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).fixedSize() }
-            }
+            NumberWell(field: NumberField(value: value, identifier: id, range: range, unit: length ? preferences.unit : nil, commit: commit, focusCanvas: state.focusCanvas, whole: whole),
+                       unit: shownUnit)
         }
         .help(help)
     }

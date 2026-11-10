@@ -349,10 +349,7 @@ private struct NewDesignSettings: View {
     /// One number setting: a field and its unit. A typed value is saved straight away.
     private func number(_ title: String, hint: String, unit: String, value: Double, range: ClosedRange<Double>, set: @escaping (Double) -> Void) -> some View {
         SettingsRow(title: title, hint: hint) {
-            HStack(spacing: 6) {
-                NumberField(value: value, range: range, commit: { set($0); preferences.save() }, focusCanvas: {}).frame(width: 70, height: 22)
-                Text(unit).font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).frame(width: 22, alignment: .leading)
-            }
+            NumberWell(field: NumberField(value: value, range: range, commit: { set($0); preferences.save() }, focusCanvas: {}), unit: unit, width: 96)
         }
     }
 }

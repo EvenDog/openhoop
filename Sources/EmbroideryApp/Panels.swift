@@ -325,17 +325,31 @@ struct NumberField: NSViewRepresentable {
     var focusCanvas: () -> Void
     /// True for a count (copies, lines, a variant): shown without decimals.
     var whole = false
-    /// The value as the field shows it, with two decimals (in `unit` for a length), or none for a count.
-    var text: String { String(format: whole ? "%.0f" : "%.2f", unit?.shown(value) ?? value) }
+    /// Told true when you click into the field and false when you leave it, so its `NumberWell` can show a ring.
+    var editingChanged: (Bool) -> Void = { _ in }
+    /// The value as the field shows it (in `unit` for a length): at most two decimals and no trailing zeros, so
+    /// 100, 0.4 and 0.65; a count has none.
+    var text: String {
+        let shown = unit?.shown(value) ?? value
+        if whole { return String(format: "%.0f", shown) }
+        var digits = String(format: "%.2f", shown)   // always has a ".", so only decimals are trimmed
+        while digits.hasSuffix("0") { digits.removeLast() }
+        if digits.hasSuffix(".") { digits.removeLast() }
+        return digits == "-0" ? "0" : digits
+    }
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> NSTextField {
-        let view = NSTextField(string: text)
+        let view = WellTextField(string: text)
         view.identifier = NSUserInterfaceItemIdentifier(identifier)
         view.delegate = context.coordinator; view.alignment = .right; view.font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
+        // No box of its own: the NumberWell around it draws the field.
+        view.isBordered = false; view.isBezeled = false; view.drawsBackground = false; view.focusRingType = .none
+        view.editingChanged = editingChanged
         return view
     }
     func updateNSView(_ view: NSTextField, context: Context) {
         context.coordinator.parent = self
+        (view as? WellTextField)?.editingChanged = editingChanged
         if view.currentEditor() == nil { view.stringValue = text }
     }
     class Coordinator: NSObject, NSTextFieldDelegate {
@@ -369,6 +383,43 @@ struct NumberField: NSViewRepresentable {
             // length (100 mm shows as 3.94 in) never changes the design when you just pass through the field.
             if Double(field.stringValue) != Double(parent.text) { parent.commit(number) }
         }
+    }
+}
+
+/// The text field inside a NumberField. It says when you click into it and when you leave, which a plain
+/// NSTextField doesn't: the typing itself happens in a shared "field editor" that macOS swaps in on click.
+final class WellTextField: NSTextField {
+    var editingChanged: (Bool) -> Void = { _ in }
+    override func becomeFirstResponder() -> Bool {
+        let accepted = super.becomeFirstResponder()
+        if accepted { editingChanged(true) }
+        return accepted
+    }
+    override func textDidEndEditing(_ notification: Notification) {
+        super.textDidEndEditing(notification)
+        editingChanged(false)
+    }
+}
+
+/// A NumberField drawn as a soft dip pressed into the panel (a "well"), with its unit inside after the number.
+/// While you type in it, a denim ring goes round it. `width` nil fills the space it's given.
+struct NumberWell: View {
+    let field: NumberField
+    var unit: String? = nil
+    var width: CGFloat? = nil
+    @State private var editing = false
+    var body: some View {
+        var field = field   // a copy, to hook up the ring
+        field.editingChanged = { editing = $0 }
+        return HStack(spacing: unit == "°" ? 0 : 3) {   // degrees sit right against the number: 45°
+            field
+            if let unit { Text(unit).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).fixedSize() }
+        }
+        .padding(.horizontal, 7)
+        .frame(width: width, height: 24)
+        // `.inner` shadow draws inside the shape's edge, which is what makes it look pressed in.
+        .background(RoundedRectangle(cornerRadius: 7).fill(Theme.well.shadow(.inner(color: Theme.wellShadow, radius: 1.5, y: 1))))
+        .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Theme.accent, lineWidth: 2).opacity(editing ? 1 : 0))
     }
 }
 
@@ -535,16 +586,18 @@ struct InspectorPanel: View {
     /// The tie stitch count menu and length field.
     private var tieStitchControls: some View {
         HStack {
-            Picker("Tie stitches", selection: Binding(get: { state.design.tieCount ?? Design.defaultTieCount },
-                                                      set: { count in state.edit("Tie Stitches") { $0.tieCount = count == Design.defaultTieCount ? nil : count } })) {
-                ForEach(Array(Design.tieCounts), id: \.self) { Text("\($0)").tag($0) }
-            }
-            .labelsHidden().fixedSize()
+            NumberWell(field: NumberField(value: Double(state.design.tieCount ?? Design.defaultTieCount),
+                                          range: Double(Design.tieCounts.lowerBound)...Double(Design.tieCounts.upperBound),
+                                          commit: { typed in
+                                              let count = Int(typed.rounded())
+                                              state.edit("Tie Stitches") { $0.tieCount = count == Design.defaultTieCount ? nil : count }
+                                          },
+                                          focusCanvas: state.focusCanvas, whole: true), width: 36)
             Text("×").font(Theme.body(11)).foregroundStyle(Theme.inkSecondary)
-            NumberField(value: state.design.tieLength ?? Design.defaultTieLength, range: Design.tieLengths, unit: preferences.unit,
-                        commit: { value in state.edit("Tie Stitch Length") { $0.tieLength = value == Design.defaultTieLength ? nil : value } },
-                        focusCanvas: state.focusCanvas).frame(width: 60, height: 21)
-            Text(preferences.unit.symbol).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).fixedSize().frame(width: 18, alignment: .leading)
+            NumberWell(field: NumberField(value: state.design.tieLength ?? Design.defaultTieLength, range: Design.tieLengths, unit: preferences.unit,
+                                          commit: { value in state.edit("Tie Stitch Length") { $0.tieLength = value == Design.defaultTieLength ? nil : value } },
+                                          focusCanvas: state.focusCanvas),
+                       unit: preferences.unit.symbol, width: 80)
         }.fixedSize()
     }
     /// The Trim (after) menu: Off, Always, or When far (showing the design's trim distance), for every selected object.
@@ -761,9 +814,9 @@ struct InspectorPanel: View {
         return HStack(spacing: 6) {
             Text(title).font(Theme.body(11, weight: .regular)); Spacer()
             Text("X").font(Theme.body(10)).foregroundStyle(Theme.inkSecondary)
-            NumberField(value: point.x, range: -1000...1000, unit: preferences.unit, commit: { commit(Point($0, point.y)) }, focusCanvas: state.focusCanvas).frame(width: 60, height: 21)
+            NumberWell(field: NumberField(value: point.x, range: -1000...1000, unit: preferences.unit, commit: { commit(Point($0, point.y)) }, focusCanvas: state.focusCanvas), width: 60)
             Text("Y").font(Theme.body(10)).foregroundStyle(Theme.inkSecondary)
-            NumberField(value: point.y, range: -1000...1000, unit: preferences.unit, commit: { commit(Point(point.x, $0)) }, focusCanvas: state.focusCanvas).frame(width: 60, height: 21)
+            NumberWell(field: NumberField(value: point.y, range: -1000...1000, unit: preferences.unit, commit: { commit(Point(point.x, $0)) }, focusCanvas: state.focusCanvas), width: 60)
             Text(preferences.unit.symbol).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary)
         }
         .help("\(title) point, from the hoop's center")
@@ -939,8 +992,8 @@ struct InspectorPanel: View {
     @ViewBuilder func number(_ title: String, value: Double, id: String = "", range: ClosedRange<Double>, length: Bool = false, unit: String? = nil, whole: Bool = false, help: String? = nil, commit: @escaping (Double) -> Void) -> some View {
         HStack {
             Text(title).font(Theme.body(11, weight: .regular)); Spacer()
-            NumberField(value: value, identifier: id, range: range, unit: length ? preferences.unit : nil, commit: commit, focusCanvas: state.focusCanvas, whole: whole).frame(width: 84, height: 21)
-            if let label = length ? preferences.unit.symbol : unit { Text(label).font(Theme.body(10)).foregroundStyle(Theme.inkSecondary).fixedSize().frame(width: 18, alignment: .leading) }
+            NumberWell(field: NumberField(value: value, identifier: id, range: range, unit: length ? preferences.unit : nil, commit: commit, focusCanvas: state.focusCanvas, whole: whole),
+                       unit: length ? preferences.unit.symbol : unit, width: 104)
         }
         .help(help ?? "")
     }
