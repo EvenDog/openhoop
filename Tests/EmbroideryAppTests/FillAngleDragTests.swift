@@ -1,5 +1,5 @@
-// Edit Nodes (H) on a tatami fill shows its stitch angle as a line; dragging an end turns the stitches, as one undo
-// step.
+// Edit Nodes (H) on a tatami fill shows its stitch angle as a line; dragging an end turns the stitches around the
+// other end, as one undo step.
 import XCTest
 import AppKit
 import EmbroideryCore
@@ -21,14 +21,19 @@ final class FillAngleDragTests: XCTestCase {
         document.undoManager?.beginUndoGrouping(); state.edit("Add Box") { $0.objects.append(fill) }; document.undoManager?.endUndoGrouping()
         state.selection = [fill.id]; state.tool = .node
 
-        // Grab the line's upper end and swing it round to straight up from the middle.
+        // Grab the line's upper end and swing it round to straight up from the lower end, which stays put.
         let ends = try XCTUnwrap(StitchAngleLine.ends(of: state.design.objects[0]))
+        let lower = ends.0, above = Point(lower.x, 20)
         mouse(.leftMouseDown, canvas.screen(ends.1))
         mouse(.leftMouseDragged, canvas.screen(Point(5, 20)))
-        mouse(.leftMouseDragged, canvas.screen(Point(0, 20)))
+        mouse(.leftMouseDragged, canvas.screen(above))
         XCTAssertEqual(state.design.objects[0].settings.angle, 45, "nothing is saved until the mouse is let go")
-        document.undoManager?.beginUndoGrouping(); mouse(.leftMouseUp, canvas.screen(Point(0, 20))); document.undoManager?.endUndoGrouping()
-        XCTAssertEqual(state.design.objects[0].settings.angle, 90)
+        document.undoManager?.beginUndoGrouping(); mouse(.leftMouseUp, canvas.screen(above)); document.undoManager?.endUndoGrouping()
+        XCTAssertEqual(state.design.objects[0].settings.angle, 90, accuracy: 0.11)
+        let swung = try XCTUnwrap(StitchAngleLine.ends(of: state.design.objects[0]))
+        let tolerance = 1.5 / state.zoom   // a screen point or so: the mouse lands on whole screen points
+        XCTAssertEqual(swung.0.x, lower.x, accuracy: tolerance); XCTAssertEqual(swung.0.y, lower.y, accuracy: tolerance, "the other end stayed put")
+        XCTAssertEqual(swung.1.x, above.x, accuracy: tolerance); XCTAssertEqual(swung.1.y, above.y, accuracy: tolerance, "the grabbed end is under the pointer")
         XCTAssertEqual(state.design.objects[0].nodes.map(\.point), fill.nodes.map(\.point), "the nodes didn't move")
         document.undoManager?.undo()
         XCTAssertEqual(state.design.objects[0].settings.angle, 45, "one undo puts the angle back")
@@ -38,13 +43,15 @@ final class FillAngleDragTests: XCTestCase {
         document.undoManager?.beginUndoGrouping(); mouse(.leftMouseUp, canvas.screen(Point(6, 0))); document.undoManager?.endUndoGrouping()
         XCTAssertEqual(state.design.objects[0].settings.angleLineCenter, Point(3, -3))
         XCTAssertEqual(state.design.objects[0].settings.angle, 45)
-        // An end of the moved line turns it around its new center.
+        // An end of the moved line turns it around its other end.
         let moved = try XCTUnwrap(StitchAngleLine.ends(of: state.design.objects[0]))
-        mouse(.leftMouseDown, canvas.screen(moved.1)); mouse(.leftMouseDragged, canvas.screen(Point(3, 20)))
-        document.undoManager?.beginUndoGrouping(); mouse(.leftMouseUp, canvas.screen(Point(3, 20))); document.undoManager?.endUndoGrouping()
-        XCTAssertEqual(state.design.objects[0].settings.angle, 90)
+        let upright = Point(moved.0.x, 20)
+        mouse(.leftMouseDown, canvas.screen(moved.1)); mouse(.leftMouseDragged, canvas.screen(upright))
+        document.undoManager?.beginUndoGrouping(); mouse(.leftMouseUp, canvas.screen(upright)); document.undoManager?.endUndoGrouping()
+        XCTAssertEqual(state.design.objects[0].settings.angle, 90, accuracy: 0.11)
         document.undoManager?.undo(); document.undoManager?.undo()
         XCTAssertNil(state.design.objects[0].settings.angleLineCenter, "undo puts it back in the middle")
+        XCTAssertNil(state.design.objects[0].settings.angleLineLength, "and across the whole shape")
         XCTAssertEqual(state.design.objects[0].settings.angle, 45)
 
         // A press on a node still grabs the node, not the line.

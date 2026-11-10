@@ -118,8 +118,8 @@ final class DesignCanvas: NSView {
     /// A fill's stitch angle line (StitchAngleLine) being swung by an end with Edit Nodes: the fill, and where the
     /// pointer is (the angle reads out beside it).
     /// `slideFrom` is where the pointer pressed when the line itself (not an end) was grabbed: the drag moves the line
-    /// instead of turning it.
-    private var fillAngleDrag: (object: UUID, pointer: Point, slideFrom: Point?)?
+    /// instead of turning it. `anchor` is the end that stays put while the other one is swung.
+    private var fillAngleDrag: (object: UUID, pointer: Point, slideFrom: Point?, anchor: Point?)?
     /// A guide line being dragged: its place in the design's guides, which way it runs, whether it's being dragged out
     /// of a ruler (not added yet), and where the pointer is (its position reads out beside it).
     private var guideDrag: (index: Int, vertical: Bool, isNew: Bool, pointer: CGPoint)?
@@ -763,7 +763,8 @@ final class DesignCanvas: NSView {
                     }
                 }
             }
-            // A fill's stitch angle shows as a line across it with Edit Nodes; dragging an end turns the stitches.
+            // A fill's stitch angle shows as a line across it with Edit Nodes; dragging an end turns the stitches, while
+            // the other end stays put.
             if selected && state.tool == .node && !object.locked && object.lettering == nil, let ends = StitchAngleLine.ends(of: object) {
                 drawAngleLine(ends.0, ends.1, selected: fillAngleDrag?.object == object.id)
             }
@@ -1474,12 +1475,14 @@ final class DesignCanvas: NSView {
             needsDisplay = true; return
         }
         if state.tool == .addAngles || state.tool == .removeAngles { state.clickForAngle(snapped(model(location)), reach: 9 / state.zoom); return }
-        // With Edit Nodes, grabbing an end of a selected fill's stitch angle line starts swinging it (nodes and handles
-        // still come first).
+        // With Edit Nodes, grabbing an end of a selected fill's stitch angle line starts swinging it around its other
+        // end (nodes and handles still come first).
         if state.tool == .node, !state.hasVersionMismatch, nearestNode(model(location)) == nil, nearestHandle(model(location)) == nil,
-           let fill = fillAngleEnd(near: model(location)) {
-            fillAngleDrag = (fill, model(location), nil); dragSnapshot = state.design
-            state.status = "Drag to turn the stitches · let go to keep the new angle"
+           let fill = fillAngleEnd(near: model(location)),
+           let ends = state.design.objects.first(where: { $0.id == fill }).flatMap(StitchAngleLine.ends(of:)) {
+            let p = model(location), anchor = ends.0.distance(to: p) < ends.1.distance(to: p) ? ends.1 : ends.0   // the end not grabbed
+            fillAngleDrag = (fill, p, nil, anchor); dragSnapshot = state.design
+            state.status = "Drag to turn the stitches · the other end stays put · let go to keep the new angle"
             needsDisplay = true; return
         }
         guard !state.hasVersionMismatch else { return }
@@ -1594,7 +1597,7 @@ final class DesignCanvas: NSView {
         }
         // Pressing on the stitch angle line itself (between its ends) picks it up to move it somewhere else.
         if state.tool == .node, !state.hasVersionMismatch, let fill = fillAngleLine(near: model(location)) {
-            fillAngleDrag = (fill, model(location), model(location)); dragSnapshot = state.design
+            fillAngleDrag = (fill, model(location), model(location), nil); dragSnapshot = state.design
             state.status = "Drag to move the stitch angle line · drag one of its ends to turn the stitches"
             needsDisplay = true; return
         }
@@ -1679,11 +1682,10 @@ final class DesignCanvas: NSView {
         if let drag = fillAngleDrag, var next = dragSnapshot, let i = next.objects.firstIndex(where: { $0.id == drag.object }) {
             if let from = drag.slideFrom, let center = StitchAngleLine.center(of: next.objects[i]) {
                 next.objects[i].digitizing?.angleLineCenter = snapped(center + (model(location) - from))   // only where it's drawn
-            } else {
-                let angle = StitchAngleLine.angle(of: next.objects[i], toward: model(location))
-                next.objects[i].digitizing?.angle = angle
+            } else if let anchor = drag.anchor {
+                StitchAngleLine.swing(&next.objects[i], from: anchor, to: model(location))   // the grabbed end follows the pointer
             }
-            fillAngleDrag = (drag.object, model(location), drag.slideFrom); preview = next; needsDisplay = true; return
+            fillAngleDrag = (drag.object, model(location), drag.slideFrom, drag.anchor); preview = next; needsDisplay = true; return
         }
         if measureStep == .dragging { moveMeasurementEnd(to: location); return }
         if measureStep == .placed { return }   // the click that put the line down: a wobble doesn't move it
@@ -1950,7 +1952,7 @@ final class DesignCanvas: NSView {
             preview = nil
         }
         // Said before the change is saved, so a message from saving it (such as hand edits being replaced) wins.
-        if let drag = fillAngleDrag, drag.slideFrom == nil, let angle = preview?.objects.first(where: { $0.id == drag.object })?.settings.angle { state.status = "Stitch angle \(Int(angle))°" }
+        if let drag = fillAngleDrag, drag.slideFrom == nil, let angle = preview?.objects.first(where: { $0.id == drag.object })?.settings.angle { state.status = "Stitch angle \(Int(angle.rounded()) % 180)°" }   // the angle can have decimals now: round, not cut off
         if let preview { state.document?.replace(preview, action: action) }
         if nodeJustAdded, let node = draggedNode { state.selectedNode = node; state.status = "Node added · drag it to reshape · right-click an edge for a curve node" }
         nodeJustAdded = false

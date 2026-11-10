@@ -1,5 +1,5 @@
-// The stitch angle line Edit Nodes shows on a fill: where it sits, which fills get one, and the angle a dragged end
-// gives.
+// The stitch angle line Edit Nodes shows on a fill: where it sits, which fills get one, and what swinging it by an
+// end does.
 import XCTest
 @testable import EmbroideryCore
 
@@ -23,15 +23,14 @@ final class StitchAngleLineTests: XCTestCase {
         XCTAssertEqual(atan2(slanted.1.y - slanted.0.y, slanted.1.x - slanted.0.x) * 180 / .pi, 45, accuracy: 1e-9)
     }
 
-    /// A line moved off the middle still crosses the whole shape at the fill's angle, through where it was put, turns
-    /// around that point, moves with the shape, and never counts as a change to the stitches.
+    /// A line moved off the middle still crosses the whole shape at the fill's angle, through where it was put, moves
+    /// with the shape, and never counts as a change to the stitches.
     func testMovedLineCrossesTheShapeThroughItsNewCenter() throws {
         var object = rectangle(angle: 0)   // 40 × 20 mm, middle at (10, 5)
         object.digitizing?.angleLineCenter = Point(0, 12)
         let ends = try XCTUnwrap(StitchAngleLine.ends(of: object))
         XCTAssertEqual(ends.0.x, -12, accuracy: 1e-9); XCTAssertEqual(ends.1.x, 32, accuracy: 1e-9)
         XCTAssertEqual(ends.0.y, 12, accuracy: 1e-9); XCTAssertEqual(ends.1.y, 12, accuracy: 1e-9)
-        XCTAssertEqual(StitchAngleLine.angle(of: object, toward: Point(0, 20)), 90, "turns around its own center")
         var moved = object; moved.transform { $0 + Point(5, 5) }
         XCTAssertEqual(moved.settings.angleLineCenter, Point(5, 17))
         XCTAssertEqual(object.stitchSignature, rectangle(angle: 0).stitchSignature, "hand-edited stitches are kept")
@@ -50,16 +49,45 @@ final class StitchAngleLineTests: XCTestCase {
         XCTAssertFalse(StitchAngleLine.applies(to: line))
     }
 
-    /// Dragging an end toward a point sets the angle from the middle to it, in whole degrees from 0 to 179: either
-    /// end gives the same angle, because a line points both ways.
-    func testDraggedEndGivesTheAngle() {
-        let object = rectangle(angle: 45)   // middle at (10, 5)
-        XCTAssertEqual(StitchAngleLine.angle(of: object, toward: Point(20, 5)), 0)
-        XCTAssertEqual(StitchAngleLine.angle(of: object, toward: Point(20, 15)), 45)
-        XCTAssertEqual(StitchAngleLine.angle(of: object, toward: Point(0, -5)), 45, "the other end")
-        XCTAssertEqual(StitchAngleLine.angle(of: object, toward: Point(0, 15)), 135)
-        XCTAssertEqual(StitchAngleLine.angle(of: object, toward: Point(10, -10)), 90)
-        XCTAssertEqual(StitchAngleLine.angle(of: object, toward: Point(20, 5.3)), 2, "rounded to whole degrees")
-        XCTAssertEqual(StitchAngleLine.angle(of: object, toward: Point(10, 5)), 45, "the middle itself keeps the angle")
+    /// Swinging the line by one end: the other end stays put, the line runs from it to the pointer, and the angle is
+    /// that line's direction, to a tenth of a degree from 0 to 179.9, whichever way it points.
+    func testSwingKeepsTheOtherEndPut() throws {
+        func swung(from anchor: Point, to point: Point) -> RunObject {
+            var object = rectangle(angle: 45); StitchAngleLine.swing(&object, from: anchor, to: point); return object
+        }
+        let anchor = Point(-12, 5)
+        let flat = swung(from: anchor, to: Point(20, 5))
+        XCTAssertEqual(flat.settings.angle, 0)
+        let ends = try XCTUnwrap(StitchAngleLine.ends(of: flat))
+        XCTAssertEqual(ends.0.x, -12, accuracy: 1e-9); XCTAssertEqual(ends.1.x, 20, accuracy: 1e-9, "ends at the pointer, not past the edge")
+        XCTAssertEqual(ends.0.y, 5, accuracy: 1e-9); XCTAssertEqual(ends.1.y, 5, accuracy: 1e-9)
+        // Up and to the right: 45°. Down and to the left gives the same, since a line points both ways.
+        XCTAssertEqual(swung(from: anchor, to: Point(-2, 15)).settings.angle, 45, accuracy: 1e-9)
+        XCTAssertEqual(swung(from: anchor, to: Point(-22, -5)).settings.angle, 45, accuracy: 1e-9)
+        XCTAssertEqual(swung(from: anchor, to: Point(-22, 15)).settings.angle, 135, accuracy: 1e-9)
+        XCTAssertEqual(swung(from: anchor, to: Point(-12, -20)).settings.angle, 90, accuracy: 1e-9)
+        XCTAssertEqual(swung(from: anchor, to: Point(20, 5.3)).settings.angle, 0.5, accuracy: 1e-9, "a tenth of a degree, not a whole one")
+        // Both ends land where the drag put them, whichever way the line points.
+        let steep = swung(from: anchor, to: Point(-22, 15))
+        let steepEnds = try XCTUnwrap(StitchAngleLine.ends(of: steep))
+        XCTAssertEqual(Set([steepEnds.0, steepEnds.1].map { "\(($0.x * 1e6).rounded()),\(($0.y * 1e6).rounded())" }), ["-12000000.0,5000000.0", "-22000000.0,15000000.0"])
+        // Right on top of the anchor changes nothing.
+        let same = swung(from: anchor, to: Point(-11.5, 5))
+        XCTAssertEqual(same.settings.angle, 45); XCTAssertNil(same.settings.angleLineLength)
+        // Swinging never counts as a change to the stitches, except for the angle itself.
+        var turnedOnly = rectangle(angle: 0); turnedOnly.digitizing?.angle = flat.settings.angle
+        XCTAssertEqual(flat.stitchSignature, turnedOnly.stitchSignature)
+    }
+
+    /// A line dragged to a length keeps it when the shape moves, and stretches with it when the shape is resized.
+    func testLengthStretchesWithTheShape() throws {
+        var object = rectangle(angle: 45); StitchAngleLine.swing(&object, from: Point(0, 5), to: Point(10, 5))   // 10 mm, flat
+        var moved = object; moved.transform { $0 + Point(3, 4) }
+        XCTAssertEqual(try XCTUnwrap(moved.settings.angleLineLength), 10, accuracy: 1e-9)
+        XCTAssertEqual(moved.settings.angleLineCenter, Point(8, 9))
+        var wider = object; wider.transform { Point($0.x * 2, $0.y) }
+        XCTAssertEqual(try XCTUnwrap(wider.settings.angleLineLength), 20, accuracy: 1e-9, "twice as wide, twice as long")
+        var taller = object; taller.transform { Point($0.x, $0.y * 2) }
+        XCTAssertEqual(try XCTUnwrap(taller.settings.angleLineLength), 10, accuracy: 1e-9, "a flat line isn't stretched by height")
     }
 }
