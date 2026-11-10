@@ -228,7 +228,7 @@ Each layer shows only the settings its type uses: **Inset** (how far inside the 
 
 **Warnings:** while reviewing, moves worth a second look are terracotta: on the canvas, in the step's details (with what you could do about it), on the step's row in Sewing order (a small triangle), and in a list under **Route** (click one to look at its step). A move is warned about when the next start is 15 mm or more from where the step before ended in the same thread (time spent travelling, and a long tail to snip), or when a jump isn't trimmed although it's at least the design's **Trim jumps of at least** distance (the thread lies across the fabric). A move where the thread changes is never warned about: the machine stops and starts afresh there anyway. **Esc** (or ⌥⇧R again) finishes the review (after **Set…**, the first Esc goes back to Select), and so does picking a drawing tool or playing the stitch player.
 
-**Measure (M)** (in the View group): drag from one point to another to read the distance (in mm or inches) and its angle (counted counterclockwise from pointing right, like Rotate). The line stays until you measure again or change tools. Snap to grid applies.
+**Measure (M)** (in the View group): drag from one point to another, or click one point and then the other, to read the distance (in mm or inches) and its angle (counted counterclockwise from pointing right, like Rotate). After the first click the line follows the pointer, and Escape drops it. The line stays until you measure again or change tools. Snap to grid applies.
 
 **Rulers:** a thin line on each ruler follows the pointer, so you can read where it is at a glance.
 

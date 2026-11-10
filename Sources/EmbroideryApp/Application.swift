@@ -525,7 +525,7 @@ import EmbroideryCore
             case .knife:state.status="Knife · Click points across what to cut (the selection, or anything if nothing is selected) · Return cuts · Esc cancels"
             case .addAngles:state.status="Add Stitch Angles · Click two points across the fill for each line; the stitches run along it · Esc when done"
             case .removeAngles:state.status="Remove Stitch Angles · Click a line to remove it · Esc when done"
-            case .measure:state.status="Drag from one point to another to measure the distance and angle · Esc when done"
+            case .measure:state.status="Drag from one point to another, or click one then the other, to measure the distance and angle · Esc when done"
             case .hooping:state.status=state.design.multiHooping == nil ? "Hoopings · Turn on Multi-hooping in Properties to sew a design bigger than the hoop" : "Hoopings · Drag a hooping to move it · Click one to see what it sews · Esc when done"
             case .text:state.status="Add Lettering · Click where the lettering should go; then type it and pick a font in Properties · Esc cancels"
             case .closedShape:state.status="Closed shape · Click corners · Drag or secondary-click for curves · Enter to finish"
@@ -553,6 +553,9 @@ import EmbroideryCore
             // Escape with Zoom Box on just puts the tool before it back (and keeps a path being drawn).
             state.tool = state.toolBeforeZoom; state.status = "Zoom cancelled."
             state.canvas?.window?.invalidateCursorRects(for: state.canvas!)
+        case .done where state.canvas?.measureFollowsPointer == true:
+            // Escape while a measuring line follows the pointer just drops that line; the Measure tool stays on.
+            state.canvas?.cancelMeasuring(); state.status = "Measuring cancelled."
         case .done where state.croppingArtwork:
             // Escape while cropping just stops cropping; the image tool stays on.
             state.croppingArtwork = false; state.canvas?.cancelCrop(); state.status = "Crop cancelled."
