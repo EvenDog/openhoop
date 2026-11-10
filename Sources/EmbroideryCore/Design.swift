@@ -11,6 +11,15 @@ public struct Point: Codable, Hashable, Sendable {
     public static func * (a: Self, b: Double) -> Self { .init(a.x * b, a.y * b) }
     public func distance(to p: Self) -> Double { hypot(x - p.x, y - p.y) }
     public var finite: Bool { x.isFinite && y.isFinite }
+    /// This point turned around `origin` to the nearest step of `step` degrees (0°, 15°, 30°…, counted
+    /// counterclockwise from pointing right), at the same distance from it: for drawing straight lines while holding
+    /// Control. The origin itself stays as it is.
+    public func snappedToAngle(around origin: Point, step: Double = 15) -> Point {
+        let length = distance(to: origin)
+        guard length > 0 else { return self }
+        let radians = (atan2(y - origin.y, x - origin.x) * 180 / .pi / step).rounded() * step * .pi / 180
+        return Point(origin.x + cos(radians) * length, origin.y + sin(radians) * length)
+    }
 }
 
 public struct PathNode: Codable, Hashable, Sendable {
