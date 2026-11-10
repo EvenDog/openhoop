@@ -6,6 +6,32 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.13.5</title>
+            <pubDate>Tue, 10 Nov 2026 19:52:07 GMT</pubDate>
+            <sparkle:version>51</sparkle:version>
+            <sparkle:shortVersionString>0.13.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.13.5</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.13.5</h3>
+<h4>Measure: click, move, click</h4>
+<ul>
+<li>The <b>Measure</b> tool (M) now works like the shape tools: click one point, move the pointer, and click the other. While the line follows the pointer, the status bar shows the distance and angle as you move.</li>
+<li>Dragging still works as before.</li>
+<li><b>Esc</b> while the line follows the pointer drops it and keeps Measure on; Esc again goes back to Select.</li>
+</ul>
+<h4>Number fields</h4>
+<ul>
+<li>Number fields sit in soft wells pressed into the panel, with the unit (mm, in, %, °) inside, after the number. A blue ring shows while you type in one.</li>
+<li>Numbers drop trailing zeros: 100, 0.4 and 2.5 instead of 100.00, 0.40 and 2.50. You can still type any decimals.</li>
+<li>The tie stitch count is now a number field like the length beside it (1–3), instead of a pop-up menu.</li>
+<li>This covers every number field: Properties, the Design panel, Settings, My Hoops and the Outlines dialog, in light and dark mode.</li>
+</ul>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.13.5/OpenHoop-0.13.5.dmg" sparkle:edSignature="R9is9xfwJWY95qSDUZYx9yGSiFBIzv2krKBOH/EvmYUwoNitNugRCLRbaLgA3A4ppOtVDUI/X/j0105ImcZ/Ag==" length="44118940" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.13.4</title>
             <pubDate>Mon, 09 Nov 2026 22:49:50 GMT</pubDate>
             <sparkle:version>50</sparkle:version>
