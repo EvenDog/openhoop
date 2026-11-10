@@ -103,7 +103,7 @@ final class DesignCanvas: NSView {
     /// Moves the end of the Measure tool's line to `location` (in the view) and reads it out in the status bar.
     private func moveMeasurementEnd(to location: NSPoint) {
         guard let line = measurement else { return }
-        measurement = (line.start, snapped(model(location)))
+        measurement = (line.start, angleTarget(from: line.start, to: snapped(model(location))))
         state.status = "Measured " + Self.measurementText(from: line.start, to: measurement!.end, unit: Preferences.shared.unit)
         needsDisplay = true
     }
@@ -140,6 +140,24 @@ final class DesignCanvas: NSView {
     private enum PanelDropHint: Equatable { case dock(DockSide), float(CGPoint) }
     private var panelDropHint: PanelDropHint?
     private var pointer=Point(0,0)
+    /// True while Control is held: a line being drawn (a shape's next point, a stitch angle line, a measurement)
+    /// snaps to 15° steps from where it starts. Kept from each mouse event, and from `flagsChanged` so a press or
+    /// release of the key alone shows at once.
+    private var angleSnapHeld = false
+    /// True when `flags` hold the key that snaps lines to 15° steps: Control.
+    private func snapsAngle(_ flags: NSEvent.ModifierFlags) -> Bool { flags.contains(.control) }
+    /// Where a line from `start` to `point` ends: `point` itself, or turned to the nearest 15° step while Control
+    /// is held.
+    private func angleTarget(from start: Point, to point: Point) -> Point { angleSnapHeld ? point.snappedToAngle(around: start) : point }
+    override func flagsChanged(with event: NSEvent) {
+        super.flagsChanged(with: event)
+        let held = snapsAngle(event.modifierFlags)
+        guard held != angleSnapHeld else { return }
+        angleSnapHeld = held
+        // A measurement following the pointer jumps to (or off) the step at once, without waiting for a move.
+        if measureStep == .following, state.tool == .measure, let window { moveMeasurementEnd(to: convert(window.mouseLocationOutsideOfEventStream, from: nil)) }
+        needsDisplay = true
+    }
     private var imageData: Data?
     private var image: NSImage?
     private var tracking: NSTrackingArea?
@@ -796,6 +814,13 @@ final class DesignCanvas: NSView {
                 }
                 if state.tool == .satin {drawLabel("\(index/2+1)\(index%2==0 ? "L":"R")",at:CGPoint(x:p.x+5,y:p.y+5),size:9)}
             }
+            // Holding Control: a dashed line from the last point shows where a click puts the next one, in 15° steps.
+            if angleSnapHeld, state.tool.draws, let last = state.draft.last?.point {
+                let end = angleTarget(from: last, to: snapped(pointer)), line = NSBezierPath()
+                line.move(to: screen(last)); line.line(to: screen(end)); line.setLineDash([4, 3], count: 2, phase: 0)
+                Theme.Canvas.handle.setStroke(); line.lineWidth = 1.2; line.stroke()
+                drawAngleReading(last, end, at: end)
+            }
         }
         let hoopSize = Preferences.shared.unit.size(design.hoop.width, design.hoop.height, decimals: Preferences.shared.unit == .inches ? 1 : 0)
         if multi {
@@ -807,7 +832,9 @@ final class DesignCanvas: NSView {
         }
         if state.tool == .measure, let line = measurement { drawMeasurement(line) }
         if state.tool == .stitchEdit { drawStitchEdit() }
-        if state.tool == .addAngles, let start = state.angleStart { drawAngleLine(start, pointer); drawAngleReading(start, pointer, at: pointer) }   // the line being added follows the pointer
+        if state.tool == .addAngles, let start = state.angleStart {   // the line being added follows the pointer (in 15° steps with Control)
+            let end = angleTarget(from: start, to: pointer); drawAngleLine(start, end); drawAngleReading(start, end, at: end)
+        }
         // While a stitch angle line is dragged, its angle shows beside the pointer.
         // The line may be gone if the design changed under the drag (an undo while the mouse is held down).
         if let drag = angleDrag, let lines = (preview ?? state.design).objects.first(where: { $0.id == drag.object })?.settings.angleLines,
@@ -1429,6 +1456,7 @@ final class DesignCanvas: NSView {
     }
     override func mouseDown(with event: NSEvent) {
         state.focusCanvas()
+        angleSnapHeld = snapsAngle(event.modifierFlags)
         dragRevision = state.revision
         clickAgainAt = nil
         let location = convert(event.locationInWindow, from: nil)
@@ -1474,7 +1502,10 @@ final class DesignCanvas: NSView {
             angleDrag = (angle.object, angle.index, end, snapped(p)); dragSnapshot = state.design
             needsDisplay = true; return
         }
-        if state.tool == .addAngles || state.tool == .removeAngles { state.clickForAngle(snapped(model(location)), reach: 9 / state.zoom); return }
+        if state.tool == .addAngles || state.tool == .removeAngles {
+            let point = snapped(model(location))
+            state.clickForAngle(state.tool == .addAngles ? state.angleStart.map { angleTarget(from: $0, to: point) } ?? point : point, reach: 9 / state.zoom); return
+        }
         // With Edit Nodes, grabbing an end of a selected fill's stitch angle line starts swinging it around its other
         // end (nodes and handles still come first). A double-click puts the line back across the shape.
         if state.tool == .node, !state.hasVersionMismatch, nearestNode(model(location)) == nil, nearestHandle(model(location)) == nil,
@@ -1483,7 +1514,7 @@ final class DesignCanvas: NSView {
             if event.clickCount == 2 { resetFillAngleLine(fill); return }
             let p = model(location), anchor = ends.0.distance(to: p) < ends.1.distance(to: p) ? ends.1 : ends.0   // the end not grabbed
             fillAngleDrag = (fill, p, nil, anchor); dragSnapshot = state.design
-            state.status = "Drag to turn the stitches · the other end stays put · let go to keep the new angle"
+            state.status = "Drag to turn the stitches · the other end stays put · ⌃ or ⇧ for 15° steps · let go to keep the new angle"
             needsDisplay = true; return
         }
         guard !state.hasVersionMismatch else { return }
@@ -1502,7 +1533,9 @@ final class DesignCanvas: NSView {
                 }
                 return
             }
-            state.addDraftPoint(point, smooth: event.modifierFlags.contains(.control), reach: 3 / state.zoom)   // 3 screen points
+            // Holding Control puts the point on the nearest 15° step from the last one, for straight lines.
+            let placed = state.draft.last.map { angleTarget(from: $0.point, to: point) } ?? point
+            state.addDraftPoint(placed, smooth: false, reach: 3 / state.zoom)   // 3 screen points
             drawingHandle = state.draft.count - 1; return
         }
         if state.tool.dragsShape {
@@ -1650,10 +1683,11 @@ final class DesignCanvas: NSView {
             if let node=added.node{state.selectedNode=node;state.status="Curve node added · drag it and the edge bends smoothly through it"}
         }
     }
-    override func mouseMoved(with event:NSEvent){pointer=model(convert(event.locationInWindow,from:nil));state.pointer.position=pointer;if shapeFollowsPointer,let start=shapeStart,state.tool.dragsShape{sizeShape(from:start,to:convert(event.locationInWindow,from:nil),flags:event.modifierFlags)};if measureStep == .following,state.tool == .measure{moveMeasurementEnd(to:convert(event.locationInWindow,from:nil))};moveRulerMarks(to:convert(event.locationInWindow,from:nil));if state.angleStart != nil{needsDisplay=true};updateGuideCursor(at:convert(event.locationInWindow,from:nil));updateHandleCursor(at:convert(event.locationInWindow,from:nil));updateContinueHover(at:convert(event.locationInWindow,from:nil))}
+    override func mouseMoved(with event:NSEvent){angleSnapHeld=snapsAngle(event.modifierFlags);pointer=model(convert(event.locationInWindow,from:nil));state.pointer.position=pointer;if shapeFollowsPointer,let start=shapeStart,state.tool.dragsShape{sizeShape(from:start,to:convert(event.locationInWindow,from:nil),flags:event.modifierFlags)};if measureStep == .following,state.tool == .measure{moveMeasurementEnd(to:convert(event.locationInWindow,from:nil))};moveRulerMarks(to:convert(event.locationInWindow,from:nil));if state.angleStart != nil || (angleSnapHeld && state.tool.draws && !state.draft.isEmpty){needsDisplay=true};updateGuideCursor(at:convert(event.locationInWindow,from:nil));updateHandleCursor(at:convert(event.locationInWindow,from:nil));updateContinueHover(at:convert(event.locationInWindow,from:nil))}
     override func mouseExited(with event: NSEvent) { state.pointer.position = nil; hoveredGuide = nil; moveRulerMarks(to: nil); updateContinueHover(at: nil) }
     override func mouseDragged(with event: NSEvent) {
         let location = convert(event.locationInWindow, from: nil)
+        angleSnapHeld = snapsAngle(event.modifierFlags)
         state.pointer.position = model(location); moveRulerMarks(to: location)
         if let start = screenStart { pan = CGPoint(x: panStart.x + location.x - start.x, y: panStart.y + location.y - start.y); needsDisplay = true; return }
         if let box = zoomBox { zoomBox = (box.start, location); needsDisplay = true; return }
@@ -1678,7 +1712,7 @@ final class DesignCanvas: NSView {
         if let drag = angleDrag, var next = dragSnapshot, let i = next.objects.firstIndex(where: { $0.id == drag.object }),
            var line = next.objects[i].digitizing?.angleLines?[drag.index] {
             let delta = snapped(model(location)) - drag.start
-            if let end = drag.end { line[end] = line[end] + delta } else { line = line.map { $0 + delta } }
+            if let end = drag.end { line[end] = angleTarget(from: line[1 - end], to: line[end] + delta) } else { line = line.map { $0 + delta } }
             next.objects[i].digitizing?.angleLines?[drag.index] = line
             preview = next; needsDisplay = true; return
         }
@@ -1686,7 +1720,9 @@ final class DesignCanvas: NSView {
             if let from = drag.slideFrom, let center = StitchAngleLine.center(of: next.objects[i]) {
                 next.objects[i].digitizing?.angleLineCenter = snapped(center + (model(location) - from))   // only where it's drawn
             } else if let anchor = drag.anchor {
-                StitchAngleLine.swing(&next.objects[i], from: anchor, to: model(location))   // the grabbed end follows the pointer
+                // The grabbed end follows the pointer; Control or ⇧ (as for the rotate handles) turns it in 15° steps.
+                let step = angleSnapHeld || event.modifierFlags.contains(.shift)
+                StitchAngleLine.swing(&next.objects[i], from: anchor, to: step ? model(location).snappedToAngle(around: anchor) : model(location))
             }
             fillAngleDrag = (drag.object, model(location), drag.slideFrom, drag.anchor); preview = next; needsDisplay = true; return
         }
