@@ -140,13 +140,14 @@ final class DesignCanvas: NSView {
     private enum PanelDropHint: Equatable { case dock(DockSide), float(CGPoint) }
     private var panelDropHint: PanelDropHint?
     private var pointer=Point(0,0)
-    /// True while Control is held: a line being drawn (a shape's next point, a stitch angle line, a measurement)
+    /// True while ⌘ or Control is held: a line being drawn (a shape's next point, a stitch angle line, a measurement)
     /// snaps to 15° steps from where it starts. Kept from each mouse event, and from `flagsChanged` so a press or
     /// release of the key alone shows at once.
     private var angleSnapHeld = false
-    /// True when `flags` hold the key that snaps lines to 15° steps: Control.
-    private func snapsAngle(_ flags: NSEvent.ModifierFlags) -> Bool { flags.contains(.control) }
-    /// Where a line from `start` to `point` ends: `point` itself, or turned to the nearest 15° step while Control
+    /// True when `flags` hold a key that snaps lines to 15° steps: ⌘ or Control (either, since a keyboard may be set
+    /// up so its Control key sends ⌘).
+    private func snapsAngle(_ flags: NSEvent.ModifierFlags) -> Bool { !flags.isDisjoint(with: [.command, .control]) }
+    /// Where a line from `start` to `point` ends: `point` itself, or turned to the nearest 15° step while ⌘ or Control
     /// is held.
     private func angleTarget(from start: Point, to point: Point) -> Point { angleSnapHeld ? point.snappedToAngle(around: start) : point }
     override func flagsChanged(with event: NSEvent) {
@@ -814,7 +815,7 @@ final class DesignCanvas: NSView {
                 }
                 if state.tool == .satin {drawLabel("\(index/2+1)\(index%2==0 ? "L":"R")",at:CGPoint(x:p.x+5,y:p.y+5),size:9)}
             }
-            // Holding Control: a dashed line from the last point shows where a click puts the next one, in 15° steps.
+            // Holding ⌘ or Control: a dashed line from the last point shows where a click puts the next one, in 15° steps.
             if angleSnapHeld, state.tool.draws, let last = state.draft.last?.point {
                 let end = angleTarget(from: last, to: snapped(pointer)), line = NSBezierPath()
                 line.move(to: screen(last)); line.line(to: screen(end)); line.setLineDash([4, 3], count: 2, phase: 0)
@@ -832,7 +833,7 @@ final class DesignCanvas: NSView {
         }
         if state.tool == .measure, let line = measurement { drawMeasurement(line) }
         if state.tool == .stitchEdit { drawStitchEdit() }
-        if state.tool == .addAngles, let start = state.angleStart {   // the line being added follows the pointer (in 15° steps with Control)
+        if state.tool == .addAngles, let start = state.angleStart {   // the line being added follows the pointer (in 15° steps with ⌘ or Control)
             let end = angleTarget(from: start, to: pointer); drawAngleLine(start, end); drawAngleReading(start, end, at: end)
         }
         // While a stitch angle line is dragged, its angle shows beside the pointer.
@@ -1514,7 +1515,7 @@ final class DesignCanvas: NSView {
             if event.clickCount == 2 { resetFillAngleLine(fill); return }
             let p = model(location), anchor = ends.0.distance(to: p) < ends.1.distance(to: p) ? ends.1 : ends.0   // the end not grabbed
             fillAngleDrag = (fill, p, nil, anchor); dragSnapshot = state.design
-            state.status = "Drag to turn the stitches · the other end stays put · ⌃ or ⇧ for 15° steps · let go to keep the new angle"
+            state.status = "Drag to turn the stitches · the other end stays put · ⌘ or ⇧ for 15° steps · let go to keep the new angle"
             needsDisplay = true; return
         }
         guard !state.hasVersionMismatch else { return }
@@ -1533,7 +1534,7 @@ final class DesignCanvas: NSView {
                 }
                 return
             }
-            // Holding Control puts the point on the nearest 15° step from the last one, for straight lines.
+            // Holding ⌘ or Control puts the point on the nearest 15° step from the last one, for straight lines.
             let placed = state.draft.last.map { angleTarget(from: $0.point, to: point) } ?? point
             state.addDraftPoint(placed, smooth: false, reach: 3 / state.zoom)   // 3 screen points
             drawingHandle = state.draft.count - 1; return
@@ -1720,7 +1721,7 @@ final class DesignCanvas: NSView {
             if let from = drag.slideFrom, let center = StitchAngleLine.center(of: next.objects[i]) {
                 next.objects[i].digitizing?.angleLineCenter = snapped(center + (model(location) - from))   // only where it's drawn
             } else if let anchor = drag.anchor {
-                // The grabbed end follows the pointer; Control or ⇧ (as for the rotate handles) turns it in 15° steps.
+                // The grabbed end follows the pointer; ⌘, Control or ⇧ (as for the rotate handles) turns it in 15° steps.
                 let step = angleSnapHeld || event.modifierFlags.contains(.shift)
                 StitchAngleLine.swing(&next.objects[i], from: anchor, to: step ? model(location).snappedToAngle(around: anchor) : model(location))
             }

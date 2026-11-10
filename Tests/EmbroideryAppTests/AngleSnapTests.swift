@@ -1,4 +1,4 @@
-// Holding Control snaps a line being drawn to 15° steps: a drawing tool's next point, a stitch angle line, the
+// Holding ⌘ or Control snaps a line being drawn to 15° steps: a drawing tool's next point, a stitch angle line, the
 // Measure line. ⇧ does it too for the fill's stitch angle line, as for the rotate handles.
 import XCTest
 import AppKit
@@ -50,7 +50,11 @@ final class AngleSnapTests: XCTestCase {
         XCTAssertEqual(second.point.x, hypot(10, 1), accuracy: 0.05, "as far away as the click")
         XCTAssertFalse(second.smooth, "a corner: Control no longer makes a curve point")
         mouse(canvas, .leftMouseDown, Point(20, 2)); mouse(canvas, .leftMouseUp, Point(20, 2))
-        XCTAssertEqual(try XCTUnwrap(state.draft.last).point.y, 2, accuracy: 0.05, "without Control the point goes where it's clicked")
+        XCTAssertEqual(try XCTUnwrap(state.draft.last).point.y, 2, accuracy: 0.05, "without the key the point goes where it's clicked")
+        // ⌘ does the same (a keyboard can be set up so its Control key sends ⌘): about 84° from (20, 2) snaps to 90°.
+        mouse(canvas, .leftMouseDown, Point(21, 12), .command); mouse(canvas, .leftMouseUp, Point(21, 12), .command)
+        XCTAssertEqual(try XCTUnwrap(state.draft.last).point.x, 20, accuracy: 0.05, "straight up from the last point")
+        XCTAssertEqual(state.draft.count, 4)
     }
 
     /// Measure: with Control the line turns to the nearest 15° step from where it starts.
@@ -65,6 +69,8 @@ final class AngleSnapTests: XCTestCase {
         XCTAssertEqual(line.end.distance(to: line.start), hypot(10, 9), accuracy: 0.05)
         mouse(canvas, .leftMouseDragged, Point(10, 9))
         XCTAssertEqual(try XCTUnwrap(canvas.measurement).end.y, 9, accuracy: 0.05, "letting go of Control follows the pointer again")
+        mouse(canvas, .leftMouseDragged, Point(10, 9), .command)
+        XCTAssertEqual(try XCTUnwrap(canvas.measurement).end.x, try XCTUnwrap(canvas.measurement).end.y, accuracy: 0.05, "⌘ snaps too")
     }
 
     /// Add Stitch Angles: with Control, the second click turns the line to the nearest 15° step from the first.
@@ -83,9 +89,9 @@ final class AngleSnapTests: XCTestCase {
         XCTAssertEqual(line[1].y, line[0].y, accuracy: 0.05, "straight across")
     }
 
-    /// The fill's stitch angle line (Edit Nodes): Control or ⇧ while dragging an end turns it in 15° steps.
+    /// The fill's stitch angle line (Edit Nodes): ⌘, Control or ⇧ while dragging an end turns it in 15° steps.
     @MainActor func testControlOrShiftStepsTheFillAngle() throws {
-        for key in [NSEvent.ModifierFlags.control, .shift] {
+        for key in [NSEvent.ModifierFlags.control, .command, .shift] {
             let (document, canvas) = makeCanvas(), state = canvas.state
             var fill = RunObject(name: "Box", nodes: [Point(-10, -10), Point(10, -10), Point(10, 10), Point(-10, 10)].map { PathNode($0) })
             fill.closed = true; fill.digitizing = DigitizingSettings(kind: .fill); fill.digitizing?.angle = 0

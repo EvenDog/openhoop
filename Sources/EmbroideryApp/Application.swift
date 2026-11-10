@@ -535,8 +535,8 @@ import EmbroideryCore
             case .rectangle,.basicShape:state.status="Click, then click again where it ends, or drag · Hold ⌘ to keep it even · Hold ⇧ to draw it from the center"
             default:state.status="Select and drag objects. Shift-click to select more than one, or drag a box round them."
             }
-            // Control snaps lines to 15° steps wherever a line is drawn point by point.
-            if state.tool.draws || [.addAngles, .measure].contains(state.tool) {state.status+=" · Hold ⌃ for 15° steps"}
+            // ⌘ or Control snaps lines to 15° steps wherever a line is drawn point by point.
+            if state.tool.draws || [.addAngles, .measure].contains(state.tool) {state.status+=" · Hold ⌘ for 15° steps"}
             // Closed shapes say what stitches they'll get, so the Next Shape choices in Properties aren't missed.
             if state.tool == .closedShape || state.tool == .freehandClosed || state.tool.dragsShape {state.status+=" · Next shape: \(Preferences.shared.shapes.closedSummary) (change it in Properties)"}
             state.focusCanvas(); state.canvas?.window?.invalidateCursorRects(for: state.canvas!)
