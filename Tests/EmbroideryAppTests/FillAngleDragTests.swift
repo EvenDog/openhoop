@@ -10,9 +10,9 @@ final class FillAngleDragTests: XCTestCase {
         _ = NSApplication.shared
         let document = DesignDocument(), state = document.state   // the document must stay alive: edits go through it
         let canvas = DesignCanvas(state: state); canvas.frame = NSRect(x: 0, y: 0, width: 600, height: 600); state.canvas = canvas
-        func mouse(_ type: NSEvent.EventType, _ p: CGPoint) {
+        func mouse(_ type: NSEvent.EventType, _ p: CGPoint, clicks: Int = 1) {
             let event = NSEvent.mouseEvent(with: type, location: p, modifierFlags: [], timestamp: 0, windowNumber: 0,
-                                           context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+                                           context: nil, eventNumber: 0, clickCount: clicks, pressure: 1)!
             switch type { case .leftMouseDown: canvas.mouseDown(with: event); case .leftMouseDragged: canvas.mouseDragged(with: event); default: canvas.mouseUp(with: event) }
         }
         var fill = RunObject(name: "Box", nodes: [Point(-10, -10), Point(10, -10), Point(10, 10), Point(-10, 10)].map { PathNode($0) })
@@ -53,6 +53,26 @@ final class FillAngleDragTests: XCTestCase {
         XCTAssertNil(state.design.objects[0].settings.angleLineCenter, "undo puts it back in the middle")
         XCTAssertNil(state.design.objects[0].settings.angleLineLength, "and across the whole shape")
         XCTAssertEqual(state.design.objects[0].settings.angle, 45)
+
+        // Swing an end in to make the line short, then double-click it: it crosses the whole shape again, through the
+        // middle, at the angle it was swung to. One undo brings the short line back.
+        let full = try XCTUnwrap(StitchAngleLine.ends(of: state.design.objects[0]))
+        mouse(.leftMouseDown, canvas.screen(full.1)); mouse(.leftMouseDragged, canvas.screen(Point(0, 0)))
+        document.undoManager?.beginUndoGrouping(); mouse(.leftMouseUp, canvas.screen(Point(0, 0))); document.undoManager?.endUndoGrouping()
+        let short = state.design.objects[0].settings
+        XCTAssertNotNil(short.angleLineLength)
+        let middleOfShort = try XCTUnwrap(short.angleLineCenter)
+        mouse(.leftMouseDown, canvas.screen(middleOfShort)); mouse(.leftMouseUp, canvas.screen(middleOfShort))
+        document.undoManager?.beginUndoGrouping()
+        mouse(.leftMouseDown, canvas.screen(middleOfShort), clicks: 2); mouse(.leftMouseUp, canvas.screen(middleOfShort), clicks: 2)
+        document.undoManager?.endUndoGrouping()
+        XCTAssertNil(state.design.objects[0].settings.angleLineLength, "back across the whole shape")
+        XCTAssertNil(state.design.objects[0].settings.angleLineCenter, "through the middle")
+        XCTAssertEqual(state.design.objects[0].settings.angle, short.angle, "the angle stays")
+        document.undoManager?.undo()
+        XCTAssertEqual(state.design.objects[0].settings.angleLineLength, short.angleLineLength)
+        document.undoManager?.undo()
+        XCTAssertNil(state.design.objects[0].settings.angleLineLength)
 
         // A press on a node still grabs the node, not the line.
         state.tool = .node
