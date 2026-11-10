@@ -20,12 +20,28 @@ final class LineArtTests: XCTestCase {
             var plan = Design(); plan.objects = lines
             XCTAssertNoThrow(try plan.validate(), design.title)
             XCTAssertGreaterThan(try RunningEngine.compile(plan).stitchCount, 30, design.title)
-            // Twice the size is twice as wide; bean stitch sews each line three times.
+            // Twice the size is twice as wide; bean stitch sews each line three times, but where it goes back over
+            // itself only once.
             let big = LineArt.objects(design, size: 120, bean: true, color: color)
             func width(_ objects: [RunObject]) -> Double { let xs = objects.flatMap { $0.outlinePaths.flatMap { $0 } }.map(\.x); return xs.max()! - xs.min()! }
             XCTAssertEqual(width(big), 2 * width(lines), accuracy: 0.5, design.title)
-            XCTAssertTrue(big.allSatisfy { $0.settings.runPasses == 3 }, design.title)
+            XCTAssertTrue(big.allSatisfy { $0.settings.runPasses == 3 && $0.settings.retraceOnce == true }, design.title)
         }
+    }
+
+    /// Bean line art sews the stretches it goes back over once, not three times: never more stitches than plain
+    /// bean, and fewer for drawings whose joins go back over a line.
+    func testBeanSewsRetracedStretchesOnce() throws {
+        var fewer = 0
+        for design in LineArtDesign.allCases {
+            var once = Design(); once.objects = LineArt.objects(design, size: 60, bean: true, color: .palette[0])
+            XCTAssertNoThrow(try once.validate(), design.title)
+            var thrice = once; for i in thrice.objects.indices { thrice.objects[i].digitizing?.retraceOnce = nil }
+            let onceCount = try RunningEngine.compile(once).stitchCount, thriceCount = try RunningEngine.compile(thrice).stitchCount
+            XCTAssertLessThanOrEqual(onceCount, thriceCount, design.title)
+            if onceCount < thriceCount { fewer += 1 }
+        }
+        XCTAssertGreaterThan(fewer, 0, "some drawings go back over a line, and those stretches are sewn once")
     }
 
     /// Touching strokes join into one line: most drawings sew in one go; only parts that float free (the butterfly's

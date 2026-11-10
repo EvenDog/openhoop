@@ -24,7 +24,8 @@ public enum LineArt {
     public static let defaultSize = 60.0
 
     /// `design` as running lines `size` mm wide, centered on 0,0, in `color`, grouped. `bean`: each line is sewn
-    /// three times (forward, back, forward) for a bolder line.
+    /// three times (forward, back, forward) for a bolder line, except where it goes back over itself (the joins):
+    /// those stretches are sewn once, as Make Redwork does, so they come out about as bold as the rest.
     public static func objects(_ design: LineArtDesign, size: Double, bean: Bool, color: ThreadColor) -> [RunObject] {
         let drawn = joined(strokes(design)), points = drawn.flatMap { $0 }
         let left = points.map(\.x).min() ?? 0, right = points.map(\.x).max() ?? 100
@@ -38,7 +39,7 @@ public enum LineArt {
             var line = RunObject(name: "\(design.title) \(index + 1)", nodes: nodes(closed ? Array(stroke.dropLast()) : stroke, closed: closed), color: color)
             line.closed = closed
             line.digitizing = DigitizingSettings(kind: .run)
-            if bean { line.digitizing?.runPasses = 3 }
+            if bean { line.digitizing?.runPasses = 3; line.digitizing?.retraceOnce = true }
             line.stitchLength = bean ? 2.5 : 2
             line.groupID = group
             return line
