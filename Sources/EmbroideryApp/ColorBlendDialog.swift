@@ -62,6 +62,8 @@ struct ColorBlendView: View {
     @State private var picked: [ThreadColor] = []
     /// The two layers' stitches; nil while they're worked out.
     @State private var preview: StitchPlan?
+    /// True while a new preview is being worked out; the last one stays on show until it's ready.
+    @State private var working = false
     /// True draws the preview as real thread (Thread View), false as plain stitch lines. Starts as the canvas is.
     @State private var threadView = Preferences.shared.threadView
     /// The direction line drawn across the preview (in its points): while dragging, and after, until the direction is
@@ -178,6 +180,7 @@ struct ColorBlendView: View {
                     ZStack {
                         Theme.ground
                         if let preview { StitchPlanPicture(plan: preview, threadView: threadView).padding(14) } else { ProgressView().controlSize(.small) }
+                        PreviewBusy(busy: working)
                         // The drawn direction, shown while it's the blend's direction.
                         if let line = drawnLine, line.degrees == nil || line.degrees == direction { DirectionArrow(start: line.start, end: line.end) }
                     }
@@ -196,8 +199,8 @@ struct ColorBlendView: View {
         }
         // Work out the layers' stitches in the background whenever a thread, the direction or the mix changes.
         .task(id: PreviewKey(first: first, second: second, direction: direction, fade: fade, shape: shape, firstAtEdge: firstAtEdge)) {
-            preview = nil
             guard let second else { return }
+            working = true   // the last preview stays on show until the new one is ready
             let fills = fills.map { fill -> RunObject in var fill = fill; if let first { fill.color = first }; return fill }
             let direction = direction, fade = fade, shape = shape, firstAtEdge = firstAtEdge
             let plan = await Task.detached(priority: .userInitiated) { () -> StitchPlan? in
@@ -205,7 +208,7 @@ struct ColorBlendView: View {
                 sample.objects = fills.flatMap { ColorBlend.layers(of: $0, second: second, direction: direction, fade: fade, shape: shape, firstAtEdge: firstAtEdge) }
                 return try? StitchEngine.compile(sample)
             }.value
-            if !Task.isCancelled { preview = plan }
+            if !Task.isCancelled { preview = plan; working = false }
         }
     }
 

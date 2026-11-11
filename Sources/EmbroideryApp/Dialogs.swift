@@ -128,6 +128,25 @@ struct ImportReportView: View {
 }
 
 /// A small picture of imported stitches or outlines, scaled to fit, each in its own thread color.
+/// The small spinner in a preview's top corner while a new picture is being worked out. The last picture stays
+/// on show underneath, and the spinner only appears when the work takes longer than a quarter of a second, so
+/// quick changes swap the picture without any flicker.
+struct PreviewBusy: View {
+    let busy: Bool
+    @State private var shown = false
+    var body: some View {
+        ZStack { if shown { ProgressView().controlSize(.small).padding(10) } }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            .allowsHitTesting(false)
+            // .task(id:) starts again each time `busy` changes, cancelling the wait that was running.
+            .task(id: busy) {
+                guard busy else { shown = false; return }
+                try? await Task.sleep(for: .milliseconds(250))
+                if !Task.isCancelled { shown = true }
+            }
+    }
+}
+
 struct StitchThumbnail: View {
     let objects: [RunObject]
     var label = "Preview of the imported design"
@@ -288,8 +307,10 @@ struct AutoDigitizeView: View {
     @State var options: AutoDigitizeOptions
     /// Called with the options and what to do next (nil for Cancel).
     let done: (AutoDigitizeOptions, AutoDigitizeOutcome?) -> Void
-    @State private var traced: Result<AutoDigitizeTrace, Error>?   // nil while tracing
-    @State private var built: Result<AutoDigitizeResult, Error>?   // the stitches as chosen; nil while they're made
+    @State private var traced: Result<AutoDigitizeTrace, Error>?   // nil until the first trace is done
+    @State private var built: Result<AutoDigitizeResult, Error>?   // the stitches as chosen; nil until the first are made
+    /// True while a new preview is being worked out; the last one stays on show until it's ready.
+    @State private var working = false
     @State private var traceNumber = 0                             // counts traces, so each new one is built
     /// The stitch picked for each thread color's parts; a color not in here is Auto (each part by its width).
     @State private var colorStitches: [ThreadColor: PatchStitch] = [:]
@@ -313,10 +334,10 @@ struct AutoDigitizeView: View {
                     primary: "Add Stitches",
                     extra: "Fine-tune on Canvas…",
                     extraAction: {
-                        if case .success(let trace)? = traced { done(options, .paint(trace, choices: trace.choices(byThread: colorStitches))) }
+                        if !working, case .success(let trace)? = traced { done(options, .paint(trace, choices: trace.choices(byThread: colorStitches))) }
                     },
                     finish: { add in
-                        if !add { done(options, nil) } else if case .success(let result)? = built { done(options, .stitches(result)) }
+                        if !add { done(options, nil) } else if !working, case .success(let result)? = built { done(options, .stitches(result)) }
                     }) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top, spacing: 16) {
@@ -329,6 +350,7 @@ struct AutoDigitizeView: View {
                         case .success(let result)?: StitchThumbnail(objects: result.objects, label: "Preview of the traced stitches")
                         case .failure(let error)?: Text(error.localizedDescription).font(Theme.body(12)).foregroundStyle(Theme.inkSecondary).multilineTextAlignment(.center).padding()
                         }
+                        PreviewBusy(busy: working)
                     }
                 }
                 HStack(alignment: .top, spacing: 24) {
@@ -353,7 +375,7 @@ struct AutoDigitizeView: View {
         }
         // .task(id:) restarts whenever the options change, cancelling the previous trace if it hasn't finished.
         .task(id: options) {
-            traced = nil; built = nil
+            working = true   // the last trace and stitches stay on show until the new ones are ready
             let artwork = artwork, options = options
             let result = await Task.detached(priority: .userInitiated) { Result { try AutoDigitize.trace(artwork, options: options) } }.value
             guard !Task.isCancelled else { return }
@@ -367,12 +389,12 @@ struct AutoDigitizeView: View {
         // doesn't trace the picture again.
         .task(id: BuildKey(trace: traceNumber, stitches: colorStitches)) {
             switch traced {
-            case .failure(let error)?: built = .failure(error)
+            case .failure(let error)?: built = .failure(error); working = false
             case .success(let trace)?:
-                built = nil
+                working = true
                 let choices = trace.choices(byThread: colorStitches)
                 let result = await Task.detached(priority: .userInitiated) { Result { try trace.build(choices) } }.value
-                if !Task.isCancelled { built = result }
+                if !Task.isCancelled { built = result; working = false }
             case nil: break
             }
         }
@@ -468,13 +490,15 @@ struct SatinBorderView: View {
     let done: (Double, [(source: UUID, border: RunObject)]?) -> Void
     /// The latest borders, problems and notes; nil while they are being worked out.
     @State private var built: (borders: [(source: UUID, border: RunObject)], notes: [String])?
+    /// True while a new preview is being worked out; the last one stays on show until it's ready.
+    @State private var working = false
 
     var body: some View {
         DialogFrame(eyebrow: "Satin border", title: "Add a satin border",
                     subtitle: "A satin column runs all the way around the outside edge of \(shapes.count == 1 ? "the selected shape" : "each selected shape"), centered on it, like the finished edge of a patch. Corners are rounded just enough for the satin to turn.",
                     primary: "Add Border",
                     finish: { add in
-                        if !add { done(width, nil) } else if let built, !built.borders.isEmpty { done(width, built.borders) }
+                        if !add { done(width, nil) } else if !working, let built, !built.borders.isEmpty { done(width, built.borders) }
                     }) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top, spacing: 20) {
@@ -492,6 +516,7 @@ struct SatinBorderView: View {
                     ZStack {
                         Theme.ground
                         if let built { StitchThumbnail(objects: shapes + built.borders.map(\.border), label: "Preview of the satin border") } else { ProgressView().controlSize(.small) }
+                        PreviewBusy(busy: working)
                     }.frame(height: 240).clipShape(RoundedRectangle(cornerRadius: 14))
                 }
                 if let built, !built.notes.isEmpty { NotesList(title: "Notes", notes: built.notes) }
@@ -499,7 +524,7 @@ struct SatinBorderView: View {
         }
         // Rebuild the borders in the background whenever the width changes.
         .task(id: width) {
-            built = nil
+            working = true
             let shapes = shapes, width = width, color = color
             let result = await Task.detached(priority: .userInitiated) { () -> (borders: [(source: UUID, border: RunObject)], notes: [String]) in
                 var borders: [(source: UUID, border: RunObject)] = [], notes: [String] = []
@@ -509,7 +534,7 @@ struct SatinBorderView: View {
                 }
                 return (borders, notes)
             }.value
-            if !Task.isCancelled { built = result }
+            if !Task.isCancelled { built = result; working = false }
         }
     }
 }
@@ -538,6 +563,8 @@ struct OutlinesOffsetsView: View {
     let done: (OutlineOptions, [(source: UUID, outlines: [RunObject])]?) -> Void
     /// The latest outlines and notes; nil while they are being worked out.
     @State private var built: (outlines: [(source: UUID, outlines: [RunObject])], notes: [String])?
+    /// True while a new preview is being worked out; the last one stays on show until it's ready.
+    @State private var working = false
     /// Each offset's distance, kept while it's switched off so switching it back on brings it back.
     @State private var distances: [Double]
     init(shapes: [RunObject], color: ThreadColor, options: OutlineOptions, done: @escaping (OutlineOptions, [(source: UUID, outlines: [RunObject])]?) -> Void) {
@@ -551,7 +578,7 @@ struct OutlinesOffsetsView: View {
                     subtitle: "New outlines around \(shapes.count == 1 ? "the selected shape" : "each selected shape"): one right on its edge, and up to two more a set distance outside or inside it. Each is an ordinary outline you can recolor or reshape.",
                     primary: "Add Outlines",
                     finish: { add in
-                        if !add { done(options, nil) } else if let built, built.outlines.contains(where: { !$0.outlines.isEmpty }) { done(options, built.outlines) }
+                        if !add { done(options, nil) } else if !working, let built, built.outlines.contains(where: { !$0.outlines.isEmpty }) { done(options, built.outlines) }
                     }) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top, spacing: 20) {
@@ -578,6 +605,7 @@ struct OutlinesOffsetsView: View {
                     ZStack {
                         Theme.ground
                         if let built { StitchThumbnail(objects: shapes + built.outlines.flatMap(\.outlines), label: "Preview of the outlines") } else { ProgressView().controlSize(.small) }
+                        PreviewBusy(busy: working)
                     }.frame(height: 260).clipShape(RoundedRectangle(cornerRadius: 14))
                 }
                 if let built, !built.notes.isEmpty { NotesList(title: "Notes", notes: built.notes) }
@@ -585,7 +613,7 @@ struct OutlinesOffsetsView: View {
         }
         // Rebuild the outlines in the background whenever an option changes.
         .task(id: options) {
-            built = nil
+            working = true
             let shapes = shapes, options = options, color = color
             let result = await Task.detached(priority: .userInitiated) { () -> (outlines: [(source: UUID, outlines: [RunObject])], notes: [String]) in
                 var outlines: [(source: UUID, outlines: [RunObject])] = [], notes: [String] = []
@@ -596,7 +624,7 @@ struct OutlinesOffsetsView: View {
                 }
                 return (outlines, notes)
             }.value
-            if !Task.isCancelled { built = result }
+            if !Task.isCancelled { built = result; working = false }
         }
     }
 
@@ -665,13 +693,15 @@ struct AppliqueView: View {
     let done: (Double, Applique.TackDown, [(source: UUID, parts: [RunObject])]?) -> Void
     /// The latest parts and notes; nil while they are being worked out.
     @State private var built: (parts: [(source: UUID, parts: [RunObject])], notes: [String])?
+    /// True while a new preview is being worked out; the last one stays on show until it's ready.
+    @State private var working = false
 
     var body: some View {
         DialogFrame(eyebrow: "Appliqué", title: "Make appliqué",
                     subtitle: "Sews a piece of fabric on in place of \(shapes.count == 1 ? "the selected shape" : "each selected shape"), instead of filling it with stitches. It uses the shape's own thread and takes its place in the sewing order.",
                     primary: "Make Appliqué",
                     finish: { make in
-                        if !make { done(width, tackDown, nil) } else if let built, !built.parts.isEmpty { done(width, tackDown, built.parts) }
+                        if !make { done(width, tackDown, nil) } else if !working, let built, !built.parts.isEmpty { done(width, tackDown, built.parts) }
                     }) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top, spacing: 20) {
@@ -691,6 +721,7 @@ struct AppliqueView: View {
                     ZStack {
                         Theme.ground
                         if let built { StitchThumbnail(objects: built.parts.flatMap(\.parts), label: "Preview of the appliqué") } else { ProgressView().controlSize(.small) }
+                        PreviewBusy(busy: working)
                     }.frame(height: 240).clipShape(RoundedRectangle(cornerRadius: 14))
                 }
                 if let built, !built.notes.isEmpty { NotesList(title: "Notes", notes: built.notes) }
@@ -698,7 +729,7 @@ struct AppliqueView: View {
         }
         // Rebuild the parts in the background whenever the width or tack-down changes.
         .task(id: "\(width) \(tackDown.rawValue)") {
-            built = nil
+            working = true
             let shapes = shapes, width = width, tackDown = tackDown
             let result = await Task.detached(priority: .userInitiated) { () -> (parts: [(source: UUID, parts: [RunObject])], notes: [String]) in
                 var parts: [(source: UUID, parts: [RunObject])] = [], notes: [String] = []
@@ -708,7 +739,7 @@ struct AppliqueView: View {
                 }
                 return (parts, notes)
             }.value
-            if !Task.isCancelled { built = result }
+            if !Task.isCancelled { built = result; working = false }
         }
     }
 
