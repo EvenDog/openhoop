@@ -411,7 +411,7 @@ import EmbroideryCore
     private static let reviewSteps: [CommandID: Int] = [.nudgeRight: 1, .nudgeDown: 1, .stepForward: 1, .nextObject: 1,
                                                         .nudgeLeft: -1, .nudgeUp: -1, .stepBackward: -1, .previousObject: -1]
     /// Commands that open a dialog and wait for it to close.
-    private static let opensDialog: Set<CommandID> = [.laydown, .testSwatches, .addMonogram, .editMonogram, .addLineArt, .autoDigitize, .satinBorder, .colorBlend, .outlinesOffsets, .applique, .threadChart, .renameObject, .importImage, .createMotif]
+    private static let opensDialog: Set<CommandID> = [.laydown, .testSwatches, .addLineArt, .autoDigitize, .satinBorder, .colorBlend, .outlinesOffsets, .applique, .threadChart, .renameObject, .importImage, .createMotif]
     /// `now` is false unless the command was already put off by one beat (see below).
     func perform(_ command: CommandID, now: Bool = false) {
         // A dialog opened inside a SwiftUI button's action never updates (no typing, no setup), because SwiftUI
@@ -587,7 +587,7 @@ import EmbroideryCore
         case .outlinesOffsets: addOutlinesOffsets(state)
         case .applique: makeApplique(state)
         case .laydown: addLaydown(state)
-        case .addMonogram: addMonogram(state)
+        case .addMonogram: state.addMonogram()
         case .editMonogram: editMonogram(state)
         case .addLineArt: addLineArt(state)
         case .convertSatin: makeSatinColumn(state)
@@ -995,18 +995,6 @@ import EmbroideryCore
             state.status = "Added \(added.count) outline\(added.count == 1 ? "" : "s"). Each sews right after its shape; reorder, recolor or reshape it like any object."
         } catch { showError(error) }
     }
-    /// Add Monogram: the dialog builds the monogram, then it's added (centered in the hoop) as one step you can undo.
-    private func addMonogram(_ state: EditorState) {
-        guard !state.hasVersionMismatch, state.draft.isEmpty else { state.status = "Finish the current path and regenerate older projects before adding a monogram."; return }
-        guard let spec = GuidedDialog.monogram(color: state.currentColor) else { state.status = "Monogram cancelled."; return }
-        do {
-            let made = try spec.build(color: state.currentColor, embroideryFonts: EmbroideryFontLibrary.fonts).objects
-            var candidate = state.design; candidate.objects += made; try candidate.validate()
-            state.edit("Add Monogram") { $0 = candidate }
-            state.selection = Set(made.map(\.id)); state.selectedNode = nil; state.tool = .select; state.focusCanvas()
-            state.status = "Added the monogram as one group. Drag to move it; double-click it to change the initials, font, layout or border."
-        } catch { showError(error) }
-    }
     /// Add Line Art: the dialog picks a drawing, its size and stitch; it's added in the middle of the hoop as one
     /// group, in the current thread, as one step you can undo.
     private func addLineArt(_ state: EditorState) {
@@ -1020,24 +1008,17 @@ import EmbroideryCore
             state.status = "Added the \(choice.design.title.lowercased()) as one group. Drag to move it, or drag a corner handle to resize it."
         } catch { showError(error) }
     }
-    /// Edit Monogram: reopens the dialog with the selected monogram's recipe and rebuilds it in the same place and
-    /// sewing-order position, as one step you can undo.
+    /// Edit Monogram (and double-clicking one): selects the whole monogram and puts the keyboard in its Initials box
+    /// in Properties, where its font, layout, ornaments and border are chosen too.
     private func editMonogram(_ state: EditorState) {
-        guard !state.hasVersionMismatch, state.draft.isEmpty else { state.status = "Finish the current path and regenerate older projects before editing the monogram."; return }
-        guard let spec = state.design.objects.first(where: { state.selection.contains($0.id) && $0.monogram != nil })?.monogram?.asResized else {
+        guard let spec = state.design.objects.first(where: { state.selection.contains($0.id) && $0.monogram != nil })?.monogram else {
             state.status = "Select a monogram made with Add Monogram (\(Preferences.shared.key(.addMonogram))) first."; return
         }
-        let old = state.design.monogramObjects(spec.id)
-        guard !old.contains(where: \.locked) else { state.status = "Unlock the monogram before editing it."; return }
-        let color = old.first?.color ?? state.currentColor
-        guard let edited = GuidedDialog.monogram(color: color, editing: spec) else { state.status = "Monogram unchanged."; return }
-        do {
-            let made = try edited.build(color: color, embroideryFonts: EmbroideryFontLibrary.fonts).objects
-            var candidate = state.design; let ids = candidate.replaceMonogram(spec.id, with: made); try candidate.validate()
-            state.edit("Edit Monogram") { $0 = candidate }
-            state.selection = Set(ids); state.selectedNode = nil; state.tool = .select; state.focusCanvas()
-            state.status = "Updated the monogram."
-        } catch { showError(error) }
+        let parts = state.design.monogramObjects(spec.id)
+        guard !parts.contains(where: \.locked) else { state.status = "Unlock the monogram before editing it."; return }
+        state.selection = Set(parts.map(\.id)); state.selectedNode = nil; state.tool = .select
+        state.focusMonogramInitials()
+        state.status = "Type new initials, or pick another font, layout, ornament or border in Properties."
     }
     /// Add Laydown: the dialog works out light open fills under the selection (or the whole design), then they're
     /// added, sewn before what they lie under, as one step you can undo.
