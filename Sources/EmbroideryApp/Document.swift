@@ -156,6 +156,8 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
     @Published var currentColor = ThreadColor.palette[0]
     /// Set when the lettering's text box in Properties should take the keyboard; the box clears it once it has.
     @Published var letteringTextFocusRequested = false
+    /// Set when the monogram's Initials box in Properties should take the keyboard; the box clears it once it has.
+    @Published var monogramInitialsFocusRequested = false
     // What the canvas shows (the grid and the Show list). They're view choices, so they aren't saved in the design
     // or undone; each one switched is remembered in Preferences, and new and opened designs start with it.
     @Published var grid = Preferences.shared.shown.grid ?? true { didSet { Preferences.shared.updateShown { $0.grid = grid } } }
@@ -1069,6 +1071,46 @@ struct StitchRef:Hashable {var section:Int;var index:Int}
             selection = Set(ids); selectedNode = nil
             LetteringDefaults.remember(spec)
             if let warning = letters.warnings.first { status = warning }
+            return true
+        } catch { status = error.localizedDescription; return false }
+    }
+    /// Add Monogram: a new monogram with the choices used last, in the middle of the hoop and the current thread, as
+    /// one step you can undo. It's selected, and its Initials box in Properties is ready to type over; its font,
+    /// layout, ornaments and border are chosen there too.
+    func addMonogram() {
+        guard !hasVersionMismatch, draft.isEmpty else { status = "Finish the current path and regenerate older projects before adding a monogram."; return }
+        let spec = MonogramDefaults.next()
+        do {
+            let made = try spec.build(color: currentColor, embroideryFonts: EmbroideryFontLibrary.fonts)
+            var candidate = design; candidate.objects += made.objects; try candidate.validate()
+            guard edit("Add Monogram", { $0 = candidate }) else { return }
+            selection = Set(made.objects.map(\.id)); selectedNode = nil; tool = .select
+            focusMonogramInitials()
+            status = made.notes.first ?? "Type the initials. Pick the font, layout, ornaments and border in Properties; drag the monogram to move it."
+        } catch { status = error.localizedDescription }
+    }
+    /// Asks Properties (shown if it was hidden) to put the keyboard in the selected monogram's Initials box, with
+    /// the initials selected so typing replaces them.
+    func focusMonogramInitials() {
+        Preferences.shared.updatePanels { $0.show(.properties) }
+        monogramInitialsFocusRequested = true
+    }
+    /// Rebuilds the monogram with `spec.id` from `spec` (new initials, font, height, layout, ornaments or border), in
+    /// the same place, sewing-order position and threads, as one undoable step, and selects it. Says why in the
+    /// status line and returns false if it can't be built. Changes with the same `run` in a row undo as one step.
+    @discardableResult func rebuildMonogram(_ spec: MonogramSpec, action: String = "Edit Monogram", run: String? = nil) -> Bool {
+        let old = design.monogramObjects(spec.id)
+        guard let color = old.first?.color else { return false }
+        guard !old.contains(where: \.locked) else { status = "Unlock the monogram before changing it."; return false }
+        do {
+            let made = try spec.build(color: color, embroideryFonts: EmbroideryFontLibrary.fonts)
+            var candidate = design
+            let ids = candidate.replaceMonogram(spec.id, with: made.objects)
+            try candidate.validate()
+            guard edit(action, run: run, { $0 = candidate }) else { return false }
+            selection = Set(ids); selectedNode = nil
+            MonogramDefaults.remember(spec)
+            if let note = made.notes.first { status = note }
             return true
         } catch { status = error.localizedDescription; return false }
     }
