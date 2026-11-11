@@ -28,6 +28,8 @@ struct LaydownView: View {
     let done: (LaydownSettings, [RunObject]?) -> Void
     /// The latest laydown, or a problem; nil while it's being worked out.
     @State private var built: Result<[RunObject], Error>?
+    /// True while a new preview is being worked out; the last one stays on show until it's ready.
+    @State private var working = false
 
     /// The threads to choose from: the current one, then the design's own in sewing order.
     private var threads: [ThreadColor] {
@@ -42,7 +44,7 @@ struct LaydownView: View {
                     subtitle: "A light, open fill sewn first under \(ids.isEmpty ? "the whole design" : "the selection"). It flattens the pile of towels, fleece and velvet so the stitches on top don't sink in.",
                     primary: "Add Laydown",
                     finish: { add in
-                        if !add { done(settings, nil) } else if case .success(let laydown)? = built, !laydown.isEmpty { done(settings, laydown) }
+                        if !add { done(settings, nil) } else if !working, case .success(let laydown)? = built, !laydown.isEmpty { done(settings, laydown) }
                     }) {
             HStack(alignment: .top, spacing: 20) {
                 VStack(alignment: .leading, spacing: 12) {
@@ -68,15 +70,16 @@ struct LaydownView: View {
                     case .failure(let error)?: Text(error.localizedDescription).font(Theme.body(12)).foregroundStyle(.orange).padding()
                     case nil: ProgressView().controlSize(.small)
                     }
+                    PreviewBusy(busy: working)
                 }.frame(height: 280).clipShape(RoundedRectangle(cornerRadius: 14))
             }
         }
         // Work the laydown out again in the background whenever a setting changes.
         .task(id: [settings.offset, settings.spacing, settings.stitchLength, settings.angle, Double(settings.layers), Double(color.hex)]) {
-            built = nil
+            working = true
             let design = design, ids = ids, settings = settings, color = color
             let result = await Task.detached(priority: .userInitiated) { Result { try design.laydown(under: ids, settings: settings, color: color) } }.value
-            if !Task.isCancelled { built = result }
+            if !Task.isCancelled { built = result; working = false }
         }
     }
     private func stepper(_ label: String, value: Binding<Double>, in range: ClosedRange<Double>, step: Double) -> some View {
