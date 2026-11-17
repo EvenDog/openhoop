@@ -484,13 +484,6 @@ struct InspectorPanel: View {
         state.status = "Fabric: \(fabric.title)." + (updateShapes ? " Updated \(changed) shape\(changed == 1 ? "" : "s")." : " New shapes will use its settings.")
         pendingFabric = nil
     }
-    /// For a monogram's parts: what it is, and a button to change it.
-    func monogramSummary(_ monogram: MonogramSpec) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Label { Text("Monogram “\(monogram.initials)”") } icon: { Image.symbol(CommandID.addMonogram.symbol, size: 13) }.font(Theme.body(13, weight: .semibold)).lineLimit(1)
-            Button("Edit monogram…") { AppDelegate.shared.perform(.editMonogram) }.buttonStyle(ThemedButtonStyle()).help(preferences.hint(.editMonogram))
-        }
-    }
     /// True when the selection is exactly one piece of lettering (all its letters): Properties then shows it as one
     /// object, not as a group of shapes.
     var selectionIsOneLettering: Bool { state.selectedLettering != nil }

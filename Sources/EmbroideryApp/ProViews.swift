@@ -417,7 +417,7 @@ extension InspectorPanel {
         case .stitch:
             if object.stitchEdits != nil { stitchEditNotice(object) }
             if let lettering = object.lettering { letteringEditor(lettering) }
-            if let monogram = object.monogram { monogramSummary(monogram) }
+            if let monogram = object.monogram { monogramEditor(monogram) }
             if let id = object.repeatCopy?.id ?? object.lineRepeat?.id, let spec = state.design.objects.first(where: { $0.lineRepeat?.id == id })?.lineRepeat { proLineRepeat(id, spec) }
             // The tab names the stitches, so their settings only get a heading when lettering, a monogram or copies
             // along a line come first.

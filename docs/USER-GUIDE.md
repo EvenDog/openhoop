@@ -258,13 +258,13 @@ Press **A** (or **Add → Text**), then click on the design where the lettering 
 
 ### Monograms (⌥⇧M)
 
-**Add Monogram…** (in the Add group, next to Text): type one to three initials and pick a font (the embroidery fonts, or classic Mac fonts such as Didot and Baskerville, converted to fill), the height of the tallest initial, and a layout:
+**Add Monogram** (in the Add group, next to Text) puts a monogram in the middle of the hoop, in the current thread, with the choices you used last, and selects it. Its choices are in **Properties**, and the monogram on the hoop changes as soon as you pick one. Type one to three **initials**, pick a **font** from the same list as lettering (the embroidery fonts, or Mac fonts such as Didot and Baskerville, converted to fill), the **height** of the tallest initial, and a **layout**:
 - **Big middle:** the middle initial (usually the surname) larger, the others smaller on either side.
 - **Side by side:** all the same size in a row.
 - **Stacked:** one above the other.
 - **Diamond:** a tall middle with shorter initials close in on either side, to suit a diamond border.
 
-Add **ornaments** either side (swirls, a flourish or lines in bean stitch; leaves, dots, hearts, stars, diamonds, a laurel sprig or a flower; all drawn for OpenHoop) and a **border** (circle, oval, rounded rectangle, square, diamond, hexagon, octagon, shield or heart) sewn as satin, with its width and the gap to the monogram. The preview updates as you go. The monogram is added as one group in the current thread, centered in the hoop. **Double-click** it (or **Edit monogram…** in Properties) to change anything; it's rebuilt in the same place. Embroidery fonts are only digitized for certain sizes, so an initial that would fall outside them is kept within, and the dialog says so. Ungrouping turns a monogram into plain shapes.
+Add **ornaments** either side (swirls, a flourish or lines in bean stitch; leaves, dots, hearts, stars, diamonds, a laurel sprig or a flower; all drawn for OpenHoop) and a **border** (circle, oval, rounded rectangle, square, diamond, hexagon, octagon, shield or heart) sewn as satin, with its width and the gap to the monogram. Layouts, ornaments and borders are pictures drawn with your own initials and font; point at one to see its name. Each change is one step you can undo (initials typed, or fonts tried, one after another undo together). Drag the monogram to move it. **Double-click** it later (or **Edit Monogram**) to put the cursor back in its initials; it's rebuilt in the same place. Embroidery fonts are only digitized for certain sizes, so an initial that would fall outside them is kept within, and the status bar says so. Ungrouping turns a monogram into plain shapes.
 
 ## Patches: borders and appliqué
 

@@ -46,7 +46,7 @@ extension NSImage {
         path.stroke()
     }
 
-    /// Monogram: a serif M on a shield, like the Shield border in the Monogram dialog.
+    /// Monogram: a serif M on a shield, like the Shield border in a monogram's Properties.
     private static func drawMonogram(_ scale: CGFloat) {
         func point(_ x: CGFloat, _ y: CGFloat) -> NSPoint { NSPoint(x: x * scale, y: y * scale) }
         let shield = NSBezierPath()
