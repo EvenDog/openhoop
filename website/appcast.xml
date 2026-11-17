@@ -6,6 +6,36 @@
         <description>New versions of OpenHoop.</description>
         <language>en</language>
         <item>
+            <title>OpenHoop 0.14.0</title>
+            <pubDate>Tue, 17 Nov 2026 02:29:26 GMT</pubDate>
+            <sparkle:version>53</sparkle:version>
+            <sparkle:shortVersionString>0.14.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:fullReleaseNotesLink>https://github.com/EvenDog/openhoop/releases/tag/v0.14.0</sparkle:fullReleaseNotesLink>
+            <description><![CDATA[
+<p>OpenHoop is a free, open-source embroidery digitizing app for the Mac. It's in active development, and its designs have been sewn on a Brother SE600. Test-sew designs before stitching anything important.</p>
+<h3>New in 0.14.0</h3>
+<h4>Monograms are made right on the design</h4>
+<p>The Add Monogram dialog is gone. Monograms are now made and changed in <b>Properties</b>, the same way as lettering, and every choice shows up on the design straight away.</p>
+<ul>
+<li><b>Add Monogram</b> (⌥⇧M) puts a monogram in the middle of the hoop, selects it and puts the cursor in <b>Initials</b>. It uses the choices from your last monogram. The very first one is ABC in Caesarus SC, 30 mm, in a circle.</li>
+<li><b>Properties → Monogram</b> has:</li>
+<li><b>Initials</b> (up to 3 letters): the monogram updates as you type.</li>
+<li><b>Height</b></li>
+<li><b>Font</b>: the same font list as lettering, showing your initials in each font. ↑ ↓ step through them.</li>
+<li><b>Layout</b>, <b>Ornaments</b> and <b>Border</b> as <b>pictures</b> made with your own initials and font, so you can see each choice before you pick it.</li>
+<li><b>Border width</b>, <b>Gap</b> and <b>Break Apart</b>.</li>
+<li>Each change keeps the monogram in the same place, at the same spot in the sewing order, with the same threads. One <b>Undo</b> takes back one change; initials typed in a row, or fonts tried in a row, undo together.</li>
+<li><b>Edit Monogram</b>, or double-clicking a monogram, selects it and puts the cursor in Initials.</li>
+</ul>
+<h4>Dialog previews don't go blank</h4>
+<p>Satin Border, Outlines &amp; Offsets, Appliqué, Laydown, Auto-Digitize and Color Blend keep showing the last preview while the next one is worked out, instead of flashing blank with a spinner after every click. A small spinner shows in the corner only if it takes longer than a quarter of a second. The main button waits until the new preview is ready, so it never uses an old one.</p>
+<h4>Files</h4>
+<p>No change to the file format. Monograms made in older versions open and can be changed in the new panel.</p>
+            ]]></description>
+            <enclosure url="https://github.com/EvenDog/openhoop/releases/download/v0.14.0/OpenHoop-0.14.0.dmg" sparkle:edSignature="KWRKlT2dEz2M0DLbm9y41FmNkQ3kRRnBkAb6DJlg/KPexv+1AZOlBfnGADp4y58rx1bjZPU+y8fhJhqy4eCTBw==" length="43343487" type="application/octet-stream"/>
+        </item>
+        <item>
             <title>OpenHoop 0.13.6</title>
             <pubDate>Tue, 10 Nov 2026 22:28:26 GMT</pubDate>
             <sparkle:version>52</sparkle:version>
